@@ -403,7 +403,7 @@ class TestErrorHandling:
     def test_invalid_email_format_handled(self, db):
         """Test handling of user without email."""
         AuthService()
-        _auth0_user = {  # noqa: F841
+        _auth0_user = {
             "sub": "auth0|no_email_user"
             # No email provided
         }

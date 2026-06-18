@@ -27,9 +27,9 @@ Wolf Goat Pig is built with modern, production-ready technologies chosen for rel
 ## Frontend Stack
 
 ### Core Framework
-- **React** (v18.2.0) - Component-based UI framework
-- **React Router** (v6) - Client-side routing
-- **Create React App** - Build tooling and configuration
+- **React** (v19) - Component-based UI framework
+- **React Router** (v7) - Client-side routing
+- **Vite** (v6) - Build tooling and dev server
 
 ### State Management
 - **React Context API** - Global state management
@@ -41,8 +41,8 @@ Wolf Goat Pig is built with modern, production-ready technologies chosen for rel
 - **Responsive Design** - Mobile-first approach
 
 ### Build Tools
-- **Webpack** (via CRA) - Module bundling
-- **Babel** - JavaScript transpilation
+- **Vite** (via Rollup) - Module bundling
+- **esbuild** (via Vite) - JavaScript/JSX transpilation
 - **ESLint** - Code quality enforcement
 
 ## Infrastructure
@@ -65,11 +65,10 @@ Wolf Goat Pig is built with modern, production-ready technologies chosen for rel
   - Test automation
 
 ### Development Tools
-- **BMad Method** - Agile AI-driven development framework
 - **Claude Code** - AI pair programming
 - **Git** - Version control
 - **pytest** - Python testing framework
-- **Jest** (via CRA) - JavaScript testing
+- **Vitest** - JavaScript/React testing
 
 ## API Design
 
@@ -92,7 +91,7 @@ Wolf Goat Pig is built with modern, production-ready technologies chosen for rel
 
 ### Frontend Testing
 - **React Testing Library** - Component testing
-- **Jest** - Test runner and assertions
+- **Vitest** - Test runner and assertions
 
 ### Integration Testing
 - **BDD scenarios** - Behavior-driven development

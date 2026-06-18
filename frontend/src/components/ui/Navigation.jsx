@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useTheme } from '../../theme/Provider';
+import NotificationBell from './NotificationBell';
+import { isAdminEmail } from '../../utils/adminAuth';
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -14,15 +16,15 @@ const Navigation = () => {
 
   const { isAuthenticated, user, loginWithRedirect, logout } = useAuth0();
 
-  // Check if user is admin
-  const adminEmails = ['stuagano@gmail.com', 'admin@wgp.com'];
-  const userEmail = localStorage.getItem('userEmail') || user?.email || 'stuagano@gmail.com';
+  // Keep localStorage in sync with the authenticated user (read by admin API helpers)
+  useEffect(() => {
+    if (user?.email) {
+      localStorage.setItem('userEmail', user.email);
+    }
+  }, [user?.email]);
 
-  if (user?.email && !localStorage.getItem('userEmail')) {
-    localStorage.setItem('userEmail', user.email);
-  }
-
-  const showAdminLink = adminEmails.includes(userEmail);
+  // Admin link only for authenticated admins — never default to an admin identity
+  const showAdminLink = isAuthenticated && isAdminEmail(user?.email);
 
   // Bottom tab bar items (always visible on mobile)
   const bottomTabItems = [
@@ -34,15 +36,21 @@ const Navigation = () => {
 
   // "More" sheet items
   const moreItems = [
+    { path: '/scorecard-scan', label: 'Scan Scorecard', icon: '📷' },
+    { path: '/join', label: 'Join with Code', icon: '🔗' },
     { path: '/games/active', label: 'Active Games', icon: '🎮' },
     { path: '/games/completed', label: 'Game History', icon: '🏆' },
+    { path: '/rounds/post', label: 'Post a Round', icon: '📝' },
     { path: '/badges', label: 'Badges', icon: '🏅' },
-    { path: '/leaderboard', label: 'Leaderboard', icon: '📊' },
+    { path: '/leaderboard', label: 'WGP Leaderboard', icon: '📊' },
+    { path: '/livsow', label: 'LivSow', icon: '⛳' },
+    { path: '/chat', label: 'League Chat', icon: '💬' },
     { path: '/tutorial', label: 'Tutorial', icon: '🎓' },
     { path: '/rules', label: 'Rules', icon: '📋' },
+    { path: '/find-a-game', label: 'Find a Game', icon: '🤝' },
     { path: '/ask', label: 'Ask Commissioner', icon: '⚖️' },
+    { path: '/analytics', label: 'Analytics', icon: '📈' },
     { path: '/about', label: 'About', icon: 'ℹ️' },
-    { href: 'https://thousand-cranes.com/WolfGoatPig/wgp_tee_sheet.cgi', label: 'Legacy Sign Up', icon: '📋', external: true },
     { href: 'https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM', label: 'Legacy Standings', icon: '📊', external: true },
     ...(showAdminLink ? [{ path: '/admin', label: 'Admin', icon: '🔧' }] : [])
   ];
@@ -53,14 +61,20 @@ const Navigation = () => {
     { path: '/signup', label: '📅 Sign Up', primary: true },
     { path: '/game', label: '⚔️ Game', primary: true },
     { path: '/games/active', label: '🎮 Active', primary: true },
+    { path: '/scorecard-scan', label: '📷 Scan Scorecard', primary: false },
+    { path: '/join', label: '🔗 Join with Code', primary: false },
     { path: '/games/completed', label: '🏆 History', primary: false },
+    { path: '/rounds/post', label: '📝 Post Round', primary: false },
     { path: '/badges', label: '🏅 Badges', primary: false },
-    { path: '/leaderboard', label: '📊 Leaderboard', primary: false },
+    { path: '/leaderboard', label: '📊 WGP Leaderboard', primary: false },
+    { path: '/livsow', label: '⛳ LivSow', primary: false },
+    { path: '/chat', label: '💬 Chat', primary: false },
     { path: '/tutorial', label: '🎓 Tutorial', primary: false },
+    { path: '/find-a-game', label: '🤝 Find a Game', primary: false },
     { path: '/ask', label: '⚖️ Ask Commissioner', primary: false },
+    { path: '/analytics', label: '📈 Analytics', primary: false },
     { path: '/about', label: 'ℹ️ About', primary: false },
     { path: '/rules', label: '📋 Rules', primary: false },
-    { href: 'https://thousand-cranes.com/WolfGoatPig/wgp_tee_sheet.cgi', label: '📋 Legacy Sign Up', primary: false, external: true },
     { href: 'https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM', label: '📊 Legacy Standings', primary: false, external: true },
     ...(showAdminLink ? [{ path: '/admin', label: '🔧 Admin', primary: true }] : [])
   ];
@@ -393,6 +407,7 @@ const Navigation = () => {
 
               {/* Theme Toggle & Auth */}
               <div style={{ marginLeft: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <NotificationBell />
                 <button
                   style={{
                     ...navButtonStyle,
@@ -442,23 +457,26 @@ const Navigation = () => {
             </div>
           )}
 
-          {/* Mobile: Theme toggle in header */}
+          {/* Mobile: Bell + Theme toggle in header */}
           {isMobile && (
-            <button
-              style={{
-                background: 'transparent',
-                border: '2px solid rgba(255,255,255,0.5)',
-                borderRadius: '8px',
-                padding: '8px 12px',
-                fontSize: '18px',
-                cursor: 'pointer',
-                color: '#fff'
-              }}
-              onClick={theme.toggleTheme}
-              aria-label={theme.isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {theme.isDark ? '☀️' : '🌙'}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <NotificationBell />
+              <button
+                style={{
+                  background: 'transparent',
+                  border: '2px solid rgba(255,255,255,0.5)',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  fontSize: '18px',
+                  cursor: 'pointer',
+                  color: '#fff'
+                }}
+                onClick={theme.toggleTheme}
+                aria-label={theme.isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {theme.isDark ? '☀️' : '🌙'}
+              </button>
+            </div>
           )}
         </div>
       </nav>

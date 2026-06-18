@@ -3,20 +3,20 @@
 import json
 import logging
 import traceback
-from datetime import UTC, datetime
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from .. import database, models, schemas
-from ..managers.websocket_manager import manager as websocket_manager
-from ..schemas import ActionRequest, ActionResponse
+from ..badge_engine import BadgeEngine
 from ..services.game_lifecycle_service import get_game_lifecycle_service
 from ..services.notification_service import get_notification_service
 from ..state.course_manager import CourseManager
-from ..validators import GameStateValidator, HandicapValidator
+from ..utils.time import utc_now
 from ..wolf_goat_pig import Player, WolfGoatPigGame
 
 logger = logging.getLogger(__name__)
@@ -24,9 +24,44 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/games", tags=["games"])
 
 
+class SetTeeOrderRequest(BaseModel):
+    player_order: list[str] = Field(..., min_length=1)
+
+
+def _check_game_achievements(db: Session, game_id: str, record_id: int) -> None:
+    """Run post-game badge checks for all linked players. Never raises — failures are logged only."""
+    try:
+        game_players = (
+            db.query(models.GamePlayer)
+            .filter(
+                models.GamePlayer.game_id == game_id,
+                models.GamePlayer.player_profile_id.isnot(None),
+            )
+            .all()
+        )
+        if not game_players:
+            return
+        engine = BadgeEngine(db)
+        for gp in game_players:
+            try:
+                earned = engine.check_post_game_achievements(record_id, int(gp.player_profile_id))
+                if earned:
+                    logger.info(
+                        "🏅 Awarded %d badge(s) to player %d after game %s",
+                        len(earned),
+                        gp.player_profile_id,
+                        game_id,
+                    )
+            except Exception as e:
+                logger.error("Badge check failed for player %d: %s", gp.player_profile_id, e)
+    except Exception as e:
+        logger.error("_check_game_achievements failed for game %s: %s", game_id, e)
+
+
 # ---------------------------------------------------------------------------
 # Legacy-to-unified action mapping (used by POST /games/{game_id}/action)
 # ---------------------------------------------------------------------------
+
 
 def _get_current_captain_id() -> str | None:
     """Best-effort lookup for the active captain id across legacy and unified state."""
@@ -108,6 +143,8 @@ async def create_game_with_join_code(
     db: Session = Depends(database.get_db),
 ) -> dict[str, Any]:
     """Create a new game with a join code for authenticated players"""
+    if player_count not in (4, 5, 6):
+        raise HTTPException(status_code=400, detail="Wolf Goat Pig requires 4, 5, or 6 players")
     try:
         import random
         import string
@@ -122,7 +159,7 @@ async def create_game_with_join_code(
 
         # Create game with unique ID
         game_id = str(uuid.uuid4())
-        current_time = datetime.now(UTC).isoformat()
+        current_time = utc_now().isoformat()
 
         # Initial game state
         initial_state = {
@@ -222,17 +259,55 @@ async def join_game_with_code(  # type: ignore
 
         # Assign player slot
         player_slot_id = f"p{len(current_players) + 1}"
-        current_time = datetime.now(UTC).isoformat()
+        current_time = utc_now().isoformat()
 
-        # Ensure handicap is valid - use default if None
+        # Look up player profile — prefer explicit ID, fall back to name match
+        # (strip punctuation/whitespace for fuzzy-ish matching).
         player_handicap = request.handicap if request.handicap is not None else 18.0
+        resolved_profile_id = request.player_profile_id
+        profile = None
+
+        if request.player_profile_id:
+            profile = (
+                db.query(models.PlayerProfile).filter(models.PlayerProfile.id == request.player_profile_id).first()
+            )
+
+        if not profile:
+            # Case-insensitive exact match, then startswith fallback
+            name = request.player_name.strip()
+            profile = db.query(models.PlayerProfile).filter(models.PlayerProfile.name.ilike(name)).first()
+            if not profile:
+                # Try matching on first word (nickname vs full name)
+                first_word = name.split()[0]
+                profile = (
+                    db.query(models.PlayerProfile).filter(models.PlayerProfile.name.ilike(f"{first_word}%")).first()
+                )
+
+        if profile:
+            resolved_profile_id = int(profile.id)
+            # Use stored handicap as baseline even if GHIN sync is skipped
+            if profile.handicap is not None and request.handicap == 18.0:
+                player_handicap = float(profile.handicap)
+
+            if profile.ghin_id:
+                try:
+                    from ..services.ghin_service import GHINService
+
+                    ghin = GHINService(db)
+                    if await ghin.initialize():
+                        result = await ghin.sync_player_handicap(int(profile.id))
+                        if result and result.get("handicap_index") is not None:
+                            player_handicap = float(result["handicap_index"])
+                            logger.info("GHIN handicap for %s: %.1f", request.player_name, player_handicap)
+                except Exception as ghin_err:
+                    logger.warning("GHIN lookup failed for %s: %s", request.player_name, ghin_err)
 
         # Create GamePlayer record
         game_player = models.GamePlayer(
             game_id=game.game_id,
             player_slot_id=player_slot_id,
             user_id=request.user_id,
-            player_profile_id=request.player_profile_id,
+            player_profile_id=resolved_profile_id,
             player_name=request.player_name,
             handicap=player_handicap,
             join_status="joined",
@@ -241,9 +316,10 @@ async def join_game_with_code(  # type: ignore
         )
         db.add(game_player)
 
-        # Update game state with new player
-        game.state["players"] = game.state.get("players", [])
-        game.state["players"].append(
+        # Update game state with new player. Build the list and reassign the
+        # top-level key (not .append on the nested list) so MutableDict tracks it.
+        players = list(game.state.get("players", []))
+        players.append(
             {
                 "id": player_slot_id,
                 "name": request.player_name,
@@ -252,8 +328,10 @@ async def join_game_with_code(  # type: ignore
                 "player_profile_id": request.player_profile_id,
             }
         )
+        game.state["players"] = players
         game.updated_at = current_time
 
+        flag_modified(game, "state")
         db.commit()
         db.refresh(game_player)
 
@@ -261,6 +339,9 @@ async def join_game_with_code(  # type: ignore
             "status": "joined",
             "game_id": game.game_id,
             "player_slot_id": player_slot_id,
+            "handicap": player_handicap,
+            "handicap_source": "ghin" if (profile and profile.ghin_id) else ("profile" if profile else "manual"),
+            "player_profile_id": resolved_profile_id,
             "players_joined": len(current_players) + 1,
             "max_players": max_players,
             "message": f"Welcome {request.player_name}! Waiting for {max_players - len(current_players) - 1} more player(s)",
@@ -321,7 +402,7 @@ async def get_game_lobby(game_id: str, db: Session = Depends(database.get_db)) -
 
 @router.patch("/{game_id}/tee-order")
 async def set_tee_order(
-    game_id: str, request: dict[str, Any], db: Session = Depends(database.get_db)
+    game_id: str, request: SetTeeOrderRequest, db: Session = Depends(database.get_db)
 ) -> dict[str, Any]:
     """Set or update the tee order for the game at any time during gameplay"""
     try:
@@ -330,9 +411,7 @@ async def set_tee_order(
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
 
-        player_order = request.get("player_order", [])
-        if not player_order:
-            raise HTTPException(status_code=400, detail="player_order is required")
+        player_order = request.player_order
 
         # Validate all players exist and get them
         players = db.query(models.GamePlayer).filter(models.GamePlayer.game_id == game_id).all()
@@ -359,10 +438,7 @@ async def set_tee_order(
 
         # Mark tee order as set in game state
         game.state["tee_order_set"] = True
-        game.updated_at = datetime.now(UTC)
-
-        # Tell SQLAlchemy the JSON field has changed
-        from sqlalchemy.orm.attributes import flag_modified
+        game.updated_at = utc_now()
 
         flag_modified(game, "state")
 
@@ -471,16 +547,14 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
             logger.error(f"Failed to initialize simulation: {init_error}")
             raise HTTPException(status_code=500, detail=f"Failed to initialize game: {init_error!s}")
 
-        # MIGRATED: Store simulation using GameLifecycleService
-        # Add to service cache (note: game was already created in DB, just adding to cache)
-        get_game_lifecycle_service()._active_games[game_id] = simulation
-
-        # Get initial game state from simulation
+        # Build the initial game state from the simulation, then persist it. The
+        # sim is a one-shot state generator — not cached (the /action engine that
+        # used the cache was retired; the DB is the source of truth for /state).
         initial_state = simulation.get_game_state()
 
         # Update database game state
         game.game_status = "in_progress"  # type: ignore
-        game.updated_at = datetime.now(UTC).isoformat()  # type: ignore
+        game.updated_at = utc_now().isoformat()  # type: ignore
         game.state = initial_state  # type: ignore
         game.state["game_status"] = "in_progress"
         game.state["started_at"] = game.updated_at
@@ -671,9 +745,7 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
 
         if game.game_status == "completed":
             # Check if results were already persisted
-            existing_record = db.query(models.GameRecord).filter(
-                models.GameRecord.game_id == game_id
-            ).first()
+            existing_record = db.query(models.GameRecord).filter(models.GameRecord.game_id == game_id).first()
             if existing_record:
                 return {
                     "success": True,
@@ -703,13 +775,15 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
         game.game_status = "completed"
         state["game_status"] = "completed"
         game.state = state
+        # state is the same dict object as game.state — reassigning doesn't mark
+        # the JSON column dirty. Without this the blob's game_status/standings
+        # wouldn't persist (only the scalar game.game_status column would).
+        flag_modified(game, "state")
 
-        now = datetime.utcnow().isoformat()
+        now = utc_now().isoformat()
 
         # Create GameRecord if one doesn't already exist
-        existing_record = db.query(models.GameRecord).filter(
-            models.GameRecord.game_id == game_id
-        ).first()
+        existing_record = db.query(models.GameRecord).filter(models.GameRecord.game_id == game_id).first()
 
         if not existing_record:
             game_record = models.GameRecord(
@@ -740,14 +814,16 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
             for pid, quarters in points_delta.items():
                 if pid not in player_hole_data:
                     player_hole_data[pid] = []
-                player_hole_data[pid].append({
-                    "hole": hole_num,
-                    "quarters": quarters,
-                    "gross_score": gross_scores.get(pid) if gross_scores else None,
-                    "teams": teams,
-                    "wager": wager,
-                    "phase": phase,
-                })
+                player_hole_data[pid].append(
+                    {
+                        "hole": hole_num,
+                        "quarters": quarters,
+                        "gross_score": gross_scores.get(pid) if gross_scores else None,
+                        "teams": teams,
+                        "wager": wager,
+                        "phase": phase,
+                    }
+                )
 
         # Rank players by earnings for final_position
         sorted_players = sorted(players, key=lambda p: standings.get(p.get("id"), 0), reverse=True)
@@ -771,11 +847,13 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
             ).first()
 
             if not exists:
-                perf = json.dumps({
-                    "handicap": player.get("handicap"),
-                    "holes_played": len(holes_data),
-                    "avg_quarters_per_hole": round(total_earnings / max(len(holes_data), 1), 2),
-                })
+                perf = json.dumps(
+                    {
+                        "handicap": player.get("handicap"),
+                        "holes_played": len(holes_data),
+                        "avg_quarters_per_hole": round(total_earnings / max(len(holes_data), 1), 2),
+                    }
+                )
                 db.execute(
                     text("""
                         INSERT INTO game_player_results
@@ -804,8 +882,14 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
 
         logger.info(
             "Game %s completed: %d players, %d holes, %d results created",
-            game_id, len(players), len(hole_quarters), results_created,
+            game_id,
+            len(players),
+            len(hole_quarters),
+            results_created,
         )
+
+        # Check achievements for all players with a linked profile
+        _check_game_achievements(db, game_id, record_id)
 
         return {
             "success": True,
@@ -825,33 +909,16 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
 
 @router.get("/{game_id}/state")
 async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_db)) -> dict[str, Any]:
-    """Get current game state for a specific multiplayer game"""
-    # MIGRATED: Using GameLifecycleService instead of global active_games
+    """Get current game state for a specific multiplayer game.
 
+    The database is the single source of truth. (The old in-memory simulation
+    cache was removed — it was the source of the split-brain where scorekeeper
+    writes landed in the DB but /state served a stale sim. The SimpleScorekeeper
+    computes rules client-side and persists via /scores, so the server engine is
+    no longer in the read path.)
+    """
     try:
-        # Check if game is in active games (in-progress) using service
-        service = get_game_lifecycle_service()
-        if game_id in service._active_games:
-            simulation = service._active_games[game_id]
-            state = simulation.get_game_state()
-            state["game_id"] = game_id
-
-            # Enrich players with tee_order from database
-            db_players = db.query(models.GamePlayer).filter(models.GamePlayer.game_id == game_id).all()
-
-            # Create a mapping of player_slot_id to tee_order
-            tee_order_map = {p.player_slot_id: p.tee_order for p in db_players}
-
-            # Add tee_order to each player in the state
-            if "players" in state:
-                for player in state["players"]:
-                    player_id = player.get("id")
-                    if player_id in tee_order_map:
-                        player["tee_order"] = tee_order_map[player_id]
-
-            return state
-
-        # Otherwise, fetch from database
+        # Fetch from database
         game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
 
         if not game:
@@ -903,20 +970,28 @@ async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_
             .all()
         )
 
-        # Update players with database info including tee_order
+        # Update players with database info including tee_order. Preserve the
+        # blob's player fields and overlay fresh DB values. is_authenticated /
+        # is_ghost follow the lobby convention (user_id is not None) — Stuart
+        # Mode in the scorekeeper relies on these, so the DB path MUST set them
+        # (it previously dropped them, which broke ghost games on reload).
         if db_players:
             player_map = {p.get("id"): p for p in saved_state.get("players", [])}
             enriched_players = []
             for db_player in db_players:
                 existing = player_map.get(db_player.player_slot_id, {})
+                authenticated = db_player.user_id is not None
                 enriched_players.append(
                     {
+                        **existing,
                         "id": db_player.player_slot_id,
                         "name": db_player.player_name,
                         "handicap": db_player.handicap,
                         "tee_order": db_player.tee_order,
                         "points": existing.get("points", 0),
                         "float_used": existing.get("float_used", 0),
+                        "is_authenticated": authenticated,
+                        "is_ghost": not authenticated,
                     }
                 )
             saved_state["players"] = enriched_players
@@ -928,153 +1003,6 @@ async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_
     except Exception as e:
         logger.error(f"Error getting game state for {game_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Error retrieving game state: {e!s}")
-
-
-@router.post("/{game_id}/action")
-async def perform_game_action_by_id(  # type: ignore
-    game_id: str, action_request: ActionRequest, db: Session = Depends(database.get_db)
-):
-    """Perform an action on a specific multiplayer game"""
-    # MIGRATED: Using GameLifecycleService instead of global active_games
-    service = get_game_lifecycle_service()
-
-    try:
-        # Check if game is in active_games using service
-        if game_id not in service._active_games:
-            # Try to restore/reload game from database
-            logger.warning(f"Game {game_id} not in active_games, attempting to restore from database...")
-
-            game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
-
-            if not game:
-                raise HTTPException(status_code=404, detail="Game not found")
-
-            if game.game_status == "completed":
-                raise HTTPException(status_code=400, detail="Game is already completed")
-
-            if game.game_status == "setup":
-                raise HTTPException(status_code=400, detail="Game has not been started yet")
-
-            # Restore game simulation from database
-            # Get players from database in tee order
-            players = (
-                db.query(models.GamePlayer)
-                .filter(models.GamePlayer.game_id == game_id)
-                .order_by(models.GamePlayer.tee_order)
-                .all()
-            )
-
-            # Create Player objects
-            wgp_players = []
-            for p in players:
-                # Ensure handicap is not None - default to 18.0 if missing
-                player_handicap = p.handicap if p.handicap is not None else 18.0
-
-                wgp_player = Player(
-                    id=cast("str", p.player_slot_id),
-                    name=cast("str", p.player_name),
-                    handicap=cast("float", player_handicap),
-                )
-                wgp_players.append(wgp_player)
-
-            # Get configured player count from saved state
-            configured_player_count = game.state.get("player_count", 4)
-
-            # Initialize course manager with selected course
-            course_manager = None
-            course_name = game.state.get("course_name")
-            if course_name:
-                try:
-                    course_manager = CourseManager()
-                    available_courses = course_manager.get_courses()
-                    if course_name in available_courses:
-                        course_manager.load_course(course_name)
-                        logger.info(f"Loaded course '{course_name}' for restored game {game_id}")
-                    else:
-                        logger.warning(f"Course '{course_name}' not found during game restoration")
-                        course_manager = None
-                except Exception as course_error:
-                    logger.error(f"Failed to load course during restoration: {course_error}")
-                    course_manager = None
-
-            # Create new simulation with course manager
-            simulation = WolfGoatPigGame(
-                player_count=configured_player_count,
-                players=wgp_players,
-                course_manager=course_manager,
-            )
-
-            # Restore full game state from database
-            saved_state = game.state or {}
-
-            # Restore current hole
-            simulation.current_hole = saved_state.get("current_hole", 1)
-
-            # Restore player points and float usage
-            saved_players = saved_state.get("players", [])
-            for saved_player in saved_players:
-                player_id = saved_player.get("id")
-                sim_player = next((p for p in simulation.players if p.id == player_id), None)
-                if sim_player:
-                    sim_player.points = saved_player.get("points", 0)
-                    sim_player.float_used = saved_player.get("float_used", 0)
-
-            # Restore carry-over state (for push scenarios)
-            simulation.carry_over_wager = saved_state.get("carry_over_wager")  # type: ignore
-            simulation.carry_over_from_hole = saved_state.get("carry_over_from_hole")  # type: ignore
-            simulation.consecutive_push_block = saved_state.get("consecutive_push_block", False)  # type: ignore
-            simulation.last_push_hole = saved_state.get("last_push_hole")  # type: ignore
-            simulation.base_wager = saved_state.get("base_wager")  # type: ignore
-
-            # Restore hole history for SimpleScorekeeper compatibility
-            simulation.scorekeeper_hole_history = saved_state.get("hole_history", [])  # type: ignore
-
-            logger.info(
-                f"Restored game {game_id} from database: "
-                f"hole={simulation.current_hole}, "
-                f"players={len(simulation.players)}, "
-                f"hole_history={len(simulation.scorekeeper_hole_history)}"  # type: ignore
-            )
-
-            # MIGRATED: Add to active_games using service
-            service._active_games[game_id] = simulation
-
-        # MIGRATED: Get simulation from service
-        simulation = service._active_games[game_id]
-
-        # Use the existing unified action handler from wgp_actions router
-        from .wgp_actions import unified_action
-
-        # Call the unified action endpoint logic
-        response = await unified_action(game_id, action_request, db)
-
-        # Save state back to database after action
-        game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
-
-        if game:
-            game.state = simulation.get_game_state()
-            game.state["game_id"] = game_id
-            game.updated_at = datetime.now(UTC).isoformat()
-
-            # Check if game is completed
-            if simulation.current_hole > 18:
-                game.game_status = "completed"
-                game.state["game_status"] = "completed"
-
-            db.commit()
-            logger.info(f"Saved state for game {game_id} after action {action_request.action_type}")
-
-            # Broadcast the updated game state
-            await websocket_manager.broadcast(json.dumps({"game_state": game.state}), game_id)
-
-        return response
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error performing action on game {game_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error performing action: {e!s}")
 
 
 @router.get("/history")

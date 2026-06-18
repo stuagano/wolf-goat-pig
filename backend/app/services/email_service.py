@@ -198,6 +198,125 @@ class EmailService:
             html_body=html_body,
         )
 
+    def send_welcome_email(self, to_email: str, player_name: str) -> bool:
+        """Sends a welcome email when a new account is auto-created on first login.
+
+        A one-time "welcome to WGP, here's how it works" transactional email,
+        styled like send_signup_confirmation (HTML + plaintext via the base
+        template). Matches the existing convention: the method just builds and
+        sends — no per-method opt-out gate (preferences are seeded with sane
+        defaults at account creation and managed via /me/email-preferences).
+        """
+        content = f"""
+        <h2>Welcome to Wolf Goat Pig!</h2>
+        <p>Hi {player_name},</p>
+        <p>Your account is all set &mdash; welcome to the league. Here's how it works:</p>
+        <ul>
+            <li><strong>Sign up for play dates</strong> and we'll sync you to the tee sheet.</li>
+            <li><strong>Get matched &amp; paired</strong> &mdash; we'll email you when a group comes together.</li>
+            <li><strong>Track your games and standings</strong> right in the app.</li>
+        </ul>
+        <p>See you on the course! &#127948;</p>
+        """
+        template = Template(self._get_base_template())
+        html_body = template.render(subject="Welcome to Wolf Goat Pig", content=content)
+
+        text_body = (
+            f"Welcome to Wolf Goat Pig!\n\n"
+            f"Hi {player_name},\n\n"
+            "Your account is all set - welcome to the league. Here's how it works:\n"
+            "- Sign up for play dates and we'll sync you to the tee sheet.\n"
+            "- Get matched & paired - we'll email you when a group comes together.\n"
+            "- Track your games and standings right in the app.\n\n"
+            "See you on the course!"
+        )
+
+        return self._send_email(
+            to_email=to_email,
+            subject="Welcome to Wolf Goat Pig",
+            html_body=html_body,
+            text_body=text_body,
+        )
+
+    def send_attestation_request(
+        self,
+        to_email: str,
+        attester_name: str,
+        poster_name: str,
+        round_date: str,
+        score: int,
+    ) -> bool:
+        """Ask a foursome member to attest a round another member just posted.
+
+        Modeled on send_welcome_email: builds and sends a transactional email
+        (HTML + plaintext via the base template), no per-method opt-out gate.
+        The poster's round becomes authoritative only once a foursome member
+        attests it in the app.
+        """
+        quarters = f"+{score}" if score > 0 else str(score)
+        content = f"""
+        <h2>Confirm a Wolf Goat Pig round</h2>
+        <p>Hi {attester_name},</p>
+        <p><strong>{poster_name}</strong> posted a round for <strong>{round_date}</strong>
+        and listed you in the foursome.</p>
+        <p>Reported result: <strong>{quarters} quarters</strong>.</p>
+        <p>Open the app to confirm it. The round won't count toward standings
+        until a foursome member attests it.</p>
+        """
+        template = Template(self._get_base_template())
+        html_body = template.render(subject="Confirm a Wolf Goat Pig round", content=content)
+
+        text_body = (
+            "Confirm a Wolf Goat Pig round\n\n"
+            f"Hi {attester_name},\n\n"
+            f"{poster_name} posted a round for {round_date} and listed you in the foursome.\n"
+            f"Reported result: {quarters} quarters.\n\n"
+            "Open the app to confirm it. The round won't count toward standings "
+            "until a foursome member attests it.\n"
+        )
+
+        return self._send_email(
+            to_email=to_email,
+            subject=f"Confirm {poster_name}'s Wolf Goat Pig round ({round_date})",
+            html_body=html_body,
+            text_body=text_body,
+        )
+
+    def send_new_player_notification(
+        self,
+        to_email: str,
+        new_player_name: str,
+        new_player_email: str | None = None,
+    ) -> bool:
+        """Alert an admin that a new golfer signed up with no canonical match.
+
+        The player can use the app, but their signups will not sync to the
+        legacy tee sheet until they are added to the dropdown on Jeff's system
+        and then promoted in the admin roster view.
+        """
+        email_line = f"<p>Email: <strong>{new_player_email}</strong></p>" if new_player_email else ""
+        content = f"""
+        <h2>New player needs onboarding</h2>
+        <p><strong>{new_player_name}</strong> just signed up for Wolf Goat Pig but isn't
+        on the legacy tee-sheet roster yet.</p>
+        {email_line}
+        <p>To enable their sign-ups to sync to the tee sheet:</p>
+        <ol>
+            <li>Add <strong>{new_player_name}</strong> to the dropdown on the
+            thousand-cranes.com tee sheet.</li>
+            <li>Promote them in the app's pending-players admin view.</li>
+        </ol>
+        <p>Until then they can play, but their date sign-ups won't reach the legacy board.</p>
+        """
+        template = Template(self._get_base_template())
+        html_body = template.render(subject="New WGP player needs onboarding", content=content)
+
+        return self._send_email(
+            to_email=to_email,
+            subject=f"New WGP player needs onboarding: {new_player_name}",
+            html_body=html_body,
+        )
+
     def send_pairing_notification(
         self,
         to_email: str,
@@ -271,6 +390,76 @@ class EmailService:
             to_email=to_email,
             subject=f"🎲 Your Sunday Golf Pairings - {formatted_date}",
             html_body=html_body,
+        )
+
+    def send_callout_notification(
+        self,
+        to_email: str,
+        player_name: str,
+        game_date: str,
+        signup_count: int,
+        needed: int,
+    ) -> bool:
+        """Calls an opt-in player to fill out a short game.
+
+        Sent when signups for a date fall short of a full foursome and the
+        player has opted into the callout list. Includes a direct sign-up link.
+
+        Args:
+            to_email: Player's email address
+            player_name: Player's display name
+            game_date: The game date (YYYY-MM-DD)
+            signup_count: How many players are currently signed up
+            needed: How many more players are needed to complete the foursome(s)
+        """
+        from datetime import datetime
+
+        try:
+            date_obj = datetime.strptime(game_date, "%Y-%m-%d")
+            formatted_date = date_obj.strftime("%A, %B %d, %Y")
+        except ValueError:
+            formatted_date = game_date
+
+        app_base_url = os.getenv("APP_BASE_URL", "https://wolf-goat-pig.vercel.app").rstrip("/")
+        signup_url = f"{app_base_url}/signup"
+
+        player_word = "player" if needed == 1 else "players"
+        content = f"""
+        <h2>⛳ We need {needed} more {player_word} for {formatted_date}!</h2>
+        <p>Hi {player_name},</p>
+        <p>There {"is" if signup_count == 1 else "are"} <strong>{signup_count}</strong>
+        signed up so far &mdash; we're <strong>{needed} short</strong> of a full group.
+        You're on the callout list, so you're getting first dibs.</p>
+        <p style="margin: 24px 0;">
+            <a href="{signup_url}"
+               style="background: #047857; color: #fff; padding: 12px 24px; border-radius: 8px;
+                      text-decoration: none; font-weight: 600; display: inline-block;">
+                Sign up to play
+            </a>
+        </p>
+        <p style="color: #6b7280; font-size: 13px;">
+            Already in? Ignore this &mdash; you may be getting it before your signup synced.
+            Don't want these? Turn off the callout list in your email settings.
+        </p>
+        """
+
+        template = Template(self._get_base_template())
+        html_body = template.render(subject="We're short for a game", content=content)
+
+        text_body = (
+            f"We need {needed} more {player_word} for {formatted_date}!\n\n"
+            f"Hi {player_name},\n\n"
+            f"There are {signup_count} signed up so far - we're {needed} short of a full group. "
+            "You're on the callout list, so you're getting first dibs.\n\n"
+            f"Sign up to play: {signup_url}\n\n"
+            "Don't want these? Turn off the callout list in your email settings."
+        )
+
+        return self._send_email(
+            to_email=to_email,
+            subject=f"⛳ {needed} more needed for {formatted_date}",
+            html_body=html_body,
+            text_body=text_body,
         )
 
     def send_tee_time_request(

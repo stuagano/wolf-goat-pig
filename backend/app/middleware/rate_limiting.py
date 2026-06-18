@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 
 from fastapi import HTTPException
 
+from ..utils.time import utc_now
+
 logger = logging.getLogger("app.rate_limiting")
 
 
@@ -44,7 +46,7 @@ class RateLimiter:
             HTTPException: 429 if rate limit exceeded
         """
         rate_key = f"{key}:{client_id or 'system'}"
-        now = datetime.now()
+        now = utc_now()
         min_interval = timedelta(seconds=min_interval_seconds)
 
         if rate_key in self.last_request:

@@ -1,6 +1,7 @@
 """Post-hole analysis service for Wolf Goat Pig game engine."""
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from ..domain.game_types import GamePhase, HoleState
 
@@ -25,18 +26,14 @@ def get_post_hole_analysis(
         "betting_summary": _analyze_betting_summary(hole_state),
         "scoring_analysis": _analyze_scoring(hole_state, get_player_name_fn),
         "strategic_insights": _generate_strategic_insights(hole_state),
-        "point_distribution": _analyze_point_distribution(
-            hole_state, get_player_name_fn, calculate_hole_points_fn
-        ),
+        "point_distribution": _analyze_point_distribution(hole_state, get_player_name_fn, calculate_hole_points_fn),
         "key_decisions": _analyze_key_decisions(hole_state, get_player_name_fn),
         "performance_ratings": _generate_performance_ratings(hole_state, get_player_name_fn),
         "what_if_scenarios": _generate_what_if_scenarios(hole_state),
     }
 
 
-def _analyze_final_teams(
-    hole_state: HoleState, get_player_name_fn: Callable[[str | None], str]
-) -> dict[str, Any]:
+def _analyze_final_teams(hole_state: HoleState, get_player_name_fn: Callable[[str | None], str]) -> dict[str, Any]:
     teams = hole_state.teams
 
     team_analysis: dict[str, Any] = {
@@ -51,9 +48,7 @@ def _analyze_final_teams(
             "team2": [get_player_name_fn(pid) for pid in teams.team2],
             "partnership_formed": True,
             "partnership_details": {
-                "captain_partner": (
-                    get_player_name_fn(teams.team1[1]) if len(teams.team1) > 1 else None
-                ),
+                "captain_partner": (get_player_name_fn(teams.team1[1]) if len(teams.team1) > 1 else None),
                 "opposition": [get_player_name_fn(pid) for pid in teams.team2],
             },
         }
@@ -100,9 +95,7 @@ def _analyze_betting_summary(hole_state: HoleState) -> dict[str, Any]:
     return betting_summary
 
 
-def _analyze_scoring(
-    hole_state: HoleState, get_player_name_fn: Callable[[str | None], str]
-) -> dict[str, Any]:
+def _analyze_scoring(hole_state: HoleState, get_player_name_fn: Callable[[str | None], str]) -> dict[str, Any]:
     if not hole_state.scores:
         return {"scores_entered": False}
 
@@ -155,16 +148,10 @@ def _analyze_point_distribution(
     return {
         "points_calculated": True,
         "winners": [get_player_name_fn(pid) for pid in winners],
-        "points_changes": {
-            get_player_name_fn(pid): change for pid, change in points_changes.items()
-        },
+        "points_changes": {get_player_name_fn(pid): change for pid, change in points_changes.items()},
         "total_quarters_in_play": sum(abs(change) for change in points_changes.values()) // 2,
-        "biggest_winner": (
-            max(points_changes.items(), key=lambda x: x[1])[0] if points_changes else None
-        ),
-        "biggest_loser": (
-            min(points_changes.items(), key=lambda x: x[1])[0] if points_changes else None
-        ),
+        "biggest_winner": (max(points_changes.items(), key=lambda x: x[1])[0] if points_changes else None),
+        "biggest_loser": (min(points_changes.items(), key=lambda x: x[1])[0] if points_changes else None),
         "halved": points_result.get("halved", False),
     }
 
@@ -276,26 +263,16 @@ def _generate_what_if_scenarios(hole_state: HoleState) -> list[str]:
     scenarios = []
 
     if hole_state.teams.type == "partners":
-        scenarios.append(
-            "What if captain had gone solo instead? Higher risk but potentially higher reward"
-        )
-        scenarios.append(
-            "What if different partnership was formed? Team dynamics could have changed"
-        )
+        scenarios.append("What if captain had gone solo instead? Higher risk but potentially higher reward")
+        scenarios.append("What if different partnership was formed? Team dynamics could have changed")
 
     if hole_state.teams.type == "solo":
-        scenarios.append(
-            "What if solo player had requested a partner? Shared risk might have been safer"
-        )
+        scenarios.append("What if solo player had requested a partner? Shared risk might have been safer")
 
     if hole_state.betting.current_wager == hole_state.betting.base_wager:
-        scenarios.append(
-            "What if someone had offered a double? Could have increased the stakes"
-        )
+        scenarios.append("What if someone had offered a double? Could have increased the stakes")
 
     if hole_state.betting.current_wager > hole_state.betting.base_wager:
-        scenarios.append(
-            "What if the double was declined? Hole would have ended with smaller stakes"
-        )
+        scenarios.append("What if the double was declined? Hole would have ended with smaller stakes")
 
     return scenarios

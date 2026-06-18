@@ -21,6 +21,7 @@ def unique_email(prefix="player"):
 
 # ── GET /players ──────────────────────────────────────────────────────────────
 
+
 class TestGetPlayers:
     def test_list_players_returns_200(self):
         resp = client.get("/players")
@@ -40,6 +41,7 @@ class TestGetPlayers:
 
 
 # ── POST /players ─────────────────────────────────────────────────────────────
+
 
 class TestCreatePlayer:
     def test_create_player_returns_201_or_200(self):
@@ -72,6 +74,7 @@ class TestCreatePlayer:
 
 # ── GET /players/{player_id} ──────────────────────────────────────────────────
 
+
 class TestGetPlayerById:
     def test_get_nonexistent_player_returns_404(self):
         resp = client.get("/players/999999")
@@ -84,11 +87,12 @@ class TestGetPlayerById:
 
 # ── PUT /players/{player_id} ──────────────────────────────────────────────────
 
+
 class TestUpdatePlayer:
     def _create_player(self, prefix="UpdateTarget"):
-        resp = client.post("/players", json={
-            "name": unique_name(prefix), "email": unique_email(prefix.lower()), "handicap": 18.0
-        })
+        resp = client.post(
+            "/players", json={"name": unique_name(prefix), "email": unique_email(prefix.lower()), "handicap": 18.0}
+        )
         if resp.status_code in (200, 201):
             return resp.json()["id"]
         return None
@@ -115,13 +119,16 @@ class TestUpdatePlayer:
 
 # ── DELETE /players/{player_id} ───────────────────────────────────────────────
 
+
 class TestDeletePlayer:
     def test_delete_nonexistent_player_returns_404(self):
         resp = client.delete("/players/999999")
         assert resp.status_code == 404
 
     def test_delete_player_returns_success_message(self):
-        resp = client.post("/players", json={"name": unique_name("DeleteMe"), "email": unique_email("deleteme"), "handicap": 20.0})
+        resp = client.post(
+            "/players", json={"name": unique_name("DeleteMe"), "email": unique_email("deleteme"), "handicap": 20.0}
+        )
         if resp.status_code in (200, 201):
             pid = resp.json()["id"]
             del_resp = client.delete(f"/players/{pid}")
@@ -130,6 +137,7 @@ class TestDeletePlayer:
 
 
 # ── GET /players/{player_id}/statistics ──────────────────────────────────────
+
 
 class TestPlayerStatistics:
     def test_statistics_for_nonexistent_player_returns_404(self):

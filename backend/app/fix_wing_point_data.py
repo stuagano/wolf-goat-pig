@@ -4,11 +4,11 @@ This script checks if Wing Point exists in the database and updates it if the pa
 """
 
 import logging
-from datetime import datetime
 from typing import Any
 
 from .database import SessionLocal
 from .models import Course
+from .utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +173,7 @@ def fix_wing_point_course():
             wing_point.total_yards = correct_total_yards
             wing_point.course_rating = 67.4
             wing_point.slope_rating = 120
-            wing_point.updated_at = datetime.now().isoformat()
+            wing_point.updated_at = utc_now().isoformat()
 
             # Update each hole
             for hole_data in CORRECT_WING_POINT_DATA:

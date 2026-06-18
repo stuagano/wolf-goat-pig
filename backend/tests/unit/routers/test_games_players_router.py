@@ -142,9 +142,11 @@ class TestUpdatePlayerName:
         data = resp.json()
         assert data["game_id"] == game_id
         assert data["player_id"] == player_id
-        assert "message" in data
+        assert data["success"] is True
+        assert data["name"] == "Updated"
 
-    def test_update_name_empty_name_returns_400(self):
+    def test_update_name_empty_name_returns_422(self):
+        # Empty string fails Pydantic min-length validation before the handler
         game = _create_test_game().json()
         game_id = game["game_id"]
         player_id = game["players"][0]["id"]
@@ -152,9 +154,10 @@ class TestUpdatePlayerName:
             f"/games/{game_id}/players/{player_id}/name",
             json={"name": ""},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
-    def test_update_name_whitespace_only_returns_400(self):
+    def test_update_name_whitespace_only_returns_422(self):
+        # Whitespace passes min_length but strips to blank → AfterValidator raises → 422
         game = _create_test_game().json()
         game_id = game["game_id"]
         player_id = game["players"][0]["id"]
@@ -162,9 +165,10 @@ class TestUpdatePlayerName:
             f"/games/{game_id}/players/{player_id}/name",
             json={"name": "   "},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
-    def test_update_name_missing_name_field_returns_400(self):
+    def test_update_name_missing_name_field_returns_422(self):
+        # Missing required field is a Pydantic validation error
         game = _create_test_game().json()
         game_id = game["game_id"]
         player_id = game["players"][0]["id"]
@@ -172,7 +176,7 @@ class TestUpdatePlayerName:
             f"/games/{game_id}/players/{player_id}/name",
             json={},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
     def test_update_name_nonexistent_player_returns_404(self):
         game = _create_test_game().json()
@@ -194,12 +198,51 @@ class TestUpdatePlayerName:
         data = resp.json()
         assert data["name"] == "Trimmed Name"
 
+    def test_update_name_persists(self):
+        """Read-back: the new name is visible via GET /state, not just echoed
+        in the PATCH response."""
+        game = _create_test_game().json()
+        game_id = game["game_id"]
+        player_id = game["players"][0]["id"]
+        client.patch(f"/games/{game_id}/players/{player_id}/name", json={"name": "Persisted Name"})
+        state = client.get(f"/games/{game_id}/state").json()
+        names = {p["id"]: p["name"] for p in state.get("players", [])}
+        assert names.get(player_id) == "Persisted Name"
+
+    def test_update_name_persists_ctk(self):
+        """Same read-back as above, expressed with claude-test-kit's
+        `claim_vs_reality` — the explicit guard against the silent-persistence
+        bug: a PATCH that returns 200 but never actually writes (the class of
+        bug the flag_modified / MutableDict fixes addressed).
+
+        Demonstrates the vendored `.ctk/` kit wired in via pyproject's
+        `pythonpath`. The verifier re-reads GET /state and raises if the
+        claimed-successful write didn't reach durable state.
+        """
+        from ctk import claim_vs_reality
+
+        game = _create_test_game().json()
+        game_id = game["game_id"]
+        player_id = game["players"][0]["id"]
+
+        resp = client.patch(f"/games/{game_id}/players/{player_id}/name", json={"name": "CTK Persisted"})
+
+        def reality_is_persisted():
+            state = client.get(f"/games/{game_id}/state").json()
+            names = {p["id"]: p["name"] for p in state.get("players", [])}
+            assert names.get(player_id) == "CTK Persisted", (
+                f"GET /state shows {names.get(player_id)!r}, not the patched name — "
+                "the PATCH reported success but did not persist"
+            )
+
+        claim_vs_reality(
+            claimed_success=(resp.status_code == 200),
+            verifier=reality_is_persisted,
+            claim_label="update player name",
+        )
+
 
 # ── DELETE /games/{game_id}/players/{player_slot_id} ────────────────────────
-#
-# NOTE: The remove_player endpoint references `game.status` but the model
-# column is `game_status`. This causes an AttributeError (500) for all
-# requests where the game exists. Tests document this existing bug.
 
 
 class TestRemovePlayer:
@@ -215,6 +258,16 @@ class TestRemovePlayer:
         )
         assert resp.status_code == 200
 
+    def test_remove_player_persists(self):
+        """Read-back: the removed player is actually gone from GET /state."""
+        game, p1, _p2 = _create_setup_game()
+        game_id = game["game_id"]
+        slot = p1["player_slot_id"]
+        client.delete(f"/games/{game_id}/players/{slot}")
+        state = client.get(f"/games/{game_id}/state").json()
+        ids = [p["id"] for p in state.get("players", [])]
+        assert slot not in ids
+
     def test_remove_nonexistent_player_returns_404(self):
         """Removing a nonexistent player slot returns 404."""
         game, _p1, _p2 = _create_setup_game()
@@ -225,44 +278,40 @@ class TestRemovePlayer:
 
 
 # ── PATCH /games/{game_id}/players/{player_slot_id}/handicap ────────────────
-#
-# NOTE: Same `game.status` attribute bug as remove_player. Tests that reach
-# the DB lookup will get 500. Input-validation tests (missing/invalid handicap)
-# that fail before the DB lookup still return the expected 400.
 
 
 class TestUpdatePlayerHandicap:
-    def test_update_handicap_missing_value_returns_400(self):
+    def test_update_handicap_missing_value_returns_422(self):
         game, p1, _p2 = _create_setup_game()
         resp = client.patch(
             f"/games/{game['game_id']}/players/{p1['player_slot_id']}/handicap",
             json={},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
-    def test_update_handicap_invalid_value_returns_400(self):
+    def test_update_handicap_invalid_value_returns_422(self):
         game, p1, _p2 = _create_setup_game()
         resp = client.patch(
             f"/games/{game['game_id']}/players/{p1['player_slot_id']}/handicap",
             json={"handicap": "not-a-number"},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
-    def test_update_handicap_negative_returns_400(self):
+    def test_update_handicap_negative_returns_422(self):
         game, p1, _p2 = _create_setup_game()
         resp = client.patch(
             f"/games/{game['game_id']}/players/{p1['player_slot_id']}/handicap",
             json={"handicap": -1.0},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
-    def test_update_handicap_over_54_returns_400(self):
+    def test_update_handicap_over_54_returns_422(self):
         game, p1, _p2 = _create_setup_game()
         resp = client.patch(
             f"/games/{game['game_id']}/players/{p1['player_slot_id']}/handicap",
             json={"handicap": 55.0},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
     def test_update_handicap_nonexistent_game_returns_404(self):
         resp = client.patch(
@@ -280,6 +329,16 @@ class TestUpdatePlayerHandicap:
         )
         assert resp.status_code == 200
 
+    def test_update_handicap_persists(self):
+        """Read-back: the new handicap is visible via GET /state."""
+        game, p1, _p2 = _create_setup_game()
+        game_id = game["game_id"]
+        slot = p1["player_slot_id"]
+        client.patch(f"/games/{game_id}/players/{slot}/handicap", json={"handicap": 15.5})
+        state = client.get(f"/games/{game_id}/state").json()
+        hcaps = {p["id"]: p.get("handicap") for p in state.get("players", [])}
+        assert hcaps.get(slot) == 15.5
+
     def test_update_handicap_nonexistent_player_returns_404(self):
         """Updating handicap for nonexistent player returns 404."""
         game, _p1, _p2 = _create_setup_game()
@@ -287,4 +346,60 @@ class TestUpdatePlayerHandicap:
             f"/games/{game['game_id']}/players/nonexistent-slot/handicap",
             json={"handicap": 10.0},
         )
+        assert resp.status_code == 404
+
+
+class TestUpdatePlayerNameValidation:
+    """Request-shape validation for PATCH /games/{id}/players/{pid}/name."""
+
+    def test_whitespace_only_name_returns_422(self):
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        client = TestClient(app)
+        resp = client.patch("/games/nonexistent/players/p1/name", json={"name": "  "})
+        assert resp.status_code == 422
+        assert "detail" in resp.json()
+
+    def test_valid_name_passes_validation_then_404s(self):
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        client = TestClient(app)
+        resp = client.patch("/games/nonexistent/players/p1/name", json={"name": "Valid Name"})
+        # Passes body validation, then fails the DB player lookup.
+        assert resp.status_code == 404
+
+
+class TestUpdateHandicapValidation:
+    """Request-shape validation for PATCH /games/{id}/players/{pid}/handicap."""
+
+    def _client(self):
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        return TestClient(app)
+
+    def test_missing_handicap_returns_422(self):
+        resp = self._client().patch("/games/nonexistent/players/p1/handicap", json={})
+        assert resp.status_code == 422
+
+    def test_non_numeric_handicap_returns_422(self):
+        resp = self._client().patch("/games/nonexistent/players/p1/handicap", json={"handicap": "abc"})
+        assert resp.status_code == 422
+
+    def test_out_of_range_handicap_returns_422(self):
+        resp = self._client().patch("/games/nonexistent/players/p1/handicap", json={"handicap": 99})
+        assert resp.status_code == 422
+
+    def test_negative_handicap_returns_422(self):
+        resp = self._client().patch("/games/nonexistent/players/p1/handicap", json={"handicap": -1})
+        assert resp.status_code == 422
+
+    def test_valid_handicap_passes_validation_then_404s(self):
+        resp = self._client().patch("/games/nonexistent/players/p1/handicap", json={"handicap": 18})
+        # Passes body validation, then fails the DB game lookup.
         assert resp.status_code == 404

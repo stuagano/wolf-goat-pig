@@ -8,11 +8,11 @@
  */
 export const fetchJson = async (url, options = {}) => {
   const response = await fetch(url, {
+    ...options,
     headers: {
       "Content-Type": "application/json",
       ...options.headers,
     },
-    ...options,
   });
 
   if (!response.ok) {
@@ -26,7 +26,9 @@ export const fetchJson = async (url, options = {}) => {
     } catch {
       // Ignore JSON parse errors for error response
     }
-    throw new Error(errorMessage);
+    const error = new Error(errorMessage);
+    error.status = response.status;
+    throw error;
   }
 
   const data = await response.json();

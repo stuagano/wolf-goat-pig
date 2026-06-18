@@ -4,29 +4,90 @@ Authentication Service for linking Auth0 users to PlayerProfile records
 
 import logging
 import os
+import threading
 from collections.abc import Generator
-from datetime import datetime
 from typing import Any
 
+import httpx as _httpx
+import sentry_sdk
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-import httpx as _httpx
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from ..database import SessionLocal, get_db
 from ..models import EmailPreferences, PlayerProfile
-from .legacy_player_service import find_similar_players, get_canonical_name
+from ..utils.time import utc_now
+from .legacy_player_service import capture_pending_player, find_similar_players, get_canonical_name
 
 logger = logging.getLogger(__name__)
 
-# Auth0 configuration
-AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN", "your-domain.auth0.com")
-AUTH0_API_AUDIENCE = os.getenv("AUTH0_API_AUDIENCE", "your-api-audience")
+# Auth0 configuration — no placeholder defaults; verify_token fails closed if unset
+AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN", "")
+AUTH0_API_AUDIENCE = os.getenv("AUTH0_API_AUDIENCE", "")
 AUTH0_ALGORITHMS = ["RS256"]
 
 # Security scheme for FastAPI
 security = HTTPBearer()
+
+
+def _notify_admins_of_new_player(name: str, email: str | None) -> None:
+    """Best-effort, non-blocking admin alert for a newly captured player.
+
+    Runs the (external, potentially slow) email send on a daemon thread so it
+    can never add latency to or break the first-login path.
+    """
+
+    def _send() -> None:
+        try:
+            from ..utils.admin_auth import get_admin_emails
+            from .email_service import get_email_service
+
+            svc = get_email_service()
+            if not svc.is_configured():
+                return
+            for admin_email in get_admin_emails():
+                svc.send_new_player_notification(admin_email, name, email)
+        except Exception as exc:  # never surface to the login path
+            logger.warning(f"Failed to notify admins of new player '{name}': {exc}")
+
+    threading.Thread(target=_send, daemon=True, name="new-player-notify").start()
+
+
+def _deliver_welcome_email(name: str, email: str | None) -> None:
+    """Synchronously deliver the first-login welcome email. Best-effort.
+
+    Any failure (provider outage, misconfig) is swallowed so it can never break
+    the login path, but it is reported to Sentry — matching the
+    swallowed-outages-are-captured convention used at the Resend/GHIN/Sheets/
+    ForeTees swallow sites — so an outage is observable, not silent.
+    """
+    if not email:
+        return
+    try:
+        from .email_service import get_email_service
+
+        svc = get_email_service()
+        if not svc.is_configured():
+            return
+        svc.send_welcome_email(email, name)
+    except Exception as exc:  # never surface to the login path
+        logger.warning(f"Failed to send welcome email to '{email}': {exc}")
+        sentry_sdk.capture_exception(exc)
+
+
+def _send_welcome_email(name: str, email: str | None) -> None:
+    """Best-effort, non-blocking welcome email on first-login profile creation.
+
+    Runs the (external, potentially slow) send on a daemon thread so it can
+    never add latency to or break the first-login path.
+    """
+    threading.Thread(
+        target=_deliver_welcome_email,
+        args=(name, email),
+        daemon=True,
+        name="welcome-email",
+    ).start()
 
 
 class AuthService:
@@ -52,7 +113,7 @@ class AuthService:
             # Use environment variable to determine auth mode
             if os.getenv("ENVIRONMENT") == "production":
                 # Production Auth0 integration
-                if AUTH0_DOMAIN == "your-domain.auth0.com" or AUTH0_API_AUDIENCE == "your-api-audience":
+                if not AUTH0_DOMAIN or not AUTH0_API_AUDIENCE:
                     logger.error("Auth0 configuration not set for production")
                     raise HTTPException(status_code=500, detail="Authentication service not configured")
 
@@ -70,7 +131,7 @@ class AuthService:
                     issuer=f"https://{AUTH0_DOMAIN}/",
                 )
                 return dict(payload)
-            elif os.getenv("ENVIRONMENT") == "development":
+            if os.getenv("ENVIRONMENT") == "development":
                 # Development mode - allow mock authentication
                 logger.warning("Using mock authentication - development mode only")
                 return {
@@ -79,10 +140,9 @@ class AuthService:
                     "name": "Test User",
                     "picture": "https://example.com/avatar.jpg",
                 }
-            else:
-                # Unknown environment - fail safe
-                logger.error(f"Unknown ENVIRONMENT value: {os.getenv('ENVIRONMENT')!r} — refusing to authenticate")
-                raise HTTPException(status_code=500, detail="Authentication service misconfigured")
+            # Unknown environment - fail safe
+            logger.error(f"Unknown ENVIRONMENT value: {os.getenv('ENVIRONMENT')!r} — refusing to authenticate")
+            raise HTTPException(status_code=500, detail="Authentication service misconfigured")
 
         except JWTError as e:
             logger.error(f"JWT verification failed: {e!s}")
@@ -102,11 +162,12 @@ class AuthService:
         player = db.query(PlayerProfile).filter(PlayerProfile.email == email).first()
 
         if not player:
-            # Try to match name to legacy tee sheet system
-            legacy_name = get_canonical_name(name)
+            # Try to match name to legacy tee sheet system (same session as the
+            # profile write so the whole flow is transactionally consistent).
+            legacy_name = get_canonical_name(name, db)
             if not legacy_name:
                 # Try fuzzy matching
-                suggestions = find_similar_players(name, max_results=1)
+                suggestions = find_similar_players(name, max_results=1, db=db)
                 if suggestions:
                     legacy_name = suggestions[0]
                     logger.info(f"Fuzzy matched '{name}' to legacy name '{legacy_name}'")
@@ -117,8 +178,8 @@ class AuthService:
                 legacy_name=legacy_name,  # Link to legacy tee sheet system
                 email=email,
                 avatar_url=picture,
-                created_at=datetime.now().isoformat(),
-                updated_at=datetime.now().isoformat(),
+                created_at=utc_now().isoformat(),
+                updated_at=utc_now().isoformat(),
                 handicap=18.0,  # Default handicap
                 preferences={
                     "auth0_id": auth0_id,
@@ -136,13 +197,34 @@ class AuthService:
             # Create default email preferences
             email_prefs = EmailPreferences(
                 player_profile_id=player.id,
-                created_at=datetime.now().isoformat(),
-                updated_at=datetime.now().isoformat(),
+                created_at=utc_now().isoformat(),
+                updated_at=utc_now().isoformat(),
             )
             db.add(email_prefs)
             db.commit()
 
             logger.info(f"Created new player profile for {name} ({email})")
+
+            # Welcome email — fires ONLY on this new-profile branch, never on a
+            # returning login. Best-effort and wrapped so even dispatching it can
+            # never add latency to or break first login; failures go to Sentry.
+            try:
+                _send_welcome_email(name, email)
+            except Exception as exc:
+                logger.warning(f"Failed to dispatch welcome email for '{name}': {exc}")
+                sentry_sdk.capture_exception(exc)
+
+            # No canonical legacy match → capture into the pending queue and
+            # alert admins so the golfer can be added to Jeff's tee-sheet
+            # dropdown (a manual step on the legacy side). Best-effort: never
+            # block account creation if capture/notify fails.
+            if not legacy_name:
+                try:
+                    result = capture_pending_player(name, email=email, player_profile_id=player.id, db=db)
+                    if result.get("captured"):
+                        _notify_admins_of_new_player(name, email)
+                except Exception as exc:
+                    logger.warning(f"Failed to capture pending player '{name}': {exc}")
         else:
             # Update existing player with Auth0 info if needed
             update_needed = False
@@ -159,7 +241,7 @@ class AuthService:
                 update_needed = True
 
             if update_needed:
-                player.updated_at = datetime.now().isoformat()
+                player.updated_at = utc_now().isoformat()
                 db.commit()
                 logger.info(f"Updated player profile for {player.name}")
 
@@ -184,7 +266,7 @@ class AuthService:
             updated_prefs = dict(player.preferences) if player.preferences else {}
             updated_prefs["auth0_id"] = auth0_id
             player.preferences = updated_prefs
-            player.updated_at = datetime.now().isoformat()
+            player.updated_at = utc_now().isoformat()
 
             db.commit()
             logger.info(f"Linked Auth0 account {auth0_id} to player {player.name}")

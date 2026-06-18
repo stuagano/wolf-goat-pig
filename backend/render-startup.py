@@ -144,32 +144,6 @@ def run_initialization_steps():
         logger.error(f"❌ Database seeding failed: {e}")
         logger.warning("🔄 Continuing with server startup anyway...")
 
-    # Step 3: Run hole migration
-    logger.info("🔄 Running hole data migration...")
-    try:
-        result = subprocess.run(
-            [sys.executable, "-m", "app.migrations.add_holes_from_json"],
-            capture_output=True,
-            text=True,
-            timeout=60  # 1 minute timeout
-        )
-
-        if result.returncode == 0:
-            logger.info("✅ Hole migration completed successfully")
-        else:
-            logger.warning(f"⚠️ Hole migration completed with warnings")
-            logger.warning(f"Output: {result.stdout}")
-            if result.stderr:
-                logger.warning(f"Errors: {result.stderr}")
-            # Don't exit - continue with startup
-
-    except subprocess.TimeoutExpired:
-        logger.error("❌ Hole migration timed out after 60 seconds")
-        logger.warning("🔄 Continuing with server startup anyway...")
-    except Exception as e:
-        logger.error(f"❌ Hole migration failed: {e}")
-        logger.warning("🔄 Continuing with server startup anyway...")
-
     logger.info("✅ Initialization steps completed")
 
 

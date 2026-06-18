@@ -9,8 +9,8 @@ import pytest
 
 from app.services.pairing_scheduler_service import PairingSchedulerService
 
-
 # ── get_next_sunday ───────────────────────────────────────────────────────────
+
 
 class TestGetNextSunday:
     def test_returns_next_sunday_from_monday(self):
@@ -45,9 +45,8 @@ class TestGetNextSunday:
         assert len(parts[2]) == 2  # day
 
     def test_uses_datetime_now_when_no_from_date(self):
-        with patch("app.services.pairing_scheduler_service.datetime") as mock_dt:
-            mock_dt.now.return_value = datetime(2026, 4, 6)  # Monday
-            mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
+        with patch("app.services.pairing_scheduler_service.utc_now") as mock_utc_now:
+            mock_utc_now.return_value = datetime(2026, 4, 6)  # Monday
             result = PairingSchedulerService.get_next_sunday()
         assert result == "2026-04-12"
 
@@ -63,6 +62,7 @@ class TestGetNextSunday:
 
 
 # ── get_signups_for_date ──────────────────────────────────────────────────────
+
 
 class TestGetSignupsForDate:
     def test_returns_active_signups_only(self):
@@ -85,6 +85,7 @@ class TestGetSignupsForDate:
 
 # ── get_existing_pairing ──────────────────────────────────────────────────────
 
+
 class TestGetExistingPairing:
     def test_returns_pairing_when_exists(self):
         db = MagicMock()
@@ -101,6 +102,7 @@ class TestGetExistingPairing:
 
 
 # ── build_player_list ─────────────────────────────────────────────────────────
+
 
 class TestBuildPlayerList:
     def test_uses_handicap_from_profile_when_available(self):
@@ -131,10 +133,7 @@ class TestBuildPlayerList:
 
     def test_builds_all_players(self):
         db = MagicMock()
-        signups = [
-            MagicMock(player_name=f"Player {i}", player_profile_id=None)
-            for i in range(6)
-        ]
+        signups = [MagicMock(player_name=f"Player {i}", player_profile_id=None) for i in range(6)]
         result = PairingSchedulerService.build_player_list(db, signups)
         assert len(result) == 6
 
@@ -148,6 +147,7 @@ class TestBuildPlayerList:
 
 
 # ── find_player_team ──────────────────────────────────────────────────────────
+
 
 class TestFindPlayerTeam:
     def _teams(self):
@@ -171,6 +171,7 @@ class TestFindPlayerTeam:
 
 # ── generate_pairings ─────────────────────────────────────────────────────────
 
+
 class TestGeneratePairings:
     def _mock_db_with_signups(self, n_players: int, existing_pairing=None):
         """Build a DB mock that returns n_players signups."""
@@ -180,10 +181,7 @@ class TestGeneratePairings:
         db.query.return_value.filter.return_value.first.return_value = existing_pairing
 
         # get_signups_for_date → filter().filter().all()
-        signups = [
-            MagicMock(player_name=f"Player {i}", player_profile_id=None)
-            for i in range(n_players)
-        ]
+        signups = [MagicMock(player_name=f"Player {i}", player_profile_id=None) for i in range(n_players)]
         db.query.return_value.filter.return_value.filter.return_value.all.return_value = signups
 
         return db
@@ -207,18 +205,27 @@ class TestGeneratePairings:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = None
 
-        signups = [
-            MagicMock(player_name=f"Player {i}", player_profile_id=None)
-            for i in range(8)
-        ]
+        signups = [MagicMock(player_name=f"Player {i}", player_profile_id=None) for i in range(8)]
         db.query.return_value.filter.return_value.filter.return_value.all.return_value = signups
 
         with patch("app.services.pairing_scheduler_service.TeamFormationService") as mock_tfs:
             mock_tfs.generate_random_teams.return_value = [
-                {"players": [{"player_name": "Player 0"}, {"player_name": "Player 1"},
-                              {"player_name": "Player 2"}, {"player_name": "Player 3"}]},
-                {"players": [{"player_name": "Player 4"}, {"player_name": "Player 5"},
-                              {"player_name": "Player 6"}, {"player_name": "Player 7"}]},
+                {
+                    "players": [
+                        {"player_name": "Player 0"},
+                        {"player_name": "Player 1"},
+                        {"player_name": "Player 2"},
+                        {"player_name": "Player 3"},
+                    ]
+                },
+                {
+                    "players": [
+                        {"player_name": "Player 4"},
+                        {"player_name": "Player 5"},
+                        {"player_name": "Player 6"},
+                        {"player_name": "Player 7"},
+                    ]
+                },
             ]
             pairing, msg = PairingSchedulerService.generate_pairings(db, "2026-04-12")
 

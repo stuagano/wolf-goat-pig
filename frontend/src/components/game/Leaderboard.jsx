@@ -3,45 +3,35 @@ import { Card } from '../ui';
 import { useSheetSync } from '../../context';
 import { apiConfig } from '../../config/api.config';
 
-const API_URL = apiConfig.baseUrl;
-
 const Leaderboard = () => {
   const { syncData: liveLeaderboardData, syncStatus, error: syncError, performLiveSync } = useSheetSync();
   const [leaderboard, setLeaderboard] = useState([]);
   const [selectedMetric, setSelectedMetric] = useState('overall');
-  const [handicapMap, setHandicapMap] = useState({});
+  const [sheetUrl, setSheetUrl] = useState(null);
+  const [teamMap, setTeamMap] = useState({});
 
-  // Fetch player handicap data
   useEffect(() => {
-    const fetchHandicaps = async () => {
-      try {
-        const response = await fetch(`${API_URL}/players`);
-        if (response.ok) {
-          const players = await response.json();
-          const map = {};
-          players.forEach(p => {
-            if (!p.is_ai) {
-              map[p.name] = { handicap: p.handicap, ghin_id: p.ghin_id };
-            }
-          });
-          setHandicapMap(map);
-        }
-      } catch (err) {
-        // Handicap data is supplementary, don't block on failure
-      }
-    };
-    fetchHandicaps();
+    // Both fetches are best-effort decorations (spreadsheet link, LivSow team
+    // chips) — on failure the leaderboard renders fine without them.
+    fetch(`${apiConfig.baseUrl}/data/leaderboard-config`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.sheet_url) setSheetUrl(d.sheet_url); })
+      .catch(() => {});
+    fetch(`${apiConfig.baseUrl}/data/livsow/team-map`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setTeamMap(d); })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
     let sortedData = [...liveLeaderboardData];
 
     if (selectedMetric === 'worst_scores') {
-      sortedData.sort((a, b) => (a.total_earnings || 0) - (b.total_earnings || 0));
+      sortedData.sort((a, b) => (a.quarters || 0) - (b.quarters || 0));
     } else if (selectedMetric === 'total_games') {
-      sortedData.sort((a, b) => (b.games_played || 0) - (a.games_played || 0));
+      sortedData.sort((a, b) => (b.rounds || 0) - (a.rounds || 0));
     } else {
-      sortedData.sort((a, b) => (b.total_earnings || 0) - (a.total_earnings || 0));
+      sortedData.sort((a, b) => (b.quarters || 0) - (a.quarters || 0));
     }
     setLeaderboard(sortedData);
   }, [liveLeaderboardData, selectedMetric]);
@@ -53,8 +43,6 @@ const Leaderboard = () => {
   const metrics = [
     { value: 'overall', label: 'Overall Ranking' },
     { value: 'total_games', label: 'Most Rounds Played' },
-    { value: 'win_rate', label: 'Win Rate' },
-    { value: 'points_earned', label: 'Points Earned' },
     { value: 'worst_scores', label: 'Bottom 5 Scores' }
   ];
   
@@ -77,8 +65,20 @@ const Leaderboard = () => {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">🏆 Leaderboard</h1>
-          <p className="text-gray-600">Track player performance and rankings</p>
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <h1 className="text-3xl font-bold text-gray-900">🏆 Leaderboard</h1>
+            {sheetUrl && (
+              <a
+                href={sheetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors"
+              >
+                📊 View Spreadsheet
+              </a>
+            )}
+          </div>
+          <p className="text-gray-600 mt-2">Track player performance and rankings</p>
         </div>
 
         {/* Metric Selector */}
@@ -145,42 +145,29 @@ const Leaderboard = () => {
                       Player
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Handicap
+                      Quarters
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Score
+                      Rounds
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Games
+                      Avg / Round
                     </th>
                     {selectedMetric === 'total_games' && (
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Banquet Status
                       </th>
                     )}
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Last Played
-                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {/* For worst scores, show only bottom 5. For Most Rounds, sort by games played */}
                   {(() => {
                     let displayData = [...leaderboard];
-                    
                     if (selectedMetric === 'worst_scores') {
-                      // Show bottom 5 performers (lowest scores)
-                      displayData = displayData
-                        .sort((a, b) => (a.total_earnings || 0) - (b.total_earnings || 0))
-                        .slice(0, 5);
-                    } else if (selectedMetric === 'total_games') {
-                      // Sort by games played for Most Rounds view
-                      displayData = displayData
-                        .sort((a, b) => (b.games_played || 0) - (a.games_played || 0));
+                      displayData = displayData.slice(0, 5);
                     }
-                    
-                    return displayData.map((player, index) => (
-                      <tr key={player.id || index} className="hover:bg-gray-50">
+                    return displayData.map((entry, index) => (
+                      <tr key={entry.member || index} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <span className={`inline-flex items-center justify-center h-8 w-8 rounded-full text-sm font-medium ${
@@ -192,7 +179,7 @@ const Leaderboard = () => {
                             }`}>
                               {index + 1}
                             </span>
-                            {!selectedMetric.includes('worst') && index < 3 && (
+                            {selectedMetric !== 'worst_scores' && index < 3 && (
                               <span className="ml-2 text-lg">
                                 {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
                               </span>
@@ -202,76 +189,48 @@ const Leaderboard = () => {
                             )}
                           </div>
                         </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium">
-                            {(player.player_name || player.name || 'Unknown').charAt(0).toUpperCase()}
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
-                              {player.player_name || player.name || 'Unknown Player'}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              Win Rate: {player.win_percentage ? `${player.win_percentage.toFixed(1)}%` : 'N/A'}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {(() => {
-                          const playerName = player.player_name || player.name;
-                          const hData = handicapMap[playerName];
-                          if (hData && hData.handicap != null) {
-                            return (
-                              <div>
-                                <span className="font-medium">{hData.handicap}</span>
-                                {hData.ghin_id && (
-                                  <div className="text-xs text-gray-400">GHIN</div>
-                                )}
-                              </div>
-                            );
-                          }
-                          return '—';
-                        })()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {player.total_earnings ? `${player.total_earnings} quarters` :
-                           player.score || player.total_points || player.value || 'N/A'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {player.games_played || player.total_games || 'N/A'}
-                      </td>
-                      {selectedMetric === 'total_games' && (
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {(player.games_played || 0) >= BANQUET_QUALIFICATION_ROUNDS ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              ✅ Qualified
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                              {BANQUET_QUALIFICATION_ROUNDS - (player.games_played || 0)} more needed
-                            </span>
-                          )}
+                          <div className="flex items-center">
+                            <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium">
+                              {(entry.member || '?').charAt(0).toUpperCase()}
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {entry.member || 'Unknown Player'}
+                              </div>
+                              {teamMap[entry.member] && (
+                                <div className="text-xs text-blue-600 mt-0.5">
+                                  ⛳ {teamMap[entry.member].team}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </td>
-                      )}
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {(() => {
-                          if (!player.last_played || player.last_played === 'N/A') return 'Never';
-                          try {
-                            const date = new Date(player.last_played);
-                            // Check if date is valid
-                            if (isNaN(date.getTime())) return 'N/A';
-                            return date.toLocaleDateString();
-                          } catch (e) {
-                            return 'N/A';
-                          }
-                        })()}
-                      </td>
-                    </tr>
-                  ));
-                })()}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {entry.quarters ?? '—'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {entry.rounds ?? '—'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {entry.average != null ? entry.average.toFixed(1) : '—'}
+                        </td>
+                        {selectedMetric === 'total_games' && (
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {(entry.rounds || 0) >= BANQUET_QUALIFICATION_ROUNDS ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                ✅ Qualified
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                {BANQUET_QUALIFICATION_ROUNDS - (entry.rounds || 0)} more needed
+                              </span>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    ));
+                  })()}
                 </tbody>
               </table>
             </div>
@@ -283,10 +242,10 @@ const Leaderboard = () => {
           <Card className="p-6">
             <h3 className="text-lg font-semibold mb-4">📈 How Rankings Work</h3>
             <ul className="space-y-2 text-sm text-gray-600">
-              <li>• Overall ranking based on cumulative performance</li>
-              <li>• Win rate shows percentage of games won</li>
-              <li>• Average score calculated from all recorded games</li>
-              <li>• Points earned from Wolf Goat Pig betting outcomes</li>
+              <li>• Overall ranking by total quarters earned</li>
+              <li>• Most Rounds sorts by rounds played (banquet eligibility: 20+)</li>
+              <li>• Bottom 5 shows the lowest total quarter earners</li>
+              <li>• Avg / Round = total quarters ÷ rounds played</li>
             </ul>
           </Card>
           

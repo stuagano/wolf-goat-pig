@@ -10,8 +10,9 @@ Demonstrates the key features of the RuleManager including:
 - Handicap stroke calculation
 """
 
-from app.managers import RuleManager, RuleViolationError
 import json
+
+from app.managers import RuleManager, RuleViolationError
 
 
 def create_sample_game_state():
@@ -45,7 +46,7 @@ def create_sample_game_state():
             "hole_complete": False,
             "balls_in_hole": [],
             "next_player_to_hit": "player_1",
-        }
+        },
     }
 
 
@@ -131,10 +132,7 @@ def test_betting_rules():
         print(f"✓ Early double correctly rejected: {e.message}")
 
     # Form partnership, then double should work
-    game_state["current_hole"]["teams"] = {
-        "partnership_captain": "player_1",
-        "partnership_partner": "player_2"
-    }
+    game_state["current_hole"]["teams"] = {"partnership_captain": "player_1", "partnership_partner": "player_2"}
 
     try:
         can_double = manager.can_double("player_1", game_state)
@@ -167,10 +165,7 @@ def test_valid_actions():
     print(f"Valid actions for player_2 (not captain, not turn): {actions}")
 
     # After forming partnership
-    game_state["current_hole"]["teams"] = {
-        "partnership_captain": "player_1",
-        "partnership_partner": "player_2"
-    }
+    game_state["current_hole"]["teams"] = {"partnership_captain": "player_1", "partnership_partner": "player_2"}
     actions = manager.get_valid_actions("player_1", game_state)
     print(f"Valid actions for player_1 after partnership: {actions}")
 
@@ -258,8 +253,9 @@ def main():
         print("=" * 60)
 
     except Exception as e:
-        print(f"\n✗ Test failed with error: {str(e)}")
+        print(f"\n✗ Test failed with error: {e!s}")
         import traceback
+
         traceback.print_exc()
 
 

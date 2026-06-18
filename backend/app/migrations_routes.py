@@ -23,10 +23,16 @@ logger = logging.getLogger(__name__)
 def verify_admin_key(x_admin_key: str = Header(...)) -> bool:
     """Verify the admin key for migrations endpoint access.
 
-    In production, set the ADMIN_KEY environment variable.
+    In production, the ADMIN_KEY environment variable is required — if unset,
+    the endpoint is disabled entirely rather than falling back to a known key.
     In development, uses a default key (INSECURE - for dev only).
     """
-    expected_key = os.getenv("ADMIN_KEY", "dev-admin-key-INSECURE")
+    expected_key = os.getenv("ADMIN_KEY")
+    if not expected_key:
+        if os.getenv("ENVIRONMENT") == "production":
+            logger.error("Migrations endpoint called but ADMIN_KEY is not configured")
+            raise HTTPException(status_code=503, detail="Migrations endpoint disabled: ADMIN_KEY not configured")
+        expected_key = "dev-admin-key-INSECURE"
 
     if x_admin_key != expected_key:
         raise HTTPException(status_code=403, detail="Invalid admin key. Set X-Admin-Key header.")

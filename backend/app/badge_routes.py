@@ -6,7 +6,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import and_, desc, func
+from sqlalchemy import and_, case, desc, func
 from sqlalchemy.orm import Session
 
 from .badge_engine import BadgeEngine
@@ -38,6 +38,7 @@ class BadgeResponse(BaseModel):
     description: str
     category: str
     rarity: str
+    emoji: str | None
     image_url: str | None
     max_supply: int | None
     current_supply: int
@@ -111,8 +112,10 @@ def get_available_badges(
         query = query.filter(Badge.rarity == rarity)
 
     badges = query.order_by(
-        # Sort by rarity tier, then by name
-        func.case(
+        # Sort by rarity tier, then by name. NOTE: sqlalchemy.case, not
+        # func.case — the latter emits an invalid SQL function call and
+        # 500'd this endpoint since it shipped.
+        case(
             (Badge.rarity == "mythic", 5),
             (Badge.rarity == "legendary", 4),
             (Badge.rarity == "epic", 3),

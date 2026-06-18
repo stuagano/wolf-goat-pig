@@ -35,11 +35,16 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+import sentry_sdk
+
 logger = logging.getLogger(__name__)
 
-# Spreadsheet IDs
-PRIMARY_SHEET_ID = "1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM"  # The real/primary dashboard (read-only)
+# Spreadsheet IDs — PRIMARY_SHEET_ID can be overridden via LEADERBOARD_SHEET_ID env var
+PRIMARY_SHEET_ID = os.environ.get("LEADERBOARD_SHEET_ID", "1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM")
 WRITABLE_SHEET_ID = "19AabC4vx0jRXHIAmz8QJfqTIBxxvMfFUplB0abg8mdA"  # Stuart's writable copy for app sync
+
+# Tab GID for the leaderboard view (Details tab)
+PRIMARY_SHEET_TAB_GID = os.environ.get("LEADERBOARD_SHEET_TAB_GID", "474065919")
 
 # GCP quota project for API calls (stuagano@gmail.com's project)
 QUOTA_PROJECT = "stuartgano-n8n"
@@ -152,6 +157,7 @@ def _sheets_api_get(sheet_id: str, range_spec: str) -> dict[str, Any] | None:
         with urllib.request.urlopen(req, timeout=30) as response:
             return json.loads(response.read())  # type: ignore[no-any-return]
     except Exception as e:
+        sentry_sdk.capture_exception(e)
         logger.error(f"Sheets API GET failed: {e}")
         return None
 

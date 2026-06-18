@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import ScorecardCapture from './ScorecardCapture';
 import ScorecardReview from './ScorecardReview';
+import GHINPostModal from './GHINPostModal';
 import { apiConfig } from '../../config/api.config';
+import { preprocessScorecardImage } from '../../utils/scorecardImage';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -12,20 +14,21 @@ const API_URL = apiConfig.baseUrl;
  * Props:
  *   gameId     — the current game ID
  *   players    — array of { id, name } player objects (in tee order)
- *   onSaved    — called with saved hole_quarters payload after successful save
+ *   onSaved    — called with saved scores payload after successful save
  *   onCancel   — called to dismiss without saving
  */
 /** Build a blank extraction so ScorecardReview opens with all cells empty */
 const buildBlankExtraction = (players) => ({
   players: players.map(p => ({ name: p.name, confidence: 1.0 })),
   running_totals: [],
-  per_hole_quarters: [],
+  per_hole_scores: [],
 });
 
 const ScorecardPhoto = ({ gameId, players, onSaved, onCancel }) => {
-  // 'capture' | 'processing' | 'review' | 'saving' | 'error'
+  // 'capture' | 'processing' | 'review' | 'saving' | 'ghin_prompt' | 'error'
   const [stage, setStage] = useState('capture');
   const [extraction, setExtraction] = useState(null);
+  const [savedQuarters, setSavedQuarters] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
 
   const enterManually = () => {
@@ -37,8 +40,13 @@ const ScorecardPhoto = ({ gameId, players, onSaved, onCancel }) => {
     setStage('processing');
     setErrorMsg(null);
 
+    // Auto-orient via EXIF and downscale oversized phone shots before
+    // upload — much cleaner input for the vision model and ~5–10x less
+    // bandwidth from a 4032px iPhone capture.
+    const prepped = await preprocessScorecardImage(file);
+
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', prepped);
 
     try {
       const res = await fetch(`${API_URL}/scorecard/scan`, {
@@ -69,13 +77,14 @@ const ScorecardPhoto = ({ gameId, players, onSaved, onCancel }) => {
     setErrorMsg(null);
 
     try {
-      const res = await fetch(`${API_URL}/games/${gameId}/quarters-only`, {
+      const holes = Object.keys(holeQuarters).map(holeStr => ({
+        hole_number: parseInt(holeStr, 10),
+        quarters: holeQuarters[holeStr],
+      }));
+      const res = await fetch(`${API_URL}/games/${gameId}/scores`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          hole_quarters: holeQuarters,
-          current_hole: 18,
-        }),
+        body: JSON.stringify({ holes, current_hole: 18 }),
       });
 
       if (!res.ok) {
@@ -83,7 +92,8 @@ const ScorecardPhoto = ({ gameId, players, onSaved, onCancel }) => {
         throw new Error(detail.detail || `Save failed: ${res.status}`);
       }
 
-      onSaved(holeQuarters);
+      setSavedQuarters(holeQuarters);
+      setStage('ghin_prompt');
     } catch (err) {
       setErrorMsg(err.message || 'Failed to save quarters');
       setStage('error');
@@ -127,6 +137,17 @@ const ScorecardPhoto = ({ gameId, players, onSaved, onCancel }) => {
         <div className="animate-spin text-4xl">💾</div>
         <p className="text-gray-600 font-medium">Saving quarters...</p>
       </div>
+    );
+  }
+
+  if (stage === 'ghin_prompt') {
+    return (
+      <GHINPostModal
+        players={players}
+        playedAt={new Date().toISOString().slice(0, 10)}
+        onPosted={() => onSaved(savedQuarters)}
+        onSkip={() => onSaved(savedQuarters)}
+      />
     );
   }
 

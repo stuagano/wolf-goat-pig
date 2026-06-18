@@ -1,10 +1,16 @@
-"""Unit tests for leaderboard router — rankings, metrics, game results."""
+"""Unit tests for leaderboard router — game result recording.
+
+Note: GET /leaderboard and /leaderboard/{metric} were removed in the router
+extraction — the unified /data/leaderboard endpoint (unified_data.py) is the
+replacement and has its own tests.
+"""
 
 import uuid
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app import database, models
 from app.main import app
 
 client = TestClient(app)
@@ -12,96 +18,6 @@ client = TestClient(app)
 
 def _unique_id():
     return uuid.uuid4().hex[:8]
-
-
-# ── GET /leaderboard ─────────────────────────────────────────────────────────
-
-
-class TestGetLeaderboard:
-    def test_leaderboard_returns_200(self):
-        resp = client.get("/leaderboard")
-        assert resp.status_code == 200
-
-    def test_leaderboard_returns_list(self):
-        resp = client.get("/leaderboard")
-        assert isinstance(resp.json(), list)
-
-    def test_leaderboard_entries_have_expected_fields(self):
-        resp = client.get("/leaderboard")
-        data = resp.json()
-        if len(data) > 0:
-            entry = data[0]
-            assert "rank" in entry
-            assert "player_name" in entry
-            assert "total_earnings" in entry
-            assert "games_played" in entry
-
-    def test_leaderboard_respects_limit(self):
-        resp = client.get("/leaderboard", params={"limit": 2})
-        data = resp.json()
-        assert len(data) <= 2
-
-    def test_leaderboard_sort_asc(self):
-        resp = client.get("/leaderboard", params={"sort": "asc"})
-        assert resp.status_code == 200
-        data = resp.json()
-        if len(data) >= 2:
-            assert data[0]["total_earnings"] <= data[1]["total_earnings"]
-
-    def test_leaderboard_sort_desc(self):
-        resp = client.get("/leaderboard", params={"sort": "desc"})
-        assert resp.status_code == 200
-        data = resp.json()
-        if len(data) >= 2:
-            assert data[0]["total_earnings"] >= data[1]["total_earnings"]
-
-    def test_leaderboard_invalid_sort_returns_422(self):
-        resp = client.get("/leaderboard", params={"sort": "invalid"})
-        assert resp.status_code == 422
-
-    def test_leaderboard_limit_validation_min(self):
-        resp = client.get("/leaderboard", params={"limit": 0})
-        assert resp.status_code == 422
-
-    def test_leaderboard_limit_validation_max(self):
-        resp = client.get("/leaderboard", params={"limit": 200})
-        assert resp.status_code == 422
-
-
-# ── GET /leaderboard/{metric} ────────────────────────────────────────────────
-
-
-class TestLeaderboardByMetric:
-    def test_earnings_metric_returns_200(self):
-        resp = client.get("/leaderboard/earnings")
-        assert resp.status_code == 200
-
-    def test_win_rate_metric_returns_200(self):
-        resp = client.get("/leaderboard/win_rate")
-        assert resp.status_code == 200
-
-    def test_games_played_metric_returns_200(self):
-        resp = client.get("/leaderboard/games_played")
-        assert resp.status_code == 200
-
-    def test_metric_response_has_expected_shape(self):
-        resp = client.get("/leaderboard/earnings")
-        data = resp.json()
-        assert "metric" in data
-        assert data["metric"] == "earnings"
-        assert "leaderboard" in data
-        assert "total_players" in data
-
-    def test_metric_respects_limit(self):
-        resp = client.get("/leaderboard/earnings", params={"limit": 3})
-        data = resp.json()
-        assert len(data["leaderboard"]) <= 3
-
-    def test_unknown_metric_falls_back_to_earnings(self):
-        resp = client.get("/leaderboard/unknown_metric")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["metric"] == "unknown_metric"
 
 
 # ── POST /game-results ───────────────────────────────────────────────────────
@@ -123,3 +39,32 @@ class TestRecordGameResult:
     def test_record_result_invalid_payload_returns_422(self):
         resp = client.post("/game-results", json={"player_profile_id": "not_int"})
         assert resp.status_code == 422
+
+    def test_record_result_persists(self):
+        """Read-back: a recorded result is actually written to game_player_results,
+        not just acknowledged in the response."""
+        pid = self._create_player()
+        if pid is None:
+            pytest.skip("player creation unavailable in this environment")
+
+        resp = client.post(
+            "/game-results",
+            json={
+                "game_record_id": 999999,
+                "player_profile_id": pid,
+                "player_name": "LB Reader",
+                "final_position": 1,
+                "total_earnings": 12.5,
+                "holes_won": 4,
+            },
+        )
+        assert resp.status_code == 200, resp.text
+
+        db = database.SessionLocal()
+        try:
+            row = db.query(models.GamePlayerResult).filter(models.GamePlayerResult.player_profile_id == pid).first()
+            assert row is not None, "recorded result not found in DB"
+            assert row.total_earnings == 12.5
+            assert row.final_position == 1
+        finally:
+            db.close()

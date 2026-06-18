@@ -32,7 +32,7 @@ function GameLobbyPage() {
   const [settingTeeOrder, setSettingTeeOrder] = useState(false);
   const [playerSuggestions, setPlayerSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-
+  const [infoMessage, setInfoMessage] = useState('');
   // Poll lobby status every 2 seconds
   useEffect(() => {
     const fetchLobby = async () => {
@@ -55,10 +55,14 @@ function GameLobbyPage() {
         // Update session in localStorage to keep it fresh
         const currentSession = localStorage.getItem(`wgp_session_${gameId}`);
         if (currentSession) {
-          const sessionData = JSON.parse(currentSession);
-          sessionData.timestamp = Date.now();
-          sessionData.status = data.status;
-          localStorage.setItem(`wgp_session_${gameId}`, JSON.stringify(sessionData));
+          try {
+            const sessionData = JSON.parse(currentSession);
+            sessionData.timestamp = Date.now();
+            sessionData.status = data.status;
+            localStorage.setItem(`wgp_session_${gameId}`, JSON.stringify(sessionData));
+          } catch {
+            localStorage.removeItem(`wgp_session_${gameId}`);
+          }
         }
 
         // If game has started, redirect to game page
@@ -185,6 +189,14 @@ function GameLobbyPage() {
       setNewPlayerName('');
       setNewPlayerHandicap('18.0');
       setShowAddPlayer(false);
+
+      if (data.handicap_source === 'ghin') {
+        setInfoMessage(`Handicap ${data.handicap} pulled from GHIN`);
+        setTimeout(() => setInfoMessage(''), 4000);
+      } else if (data.handicap_source === 'profile') {
+        setInfoMessage(`Handicap ${data.handicap} loaded from player profile`);
+        setTimeout(() => setInfoMessage(''), 4000);
+      }
 
       // Refresh will happen via polling
 
@@ -331,8 +343,8 @@ function GameLobbyPage() {
     );
   }
 
-  const canStart = lobby?.players_joined >= 2 && lobby?.players_joined <= lobby?.max_players && teeOrderSet;
-  const canSetTeeOrder = lobby?.players_joined >= 2 && !teeOrderSet;
+  const canStart = lobby?.players_joined === lobby?.max_players && teeOrderSet;
+  const canSetTeeOrder = lobby?.players_joined === lobby?.max_players && !teeOrderSet;
 
   // Convert lobby players to format expected by TeeTossModal
   const playersForToss = lobby?.players ? lobby.players.map(p => ({
@@ -431,7 +443,11 @@ function GameLobbyPage() {
               color: canStart ? theme.colors.success : theme.colors.warning,
               fontWeight: 600
             }}>
-              {canStart ? 'Ready to start!' : `Waiting for ${Math.max(2 - lobby?.players_joined, 0)} more player(s)`}
+              {canStart
+                ? 'Ready to start!'
+                : lobby?.players_joined === lobby?.max_players
+                  ? '⚠️ Set tee order to continue'
+                  : `Waiting for ${(lobby?.max_players ?? 4) - (lobby?.players_joined ?? 0)} more player(s)`}
             </span>
           </div>
         </div>
@@ -813,6 +829,18 @@ function GameLobbyPage() {
           </div>
         )}
 
+        {infoMessage && (
+          <div style={{
+            background: '#e8f5e9',
+            color: '#2e7d32',
+            padding: 12,
+            borderRadius: 8,
+            marginBottom: 16
+          }}>
+            {infoMessage}
+          </div>
+        )}
+
         {/* Set Tee Order Button */}
         {canSetTeeOrder && (
           <button
@@ -862,7 +890,13 @@ function GameLobbyPage() {
             cursor: (!canStart || starting) ? 'not-allowed' : 'pointer'
           }}
         >
-          {starting ? 'Starting Game...' : canStart ? '🚀 Start Game' : !teeOrderSet ? '⚠️ Set Tee Order First' : `Need ${Math.max(2 - lobby?.players_joined, 0)} More Player(s)`}
+          {starting
+            ? 'Starting Game...'
+            : canStart
+              ? '🚀 Start Game'
+              : lobby?.players_joined === lobby?.max_players
+                ? '⚠️ Set Tee Order First'
+                : `Need ${(lobby?.max_players ?? 4) - (lobby?.players_joined ?? 0)} More Player(s)`}
         </button>
 
         {/* Instructions */}

@@ -15,13 +15,13 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 
-def load_golden_round(file_path: str) -> Dict[str, Any]:
+def load_golden_round(file_path: str) -> dict[str, Any]:
     """Load the golden round JSON file."""
-    with open(file_path, "r") as f:
+    with open(file_path) as f:
         return json.load(f)
 
 
-def validate_hole_quarters_balance(hole: Dict[str, Any], hole_num: int) -> tuple[bool, str]:
+def validate_hole_quarters_balance(hole: dict[str, Any], hole_num: int) -> tuple[bool, str]:
     """
     Validate that quarters on a hole sum to zero.
 
@@ -42,14 +42,14 @@ def validate_hole_quarters_balance(hole: Dict[str, Any], hole_num: int) -> tuple
     return True, ""
 
 
-def validate_running_totals(holes: List[Dict[str, Any]], player_ids: List[str]) -> tuple[bool, str]:
+def validate_running_totals(holes: list[dict[str, Any]], player_ids: list[str]) -> tuple[bool, str]:
     """
     Validate that running totals are calculated correctly.
 
     Returns:
         (is_valid, error_message)
     """
-    running_totals: Dict[str, int] = {pid: 0 for pid in player_ids}
+    running_totals: dict[str, int] = dict.fromkeys(player_ids, 0)
 
     for i, hole in enumerate(holes, 1):
         quarters = hole.get("quarters", {})
@@ -74,7 +74,7 @@ def validate_running_totals(holes: List[Dict[str, Any]], player_ids: List[str]) 
 
 
 def validate_final_totals(
-    holes: List[Dict[str, Any]], expected_final: Dict[str, int], player_ids: List[str]
+    holes: list[dict[str, Any]], expected_final: dict[str, int], player_ids: list[str]
 ) -> tuple[bool, str]:
     """
     Validate that final totals match expected values and sum to zero.
@@ -83,7 +83,7 @@ def validate_final_totals(
         (is_valid, error_message)
     """
     # Calculate final totals from all quarters
-    final_totals: Dict[str, int] = {pid: 0 for pid in player_ids}
+    final_totals: dict[str, int] = dict.fromkeys(player_ids, 0)
     for hole in holes:
         quarters = hole.get("quarters", {})
         for pid in player_ids:
@@ -94,7 +94,7 @@ def validate_final_totals(
         expected = expected_final.get(pid, 0)
         actual = final_totals[pid]
         if expected != actual:
-            return False, (f"Final total mismatch for {pid}. " f"Expected {expected}, got {actual}")
+            return False, (f"Final total mismatch for {pid}. Expected {expected}, got {actual}")
 
     # Verify sum to zero
     total_sum = sum(final_totals.values())
@@ -107,7 +107,7 @@ def validate_final_totals(
     return True, ""
 
 
-def validate_all_holes_present(holes: List[Dict[str, Any]]) -> tuple[bool, str]:
+def validate_all_holes_present(holes: list[dict[str, Any]]) -> tuple[bool, str]:
     """Validate that all 18 holes are present."""
     if len(holes) != 18:
         return False, f"Expected 18 holes, found {len(holes)}"
@@ -122,14 +122,14 @@ def validate_all_holes_present(holes: List[Dict[str, Any]]) -> tuple[bool, str]:
     return True, ""
 
 
-def validate_golden_round(round_data: Dict[str, Any]) -> tuple[bool, List[str]]:
+def validate_golden_round(round_data: dict[str, Any]) -> tuple[bool, list[str]]:
     """
     Validate the entire golden round.
 
     Returns:
         (is_valid, list_of_errors)
     """
-    errors: List[str] = []
+    errors: list[str] = []
 
     # Extract data
     holes = round_data.get("holes", [])
@@ -162,7 +162,7 @@ def validate_golden_round(round_data: Dict[str, Any]) -> tuple[bool, List[str]]:
     return len(errors) == 0, errors
 
 
-def print_summary(round_data: Dict[str, Any]):
+def print_summary(round_data: dict[str, Any]):
     """Print a summary of the golden round."""
     metadata = round_data.get("game_metadata", {})
     holes = round_data.get("holes", [])
@@ -218,12 +218,11 @@ def main():
         print("  ✓ Running totals calculated correctly")
         print("  ✓ Final totals match expected and sum to zero")
         return 0
-    else:
-        print("❌ VALIDATION FAILED: Found errors:")
-        print()
-        for error in errors:
-            print(f"  ✗ {error}")
-        return 1
+    print("❌ VALIDATION FAILED: Found errors:")
+    print()
+    for error in errors:
+        print(f"  ✗ {error}")
+    return 1
 
 
 if __name__ == "__main__":

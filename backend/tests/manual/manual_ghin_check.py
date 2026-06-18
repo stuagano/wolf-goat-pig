@@ -1,5 +1,7 @@
-import httpx
 import asyncio
+
+import httpx
+
 
 async def test_ghin_sync():
     try:
@@ -15,13 +17,15 @@ async def test_ghin_sync():
                 if player.get("ghin_id"):
                     player_to_sync = player
                     break
-            
+
             if not player_to_sync:
                 print("No player with a ghin_id found. Please add one to test the sync.")
                 return
 
             player_id = player_to_sync["id"]
-            print(f"Found player to sync: {player_to_sync['name']} (ID: {player_id}, GHIN ID: {player_to_sync['ghin_id']})")
+            print(
+                f"Found player to sync: {player_to_sync['name']} (ID: {player_id}, GHIN ID: {player_to_sync['ghin_id']})"
+            )
 
             # Sync the player's handicap
             print(f"Syncing handicap for player {player_id}...")
@@ -36,6 +40,7 @@ async def test_ghin_sync():
         print(f"HTTP error occurred: {e.response.status_code} - {e.response.text}")
     except Exception as e:
         print(f"An error occurred: {e}")
+
 
 if __name__ == "__main__":
     asyncio.run(test_ghin_sync())

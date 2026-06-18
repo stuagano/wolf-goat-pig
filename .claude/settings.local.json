@@ -40,8 +40,21 @@
       "mcp__plugin_playwright_playwright__browser_wait_for",
       "mcp__plugin_playwright_playwright__browser_evaluate",
       "mcp__plugin_playwright_playwright__browser_close",
-      "WebFetch(domain:wolf-goat-pig-booking.onrender.com)"
+      "WebFetch(domain:wolf-goat-pig-booking.onrender.com)",
+      "mcp__ruflo__analyze_diff",
+      "mcp__ruflo__agent_spawn",
+      "mcp__ruflo__agent_status",
+      "mcp__chrome-devtools__new_page",
+      "WebFetch(domain:npm-proxy.dev.databricks.com)",
+      "WebFetch(domain:sentry.io)",
+      "WebFetch(domain:pypi.org)",
+      "Bash(python3 *)",
+      "WebFetch(domain:thousand-cranes.com)"
     ],
     "deny": []
+  },
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
   }
 }

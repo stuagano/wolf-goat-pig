@@ -138,8 +138,8 @@ def multiple_players(db):
     players = []
     for i in range(5):
         player = PlayerProfile(
-            name=f"Player {i+1}",
-            email=f"player{i+1}@example.com",
+            name=f"Player {i + 1}",
+            email=f"player{i + 1}@example.com",
             handicap=10.0 + i * 2,
             is_active=1,
             is_ai=0,
@@ -209,7 +209,7 @@ class TestPerformanceMetrics:
 
     def test_win_rate_calculation(self, db, test_player_with_stats):
         """Test win rate metric calculation."""
-        player, stats = test_player_with_stats
+        player, _stats = test_player_with_stats
         service = StatisticsService(db)
 
         metrics = service.get_advanced_player_metrics(player.id)
@@ -535,7 +535,7 @@ class TestScorePerformanceAnalytics:
 
     def test_score_performance_raw_counts(self, db, test_player_with_stats):
         """Test raw score counts are correct."""
-        player, stats = test_player_with_stats
+        player, _stats = test_player_with_stats
         service = StatisticsService(db)
 
         analytics = service.get_score_performance_analytics(player.id)
@@ -547,7 +547,7 @@ class TestScorePerformanceAnalytics:
 
     def test_score_performance_rates(self, db, test_player_with_stats):
         """Test score performance rates calculation."""
-        player, stats = test_player_with_stats
+        player, _stats = test_player_with_stats
         service = StatisticsService(db)
 
         analytics = service.get_score_performance_analytics(player.id)

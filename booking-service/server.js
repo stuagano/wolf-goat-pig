@@ -120,9 +120,98 @@ async function navigateToSlot(page, date, time) {
   }
 }
 
+// ── Parse "Firstname Lastname" → best search term (last name) ─
+function searchTermFor(fullName) {
+  const parts = fullName.trim().split(/\s+/);
+  // Use last name — more unique, and ForeTees shows "LastName, FirstName"
+  return parts.length > 1 ? parts[parts.length - 1] : parts[0];
+}
+
+// ── Find best match in ftMs-listItem list ─────────────────────
+async function pickBestMatch(page, fullName) {
+  const nameLower = fullName.toLowerCase();
+  const parts = nameLower.split(/\s+/);
+  const items = page.locator('div.ftMs-listItem');
+  const count = await items.count();
+  if (count === 0) return null;
+
+  for (let j = 0; j < count; j++) {
+    const item = items.nth(j);
+    const text = (await item.textContent().catch(() => '')).toLowerCase();
+    // Match if ALL parts of the name appear in the item text
+    if (parts.every((p) => text.includes(p))) return item;
+  }
+  // Fallback: first result
+  return items.first();
+}
+
+// ── Fill co-player names into empty slots ────────────────────
+// ForeTees v5 uses a "Select Player #N" modal:
+//   1. Click the empty slot row to open the modal
+//   2. Type the last name in the search input
+//   3. Wait for ftMs-listItem results
+//   4. Click the best match
+async function fillCoPlayers(page, playerNames) {
+  if (!playerNames || playerNames.length === 0) return;
+
+  // Find visible empty slot rows (exclude locked/hidden ones)
+  const emptyRows = page.locator(
+    'div.slot_player_row.emptySlot:not(.ftS-noDisplay):not(.ftS-lockedPlayer)'
+  );
+  const count = await emptyRows.count();
+
+  for (let i = 0; i < Math.min(playerNames.length, count); i++) {
+    const name = playerNames[i];
+    if (!name) continue;
+    const row = emptyRows.nth(i);
+
+    try {
+      // Click anywhere on the empty row — ForeTees opens the member-select modal
+      await row.click({ timeout: 3000 });
+
+      // Wait for the modal to appear, then click the "Members" tab
+      const membersTab = page.locator('button:has-text("Members"), a:has-text("Members")').first();
+      await membersTab.waitFor({ state: 'visible', timeout: 4000 });
+      await membersTab.click();
+
+      // Wait for the modal search input to appear
+      const searchInput = page.locator(
+        'div[class*="ftMs"] input[type="text"], input.ftMs-searchInput'
+      ).first();
+      await searchInput.waitFor({ state: 'visible', timeout: 3000 });
+
+      // Type last name — ForeTees shows "LastName, FirstName" in results
+      const term = searchTermFor(name);
+      await searchInput.fill(term);
+
+      // Wait for results to populate
+      await page.waitForSelector('div.ftMs-listItem', { timeout: 4000 });
+
+      // Pick the best matching member and click
+      const match = await pickBestMatch(page, name);
+      if (match) {
+        await match.click({ timeout: 3000 });
+        console.log(`[co-player] slot ${i}: selected "${name}" (searched "${term}")`);
+      } else {
+        // Close modal without selecting if no match found
+        const closeBtn = page.locator('button:has-text("Close"), button.ftMs-close').first();
+        await closeBtn.click({ timeout: 2000 }).catch(() => {});
+        console.warn(`[co-player] slot ${i}: no match found for "${name}", skipped`);
+      }
+
+      // Small pause to let ForeTees update the slot before moving to next
+      await page.waitForTimeout(500);
+    } catch (err) {
+      console.warn(`[co-player] slot ${i} error for "${name}": ${err.message}`);
+      // Try to close any open modal before moving on
+      await page.locator('button:has-text("Close")').first().click({ timeout: 1000 }).catch(() => {});
+    }
+  }
+}
+
 // ── Book ─────────────────────────────────────────────────────
 async function book(args) {
-  const { username, password, date, time, transport_mode } = args;
+  const { username, password, date, time, transport_mode, players } = args;
   if (!username || !password || !date || !time)
     return { success: false, error: 'Missing required fields' };
 
@@ -131,6 +220,9 @@ async function book(args) {
   try {
     await loginAndSSO(page, username, password);
     await navigateToSlot(page, date, time);
+
+    // Add co-players to empty slots before submitting
+    await fillCoPlayers(page, players);
 
     // Set transport mode using Playwright's native selectOption so that
     // ForeTees v5's JS framework event handlers actually fire (plain

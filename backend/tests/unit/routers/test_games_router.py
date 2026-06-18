@@ -67,9 +67,13 @@ class TestCreateGame:
         assert data["player_count"] == 4
 
     def test_create_game_custom_player_count(self):
-        resp = _create_game(player_count=3)
+        resp = _create_game(player_count=5)
         data = resp.json()
-        assert data["player_count"] == 3
+        assert data["player_count"] == 5
+
+    def test_create_game_invalid_player_count_returns_400(self):
+        resp = _create_game(player_count=3)
+        assert resp.status_code == 400
 
     def test_create_game_status_is_setup(self):
         resp = _create_game()
@@ -111,11 +115,11 @@ class TestJoinGame:
         assert resp.status_code == 404
 
     def test_join_full_game_returns_400(self):
-        game = _create_game(player_count=2).json()
+        game = _create_game(player_count=4).json()
         join_code = game["join_code"]
-        _join_game(join_code, player_name="Player1")
-        _join_game(join_code, player_name="Player2")
-        resp = _join_game(join_code, player_name="Player3")
+        for i in range(4):
+            _join_game(join_code, player_name=f"Player{i + 1}")
+        resp = _join_game(join_code, player_name="Player5")
         assert resp.status_code == 400
 
     def test_join_game_missing_name_returns_422(self):
@@ -250,17 +254,17 @@ class TestDeleteGame:
 
 
 class TestTeeOrder:
-    def _setup_game_with_players(self, count=2):
+    def _setup_game_with_players(self, count=4):
         game = _create_game(player_count=count).json()
         join_code = game["join_code"]
         slots = []
         for i in range(count):
-            resp = _join_game(join_code, player_name=f"Player{i+1}")
+            resp = _join_game(join_code, player_name=f"Player{i + 1}")
             slots.append(resp.json()["player_slot_id"])
         return game["game_id"], slots
 
     def test_set_tee_order_returns_200(self):
-        game_id, slots = self._setup_game_with_players(2)
+        game_id, slots = self._setup_game_with_players(4)
         resp = client.patch(
             f"/games/{game_id}/tee-order",
             json={"player_order": slots},
@@ -268,7 +272,7 @@ class TestTeeOrder:
         assert resp.status_code == 200
 
     def test_set_tee_order_success_message(self):
-        game_id, slots = self._setup_game_with_players(2)
+        game_id, slots = self._setup_game_with_players(4)
         resp = client.patch(
             f"/games/{game_id}/tee-order",
             json={"player_order": slots},
@@ -284,19 +288,19 @@ class TestTeeOrder:
         )
         assert resp.status_code == 404
 
-    def test_set_tee_order_empty_order_returns_400(self):
-        game_id, _ = self._setup_game_with_players(2)
+    def test_set_tee_order_empty_order_returns_422(self):
+        game_id, _ = self._setup_game_with_players(4)
         resp = client.patch(
             f"/games/{game_id}/tee-order",
             json={"player_order": []},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
     def test_set_tee_order_wrong_count_returns_400(self):
-        game_id, slots = self._setup_game_with_players(3)
+        game_id, slots = self._setup_game_with_players(4)
         resp = client.patch(
             f"/games/{game_id}/tee-order",
-            json={"player_order": slots[:2]},  # only 2 of 3
+            json={"player_order": slots[:2]},  # only 2 of 4
         )
         assert resp.status_code == 400
 
@@ -317,7 +321,7 @@ class TestStartGame:
         assert resp.status_code == 400
 
     def test_start_game_with_one_player_returns_400(self):
-        game = _create_game(player_count=2).json()
+        game = _create_game(player_count=4).json()
         join_resp = _join_game(game["join_code"], player_name="Solo")
         slot = join_resp.json()["player_slot_id"]
         # Set tee order with just 1 player — start should still fail (need >=2)
@@ -359,3 +363,39 @@ class TestStartGame:
         client.post(f"/games/{game['game_id']}/start")
         resp = client.post(f"/games/{game['game_id']}/start")
         assert resp.status_code == 400
+
+
+class TestSetTeeOrderValidation:
+    def _client(self):
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        return TestClient(app)
+
+    def test_missing_player_order_returns_422(self):
+        resp = self._client().patch("/games/nonexistent/tee-order", json={})
+        assert resp.status_code == 422
+
+    def test_empty_player_order_returns_422(self):
+        resp = self._client().patch("/games/nonexistent/tee-order", json={"player_order": []})
+        assert resp.status_code == 422
+
+
+class TestBusinessStateStays400Not422:
+    """Guard: state checks that need the loaded game must NOT become 422.
+
+    A well-formed request body must reach the handler and fail on the
+    business-state lookup (404/400) — not be rejected as 422 by Pydantic.
+    This protects against accidental over-migration of validation.
+    """
+
+    def test_join_nonexistent_game_is_404_not_422(self):
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        # Well-formed JoinGameRequest body (player_name required) to a
+        # nonexistent join code → fails on game lookup (404), not shape.
+        resp = TestClient(app).post("/games/join/ZZZZZZ", json={"player_name": "Tester"})
+        assert resp.status_code == 404

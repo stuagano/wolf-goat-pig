@@ -1,4 +1,5 @@
-from sqlalchemy import Boolean, Column, Float, ForeignKey, Index, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint, text
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 from sqlalchemy.types import JSON
 
@@ -96,6 +97,61 @@ class Hole(Base):
     course = relationship("Course", back_populates="holes")
 
 
+class HoleOrder(Base):
+    """Hitting order for a specific hole.
+
+    Written on game setup and correctable any time during the round.
+    Last-write-wins per (game_id, hole_number).
+    """
+
+    __tablename__ = "hole_orders"
+    __table_args__ = (UniqueConstraint("game_id", "hole_number", name="uq_hole_orders_game_hole"),)
+    id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(get_uuid_column(), index=True, nullable=False)
+    hole_number = Column(Integer, nullable=False)
+    hitting_order = Column(JSON, nullable=False)  # ordered list of player_ids
+    captain_id = Column(String, nullable=True)  # hitting_order[0]
+    recorded_at = Column(String, nullable=False)
+
+
+class HoleLog(Base):
+    """Narrative log of a hole — betting arc, play context, and resolution.
+
+    Stores the full structured story as JSON plus a few extracted columns
+    for efficient querying (who won, how much, carry-over box).
+    """
+
+    __tablename__ = "hole_logs"
+    __table_args__ = (UniqueConstraint("game_id", "hole_number", name="uq_hole_logs_game_hole"),)
+    id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(get_uuid_column(), index=True, nullable=False)
+    hole_number = Column(Integer, nullable=False)
+    log_data = Column(JSON, nullable=False)
+    recorded_at = Column(String, nullable=False)
+
+
+class HoleEvent(Base):
+    """Per-player-per-hole score and quarters log.
+
+    score and quarters are independently updatable — correcting one does not
+    force re-entry of the other. The zero-sum invariant (SUM(quarters) == 0
+    per hole) is checked at game finalization.
+    """
+
+    __tablename__ = "hole_events"
+    __table_args__ = (
+        UniqueConstraint("game_id", "hole_number", "player_id", name="uq_hole_events_game_hole_player"),
+        Index("ix_hole_events_game_id", "game_id"),
+    )
+    id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(get_uuid_column(), nullable=False)
+    hole_number = Column(Integer, nullable=False)
+    player_id = Column(String, nullable=False)
+    score = Column(Integer, nullable=True)  # gross score — null until entered
+    quarters = Column(Float, nullable=False, default=0)  # quarters won (+) or lost (-)
+    recorded_at = Column(String, nullable=False)
+
+
 # For MVP: store the entire game state as a JSON blob
 # Updated to support multiple active games with unique game_id
 class GameStateModel(Base):
@@ -105,7 +161,12 @@ class GameStateModel(Base):
     join_code = Column(String, unique=True, index=True, nullable=True)  # 6-char code for joining
     creator_user_id = Column(String, nullable=True)  # Auth0 user ID of game creator
     game_status = Column(String, default="setup")  # setup, in_progress, completed
-    state = Column(JSON)
+    # MutableDict so in-place TOP-LEVEL mutations (game.state["x"] = ...) auto-mark
+    # the column dirty — removes the silent-persistence footgun that previously
+    # required a manual flag_modified on every write. NOTE: only top-level key
+    # changes are tracked; NESTED mutation (state["players"][i]["x"] = ...) is NOT,
+    # so nested writes must reassign the top-level key (state["players"] = new_list).
+    state = Column(MutableDict.as_mutable(JSON))
     created_at = Column(String)
     updated_at = Column(String)
 
@@ -282,8 +343,8 @@ class PendingSheetSync(Base):
 
     __tablename__ = "pending_sheet_syncs"
     id = Column(Integer, primary_key=True, index=True)
-    date = Column(String, index=True)          # YYYY-MM-DD
-    group = Column(String)                     # "A"-"D"
+    date = Column(String, index=True)  # YYYY-MM-DD
+    group = Column(String)  # "A"-"D"
     location = Column(String)
     duration = Column(String, nullable=True)
     # {player_name: total_quarters} — app sums per-hole scores before enqueueing
@@ -302,20 +363,37 @@ class LegacyRound(Base):
     __tablename__ = "legacy_rounds"
     __table_args__ = (
         Index("ix_legacy_rounds_date_group_member", "date", "group", "member"),
+        # One member-posted round per (member, date). Partial index: only member
+        # self-posts are constrained; sheet rows can legitimately repeat.
+        Index(
+            "ux_member_round_per_day",
+            "member",
+            "date",
+            unique=True,
+            sqlite_where=text("source = 'member'"),
+            postgresql_where=text("source = 'member'"),
+        ),
     )
     id = Column(Integer, primary_key=True, index=True)
-    date = Column(String, index=True)          # e.g. "2026-04-06"
-    group = Column(String)                     # e.g. "A"
-    member = Column(String, index=True)        # e.g. "Stuart Gano"
-    score = Column(Integer)                    # quarters won/lost
-    location = Column(String)                  # course name
-    duration = Column(String, nullable=True)   # e.g. "02:15:00"
-    source = Column(String, default="sheet")   # "primary_sheet" or "writable_sheet"
-    synced_at = Column(String)                 # ISO timestamp of last sync
+    date = Column(String, index=True)  # e.g. "2026-04-06"
+    group = Column(String)  # e.g. "A"
+    member = Column(String, index=True)  # e.g. "Stuart Gano"
+    score = Column(Integer)  # quarters won/lost
+    location = Column(String)  # course name
+    duration = Column(String, nullable=True)  # e.g. "02:15:00"
+    source = Column(String, default="sheet")  # "primary_sheet" | "writable_sheet" | "member"
+    synced_at = Column(String)  # ISO timestamp of last sync
     hole_scores = Column(JSON, default=dict)  # Hole-by-hole scores
     betting_history = Column(JSON, default=list)  # Detailed betting decisions
     performance_metrics = Column(JSON, default=dict)  # Advanced metrics
     created_at = Column(String)
+    # Member self-posting + peer attestation (member rows only; sheet/db rows
+    # default to "attested" so existing reads are unchanged).
+    player_profile_id = Column(Integer, ForeignKey("player_profiles.id"), nullable=True)
+    status = Column(String(16), nullable=False, default="attested", server_default="attested")
+    attested_by_profile_id = Column(Integer, ForeignKey("player_profiles.id"), nullable=True)
+    attested_at = Column(DateTime, nullable=True)
+    foursome = Column(JSON, nullable=True)  # canonical roster names eligible to attest
 
 
 class PlayerAchievement(Base):
@@ -333,9 +411,7 @@ class PlayerAchievement(Base):
 # Daily Sign-up System Models
 class DailySignup(Base):
     __tablename__ = "daily_signups"
-    __table_args__ = (
-        Index("ix_daily_signups_date_player", "date", "player_profile_id"),
-    )
+    __table_args__ = (Index("ix_daily_signups_date_player", "date", "player_profile_id"),)
     id = Column(Integer, primary_key=True, index=True)
     date = Column(String, index=True)  # YYYY-MM-DD format
     player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
@@ -370,10 +446,30 @@ class EmailPreferences(Base):
     signup_reminders_enabled = Column(Integer, default=1)  # Reminders to sign up
     game_invitations_enabled = Column(Integer, default=1)  # Direct game invitations
     weekly_summary_enabled = Column(Integer, default=1)  # Weekly activity summary
+    callout_list_enabled = Column(Integer, default=0)  # Opt in to "we're short for a game" callouts
     email_frequency = Column(String, default="daily")  # daily, weekly, monthly, never
     preferred_notification_time = Column(String, default="8:00 AM")  # When to send dailies
     created_at = Column(String)
     updated_at = Column(String)
+
+
+class CalloutNotification(Base):
+    """Audit + dedup log for headcount callouts.
+
+    One row per (game_date, window) that actually fired, so the scheduler
+    never double-calls the list within the same window (pre_pairing / morning_of).
+    """
+
+    __tablename__ = "callout_notifications"
+    __table_args__ = (Index("ix_callout_notifications_date_window", "game_date", "callout_window"),)
+    id = Column(Integer, primary_key=True, index=True)
+    game_date = Column(String, index=True)  # YYYY-MM-DD the callout is for
+    callout_window = Column(String)  # "pre_pairing" or "morning_of" (window is a reserved SQL word)
+    signup_count = Column(Integer)  # Signups at the time the callout fired
+    target = Column(Integer)  # Headcount we were filling up to (next foursome)
+    shortfall = Column(Integer)  # How many more players were needed
+    recipient_count = Column(Integer)  # How many opt-in players were emailed
+    sent_at = Column(String)  # ISO timestamp
 
 
 class DailyMessage(Base):
@@ -392,9 +488,7 @@ class DailyMessage(Base):
 # GHIN Integration Models
 class GHINScore(Base):
     __tablename__ = "ghin_scores"
-    __table_args__ = (
-        Index("ix_ghin_scores_player_date", "player_profile_id", "score_date"),
-    )
+    __table_args__ = (Index("ix_ghin_scores_player_date", "player_profile_id", "score_date"),)
     id = Column(Integer, primary_key=True, index=True)
     player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
     ghin_id = Column(String, index=True)  # GHIN ID
@@ -465,6 +559,7 @@ class Badge(Base):
     category = Column(String, index=True)  # achievement, progression, seasonal, rare_event, collectible_series
     rarity = Column(String, index=True)  # common, rare, epic, legendary, mythic
     image_url = Column(String, nullable=True)  # Badge image path or URL
+    emoji = Column(String, nullable=True)  # Emoji icon displayed when no image
     trigger_condition = Column(JSON)  # Logic for earning badge
     trigger_type = Column(String)  # one_time, career_milestone, series_completion, seasonal
     max_supply = Column(Integer, nullable=True)  # NULL = unlimited (for limited edition badges)
@@ -595,3 +690,118 @@ class GeneratedPairing(Base):
     notification_sent_at = Column(String, nullable=True)  # When notification was sent
     created_at = Column(String)
     updated_at = Column(String, nullable=True)
+
+
+# LivSow roster snapshots — change-log of team rosters parsed from the
+# LivSow Google Sheet. A snapshot is stored only when the compacted roster
+# (names + roles, no stats) differs from the latest confirmed snapshot.
+class LivSowRosterSnapshot(Base):
+    """One observed roster state. status: 'pending' (debounce candidate,
+    awaiting re-observation >=30 min later) or 'confirmed'."""
+
+    __tablename__ = "livsow_roster_snapshots"
+    id = Column(Integer, primary_key=True, index=True)
+    taken_at = Column(String, index=True)  # ISO timestamp
+    season = Column(String, index=True)
+    status = Column(String, default="pending", index=True)  # pending | confirmed
+    roster_hash = Column(String, index=True)  # sha256 of canonical compact roster
+    player_count = Column(Integer)  # rostered + free agents (sanity guards)
+    roster = Column(JSON)  # {"teams": {name: [{"name","role"}]}, "free_agents": [names]}
+
+
+# LivSow transactions — auto-derived from snapshot diffs (baseball-reference
+# style: signings, releases, trades, role changes, free-agency moves).
+class LivSowTransaction(Base):
+    __tablename__ = "livsow_transactions"
+    id = Column(Integer, primary_key=True, index=True)
+    detected_at = Column(String, index=True)  # ISO timestamp
+    season = Column(String, index=True)
+    week_label = Column(String, nullable=True)  # e.g. "6/8" — latest week at detection
+    snapshot_id = Column(Integer, index=True)  # FK-ish to livsow_roster_snapshots.id
+    type = Column(String, index=True)  # signed|released|traded|role_change|joined|departed|renamed
+    player_name = Column(String, index=True)  # display name (post-state for 'renamed')
+    from_team = Column(String, nullable=True)
+    to_team = Column(String, nullable=True)
+    from_role = Column(String, nullable=True)
+    to_role = Column(String, nullable=True)
+    details = Column(JSON, nullable=True)
+    deleted = Column(Boolean, default=False)
+
+
+# LivSow media archive — videos (and images) harvested from the GroupMe
+# group so clips survive chat scroll-off. Bytes stay on GroupMe's CDN;
+# archived_url is reserved for future object-storage copies.
+class LivSowMedia(Base):
+    __tablename__ = "livsow_media"
+    id = Column(Integer, primary_key=True, index=True)
+    groupme_message_id = Column(String, unique=True, index=True)
+    kind = Column(String, index=True)  # 'video' | 'image'
+    url = Column(String)
+    preview_url = Column(String, nullable=True)
+    archived_url = Column(String, nullable=True)  # future: blob-storage copy
+    author = Column(String, index=True)
+    caption = Column(String, nullable=True)
+    posted_at = Column(String, index=True)  # ISO timestamp from GroupMe
+    harvested_at = Column(String)
+    likes = Column(Integer, default=0)
+    featured = Column(Boolean, default=False)  # admin curation hook
+    deleted = Column(Boolean, default=False)
+
+
+# LivSow team page content — captain-editable, no-code customization of a
+# team's franchise page (motto, about blurb, announcement, logo URL).
+# One row per team per season.
+class LivSowTeamContent(Base):
+    __tablename__ = "livsow_team_content"
+    id = Column(Integer, primary_key=True, index=True)
+    team_slug = Column(String, index=True)
+    season = Column(String, index=True)
+    motto = Column(String, nullable=True)
+    about = Column(String, nullable=True)
+    announcement = Column(String, nullable=True)
+    logo_url = Column(String, nullable=True)
+    updated_by = Column(String, nullable=True)  # display name of editor
+    updated_at = Column(String, nullable=True)
+
+
+class LegacyRosterPlayer(Base):
+    """Canonical roster of player names — the single source of truth for who
+    is a recognized WGP player.
+
+    This table mirrors the fixed dropdown on Jeff Green's legacy tee sheet
+    (thousand-cranes.com/WolfGoatPig), which only accepts signups for names it
+    already knows. Seeded from data/legacy_players.json; an admin adds names
+    here once they exist on the legacy dropdown. All canonical reads
+    (onboarding dropdown, fuzzy matching, validation) come from this table —
+    never from pending captures (see PendingLegacyPlayer).
+    """
+
+    __tablename__ = "legacy_roster"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)
+    source = Column(String, default="seed")  # "seed" | "admin" | "promoted"
+    added_at = Column(String, nullable=True)
+    notes = Column(String, nullable=True)
+
+
+class PendingLegacyPlayer(Base):
+    """Queue of self-signed-up golfers who have no match on the canonical
+    roster yet.
+
+    Captured (not promoted) when a brand-new player signs up via Auth0 and
+    no canonical name matches. Kept structurally separate from
+    legacy_roster so a pending name can NEVER leak into canonical reads and
+    falsely validate — their signups would silently fail at the legacy CGI
+    until Jeff adds them to his dropdown. An admin promotes a pending row
+    into legacy_roster once that manual step is done.
+    """
+
+    __tablename__ = "pending_legacy_players"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    email = Column(String, nullable=True, index=True)
+    player_profile_id = Column(Integer, nullable=True, index=True)
+    status = Column(String, default="pending", index=True)  # "pending" | "promoted" | "dismissed"
+    created_at = Column(String)
+    resolved_at = Column(String, nullable=True)
+    notes = Column(String, nullable=True)

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth0 } from '@auth0/auth0-react';
+import { isAdminEmail, getStoredUserEmail } from '../utils/adminAuth';
 import { Card } from '../components/ui';
 import SheetIntegrationDashboard from '../components/integration/SheetIntegrationDashboard';
 import WGPAnalyticsDashboard from '../components/analytics/WGPAnalyticsDashboard';
@@ -12,6 +14,7 @@ const API_URL = apiConfig.baseUrl;
 
 const AdminPage = () => {
   const navigate = useNavigate();
+  const { user, isLoading: authLoading } = useAuth0();
   const [activeTab, setActiveTab] = useState('email');
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -50,6 +53,7 @@ const AdminPage = () => {
 
   // Check admin access
   useEffect(() => {
+    if (authLoading) return;
     checkAdminAccess();
     if (activeTab === 'email') {
       if (emailMethod === 'smtp') {
@@ -60,32 +64,21 @@ const AdminPage = () => {
     } else if (activeTab === 'banners') {
       fetchBannerConfig();
     }
-  }, [activeTab, emailMethod]);
+  }, [activeTab, emailMethod, authLoading, user]);
 
-  const checkAdminAccess = async () => {
-    try {
-      // For now, using a simple admin check - you can enhance this with proper auth
-      const adminEmails = ['stuagano@gmail.com', 'admin@wgp.com'];
-      const userEmail = localStorage.getItem('userEmail') || 'stuagano@gmail.com'; // Default for testing
-      
-      if (adminEmails.includes(userEmail)) {
-        setIsAdmin(true);
-      } else {
-        setIsAdmin(false);
-      }
-    } catch (error) {
-      console.error('Error checking admin access:', error);
-      setIsAdmin(false);
-    } finally {
-      setLoading(false);
-    }
+  const checkAdminAccess = () => {
+    // Auth0 identity is authoritative; stored email is a fallback for page
+    // reloads mid-session. No hardcoded default — unknown users are not admins.
+    const userEmail = user?.email || getStoredUserEmail();
+    setIsAdmin(isAdminEmail(userEmail));
+    setLoading(false);
   };
 
   const fetchEmailConfig = async () => {
     try {
       const response = await fetch(`${API_URL}/admin/email-config`, {
         headers: {
-          'X-Admin-Email': localStorage.getItem('userEmail') || 'stuagano@gmail.com'
+          'X-Admin-Email': getStoredUserEmail()
         }
       });
       
@@ -115,7 +108,7 @@ const AdminPage = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Admin-Email': localStorage.getItem('userEmail') || 'stuagano@gmail.com'
+          'X-Admin-Email': getStoredUserEmail()
         },
         body: JSON.stringify(emailConfig)
       });
@@ -144,7 +137,7 @@ const AdminPage = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Admin-Email': localStorage.getItem('userEmail') || 'stuagano@gmail.com'
+          'X-Admin-Email': getStoredUserEmail()
         },
         body: JSON.stringify({ 
           test_email: testEmail,
@@ -170,7 +163,7 @@ const AdminPage = () => {
     try {
       const response = await fetch(`${API_URL}/admin/oauth2-status`, {
         headers: {
-          'X-Admin-Email': localStorage.getItem('userEmail') || 'stuagano@gmail.com'
+          'X-Admin-Email': getStoredUserEmail()
         }
       });
       
@@ -197,7 +190,7 @@ const AdminPage = () => {
       const response = await fetch(`${API_URL}/admin/upload-credentials`, {
         method: 'POST',
         headers: {
-          'X-Admin-Email': localStorage.getItem('userEmail') || 'stuagano@gmail.com'
+          'X-Admin-Email': getStoredUserEmail()
         },
         body: formData
       });
@@ -223,7 +216,7 @@ const AdminPage = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Admin-Email': localStorage.getItem('userEmail') || 'stuagano@gmail.com'
+          'X-Admin-Email': getStoredUserEmail()
         },
         body: JSON.stringify({
           from_email: emailConfig.from_email,
@@ -289,7 +282,7 @@ const AdminPage = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Admin-Email': localStorage.getItem('userEmail') || 'stuagano@gmail.com'
+          'X-Admin-Email': getStoredUserEmail()
         },
         body: JSON.stringify({ 
           test_email: testEmail
@@ -314,7 +307,7 @@ const AdminPage = () => {
     try {
       const response = await fetch(`${API_URL}/admin/banner`, {
         headers: {
-          'X-Admin-Email': localStorage.getItem('userEmail') || 'stuagano@gmail.com'
+          'X-Admin-Email': getStoredUserEmail()
         }
       });
 
@@ -359,7 +352,7 @@ const AdminPage = () => {
         method: method,
         headers: {
           'Content-Type': 'application/json',
-          'X-Admin-Email': localStorage.getItem('userEmail') || 'stuagano@gmail.com'
+          'X-Admin-Email': getStoredUserEmail()
         },
         body: JSON.stringify(bannerConfig)
       });
@@ -390,7 +383,7 @@ const AdminPage = () => {
       const response = await fetch(`${API_URL}/admin/banner/${currentBannerId}`, {
         method: 'DELETE',
         headers: {
-          'X-Admin-Email': localStorage.getItem('userEmail') || 'stuagano@gmail.com'
+          'X-Admin-Email': getStoredUserEmail()
         }
       });
 
@@ -523,6 +516,12 @@ const AdminPage = () => {
             }`}
           >
             🎲 Foursomes
+          </button>
+          <button
+            onClick={() => navigate('/admin/roster')}
+            className="flex-1 px-4 py-2 rounded-md font-medium transition-colors text-gray-600 hover:text-gray-900"
+          >
+            👥 Roster
           </button>
         </div>
 

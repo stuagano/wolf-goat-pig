@@ -1,4 +1,8 @@
-name: Frontend CI/CD
+name: Frontend CI
+
+# NOTE: frontend/package-lock.json is intentionally NOT committed (it breaks
+# Vercel builds — see vercel.json installCommand). Therefore this workflow
+# uses `npm install`, never `npm ci`, and does not cache against a lockfile.
 
 on:
   push:
@@ -17,60 +21,36 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [20.x]
-    
+
     steps:
     - uses: actions/checkout@v5
-    
-    - name: Use Node.js ${{ matrix.node-version }}
+
+    - name: Use Node.js 20
       uses: actions/setup-node@v4
       with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
-    
-    - name: Verify package-lock.json is in sync
-      run: |
-        cd frontend
-        npm ci --dry-run 2>&1 || (echo "❌ package-lock.json out of sync! Run 'npm install' locally." && exit 1)
-    
+        node-version: '20.x'
+
     - name: Install dependencies
-      run: |
-        cd frontend
-        npm ci
-    
-    - name: Run linting
-      run: |
-        cd frontend
-        npm run lint
-    
-    - name: Run type checking
-      run: |
-        cd frontend
-        npm run typecheck
-    
-    - name: Run tests with coverage
-      run: |
-        cd frontend
-        npm run test -- --coverage --watchAll=false
+      working-directory: frontend
+      # Mirrors vercel.json installCommand
+      run: npm install --legacy-peer-deps --no-audit
+
+    # No lint step: eslint is not currently a project dependency.
+    # If you add eslint + config, restore: npm run lint
+
+    - name: Type check
+      working-directory: frontend
+      run: npm run typecheck
+
+    - name: Run tests
+      working-directory: frontend
+      run: npm run test:ci
       env:
         CI: true
-    
-    - name: Upload coverage reports
-      uses: codecov/codecov-action@v5
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        files: ./frontend/coverage/lcov.info
-        flags: frontend
-        name: frontend-coverage
-      if: matrix.node-version == '20.x'
-    
+
     - name: Build application
-      run: |
-        cd frontend
-        npm run build
+      working-directory: frontend
+      run: npm run build
       env:
         CI: false
         REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL || 'http://localhost:8000' }}

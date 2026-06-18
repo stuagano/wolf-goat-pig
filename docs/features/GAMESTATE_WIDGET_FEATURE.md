@@ -283,7 +283,6 @@ Potential improvements:
 - `frontend/src/components/GameStateWidget.js` (365 lines)
 - `frontend/src/components/__tests__/GameStateWidget.test.js` (580 lines)
 - `test_multi_hole_tracking.py` (233 lines)
-- `PROOF_MULTI_HOLE_TRACKING.md` (186 lines)
 - `GAMESTATE_WIDGET_FEATURE.md` (this file)
 
 ### Modified Files

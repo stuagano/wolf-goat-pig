@@ -1,50 +1,35 @@
-# Configuration for automatic PR labeling (labeler v5 format)
-
-backend:
+documentation:
   - changed-files:
-    - any-glob-to-any-file: 'backend/**/*'
+      - any-glob-to-any-file:
+          - 'docs/**'
+          - '**/*.md'
 
 frontend:
   - changed-files:
-    - any-glob-to-any-file: 'frontend/**/*'
+      - any-glob-to-any-file:
+          - 'frontend/**'
 
-documentation:
+backend:
   - changed-files:
-    - any-glob-to-any-file:
-      - '**/*.md'
-      - 'docs/**/*'
+      - any-glob-to-any-file:
+          - 'backend/**'
 
-tests:
+ci:
   - changed-files:
-    - any-glob-to-any-file:
-      - '**/test_*.py'
-      - '**/*.test.js'
-      - '**/*.test.jsx'
-      - '**/*.test.ts'
-      - '**/*.test.tsx'
-      - '**/tests/**/*'
+      - any-glob-to-any-file:
+          - '.github/**'
 
 dependencies:
   - changed-files:
-    - any-glob-to-any-file:
-      - '**/requirements*.txt'
-      - '**/package.json'
-      - '**/package-lock.json'
-      - '**/yarn.lock'
+      - any-glob-to-any-file:
+          - 'requirements*.txt'
+          - '**/requirements*.txt'
+          - '**/package.json'
+          - '**/package-lock.json'
+          - '**/pnpm-lock.yaml'
 
-ci/cd:
+tests:
   - changed-files:
-    - any-glob-to-any-file:
-      - '.github/workflows/*'
-      - '.github/actions/*'
-      - '**/Dockerfile'
-      - '**/docker-compose*.yml'
-
-configuration:
-  - changed-files:
-    - any-glob-to-any-file:
-      - '**/*.env*'
-      - '**/*.config.js'
-      - '**/*.config.ts'
-      - '**/settings.py'
-      - '**/config.py'
+      - any-glob-to-any-file:
+          - '**/tests/**'
+          - '**/*test*'

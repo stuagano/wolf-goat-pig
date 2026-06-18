@@ -10,6 +10,7 @@ from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from .. import database
@@ -110,6 +111,67 @@ def ghin_diagnostic() -> dict[str, Any]:
         "all_configured": bool(email and password),
         "environment": os.getenv("ENVIRONMENT", "development"),
     }
+
+
+@router.get("/courses")
+async def search_courses(
+    q: str = Query(..., min_length=2, description="Course name search"),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Search for golf courses by name via GHIN API."""
+    from ..services.ghin_service import GHINService
+
+    ghin_service = GHINService(db)
+    if not await ghin_service.initialize():
+        raise HTTPException(status_code=503, detail="GHIN service not available. Check credentials.")
+
+    try:
+        return await ghin_service.search_courses(q)
+    except httpx.HTTPStatusError as e:
+        logger.error("GHIN course search error: %s", e)
+        raise HTTPException(status_code=e.response.status_code, detail=f"GHIN API error: {e.response.text[:200]}")
+    except Exception as e:
+        logger.error("Course search failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class GHINScorePost(BaseModel):
+    ghin_id: str
+    course_id: int
+    tee_set_rating_id: int
+    gross_score: int
+    played_at: str  # YYYY-MM-DD
+    number_of_holes: int = 18
+
+
+@router.post("/post-score")
+async def post_score(
+    body: GHINScorePost,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Post a score to GHIN."""
+    from ..services.ghin_service import GHINService
+
+    ghin_service = GHINService(db)
+    if not await ghin_service.initialize():
+        raise HTTPException(status_code=503, detail="GHIN service not available. Check credentials.")
+
+    try:
+        result = await ghin_service.post_score(
+            ghin_id=body.ghin_id,
+            course_id=body.course_id,
+            tee_set_rating_id=body.tee_set_rating_id,
+            gross_score=body.gross_score,
+            played_at=body.played_at,
+            number_of_holes=body.number_of_holes,
+        )
+        return {"success": True, "result": result}
+    except httpx.HTTPStatusError as e:
+        logger.error("GHIN score post error %d: %s", e.response.status_code, e.response.text)
+        raise HTTPException(status_code=e.response.status_code, detail=f"GHIN rejected score: {e.response.text[:300]}")
+    except Exception as e:
+        logger.error("Score post failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/sync-handicaps")

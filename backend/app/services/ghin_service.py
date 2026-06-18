@@ -10,14 +10,15 @@ This service handles:
 
 import logging
 import os
-from datetime import datetime
 from typing import Any, cast
 
 import httpx  # Added httpx for API calls
+import sentry_sdk
 from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
 
 from ..models import GHINHandicapHistory, GHINScore, PlayerProfile, PlayerStatistics
+from ..utils.time import utc_now
 
 # Note: The actual GHIN API integration would require proper authentication
 # For now, we'll create a service structure that can be easily adapted
@@ -84,6 +85,7 @@ class GHINService:
                 return False
 
         except Exception as e:
+            sentry_sdk.capture_exception(e)
             logger.error(f"Failed to initialize GHIN service: {e}")
             self.initialized = False
             return False
@@ -119,17 +121,17 @@ class GHINService:
             if handicap_data:
                 # Update player profile with latest handicap - use setattr to avoid Column type errors
                 player.handicap = handicap_data.get("handicap_index", player.handicap)
-                player.ghin_last_updated = datetime.now().isoformat()
+                player.ghin_last_updated = utc_now().isoformat()
 
                 # Store handicap history
                 handicap_history = GHINHandicapHistory(
                     player_profile_id=player_id,
                     ghin_id=player.ghin_id,
-                    effective_date=handicap_data.get("effective_date", datetime.now().date().isoformat()),
+                    effective_date=handicap_data.get("effective_date", utc_now().date().isoformat()),
                     handicap_index=handicap_data.get("handicap_index"),
                     revision_reason=handicap_data.get("revision_reason"),
                     scores_used_count=handicap_data.get("scores_used_count"),
-                    synced_at=datetime.now().isoformat(),
+                    synced_at=utc_now().isoformat(),
                 )
 
                 self.db.add(handicap_history)
@@ -201,9 +203,9 @@ class GHINService:
                         differential=score_data.get("differential"),
                         posted=1 if score_data.get("posted", True) else 0,
                         handicap_index_at_time=score_data.get("handicap_index_at_time"),
-                        synced_at=datetime.now().isoformat(),
-                        created_at=datetime.now().isoformat(),
-                        updated_at=datetime.now().isoformat(),
+                        synced_at=utc_now().isoformat(),
+                        created_at=utc_now().isoformat(),
+                        updated_at=utc_now().isoformat(),
                     )
 
                     self.db.add(ghin_score)
@@ -258,7 +260,7 @@ class GHINService:
                 "total_players": len(players_with_ghin),
                 "synced": synced_count,
                 "errors": error_count,
-                "synced_at": datetime.now().isoformat(),
+                "synced_at": utc_now().isoformat(),
             }
 
             logger.info(f"Bulk handicap sync completed: {summary}")
@@ -478,6 +480,70 @@ class GHINService:
                 except Exception as rollback_error:
                     logger.debug(f"Rollback failed: {rollback_error}")
                 return []
+
+    async def search_courses(self, name: str) -> dict[str, Any]:
+        """Search for golf courses by name via GHIN API."""
+        if not self.jwt_token:
+            raise ConnectionError("GHIN service not authenticated")
+        headers = {
+            "Authorization": f"Bearer {self.jwt_token}",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "Origin": "https://www.ghin.com",
+            "Referer": "https://www.ghin.com/",
+        }
+        params = {"name": name, "per_page": 20, "page": 1, "country_code": "US"}
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                f"{self.GHIN_API_BASE_URL}/courses.json",
+                headers=headers,
+                params=params,
+            )
+            logger.info("GHIN course search %s → %d", name, resp.status_code)
+            resp.raise_for_status()
+            return cast("dict[str, Any]", resp.json())
+
+    async def post_score(
+        self,
+        ghin_id: str,
+        course_id: int,
+        tee_set_rating_id: int,
+        gross_score: int,
+        played_at: str,
+        number_of_holes: int = 18,
+    ) -> dict[str, Any]:
+        """Post a score to GHIN on behalf of the authenticated golfer."""
+        if not self.jwt_token:
+            raise ConnectionError("GHIN service not authenticated")
+        headers = {
+            "Authorization": f"Bearer {self.jwt_token}",
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "Origin": "https://www.ghin.com",
+            "Referer": "https://www.ghin.com/",
+        }
+        body = {
+            "score": {
+                "golfer_id": int(ghin_id),
+                "course_id": course_id,
+                "tee_set_rating_id": tee_set_rating_id,
+                "played_at": played_at,
+                "number_of_holes": number_of_holes,
+                "gross_score": gross_score,
+                "adjusted_gross_score": gross_score,
+                "score_type": "H",
+                "is_tournament": False,
+                "stat_track_flag": False,
+            }
+        }
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                f"{self.GHIN_API_BASE_URL}/scores.json",
+                headers=headers,
+                json=body,
+            )
+            logger.info("GHIN score post ghin=%s → %d: %s", ghin_id, resp.status_code, resp.text[:300])
+            resp.raise_for_status()
+            return cast("dict[str, Any]", resp.json())
 
     # GHIN API Integration - Now supports real API calls
 

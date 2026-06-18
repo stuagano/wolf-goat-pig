@@ -7,24 +7,24 @@ These endpoints allow admins to:
 """
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import LegacyRound, PendingSheetSync
-from ..utils.admin_auth import require_admin
 from ..services.spreadsheet_sync_service import (
     PRIMARY_SHEET_ID,
     WRITABLE_SHEET_ID,
     _get_access_token,
     get_reconciliation_service,
-    get_spreadsheet_sync_service,
 )
+from ..utils.admin_auth import require_admin
+from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -67,10 +67,11 @@ class RoundResultResponse(BaseModel):
     """Response model for a round result."""
 
     date: str
-    group: str
+    # group/location are nullable: member-posted rounds may omit them.
+    group: str | None = None
     member: str
     score: int
-    location: str
+    location: str | None = None
     duration: str | None = None
 
 
@@ -83,6 +84,8 @@ def get_spreadsheet_leaderboard(db: Session = Depends(get_db)):
             func.sum(LegacyRound.score).label("quarters"),
             func.count(LegacyRound.id).label("rounds"),
         )
+        # Exclude pending member-posted rounds (not yet attested).
+        .filter(LegacyRound.status != "pending")
         .group_by(LegacyRound.member)
         .all()
     )
@@ -90,10 +93,7 @@ def get_spreadsheet_leaderboard(db: Session = Depends(get_db)):
     if not rows:
         return []
 
-    entries = [
-        {"member": r.member, "quarters": r.quarters, "rounds": r.rounds}
-        for r in rows
-    ]
+    entries = [{"member": r.member, "quarters": r.quarters, "rounds": r.rounds} for r in rows]
     entries.sort(key=lambda e: e["quarters"], reverse=True)
 
     leader_quarters = entries[0]["quarters"] if entries else 0
@@ -121,6 +121,7 @@ def get_all_rounds(
     """Get all round results from legacy_rounds DB (synced every 2h)."""
     rows = (
         db.query(LegacyRound)
+        .filter(LegacyRound.status != "pending")  # exclude unattested member rounds
         .order_by(LegacyRound.date.desc(), LegacyRound.member)
         .limit(limit)
         .all()
@@ -146,7 +147,7 @@ def get_rounds_by_date(date: str, db: Session = Depends(get_db)) -> Any:
     """
     rows = (
         db.query(LegacyRound)
-        .filter(LegacyRound.date == date)
+        .filter(LegacyRound.date == date, LegacyRound.status != "pending")
         .order_by(LegacyRound.group, LegacyRound.member)
         .all()
     )
@@ -177,7 +178,7 @@ def get_player_history(member_name: str, db: Session = Depends(get_db)) -> Any:
     """Get all rounds for a specific player from legacy_rounds DB (synced every 2h)."""
     rows = (
         db.query(LegacyRound)
-        .filter(LegacyRound.member == member_name)
+        .filter(LegacyRound.member == member_name, LegacyRound.status != "pending")
         .order_by(LegacyRound.date.desc())
         .all()
     )
@@ -195,9 +196,7 @@ def get_player_history(member_name: str, db: Session = Depends(get_db)) -> Any:
 
 
 @router.post("/sync-round", status_code=202)
-def sync_round_to_spreadsheet(
-    request: SyncRoundRequest, db: Session = Depends(get_db)
-) -> Any:
+def sync_round_to_spreadsheet(request: SyncRoundRequest, db: Session = Depends(get_db)) -> Any:
     """Enqueue a completed round for background sync to Google Sheets.
 
     Returns 202 immediately. The background processor runs every 5 minutes,
@@ -228,7 +227,7 @@ def sync_round_to_spreadsheet(
         duration=request.duration,
         player_scores={p.name: p.score for p in request.player_scores},
         status="pending",
-        created_at=datetime.now(UTC).isoformat(),
+        created_at=utc_now().isoformat(),
     )
     db.add(job)
     db.commit()
@@ -250,12 +249,7 @@ def get_sync_queue_status(
     db: Session = Depends(get_db),
 ) -> Any:
     """Get recent sheet sync queue entries and their processing status."""
-    jobs = (
-        db.query(PendingSheetSync)
-        .order_by(PendingSheetSync.created_at.desc())
-        .limit(limit)
-        .all()
-    )
+    jobs = db.query(PendingSheetSync).order_by(PendingSheetSync.created_at.desc()).limit(limit).all()
     return [
         {
             "id": j.id,
@@ -270,6 +264,49 @@ def get_sync_queue_status(
         }
         for j in jobs
     ]
+
+
+@router.post("/sync-legacy-rounds")
+def trigger_legacy_rounds_sync(db: Session = Depends(get_db)) -> Any:
+    """Manually trigger a sync of Google Sheets data into the legacy_rounds table.
+
+    Normally runs automatically every 2 hours. Use this to force an immediate refresh.
+    """
+    from datetime import UTC
+    from datetime import datetime as dt
+
+    from ..models import LegacyRound
+    from ..services.unified_data_service import get_unified_data_service
+
+    try:
+        svc = get_unified_data_service(db=db)
+        rounds = svc.get_all_rounds(include_database=False, use_sheet_cache=False)
+        if not rounds:
+            return {"success": False, "message": "No rounds returned from Google Sheets — OAuth may be expired"}
+
+        synced_at = dt.now(UTC).isoformat()
+        db.query(LegacyRound).filter(LegacyRound.source.in_(["primary_sheet", "writable_sheet"])).delete(
+            synchronize_session=False
+        )
+        for r in rounds:
+            db.add(
+                LegacyRound(
+                    date=r.date_sortable,
+                    group=r.group,
+                    member=r.member,
+                    score=r.score,
+                    location=r.location or "",
+                    duration=r.duration,
+                    source=r.source,
+                    synced_at=synced_at,
+                )
+            )
+        db.commit()
+        return {"success": True, "rows_synced": len(rounds), "synced_at": synced_at}
+    except Exception as exc:
+        db.rollback()
+        logger.error("Manual legacy rounds sync failed: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Sync failed: {exc}") from exc
 
 
 @router.get("/config")

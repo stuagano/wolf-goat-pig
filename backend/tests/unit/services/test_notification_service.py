@@ -10,7 +10,7 @@ Tests the core functionality of the NotificationService including:
 - Unread counts
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import pytest
 from fastapi import HTTPException
@@ -45,7 +45,7 @@ def test_player(db):
         name="Test Player",
         email="test@example.com",
         handicap=18.0,
-        created_at=datetime.now(timezone.utc).isoformat(),
+        created_at=datetime.now(UTC).isoformat(),
     )
     db.add(player)
     db.commit()
@@ -62,10 +62,10 @@ def test_game_players(db, test_player):
     players = []
     for i in range(3):
         player = PlayerProfile(
-            name=f"Player {i+2}",
-            email=f"player{i+2}@example.com",
+            name=f"Player {i + 2}",
+            email=f"player{i + 2}@example.com",
             handicap=18.0,
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
         )
         db.add(player)
         players.append(player)
@@ -79,12 +79,12 @@ def test_game_players(db, test_player):
     for i, player in enumerate(players):
         game_player = GamePlayer(
             game_id=game_id,
-            player_slot_id=f"p{i+1}",
+            player_slot_id=f"p{i + 1}",
             player_profile_id=player.id,
             player_name=player.name,
             handicap=player.handicap,
             join_status="joined",
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
         )
         db.add(game_player)
 
@@ -124,7 +124,7 @@ class TestNotificationService:
             service.send_notification(
                 player_id=test_player.id,
                 notification_type="game_start",
-                message=f"Notification {i+1}",
+                message=f"Notification {i + 1}",
                 db=db,
             )
 
@@ -192,7 +192,7 @@ class TestNotificationService:
             service.send_notification(
                 player_id=test_player.id,
                 notification_type="game_start",
-                message=f"Notification {i+1}",
+                message=f"Notification {i + 1}",
                 db=db,
             )
 
@@ -292,7 +292,7 @@ class TestNotificationService:
             service.send_notification(
                 player_id=test_player.id,
                 notification_type="game_start",
-                message=f"Notification {i+1}",
+                message=f"Notification {i + 1}",
                 db=db,
             )
 
@@ -319,14 +319,14 @@ class TestNotificationService:
             service.send_notification(
                 player_id=test_player.id,
                 notification_type="game_start",
-                message=f"Notification {i+1}",
+                message=f"Notification {i + 1}",
                 db=db,
             )
 
         # Manually set some as old (modify created_at)
         from datetime import timedelta
 
-        old_date = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
+        old_date = (datetime.now(UTC) - timedelta(days=60)).isoformat()
 
         notifications = db.query(Notification).filter(Notification.player_profile_id == test_player.id).limit(3).all()
 

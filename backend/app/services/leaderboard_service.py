@@ -27,6 +27,7 @@ from sqlalchemy import Float, and_, case, cast, desc, func
 from sqlalchemy.orm import Session
 
 from ..models import GamePlayerResult, PlayerAchievement, PlayerBadgeEarned, PlayerProfile, PlayerStatistics
+from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -277,7 +278,7 @@ class LeaderboardService:
                 )
 
             # Calculate date range
-            end_date = datetime.now()
+            end_date = utc_now()
             start_date = end_date - timedelta(days=7)
 
             # Generate time-filtered leaderboard
@@ -326,7 +327,7 @@ class LeaderboardService:
                 )
 
             # Calculate date range
-            end_date = datetime.now()
+            end_date = utc_now()
             start_date = end_date - timedelta(days=30)
 
             # Generate time-filtered leaderboard

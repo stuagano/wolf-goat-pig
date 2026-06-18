@@ -39,6 +39,7 @@ const AboutPage = React.lazy(() => import("./pages/AboutPage"));
 const RulesPage = React.lazy(() => import("./pages/RulesPage"));
 const AdminPage = React.lazy(() => import("./pages/AdminPage"));
 const DatabaseMigrations = React.lazy(() => import("./components/admin/DatabaseMigrations"));
+const RosterManager = React.lazy(() => import("./components/admin/RosterManager"));
 const CreateGamePage = React.lazy(() => import("./pages/CreateGamePage"));
 const JoinGamePage = React.lazy(() => import("./pages/JoinGamePage"));
 const GameLobbyPage = React.lazy(() => import("./pages/GameLobbyPage"));
@@ -46,8 +47,15 @@ const ActiveGamesPage = React.lazy(() => import("./pages/ActiveGamesPage"));
 const CompletedGamesPage = React.lazy(() => import("./pages/CompletedGamesPage"));
 const AccountPage = React.lazy(() => import("./pages/AccountPage"));
 const BadgesPage = React.lazy(() => import("./pages/BadgesPage"));
+const PostRoundPage = React.lazy(() => import("./pages/PostRoundPage"));
 const ScorecardScanPage = React.lazy(() => import("./pages/ScorecardScanPage"));
 const AskPage = React.lazy(() => import("./pages/AskPage"));
+const FindAGamePage = React.lazy(() => import("./pages/FindAGamePage"));
+const PlayerProfilePage = React.lazy(() => import("./pages/PlayerProfilePage"));
+const LivSowLeaderboard = React.lazy(() => import("./components/game/LivSowLeaderboard"));
+const LivSowTeamPage = React.lazy(() => import("./components/game/livsow/LivSowTeamPage"));
+const GroupMeChat = React.lazy(() => import("./components/chat/GroupMeChat"));
+const CommissionerMediaPage = React.lazy(() => import("./components/game/livsow/CommissionerMediaPage"));
 
 const API_URL = apiConfig.baseUrl;
 
@@ -353,6 +361,10 @@ function App() {
                 }
               />
               <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route path="/livsow" element={<LivSowLeaderboard />} />
+              <Route path="/livsow/teams/:teamSlug" element={<LivSowTeamPage />} />
+              <Route path="/chat" element={<GroupMeChat />} />
+              <Route path="/livsow/commissioner" element={<CommissionerMediaPage />} />
               <Route
                 path="/sheets"
                 element={
@@ -396,15 +408,29 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/admin/roster"
+                element={
+                  <ProtectedRoute>
+                    <RosterManager />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="/join" element={<JoinGamePage />} />
               <Route path="/join/:code" element={<JoinGamePage />} />
               <Route path="/lobby/:gameId" element={<GameLobbyPage />} />
               <Route path="/games/active" element={<ActiveGamesPage />} />
               <Route path="/games/completed" element={<CompletedGamesPage />} />
+              <Route path="/rounds/post" element={<ProtectedRoute><PostRoundPage /></ProtectedRoute>} />
               <Route path="/account" element={<AccountPage />} />
               <Route path="/badges" element={<BadgesPage />} />
               <Route path="/scorecard-scan" element={<ScorecardScanPage />} />
               <Route path="/ask" element={<AskPage />} />
+              <Route path="/tee-sheet" element={<Navigate to="/signup?tab=wgp-signup" />} />
+              <Route path="/find-a-game" element={<FindAGamePage />} />
+              <Route path="/players/:playerId" element={
+                <ProtectedRoute><PlayerProfilePage /></ProtectedRoute>
+              } />
               <Route path="/tee-times" element={<Navigate to="/signup" />} />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>

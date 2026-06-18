@@ -11,10 +11,11 @@ and response formats.
 import json
 import logging
 import os
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile
+from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -22,10 +23,16 @@ from .. import database, models, schemas
 from ..services.email_service import get_email_service
 from ..state.app_state import set_email_service_instance
 from ..utils.admin_auth import require_admin
+from ..utils.time import utc_now
 
 logger = logging.getLogger("app.routers.admin")
 
 router = APIRouter(tags=["admin"])
+
+
+class AdminTestEmailRequest(BaseModel):
+    test_email: str = Field(..., min_length=1)
+    config: dict[str, Any] = Field(default_factory=dict)
 
 
 # =============================================================================
@@ -82,16 +89,13 @@ def update_email_config(config: dict[str, Any], x_admin_email: str = Header(None
 
 
 @router.post("/admin/test-email")
-async def test_admin_email(request: dict[str, Any], x_admin_email: str = Header(None)):  # type: ignore
+async def test_admin_email(request: AdminTestEmailRequest, x_admin_email: str = Header(None)):  # type: ignore
     """Send a test email with provided configuration (admin only)"""
     require_admin(x_admin_email)
 
     try:
-        test_email = request.get("test_email")
-        config = request.get("config", {})
-
-        if not test_email:
-            raise HTTPException(status_code=400, detail="Test email address required")
+        test_email = request.test_email
+        config = request.config
 
         # Temporarily apply config if provided
         if config:
@@ -288,8 +292,8 @@ async def create_or_update_banner(  # type: ignore
             text_color=banner_data.text_color,
             show_icon=banner_data.show_icon,
             dismissible=banner_data.dismissible,
-            created_at=datetime.now(UTC).isoformat(),
-            updated_at=datetime.now(UTC).isoformat(),
+            created_at=utc_now().isoformat(),
+            updated_at=utc_now().isoformat(),
         )
 
         db.add(new_banner)
@@ -344,7 +348,7 @@ async def update_banner(  # type: ignore
         for field, value in update_data.items():
             setattr(banner, field, value)
 
-        banner.updated_at = datetime.now(UTC).isoformat()
+        banner.updated_at = utc_now().isoformat()
 
         db.commit()
         db.refresh(banner)
@@ -478,7 +482,7 @@ async def get_table_content(
                 detail=f"Table '{table_name}' not found in schema '{schema_name}'",
             )
 
-        query = text(f"SELECT * FROM \"{schema_name}\".\"{table_name}\" LIMIT 100;")
+        query = text(f'SELECT * FROM "{schema_name}"."{table_name}" LIMIT 100;')
         table_content = db.execute(query).fetchall()
         columns = table_content[0].keys() if table_content else []
         rows = [dict(row._mapping) for row in table_content]
@@ -497,7 +501,7 @@ async def get_table_content(
 async def test_deployment(x_admin_email: str | None = Header(None)):  # type: ignore
     """Test that new deployments are working."""
     require_admin(x_admin_email)
-    return {"message": "Deployment is working", "timestamp": datetime.now().isoformat()}
+    return {"message": "Deployment is working", "timestamp": utc_now().isoformat()}
 
 
 # =============================================================================
@@ -514,7 +518,7 @@ async def get_orphaned_games(
     """Get a list of orphaned games (setup status, 0 players, older than specified hours)."""
     require_admin(x_admin_email)
     try:
-        cutoff_time = datetime.now(UTC) - timedelta(hours=hours_old)
+        cutoff_time = utc_now() - timedelta(hours=hours_old)
 
         # Query for orphaned games
         orphaned = (
@@ -566,7 +570,7 @@ async def delete_orphaned_games(
     """
     require_admin(x_admin_email)
     try:
-        cutoff_time = datetime.now(UTC) - timedelta(hours=hours_old)
+        cutoff_time = utc_now() - timedelta(hours=hours_old)
 
         # Find orphaned games
         orphaned = (
@@ -647,7 +651,7 @@ async def get_database_stats(x_admin_email: str | None = Header(None), db: Sessi
             .filter(models.PlayerProfile.email.isnot(None), models.PlayerProfile.email != "")
             .count()
         )
-        ai_players = db.query(models.PlayerProfile).filter(models.PlayerProfile.is_ai == True).count()
+        ai_players = db.query(models.PlayerProfile).filter(models.PlayerProfile.is_ai == 1).count()
 
         stats["players"] = {
             "total": total_players,
@@ -678,7 +682,7 @@ async def get_database_stats(x_admin_email: str | None = Header(None), db: Sessi
             "unread": unread_notifications,
         }
 
-        return {"generated_at": datetime.now(UTC).isoformat(), "stats": stats}
+        return {"generated_at": utc_now().isoformat(), "stats": stats}
     except Exception as e:
         logger.error(f"Error getting database stats: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get database stats: {e!s}")
@@ -710,6 +714,7 @@ async def run_database_migration(
     elif migration == "add_missing_columns":
         try:
             from sqlalchemy import text
+
             stmts = [
                 "ALTER TABLE legacy_rounds ADD COLUMN IF NOT EXISTS duration VARCHAR",
                 "ALTER TABLE legacy_rounds ADD COLUMN IF NOT EXISTS hole_scores JSONB DEFAULT '{}'",

@@ -7,6 +7,7 @@ import React, {
   useMemo,
   useReducer,
   useCallback,
+  useRef,
 } from "react";
 import PropTypes from "prop-types";
 import { useTheme } from "../../theme/Provider";
@@ -18,20 +19,42 @@ import BettingOddsPanel from "../betting/BettingOddsPanel";
 import CommissionerChat from "./CommissionerChat";
 import EditPlayerNameModal from "./EditPlayerNameModal";
 import EditHoleModal from "./EditHoleModal";
-import { triggerBadgeNotification } from "./BadgeNotification";
 import { SyncStatusBanner } from "../ui/SyncStatusIndicator";
 import { useHoleSync, useUIState, useBettingState } from "../../hooks";
-import { gameReducer, createInitialState, gameActions } from "./gameReducer";
+import { gameReducer, createInitialState } from "./gameReducer";
 import syncManager from "../../services/syncManager";
+import { reconcileGameState } from "../../services/gameReconcile";
 import { fetchJson } from "../../services/fetchJson";
+// NOTE: only getStrokesForHole is shared with utils/strokeAllocation — its
+// calculateStrokeAllocation applies USGA course-handicap conversion, which
+// this component's raw-handicap fallback intentionally does not.
+import { getStrokesForHole } from "../../utils/strokeAllocation";
+import { allHolesPlayed } from "../../utils/holeHistory";
 import {
   HoleHeader,
   TeamSelector,
   QuartersPanel,
   HoleNavigation,
+  StuartModePanel,
+  OptionalEntryPanels,
+  AnalysisPanels,
+  UsageStatsPanel,
+  SpecialActionsPanel,
+  ScorekeeperBanners,
+  ErrorBanner,
+  ScorecardSection,
+  StuartModeToggle,
+  HolePhaseStrip,
+  DoubleOfferControl,
 } from "./scorekeeper";
 import "../../styles/mobile-touch.css";
 import { apiConfig } from "../../config/api.config";
+import { aiPartnerResponse } from "../../utils/stuartModeAiDecisions";
+import useStuartMode from "../../hooks/useStuartMode";
+import useGameActions from "./useGameActions";
+import useAchievements from "../../hooks/useAchievements";
+import useScorekeeperSync from "../../hooks/useScorekeeperSync";
+import useHoleSubmission from "../../hooks/useHoleSubmission";
 
 const API_URL = apiConfig.baseUrl;
 
@@ -62,23 +85,6 @@ const createPlayerMap = (players, getValue) =>
   Object.fromEntries(players.map((p) => [p.id, getValue(p)]));
 
 /**
- * Reusable styles for hitting order arrow buttons
- */
-const ARROW_BUTTON_STYLE = {
-  background: "rgba(255,255,255,0.3)",
-  border: "none",
-  borderRadius: "50%",
-  width: "22px",
-  height: "22px",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  cursor: "pointer",
-  fontSize: "12px",
-  padding: "0",
-};
-
-/**
  * Simplified scorekeeper component - no game engine, just direct data entry
  * Client-side betting UI, single API call to complete each hole
  */
@@ -100,17 +106,23 @@ const SimpleScorekeeper = ({
   // GAME STATE - Using useReducer for consolidated state management
   // ============================================================
 
-  // Try to restore from local storage first (survives page refresh)
+  // Local is an offline write-buffer: prefer it over the server-provided
+  // initialHoleHistory only when this game has a queued edit OR local holds a
+  // hole the server lacks (an in-flight sync that hasn't landed). Otherwise the
+  // server is authoritative — returning null falls back to initialHoleHistory.
+  // This stops a longer-but-stale/duplicated local cache from winning while
+  // still preserving genuinely unsynced holes.
   const restoredState = useMemo(() => {
     const localState = syncManager.loadLocalGameState(gameId);
-    if (
-      localState?.holeHistory &&
-      localState.holeHistory.length > initialHoleHistory.length
-    ) {
-      return localState;
-    }
-    return null;
-  }, [gameId, initialHoleHistory.length]);
+    const chosen = reconcileGameState({
+      serverState: { holeHistory: initialHoleHistory },
+      localState,
+      hasPendingEdits: syncManager.hasPendingSyncForGame(gameId),
+    });
+    // reconcile returns localState only when local should win; otherwise it
+    // returns the server object => null => fall back to initialHoleHistory.
+    return chosen === localState && localState?.holeHistory ? localState : null;
+  }, [gameId, initialHoleHistory]);
 
   // Initialize game state reducer
   const [gameState, dispatch] = useReducer(
@@ -187,129 +199,41 @@ const SimpleScorekeeper = ({
   const playerStandings = history.playerStandings;
 
   // ============================================================
-  // ACTION DISPATCHERS - Maintain existing setter function names
+  // ACTION DISPATCHERS - moved to useGameActions (stable identities)
   // ============================================================
-
-  // Hole actions
-  const setCurrentHole = useCallback(
-    (h) => dispatch(gameActions.setCurrentHole(h)),
-    [],
-  );
-  const setScores = useCallback((s) => dispatch(gameActions.setScores(s)), []);
-  const setQuarters = useCallback(
-    (q) => dispatch(gameActions.setQuarters(q)),
-    [],
-  );
-  const setHoleNotes = useCallback(
-    (n) => dispatch(gameActions.setHoleNotes(n)),
-    [],
-  );
-  const setWinner = useCallback((w) => dispatch(gameActions.setWinner(w)), []);
-
-  // Team actions
-  const setTeamMode = useCallback(
-    (m) => dispatch(gameActions.setTeamMode(m)),
-    [],
-  );
-  const setTeam1 = useCallback((t) => dispatch(gameActions.setTeam1(t)), []);
-  const setTeam2 = useCallback((t) => dispatch(gameActions.setTeam2(t)), []);
-  const setCaptain = useCallback(
-    (c) => dispatch(gameActions.setCaptain(c)),
-    [],
-  );
-  const setOpponents = useCallback(
-    (o) => dispatch(gameActions.setOpponents(o)),
-    [],
-  );
-
-  // Betting actions
-  const setCurrentWager = useCallback(
-    (w) => dispatch(gameActions.setCurrentWager(w)),
-    [],
-  );
-  const setNextHoleWager = useCallback(
-    (w) => dispatch(gameActions.setNextHoleWager(w)),
-    [],
-  );
-  const setFloatInvokedBy = useCallback(
-    (p) => dispatch(gameActions.setFloatInvokedBy(p)),
-    [],
-  );
-  const setOptionInvokedBy = useCallback(
-    (p) => dispatch(gameActions.setOptionInvokedBy(p)),
-    [],
-  );
-  const setOptionActive = useCallback(
-    (a) => dispatch(gameActions.setOptionActive(a)),
-    [],
-  );
-  const setOptionTurnedOff = useCallback(
-    (o) => dispatch(gameActions.setOptionTurnedOff(o)),
-    [],
-  );
-  const setDuncanInvoked = useCallback(
-    (d) => dispatch(gameActions.setDuncanInvoked(d)),
-    [],
-  );
-  const setCarryOver = useCallback(
-    (c) => dispatch(gameActions.setCarryOver(c)),
-    [],
-  );
-  const setVinniesVariation = useCallback(
-    (v) => dispatch(gameActions.setVinniesVariation(v)),
-    [],
-  );
-  const setJoesSpecialWager = useCallback(
-    (w) => dispatch(gameActions.setJoesSpecialWager(w)),
-    [],
-  );
-
-  // Rotation actions
-  const setRotationOrder = useCallback(
-    (o) => dispatch(gameActions.setRotationOrder(o)),
-    [],
-  );
-  const setCaptainIndex = useCallback(
-    (i) => dispatch(gameActions.setCaptainIndex(i)),
-    [],
-  );
-  const setIsHoepfinger = useCallback(
-    (h) => dispatch(gameActions.setIsHoepfinger(h)),
-    [],
-  );
-  const setGoatId = useCallback(
-    (id) => dispatch(gameActions.setGoatId(id)),
-    [],
-  );
-  const setPhase = useCallback((p) => dispatch(gameActions.setPhase(p)), []);
-
-  // Aardvark actions
-  const setAardvarkRequestedTeam = useCallback(
-    (t) => dispatch(gameActions.setAardvarkRequestedTeam(t)),
-    [],
-  );
-  const setAardvarkTossed = useCallback(
-    (t) => dispatch(gameActions.setAardvarkTossed(t)),
-    [],
-  );
-  const setAardvarkSolo = useCallback(
-    (s) => dispatch(gameActions.setAardvarkSolo(s)),
-    [],
-  );
-  const setInvisibleAardvarkTossed = useCallback(
-    (t) => dispatch(gameActions.setInvisibleAardvarkTossed(t)),
-    [],
-  );
-
-  // History actions
-  const setHoleHistory = useCallback(
-    (h) => dispatch(gameActions.setHoleHistory(h)),
-    [],
-  );
-  const setPlayerStandings = useCallback(
-    (s) => dispatch(gameActions.setPlayerStandings(s)),
-    [],
-  );
+  const {
+    setCurrentHole,
+    setScores,
+    setQuarters,
+    setHoleNotes,
+    setWinner,
+    setTeamMode,
+    setTeam1,
+    setTeam2,
+    setCaptain,
+    setOpponents,
+    setCurrentWager,
+    setNextHoleWager,
+    setFloatInvokedBy,
+    setOptionInvokedBy,
+    setOptionActive,
+    setOptionTurnedOff,
+    setDuncanInvoked,
+    setCarryOver,
+    setVinniesVariation,
+    setJoesSpecialWager,
+    setRotationOrder,
+    setCaptainIndex,
+    setIsHoepfinger,
+    setGoatId,
+    setPhase,
+    setAardvarkRequestedTeam,
+    setAardvarkTossed,
+    setAardvarkSolo,
+    setInvisibleAardvarkTossed,
+    setHoleHistory,
+    setPlayerStandings,
+  } = useGameActions(dispatch);
 
   // ============================================================
   // BETTING STATE HOOK - Interactive betting (offers, events)
@@ -331,6 +255,9 @@ const SimpleScorekeeper = ({
     addBettingEvent,
     logBettingAction,
     getPlayerName,
+    pendingOffer,
+    createOffer,
+    respondToOffer,
   } = betting;
   // Additional betting features available: betting.bettingHistory, betting.createOffer,
   // betting.respondToOffer, betting.showBettingHistory, betting.historyTab, betting.pendingOffer
@@ -371,6 +298,11 @@ const SimpleScorekeeper = ({
     setIsGameMarkedComplete,
     startEditingPlayerName,
     cancelEditingPlayerName: handleCancelPlayerNameEdit,
+    stuartMode,
+    coachMode,
+    assistMode,
+    setAssistMode,
+    toggleStuartMode,
   } = ui;
 
   // Offline-first sync hook
@@ -392,352 +324,15 @@ const SimpleScorekeeper = ({
   )?.par;
 
   // Track course data loading state
-  const [courseDataError, setCourseDataError] = useState(null);
-  const [courseDataLoading, setCourseDataLoading] = useState(false);
 
   // Auto-collapse team selection when teams are set
   // Team selection stays visible so players can see teams during the hole
   // (Auto-collapse removed per user request)
 
-  // Fetch course data
-  useEffect(() => {
-    const fetchCourseData = async () => {
-      setCourseDataLoading(true);
-      setCourseDataError(null);
-      try {
-        // Fetch course details
-        const courseResponse = await fetch(`${API_URL}/courses`);
-        if (!courseResponse.ok) {
-          throw new Error(
-            `Failed to fetch courses: ${courseResponse.status} ${courseResponse.statusText}`,
-          );
-        }
-
-        const coursesData = await courseResponse.json();
-        if (!coursesData || typeof coursesData !== "object") {
-          throw new Error("Invalid courses response: expected object");
-        }
-
-        // /courses returns an object with course names as keys, not an array
-        const course = coursesData[courseName];
-        if (!course) {
-          throw new Error(`Course "${courseName}" not found in courses data`);
-        }
-
-        // Validate course data structure
-        if (!course.holes || !Array.isArray(course.holes)) {
-          throw new Error(`Course "${courseName}" has invalid holes data`);
-        }
-
-        setCourseData(course);
-      } catch (err) {
-        console.error("Error fetching course data:", err);
-        setCourseDataError(err.message);
-        // Don't set courseData to null - keep any existing data
-      } finally {
-        setCourseDataLoading(false);
-      }
-    };
-
-    if (courseName) {
-      fetchCourseData();
-    }
-  }, [courseName]);
-
-  // Save game state locally whenever holeHistory changes (survives page refresh)
-  useEffect(() => {
-    if (gameId && holeHistory.length > 0) {
-      syncManager.saveLocalGameState(gameId, {
-        holeHistory,
-        currentHole,
-        playerStandings,
-      });
-    }
-  }, [gameId, holeHistory, currentHole, playerStandings]);
-
-  // Initialize player standings from hole history
-  useEffect(() => {
-    const standings = createPlayerMap(players, (p) => ({
-      quarters: 0,
-      name: p.name,
-      soloCount: 0,
-      floatCount: 0,
-      optionCount: 0,
-    }));
-
-    // Recalculate quarters and usage stats from hole history
-    holeHistory.forEach((hole) => {
-      // Track quarters
-      if (hole.points_delta) {
-        Object.entries(hole.points_delta).forEach(([playerId, points]) => {
-          if (standings[playerId]) {
-            standings[playerId].quarters += points;
-          }
-        });
-      }
-
-      // Track solo usage
-      if (hole.teams?.type === "solo" && hole.teams?.captain) {
-        if (standings[hole.teams.captain]) {
-          standings[hole.teams.captain].soloCount += 1;
-        }
-      }
-
-      // Track float usage
-      if (hole.float_invoked_by && standings[hole.float_invoked_by]) {
-        standings[hole.float_invoked_by].floatCount += 1;
-      }
-
-      // Track option usage
-      if (hole.option_invoked_by && standings[hole.option_invoked_by]) {
-        standings[hole.option_invoked_by].optionCount += 1;
-      }
-    });
-
-    setPlayerStandings(standings);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- setPlayerStandings is stable (useCallback)
-  }, [players, holeHistory]);
-
-  // Track rotation/wager loading errors
-  const [rotationError, setRotationError] = useState(null);
-
-  // Fetch rotation and wager info when hole changes
-  useEffect(() => {
-    const fetchRotationAndWager = async () => {
-      setRotationError(null);
-      try {
-        // Fetch next rotation
-        const rotationRes = await fetch(
-          `${API_URL}/games/${gameId}/next-rotation`,
-        );
-        if (!rotationRes.ok) {
-          throw new Error(`Failed to fetch rotation: ${rotationRes.status}`);
-        }
-
-        const rotationData = await rotationRes.json();
-        if (!rotationData || typeof rotationData !== "object") {
-          throw new Error("Invalid rotation response");
-        }
-
-        if (rotationData.is_hoepfinger) {
-          setIsHoepfinger(true);
-          setGoatId(rotationData.goat_id);
-          setPhase("hoepfinger");
-          // Don't set rotation yet - Goat will select position
-        } else {
-          setIsHoepfinger(false);
-          // Validate rotation_order is an array
-          if (!Array.isArray(rotationData.rotation_order)) {
-            throw new Error("Invalid rotation_order: expected array");
-          }
-          setRotationOrder(rotationData.rotation_order);
-          setCaptainIndex(
-            typeof rotationData.captain_index === "number"
-              ? rotationData.captain_index
-              : 0,
-          );
-          setPhase("normal");
-          setGoatId(null);
-          setJoesSpecialWager(null);
-        }
-
-        // Fetch next hole wager
-        const wagerRes = await fetch(
-          `${API_URL}/games/${gameId}/next-hole-wager`,
-        );
-        if (!wagerRes.ok) {
-          throw new Error(`Failed to fetch wager: ${wagerRes.status}`);
-        }
-
-        const wagerData = await wagerRes.json();
-        if (!wagerData || typeof wagerData !== "object") {
-          throw new Error("Invalid wager response");
-        }
-
-        // Validate and set wager data with safe defaults
-        const baseWagerValue =
-          typeof wagerData.base_wager === "number"
-            ? wagerData.base_wager
-            : baseWager;
-        setNextHoleWager(baseWagerValue);
-        setCurrentWager(baseWagerValue);
-        setCarryOver(wagerData.carry_over || false);
-        setVinniesVariation(wagerData.vinnies_variation || false);
-        setOptionActive(wagerData.option_active || false);
-        if (wagerData.option_active) {
-          setGoatId(wagerData.goat_id);
-        }
-      } catch (err) {
-        console.error("Error fetching rotation/wager:", err);
-        setRotationError(err.message);
-        // Set safe defaults on error
-        setCurrentWager(baseWager);
-        setNextHoleWager(baseWager);
-      }
-    };
-
-    if (gameId) {
-      fetchRotationAndWager();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- setters are stable (useCallback), only trigger on data changes
-  }, [gameId, currentHole, holeHistory, baseWager]);
-
-  // Reset hole state for new hole
-  const resetHole = () => {
-    setTeam1([]);
-    setTeam2([]);
-    setCaptain(null);
-    setOpponents([]);
-    setCurrentWager(baseWager);
-    setScores({});
-    setQuarters({});
-    setHoleNotes("");
-    setWinner(null);
-    setFloatInvokedBy(null);
-    setOptionInvokedBy(null);
-    setError(null);
-    setEditingHole(null);
-    // carryOverApplied state removed (was unused)
-    setJoesSpecialWager(null); // Reset Joe's Special for next hole
-    setOptionTurnedOff(false); // Reset Option for next hole
-    setDuncanInvoked(false); // Reset Duncan for next hole
-    // Reset Aardvark state
-    setAardvarkRequestedTeam(null);
-    setAardvarkTossed(false);
-    setAardvarkSolo(false);
-    setInvisibleAardvarkTossed(false);
-    // Reset interactive betting state
-    setPendingOffer(null);
-    setCurrentHoleBettingEvents([]);
-  };
-
-  // Load hole data for editing
-  const loadHoleForEdit = (hole) => {
-    setEditingHole(hole.hole);
-    setCurrentHole(hole.hole); // Setting currentHole automatically updates derived holePar
-    setScores(hole.gross_scores || {});
-    setQuarters(hole.points_delta || {}); // Load quarters from points_delta
-    setHoleNotes(hole.notes || "");
-    setCurrentWager(hole.wager || baseWager);
-    setWinner(hole.winner);
-    setFloatInvokedBy(hole.float_invoked_by || null);
-    setOptionInvokedBy(hole.option_invoked_by || null);
-
-    // Restore betting state from hole data
-    setCurrentHoleBettingEvents(hole.betting_events || []);
-    setPendingOffer(null); // Clear any pending offers when loading for edit
-    setDuncanInvoked(hole.duncan_invoked || false);
-    setOptionTurnedOff(hole.option_turned_off || false);
-
-    // Set team mode and teams based on hole data
-    if (hole.teams.type === "partners") {
-      setTeamMode("partners");
-      setTeam1(hole.teams.team1 || []);
-      setTeam2(hole.teams.team2 || []);
-      setCaptain(null);
-      setOpponents([]);
-    } else {
-      setTeamMode("solo");
-      setCaptain(hole.teams.captain);
-      setOpponents(hole.teams.opponents || []);
-      setTeam1([]);
-      setTeam2([]);
-    }
-
-    // Scroll to top so user can see the form
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  // Handle team selection for partners mode
-  // Toggle players in/out of Team 1. Team 2 is automatically all other players.
-  const togglePlayerTeam = (playerId) => {
-    if (team1.includes(playerId)) {
-      // Remove from team1 (they'll go to team2 automatically)
-      setTeam1(team1.filter((id) => id !== playerId));
-    } else {
-      // Add to team1
-      setTeam1([...team1, playerId]);
-    }
-  };
-
-  // Handle captain selection for solo mode
-  const toggleCaptain = (playerId) => {
-    if (captain === playerId) {
-      setCaptain(null);
-    } else {
-      setCaptain(playerId);
-      // Set all other players as opponents
-      setOpponents(players.filter((p) => p.id !== playerId).map((p) => p.id));
-    }
-  };
-
-  // Betting functions (logBettingAction, getPlayerName, addBettingEvent, createOffer, respondToOffer)
-  // are now provided by useBettingState hook
-
-  // Announce an action (Duncan, Option Off) - no accept needed
-  const announceAction = (actionType, announcedBy) => {
-    addBettingEvent({
-      eventType: `${actionType.toUpperCase()}_ANNOUNCED`,
-      announced_by: announcedBy,
-      actor: announcedBy,
-    });
-  };
-
-  // Build betting narrative from events
-  const buildBettingNarrative = (events) => {
-    if (!events || !events.length) return null;
-
-    return events
-      .map((e) => {
-        const actor = getPlayerName(
-          e.offered_by || e.response_by || e.announced_by || e.actor,
-        );
-        switch (e.eventType) {
-          case "DOUBLE_OFFERED":
-            return `${actor} doubles`;
-          case "DOUBLE_ACCEPTED":
-            return "accepted";
-          case "DOUBLE_DECLINED":
-            return "declined";
-          case "FLOAT_OFFERED":
-            return `${actor} floats`;
-          case "FLOAT_ACCEPTED":
-            return "accepted";
-          case "FLOAT_DECLINED":
-            return "declined";
-          case "DUNCAN_ANNOUNCED":
-            return `${actor} calls Duncan`;
-          case "OPTION_OFF_ANNOUNCED":
-            return `${actor} turns off Option`;
-          case "OPTION_ACTIVE":
-            return "Option active";
-          default:
-            return null;
-        }
-      })
-      .filter(Boolean)
-      .join(" → ");
-  };
-
-  // Get current betting narrative
-  // eslint-disable-next-line no-unused-vars -- betting narrative for future betting history UI
-  const currentBettingNarrative = useMemo(() => {
-    return buildBettingNarrative(currentHoleBettingEvents);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentHoleBettingEvents]);
-
-  // Handle score input
-  const handleScoreChange = (playerId, value) => {
-    setScores({
-      ...scores,
-      [playerId]: parseInt(value, 10) || 0,
-    });
-  };
-
-  // Note: calculateQuartersForHole removed - quarters are now entered manually
-
   // Use stroke allocation from backend if provided (preferred - calculated with Creecher Feature rules)
   // Falls back to local calculation only if backend data is not available
+  // NOTE: declared before the Stuart Mode effects below, which list it in
+  // their dependency arrays — referencing it earlier is a TDZ crash.
   const strokeAllocation = useMemo(() => {
     // If we have stroke allocation from the backend, use it (it's more accurate)
     if (
@@ -768,56 +363,7 @@ const SimpleScorekeeper = ({
       netHandicaps[playerId] = Math.max(0, handicap - lowestHandicap);
     });
 
-    const getStrokesForHole = (netHandicap, strokeIndex) => {
-      if (!netHandicap || netHandicap <= 0) return 0;
-
-      const fullHandicap = Math.floor(netHandicap);
-      const hasFractional = netHandicap % 1 >= 0.5;
-
-      // Creecher Feature implementation
-      if (netHandicap <= 6) {
-        // All allocated holes get 0.5
-        return strokeIndex <= fullHandicap ? 0.5 : 0;
-      } else if (netHandicap <= 18) {
-        // Easiest 6 of allocated holes get 0.5, rest get 1.0
-        if (strokeIndex <= fullHandicap) {
-          const easiestSix = Array.from(
-            { length: fullHandicap },
-            (_, idx) => fullHandicap - idx,
-          );
-          return easiestSix.slice(0, 6).includes(strokeIndex) ? 0.5 : 1.0;
-        }
-        // Fractional: add 0.5 to next hole
-        if (hasFractional && strokeIndex === fullHandicap + 1) {
-          return 0.5;
-        }
-        return 0;
-      } else {
-        // Handicap > 18
-        // Base 18: holes 13-18 get 0.5, holes 1-12 get 1.0
-        const extraStrokes = fullHandicap - 18;
-        const extraHalfStrokes = extraStrokes * 2;
-
-        if (strokeIndex >= 13 && strokeIndex <= 18) {
-          // Easiest 6 holes get base 0.5
-          const halfsNeeded = extraHalfStrokes;
-          const holesGettingExtra = Math.min(halfsNeeded, 12);
-          if (strokeIndex <= holesGettingExtra) {
-            return 1.0; // 0.5 base + 0.5 extra
-          }
-          return 0.5;
-        } else {
-          // Hardest 12 holes get base 1.0
-          const halfsNeeded = extraHalfStrokes;
-          const holesGettingExtra = Math.min(halfsNeeded, 12);
-          if (strokeIndex <= holesGettingExtra) {
-            return 1.5; // 1.0 base + 0.5 extra
-          }
-          return 1.0;
-        }
-      }
-    };
-
+    // getStrokesForHole imported from utils/strokeAllocation (Creecher Feature).
     localPlayers.forEach((player) => {
       allocation[player.id] = {};
       const netHandicap = netHandicaps[player.id];
@@ -837,6 +383,193 @@ const SimpleScorekeeper = ({
 
     return allocation;
   }, [courseData, localPlayers, initialStrokeAllocation]);
+
+  // Stuart Mode orchestration (toggle listeners, AI decisions, move log).
+  // NOTE: must stay before the course-data/rotation effects below — effect
+  // order is preserved from the pre-extraction component.
+  const { aiMoves, setAiMoves, holePhase, setHolePhase, stuartTeamInfo } =
+    useStuartMode({
+      stuartMode,
+      toggleStuartMode,
+      gameId,
+      players,
+      courseData,
+      currentHole,
+      scores,
+      setScores,
+      rotationOrder,
+      captainIndex,
+      teamMode,
+      team1,
+      captain,
+      setTeamMode,
+      setCaptain,
+      setTeam1,
+      strokeAllocation,
+      playerStandings,
+      currentWager,
+      pendingOffer,
+      respondToOffer,
+      createOffer,
+    });
+
+  // Data-sync effects: course fetch, local persistence, standings init,
+  // rotation/wager fetch. NOTE: must stay after useStuartMode (effect order).
+  const { courseDataLoading, courseDataError, rotationError } =
+    useScorekeeperSync({
+      gameId,
+      courseName,
+      baseWager,
+      players,
+      holeHistory,
+      currentHole,
+      playerStandings,
+      setCourseData,
+      setPlayerStandings,
+      setNextHoleWager,
+      setCurrentWager,
+    });
+
+  // Post-hole achievement checking (badge notifications + failure banner)
+  const { checkAchievements, achievementCheckFailed, setAchievementCheckFailed } =
+    useAchievements(players);
+
+  // Hole submission/edit lifecycle (resetHole, submit, edit-save) — the ctx
+  // object IS the closure surface of the original inline handlers.
+  const {
+    resetHole,
+    getEffectiveQuarters,
+    handleSubmitHole,
+    handleEditModalSave,
+    handleEditHoleFromScorecard,
+  } = useHoleSubmission({
+    gameId,
+    baseWager,
+    players,
+    localPlayers,
+    quarters,
+    scores,
+    teamMode,
+    team1,
+    team2,
+    captain,
+    opponents,
+    currentHole,
+    currentWager,
+    phase,
+    rotationOrder,
+    captainIndex,
+    holeNotes,
+    winner,
+    editingHole,
+    holeHistory,
+    playerStandings,
+    syncHole,
+    logBettingAction,
+    checkAchievements,
+    setQuarters,
+    setScores,
+    setError,
+    setSubmitting,
+    setCurrentHole,
+    setHoleHistory,
+    setPlayerStandings,
+    setHoleNotes,
+    setWinner,
+    setEditingHole,
+    setLocalPlayers,
+    setCurrentWager,
+    setTeam1,
+    setTeam2,
+    setCaptain,
+    setOpponents,
+    setFloatInvokedBy,
+    setOptionInvokedBy,
+    setJoesSpecialWager,
+    setOptionTurnedOff,
+    setDuncanInvoked,
+    setAardvarkRequestedTeam,
+    setAardvarkTossed,
+    setAardvarkSolo,
+    setInvisibleAardvarkTossed,
+    setPendingOffer,
+    setCurrentHoleBettingEvents,
+    setRotationOrder,
+    setAchievementCheckFailed,
+  });
+
+  // Handle team selection for partners mode
+  // Toggle players in/out of Team 1. Team 2 is automatically all other players.
+  const togglePlayerTeam = (playerId) => {
+    if (team1.includes(playerId)) {
+      // Remove from team1 (they'll go to team2 automatically)
+      setTeam1(team1.filter((id) => id !== playerId));
+      return;
+    }
+
+    // Stuart Mode: when adding an AI player as partner, run their accept
+    // /decline heuristic. Decline = don't add + log; accept = add + log.
+    if (stuartMode) {
+      const target = players.find((p) => p.id === playerId);
+      if (target && !target.is_authenticated) {
+        const result = aiPartnerResponse({
+          aiPlayer: target,
+          currentHole,
+          strokeAllocation,
+          playerStandings,
+        });
+        setAiMoves((prev) => [
+          ...prev,
+          {
+            type: "partner",
+            text:
+              result.decision === "accept"
+                ? `🤖 ${target.name} accepts partnership — ${result.reason}`
+                : `🤖 ${target.name} declines partnership — ${result.reason}`,
+            timestamp: Date.now(),
+          },
+        ]);
+        if (result.decision === "decline") return; // don't add
+      }
+    }
+
+    // Add to team1
+    setTeam1([...team1, playerId]);
+  };
+
+  // Handle captain selection for solo mode
+  const toggleCaptain = (playerId) => {
+    if (captain === playerId) {
+      setCaptain(null);
+    } else {
+      setCaptain(playerId);
+      // Set all other players as opponents
+      setOpponents(players.filter((p) => p.id !== playerId).map((p) => p.id));
+    }
+  };
+
+  // Betting functions (logBettingAction, getPlayerName, addBettingEvent, createOffer, respondToOffer)
+  // are now provided by useBettingState hook
+
+  // Announce an action (Duncan, Option Off) - no accept needed
+  const announceAction = (actionType, announcedBy) => {
+    addBettingEvent({
+      eventType: `${actionType.toUpperCase()}_ANNOUNCED`,
+      announced_by: announcedBy,
+      actor: announcedBy,
+    });
+  };
+
+  // Handle score input
+  const handleScoreChange = (playerId, value) => {
+    setScores({
+      ...scores,
+      [playerId]: parseInt(value, 10) || 0,
+    });
+  };
+
+  // Note: calculateQuartersForHole removed - quarters are now entered manually
+  // Note: strokeAllocation memo moved above the Stuart Mode effects (TDZ fix)
 
   // Calculate net scores and auto-detect winner
   const calculateNetScoresAndWinner = useMemo(() => {
@@ -923,347 +656,6 @@ const SimpleScorekeeper = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- setWinner is stable (useCallback)
   }, [calculateNetScoresAndWinner, winner]);
 
-  // Validate hole data before submission
-  const validateHole = () => {
-    // Simplified validation: only quarters matter now
-    const allPlayers = players.map((p) => p.id);
-
-    // Validate quarters: must be entered for all players and sum to zero
-    const quartersEntered = Object.keys(quarters).length > 0;
-    if (!quartersEntered) {
-      return "Please enter quarters for all players";
-    }
-
-    // Check all players have quarters
-    for (const playerId of allPlayers) {
-      if (quarters[playerId] === undefined || quarters[playerId] === "") {
-        return "Please enter quarters for all players";
-      }
-    }
-
-    // Validate zero-sum (allow decimals for split scoring)
-    const quartersSum = allPlayers.reduce((sum, playerId) => {
-      const q = parseFloat(quarters[playerId]) || 0;
-      return sum + q;
-    }, 0);
-
-    // Use small epsilon for floating point comparison
-    if (Math.abs(quartersSum) > 0.001) {
-      return `Quarters must sum to zero. Current sum: ${quartersSum > 0 ? "+" : ""}${quartersSum.toFixed(2)}`;
-    }
-
-    return null;
-  };
-
-  // Compute effective quarters with auto-balance applied
-  const getEffectiveQuarters = () => {
-    const effective = { ...quarters };
-    const entered = [];
-    const empty = [];
-    players.forEach((p) => {
-      const val = effective[p.id];
-      if (val !== undefined && val !== "" && val !== null) {
-        entered.push({ id: p.id, value: parseFloat(val) || 0 });
-      } else {
-        empty.push(p.id);
-      }
-    });
-    if (empty.length === 1 && entered.length >= 1) {
-      const sum = entered.reduce((acc, e) => acc + e.value, 0);
-      effective[empty[0]] = (-sum).toString();
-    }
-    return effective;
-  };
-
-  // Submit hole to backend
-  const handleSubmitHole = async () => {
-    // Apply auto-balance before validation
-    const effectiveQuarters = getEffectiveQuarters();
-    setQuarters(effectiveQuarters);
-
-    // Validate with effective quarters
-    const allPlayers = players.map((p) => p.id);
-    const quartersEntered = Object.keys(effectiveQuarters).length > 0;
-    let validationError = null;
-    if (!quartersEntered) {
-      validationError = "Please enter quarters for all players";
-    } else {
-      for (const playerId of allPlayers) {
-        if (effectiveQuarters[playerId] === undefined || effectiveQuarters[playerId] === "") {
-          validationError = "Please enter quarters for all players";
-          break;
-        }
-      }
-      if (!validationError) {
-        const quartersSum = allPlayers.reduce((sum, playerId) => {
-          return sum + (parseFloat(effectiveQuarters[playerId]) || 0);
-        }, 0);
-        if (Math.abs(quartersSum) > 0.001) {
-          validationError = `Quarters must sum to zero. Current sum: ${quartersSum > 0 ? "+" : ""}${quartersSum.toFixed(2)}`;
-        }
-      }
-    }
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
-    setSubmitting(true);
-    setError(null);
-
-    try {
-      // For partners mode, Team 2 is always calculated as players not in Team 1
-      const teams =
-        teamMode === "partners"
-          ? {
-              type: "partners",
-              team1: team1,
-              team2: players
-                .filter((p) => !team1.includes(p.id))
-                .map((p) => p.id),
-            }
-          : {
-              type: "solo",
-              captain: captain,
-              opponents: opponents,
-            };
-
-      // QUARTERS-ONLY MODE: Use manually-entered quarters
-      // Build pointsDelta from user-entered quarters (supports decimals for split scoring)
-      const pointsDelta = createPlayerMap(
-        players,
-        (p) => parseFloat(effectiveQuarters[p.id]) || 0,
-      );
-
-      // Zero-sum already validated in validateHole()
-
-      // Build hole result object (local, no server needed for calculation)
-      const holeResult = {
-        hole: currentHole,
-        points_delta: pointsDelta,
-        gross_scores: scores,
-        teams: teams,
-        winner: null, // Winner not used - quarters entered manually
-        wager: currentWager,
-        phase: phase,
-        rotation_order: rotationOrder,
-        captain_index: captainIndex,
-        quarters_only: true,
-        notes: holeNotes || null,
-      };
-
-      // Log hole completion to betting history
-      logBettingAction("Hole Completed", {
-        actor: "Quarters entered manually",
-        wager: currentWager,
-        winner: null,
-        scores: scores,
-      });
-
-      // Update local state first (optimistic update)
-      let updatedHistory;
-      if (editingHole) {
-        // Editing existing hole - update it in the history
-        updatedHistory = holeHistory.map((h) =>
-          h.hole === editingHole ? holeResult : h,
-        );
-      } else {
-        // New hole - add to history
-        updatedHistory = [...holeHistory, holeResult];
-      }
-      setHoleHistory(updatedHistory);
-
-      // Recalculate all player standings from the updated history
-      const newStandings = createPlayerMap(players, (p) => ({
-        quarters: 0,
-        name: p.name,
-        soloCount: 0,
-        floatCount: 0,
-        optionCount: 0,
-      }));
-
-      updatedHistory.forEach((hole) => {
-        const delta = hole.points_delta || {};
-        Object.entries(delta).forEach(([playerId, points]) => {
-          if (newStandings[playerId]) {
-            newStandings[playerId].quarters +=
-              typeof points === "number" ? points : 0;
-          }
-        });
-        // Track solo usage
-        if (hole.teams?.type === "solo" && hole.teams?.captain) {
-          if (newStandings[hole.teams.captain]) {
-            newStandings[hole.teams.captain].soloCount += 1;
-          }
-        }
-      });
-      setPlayerStandings(newStandings);
-
-      // Build hole_quarters for the quarters-only endpoint
-      const holeQuarters = {};
-      updatedHistory.forEach((hole) => {
-        if (hole.points_delta) {
-          holeQuarters[String(hole.hole)] = hole.points_delta;
-        }
-      });
-
-      // Build optional details for metadata
-      const optionalDetails = {};
-      updatedHistory.forEach((hole) => {
-        optionalDetails[String(hole.hole)] = {
-          teams: hole.teams,
-          winner: hole.winner,
-          wager: hole.wager,
-          gross_scores: hole.gross_scores,
-          phase: hole.phase,
-          notes: hole.notes || null,
-        };
-      });
-
-      // Sync to backend using offline-first approach
-      // This will queue the sync if offline or on slow connection
-      const syncResult = await syncHole(
-        holeQuarters,
-        optionalDetails,
-        editingHole ? currentHole : currentHole + 1,
-      );
-
-      // Handle permanent errors (like validation failures)
-      if (!syncResult.success && syncResult.permanent) {
-        const rawError = syncResult.error || "Failed to save quarters";
-
-        // Handle zero-sum validation error from backend
-        if (rawError.includes("Zero-sum validation failed")) {
-          throw new Error(
-            `Quarters don't balance!\n\n${rawError}\n\n💡 Each hole must sum to zero. Check the wager and winner settings.`,
-          );
-        }
-
-        throw new Error(rawError);
-      }
-
-      // If queued for later sync, that's still a success - data is saved locally
-      // The UI will show pending sync indicator
-
-      // Move to next hole or return from editing
-      if (editingHole) {
-        const maxHole =
-          updatedHistory.length > 0
-            ? Math.max(...updatedHistory.map((h) => h.hole))
-            : 0;
-        setCurrentHole(maxHole + 1);
-        resetHole();
-      } else {
-        setCurrentHole(currentHole + 1);
-        resetHole();
-      }
-
-      // Check for achievement unlocks for all players
-      await checkAchievements();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Save edits from the edit-hole modal without touching current hole state
-  const handleEditModalSave = async (updatedHole) => {
-    const updatedHistory = holeHistory.map((h) =>
-      h.hole === updatedHole.hole ? updatedHole : h,
-    );
-    setHoleHistory(updatedHistory);
-
-    // Recalculate standings
-    const newStandings = createPlayerMap(players, (p) => ({
-      quarters: 0, name: p.name, soloCount: 0, floatCount: 0, optionCount: 0,
-    }));
-    updatedHistory.forEach((hole) => {
-      const delta = hole.points_delta || {};
-      Object.entries(delta).forEach(([playerId, points]) => {
-        if (newStandings[playerId]) {
-          newStandings[playerId].quarters += typeof points === "number" ? points : 0;
-        }
-      });
-      if (hole.teams?.type === "solo" && hole.teams?.captain) {
-        if (newStandings[hole.teams.captain]) {
-          newStandings[hole.teams.captain].soloCount += 1;
-        }
-      }
-    });
-    setPlayerStandings(newStandings);
-
-    // Sync to backend
-    const holeQuarters = {};
-    const optionalDetails = {};
-    updatedHistory.forEach((hole) => {
-      if (hole.points_delta) holeQuarters[String(hole.hole)] = hole.points_delta;
-      optionalDetails[String(hole.hole)] = {
-        teams: hole.teams, winner: hole.winner, wager: hole.wager,
-        gross_scores: hole.gross_scores, phase: hole.phase, notes: hole.notes || null,
-      };
-    });
-    await syncHole(holeQuarters, optionalDetails, currentHole);
-  };
-
-  // Track achievement check status
-  const [achievementCheckFailed, setAchievementCheckFailed] = useState(false);
-
-  // Check achievements for all players and trigger notifications
-  const checkAchievements = async () => {
-    let failedPlayers = [];
-    setAchievementCheckFailed(false);
-
-    for (const player of players) {
-      try {
-        const response = await fetch(
-          `${API_URL}/api/badges/admin/check-achievements/${player.id}`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          },
-        );
-
-        if (!response.ok) {
-          console.warn(
-            `Achievement check failed for ${player.name}: ${response.status}`,
-          );
-          failedPlayers.push(player.name);
-          continue;
-        }
-
-        const data = await response.json();
-        if (!data || typeof data !== "object") {
-          console.warn(`Invalid achievement response for ${player.name}`);
-          failedPlayers.push(player.name);
-          continue;
-        }
-
-        // Trigger badge notification for each newly earned badge
-        if (
-          Array.isArray(data.badges_earned) &&
-          data.badges_earned.length > 0
-        ) {
-          data.badges_earned.forEach((badge) => {
-            if (badge && typeof badge === "object") {
-              triggerBadgeNotification(badge);
-            }
-          });
-        }
-      } catch (err) {
-        console.warn(`Achievement check error for ${player.name}:`, err);
-        failedPlayers.push(player.name);
-      }
-    }
-
-    // If any achievements failed to check, set the warning flag
-    if (failedPlayers.length > 0) {
-      setAchievementCheckFailed(true);
-      console.warn(`Achievement check failed for: ${failedPlayers.join(", ")}`);
-    }
-  };
 
   // Handle player name editing - uses useUIState hook
   // eslint-disable-next-line no-unused-vars
@@ -1352,32 +744,6 @@ const SimpleScorekeeper = ({
     }));
   }, [courseData?.holes]);
 
-  // Handler for editing a hole from the scorecard
-  // This is called when user clicks a cell and saves in the Scorecard modal
-  const handleEditHoleFromScorecard = ({
-    hole,
-    playerId,
-    strokes,
-    quarters: quartersOverride,
-  }) => {
-    const holeData = holeHistory.find((h) => h.hole === hole);
-    if (!holeData) return;
-
-    const updatedScores = { ...holeData.gross_scores };
-    if (strokes !== null) updatedScores[playerId] = strokes;
-
-    const updatedPointsDelta = { ...holeData.points_delta };
-    if (quartersOverride !== null && quartersOverride !== undefined) {
-      updatedPointsDelta[playerId] = quartersOverride;
-    }
-
-    handleEditModalSave({
-      ...holeData,
-      gross_scores: updatedScores,
-      points_delta: updatedPointsDelta,
-    });
-  };
-
   // Direct hole jump - open edit modal for completed holes
   const jumpToHole = (holeNumber) => {
     const holeData = holeHistory.find((h) => h.hole === holeNumber);
@@ -1390,8 +756,11 @@ const SimpleScorekeeper = ({
     }
   };
 
-  // Check if game is complete (all 18 holes played)
-  const isGameComplete = currentHole > 18 && holeHistory.length === 18;
+  // Check if game is complete (all 18 holes played). Gate on the DISTINCT set
+  // of holes 1-18 actually played, not holeHistory.length — a duplicate entry
+  // makes length reach 18 with a real hole still missing, completing early
+  // (and a missing hole could also be masked). Mirrors the backend gate.
+  const isGameComplete = currentHole > 18 && allHolesPlayed(holeHistory);
 
   // Handler to mark game as complete in the database
   const handleMarkComplete = async () => {
@@ -1441,345 +810,46 @@ const SimpleScorekeeper = ({
       className="thumb-zone-container"
       style={{ padding: "20px", maxWidth: "800px", margin: "0 auto" }}
     >
+      <StuartModeToggle
+        assistMode={assistMode}
+        setAssistMode={setAssistMode}
+        theme={theme}
+      />
+
       {/* Sync Status Banner - Shows when offline or pending uploads */}
       <SyncStatusBanner />
 
-      {/* Loading/Error/Warning Banners */}
-      {courseDataLoading && (
-        <div
-          style={{
-            background: "#e3f2fd",
-            color: "#1976d2",
-            padding: "10px 14px",
-            borderRadius: "8px",
-            marginBottom: "12px",
-            fontSize: "14px",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-          }}
-        >
-          <span>⏳</span>
-          <span>Loading course data...</span>
-        </div>
-      )}
+      <ScorekeeperBanners
+        courseDataLoading={courseDataLoading}
+        courseDataError={courseDataError}
+        rotationError={rotationError}
+        achievementCheckFailed={achievementCheckFailed}
+        setAchievementCheckFailed={setAchievementCheckFailed}
+        isEditingCompleteGame={isEditingCompleteGame}
+        setIsEditingCompleteGame={setIsEditingCompleteGame}
+        editingHole={editingHole}
+        setCurrentHole={setCurrentHole}
+        resetHole={resetHole}
+        holeHistory={holeHistory}
+      />
 
-      {courseDataError && (
-        <div
-          style={{
-            background: "#f44336",
-            color: "white",
-            padding: "12px 16px",
-            borderRadius: "8px",
-            marginBottom: "12px",
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-          }}
-        >
-          <span style={{ fontSize: "18px" }}>⚠️</span>
-          <div>
-            <strong>Course Data Error:</strong> {courseDataError}
-            <div style={{ fontSize: "12px", opacity: 0.9, marginTop: "4px" }}>
-              Hole par and handicap data may be unavailable
-            </div>
-          </div>
-        </div>
-      )}
-
-      {rotationError && (
-        <div
-          style={{
-            background: "#ff9800",
-            color: "white",
-            padding: "12px 16px",
-            borderRadius: "8px",
-            marginBottom: "12px",
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-          }}
-        >
-          <span style={{ fontSize: "18px" }}>⚠️</span>
-          <div>
-            <strong>Rotation/Wager Error:</strong> {rotationError}
-            <div style={{ fontSize: "12px", opacity: 0.9, marginTop: "4px" }}>
-              Using default wager. Rotation may be incorrect.
-            </div>
-          </div>
-        </div>
-      )}
-
-      {achievementCheckFailed && (
-        <div
-          style={{
-            background: "#9c27b0",
-            color: "white",
-            padding: "10px 14px",
-            borderRadius: "8px",
-            marginBottom: "12px",
-            fontSize: "14px",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-          }}
-        >
-          <span>🏆</span>
-          <span>
-            Achievement check failed - some badges may not have been recorded
-          </span>
-          <button
-            onClick={() => setAchievementCheckFailed(false)}
-            style={{
-              marginLeft: "auto",
-              background: "transparent",
-              border: "none",
-              color: "white",
-              cursor: "pointer",
-              fontSize: "16px",
-            }}
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {/* Editing Completed Game Banner */}
-      {isEditingCompleteGame && (
-        <div
-          style={{
-            background: "linear-gradient(135deg, #ff9800 0%, #f57c00 100%)",
-            color: "white",
-            padding: "16px 20px",
-            borderRadius: "12px",
-            marginBottom: "16px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            boxShadow: "0 4px 6px rgba(0,0,0,0.15)",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                fontSize: "18px",
-                fontWeight: "bold",
-                marginBottom: "4px",
-              }}
-            >
-              Editing Completed Game
-            </div>
-            <div style={{ fontSize: "14px", opacity: 0.9 }}>
-              Click on any hole in the scorecard below to edit it
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              setIsEditingCompleteGame(false);
-              setCurrentHole(19); // Return to completed state
-            }}
-            style={{
-              padding: "10px 20px",
-              fontSize: "16px",
-              fontWeight: "bold",
-              borderRadius: "8px",
-              border: "2px solid white",
-              background: "transparent",
-              color: "white",
-              cursor: "pointer",
-              transition: "all 0.2s",
-            }}
-            onMouseOver={(e) => {
-              e.target.style.background = "rgba(255,255,255,0.2)";
-            }}
-            onMouseOut={(e) => {
-              e.target.style.background = "transparent";
-            }}
-          >
-            Done Editing
-          </button>
-        </div>
-      )}
-
-      {/* Edit Mode Banner */}
-      {editingHole && (
-        <div
-          style={{
-            background: "#FF9800",
-            color: "white",
-            padding: "16px 20px",
-            borderRadius: "12px",
-            marginBottom: "16px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                fontSize: "20px",
-                fontWeight: "bold",
-                marginBottom: "4px",
-              }}
-            >
-              ✏️ Editing Hole {editingHole}
-            </div>
-            <div style={{ fontSize: "14px", opacity: 0.9 }}>
-              Make your changes and submit to update
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              setCurrentHole(Math.max(...holeHistory.map((h) => h.hole)) + 1);
-              resetHole();
-            }}
-            className="touch-optimized"
-            style={{
-              padding: "10px 20px",
-              fontSize: "14px",
-              fontWeight: "bold",
-              border: "2px solid white",
-              borderRadius: "8px",
-              background: "transparent",
-              color: "white",
-              cursor: "pointer",
-              transition: "all 0.2s",
-            }}
-          >
-            Cancel
-          </button>
-        </div>
-      )}
-
-      {/* Golf-Style Scorecard at Top */}
-      <div
-        style={{
-          marginBottom: "20px",
-          position: "sticky",
-          top: "0",
-          zIndex: 10,
-        }}
-      >
-        <Scorecard
-          players={localPlayers}
-          holeHistory={holeHistory}
-          currentHole={currentHole}
-          onEditHole={handleEditHoleFromScorecard}
-          courseHoles={scorecardCourseHoles}
-          strokeAllocation={strokeAllocation}
-          isEditingCompleteGame={isEditingCompleteGame}
-        />
-
-        {/* Quick Hole Navigation - Shows completed holes as clickable chips */}
-        {holeHistory.length > 0 && (
-          <div
-            style={{
-              marginTop: "8px",
-              padding: "8px",
-              background: theme.colors.backgroundSecondary,
-              borderRadius: "8px",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "11px",
-                color: theme.colors.textSecondary,
-                marginBottom: "6px",
-              }}
-            >
-              Tap any hole to edit:
-            </div>
-            <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
-              {Array.from(
-                { length: Math.max(currentHole - 1, holeHistory.length) },
-                (_, i) => i + 1,
-              ).map((hole) => {
-                const holeData = holeHistory.find((h) => h.hole === hole);
-                const isEditing = editingHole === hole;
-                return (
-                  <button
-                    key={hole}
-                    onClick={() => jumpToHole(hole)}
-                    className="touch-optimized"
-                    style={{
-                      width: "32px",
-                      height: "32px",
-                      borderRadius: "6px",
-                      border: isEditing
-                        ? `2px solid ${theme.colors.warning}`
-                        : holeData
-                          ? `1px solid ${theme.colors.primary}`
-                          : `1px solid ${theme.colors.border}`,
-                      background: isEditing
-                        ? theme.colors.warning
-                        : holeData
-                          ? "white"
-                          : "#f5f5f5",
-                      color: isEditing
-                        ? "white"
-                        : holeData
-                          ? theme.colors.primary
-                          : theme.colors.textSecondary,
-                      fontSize: "13px",
-                      fontWeight: "bold",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    {hole}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Undo last hole button */}
-            <button
-              onClick={() => {
-                if (
-                  window.confirm(
-                    `Undo hole ${holeHistory[holeHistory.length - 1].hole}? This will remove all data for that hole.`,
-                  )
-                ) {
-                  const lastHole = holeHistory[holeHistory.length - 1];
-                  setHoleHistory((prev) => prev.slice(0, -1));
-                  setCurrentHole(lastHole.hole);
-                  const newStandings = { ...playerStandings };
-                  players.forEach((p) => {
-                    const delta = lastHole.points_delta?.[p.id] || 0;
-                    if (newStandings[p.id]) {
-                      newStandings[p.id] = {
-                        ...newStandings[p.id],
-                        quarters: (newStandings[p.id].quarters || 0) - delta,
-                      };
-                    }
-                  });
-                  setPlayerStandings(newStandings);
-                  resetHole();
-                }
-              }}
-              className="touch-optimized"
-              style={{
-                marginTop: "8px",
-                padding: "6px 12px",
-                fontSize: "12px",
-                border: "1px solid #f44336",
-                borderRadius: "6px",
-                background: "white",
-                color: "#f44336",
-                cursor: "pointer",
-              }}
-            >
-              ↩️ Undo Last Hole
-            </button>
-          </div>
-        )}
-
-      </div>
-
+      <ScorecardSection
+        theme={theme}
+        players={players}
+        localPlayers={localPlayers}
+        holeHistory={holeHistory}
+        setHoleHistory={setHoleHistory}
+        setPlayerStandings={setPlayerStandings}
+        currentHole={currentHole}
+        setCurrentHole={setCurrentHole}
+        editingHole={editingHole}
+        scorecardCourseHoles={scorecardCourseHoles}
+        strokeAllocation={strokeAllocation}
+        isEditingCompleteGame={isEditingCompleteGame}
+        handleEditHoleFromScorecard={handleEditHoleFromScorecard}
+        jumpToHole={jumpToHole}
+        resetHole={resetHole}
+      />
       {/* Enhanced Hole Title Section - Combines hole info, hitting order, and strokes */}
       <HoleHeader
         currentHole={currentHole}
@@ -1801,550 +871,52 @@ const SimpleScorekeeper = ({
         movePlayerInOrder={movePlayerInOrder}
       />
 
-      {/* Float & Option Tracking - Collapsed by default */}
-      <div
-        style={{
-          background: theme.colors.paper,
-          borderRadius: "8px",
-          marginBottom: "12px",
-          border: `1px solid ${theme.colors.border}`,
-          overflow: "hidden",
-        }}
-      >
-        <div
-          onClick={() => setShowSpecialActions(!showSpecialActions)}
-          style={{
-            padding: "10px 12px",
-            fontSize: "13px",
-            fontWeight: "bold",
-            color: theme.colors.textSecondary,
-            cursor: "pointer",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            background: theme.colors.backgroundSecondary,
-          }}
-        >
-          <span>
-            Special Actions
-            {(floatInvokedBy || optionInvokedBy) && (
-              <span
-                style={{
-                  marginLeft: "8px",
-                  color: theme.colors.primary,
-                  fontSize: "12px",
-                }}
-              >
-                (active)
-              </span>
-            )}
-          </span>
-          <span style={{ fontSize: "14px" }}>
-            {showSpecialActions ? "▼" : "▶"}
-          </span>
-        </div>
+      <HolePhaseStrip
+        stuartMode={stuartMode}
+        holePhase={holePhase}
+        setHolePhase={setHolePhase}
+        theme={theme}
+      />
 
-        {showSpecialActions && (
-          <div style={{ padding: "12px" }}>
-            {/* Float Selection */}
-            <div style={{ marginBottom: "12px" }}>
-              <div
-                style={{
-                  fontSize: "13px",
-                  fontWeight: "bold",
-                  marginBottom: "6px",
-                }}
-              >
-                Float:{" "}
-                <span
-                  style={{
-                    fontWeight: "normal",
-                    color: theme.colors.textSecondary,
-                  }}
-                >
-                  (one-time per player)
-                </span>
-              </div>
-              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                {players.map((player) => {
-                  const hasUsedFloat =
-                    playerStandings[player.id]?.floatCount >= 1;
-                  return (
-                    <button
-                      key={player.id}
-                      onClick={() =>
-                        setFloatInvokedBy(
-                          floatInvokedBy === player.id ? null : player.id,
-                        )
-                      }
-                      className="touch-optimized"
-                      disabled={hasUsedFloat}
-                      style={{
-                        padding: "6px 12px",
-                        fontSize: "13px",
-                        border: `2px solid ${floatInvokedBy === player.id ? theme.colors.primary : hasUsedFloat ? "#ccc" : theme.colors.border}`,
-                        borderRadius: "6px",
-                        background:
-                          floatInvokedBy === player.id
-                            ? theme.colors.primary
-                            : hasUsedFloat
-                              ? "#f5f5f5"
-                              : "white",
-                        color:
-                          floatInvokedBy === player.id
-                            ? "white"
-                            : hasUsedFloat
-                              ? "#999"
-                              : theme.colors.text,
-                        cursor: hasUsedFloat ? "not-allowed" : "pointer",
-                        opacity: hasUsedFloat ? 0.6 : 1,
-                      }}
-                    >
-                      {player.name.split(" ")[0]}
-                      {hasUsedFloat && " ✓"}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+      <SpecialActionsPanel
+        theme={theme}
+        players={players}
+        playerStandings={playerStandings}
+        floatInvokedBy={floatInvokedBy}
+        setFloatInvokedBy={setFloatInvokedBy}
+        optionInvokedBy={optionInvokedBy}
+        setOptionInvokedBy={setOptionInvokedBy}
+        showSpecialActions={showSpecialActions}
+        setShowSpecialActions={setShowSpecialActions}
+      />
 
-            {/* Option Selection */}
-            <div>
-              <div
-                style={{
-                  fontSize: "13px",
-                  fontWeight: "bold",
-                  marginBottom: "6px",
-                }}
-              >
-                Option Triggered:
-              </div>
-              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                {players.map((player) => (
-                  <button
-                    key={player.id}
-                    onClick={() =>
-                      setOptionInvokedBy(
-                        optionInvokedBy === player.id ? null : player.id,
-                      )
-                    }
-                    className="touch-optimized"
-                    style={{
-                      padding: "6px 12px",
-                      fontSize: "13px",
-                      border: `2px solid ${optionInvokedBy === player.id ? theme.colors.warning : theme.colors.border}`,
-                      borderRadius: "6px",
-                      background:
-                        optionInvokedBy === player.id
-                          ? theme.colors.warning
-                          : "white",
-                      color:
-                        optionInvokedBy === player.id
-                          ? "white"
-                          : theme.colors.text,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {player.name.split(" ")[0]}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      <UsageStatsPanel
+        theme={theme}
+        players={players}
+        playerStandings={playerStandings}
+        currentHole={currentHole}
+        holeHistory={holeHistory}
+        showUsageStats={showUsageStats}
+        setShowUsageStats={setShowUsageStats}
+      />
 
-      {/* Usage Statistics - Collapsible */}
-      {holeHistory.length > 0 && (
-        <div
-          style={{
-            background: theme.colors.paper,
-            borderRadius: "8px",
-            overflow: "hidden",
-            marginBottom: "12px",
-            border: `1px solid ${theme.colors.border}`,
-          }}
-        >
-          <div
-            onClick={() => setShowUsageStats(!showUsageStats)}
-            style={{
-              padding: "10px 12px",
-              background: theme.colors.backgroundSecondary,
-              fontSize: "13px",
-              fontWeight: "bold",
-              color: theme.colors.textPrimary,
-              cursor: "pointer",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <span>Rule Compliance & Usage</span>
-            <span style={{ fontSize: "16px" }}>
-              {showUsageStats ? "▼" : "▶"}
-            </span>
-          </div>
-
-          {showUsageStats && (
-            <div style={{ padding: "12px" }}>
-              {Object.values(playerStandings).map((player, idx) => {
-                const soloCount = player.soloCount || 0;
-                const floatCount = player.floatCount || 0;
-                const optionCount = player.optionCount || 0;
-
-                // Rule requirements
-                const soloRequired = 1; // Everyone must go solo at least once
-                const floatAvailable = 1; // One float per player per round
-                const soloMet = soloCount >= soloRequired;
-                const floatUsed = floatCount >= floatAvailable;
-
-                return (
-                  <div
-                    key={idx}
-                    style={{
-                      padding: "12px",
-                      borderBottom:
-                        idx < Object.values(playerStandings).length - 1
-                          ? `1px solid ${theme.colors.border}`
-                          : "none",
-                      background:
-                        idx % 2 === 0 ? "white" : theme.colors.background,
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        marginBottom: "8px",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: "16px",
-                          fontWeight: "bold",
-                          color: theme.colors.textPrimary,
-                          flex: 1,
-                        }}
-                      >
-                        {player.name}
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: "16px",
-                          fontSize: "14px",
-                          color: theme.colors.textSecondary,
-                        }}
-                      >
-                        {/* Solo Count */}
-                        <div style={{ textAlign: "center" }}>
-                          <div
-                            style={{
-                              fontSize: "20px",
-                              fontWeight: "bold",
-                              color: soloMet ? "#4CAF50" : "#f44336",
-                            }}
-                          >
-                            {soloCount}/{soloRequired}
-                          </div>
-                          <div style={{ fontSize: "11px" }}>Solo</div>
-                          {!soloMet && (
-                            <div
-                              style={{
-                                fontSize: "9px",
-                                color: "#f44336",
-                                fontWeight: "bold",
-                                marginTop: "2px",
-                              }}
-                            >
-                              Required
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Float Count */}
-                        <div style={{ textAlign: "center" }}>
-                          <div
-                            style={{
-                              fontSize: "20px",
-                              fontWeight: "bold",
-                              color: floatUsed
-                                ? "#9E9E9E"
-                                : theme.colors.primary,
-                            }}
-                          >
-                            {floatCount}/{floatAvailable}
-                          </div>
-                          <div style={{ fontSize: "11px" }}>Float</div>
-                          {floatUsed && (
-                            <div
-                              style={{
-                                fontSize: "9px",
-                                color: "#9E9E9E",
-                                marginTop: "2px",
-                              }}
-                            >
-                              Used
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Option Count (informational) */}
-                        <div style={{ textAlign: "center" }}>
-                          <div
-                            style={{
-                              fontSize: "20px",
-                              fontWeight: "bold",
-                              color: theme.colors.warning,
-                            }}
-                          >
-                            {optionCount}
-                          </div>
-                          <div style={{ fontSize: "11px" }}>Option</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Rule Summary */}
-              <div
-                style={{
-                  padding: "8px 12px",
-                  background: "#f9fafb",
-                  borderTop: `1px solid ${theme.colors.border}`,
-                  fontSize: "10px",
-                  color: theme.colors.textSecondary,
-                }}
-              >
-                <div>• Solo: Must go solo once (by hole 16)</div>
-                <div>• Float: One-time use per player</div>
-                <div>• Option: Auto when captain furthest down</div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Solo Requirement Warning Banner - Phase 3 */}
-      {players.length === 4 &&
-        currentHole >= 13 &&
-        currentHole <= 16 &&
-        (() => {
-          const playersNeedingSolo = Object.values(playerStandings).filter(
-            (p) => (p.soloCount || 0) === 0,
-          );
-          if (playersNeedingSolo.length > 0) {
-            return (
-              <div
-                style={{
-                  background:
-                    "linear-gradient(135deg, #FF6B6B 0%, #FFB347 100%)",
-                  padding: "20px",
-                  borderRadius: "16px",
-                  marginBottom: "20px",
-                  boxShadow: "0 4px 12px rgba(255, 107, 107, 0.3)",
-                  border: "3px solid #FF4757",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "12px",
-                    marginBottom: "12px",
-                  }}
-                >
-                  <div style={{ fontSize: "32px" }}>⚠️</div>
-                  <div>
-                    <div
-                      style={{
-                        fontSize: "20px",
-                        fontWeight: "bold",
-                        color: "white",
-                        marginBottom: "4px",
-                      }}
-                    >
-                      Solo Requirement Alert!
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "14px",
-                        color: "rgba(255, 255, 255, 0.95)",
-                      }}
-                    >
-                      {currentHole === 16
-                        ? "🚨 LAST CHANCE - Hoepfinger starts next hole!"
-                        : `Only ${17 - currentHole} hole${17 - currentHole === 1 ? "" : "s"} until Hoepfinger`}
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    background: "rgba(255, 255, 255, 0.95)",
-                    padding: "12px",
-                    borderRadius: "8px",
-                    marginBottom: "8px",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: "bold",
-                      color: "#d32f2f",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    Players who MUST go solo:
-                  </div>
-                  <div
-                    style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}
-                  >
-                    {playersNeedingSolo.map((player, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          background: "#FF4757",
-                          color: "white",
-                          padding: "6px 12px",
-                          borderRadius: "20px",
-                          fontSize: "14px",
-                          fontWeight: "bold",
-                          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                        }}
-                      >
-                        {player.name}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    fontSize: "12px",
-                    color: "white",
-                    fontWeight: "bold",
-                    opacity: 0.9,
-                  }}
-                >
-                  📖 Rule: Each player must go solo at least once in the first
-                  16 holes
-                </div>
-              </div>
-            );
-          }
-          return null;
-        })()}
-
-      {/* Betting Odds - Collapsible */}
-      <div
-        style={{
-          background: theme.colors.paper,
-          borderRadius: "8px",
-          marginBottom: "12px",
-          border: `1px solid ${theme.colors.border}`,
-          overflow: "hidden",
-        }}
-      >
-        <div
-          onClick={() => setShowBettingOdds(!showBettingOdds)}
-          style={{
-            padding: "10px 12px",
-            fontSize: "13px",
-            fontWeight: "bold",
-            color: theme.colors.textSecondary,
-            cursor: "pointer",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            background: theme.colors.backgroundSecondary,
-          }}
-        >
-          <span>📊 Real-Time Odds</span>
-          <span style={{ fontSize: "14px" }}>
-            {showBettingOdds ? "▼" : "▶"}
-          </span>
-        </div>
-        {showBettingOdds && (
-          <div style={{ padding: "12px" }}>
-            <BettingOddsPanel
-              gameState={{
-                active: true,
-                current_hole: currentHole,
-                players: players.map((p) => ({
-                  ...p,
-                  current_score: scores[p.id] || 0,
-                  shots_taken: scores[p.id] || 0, // Simplified
-                  distance_to_pin: 0, // Would need manual entry or GPS
-                  lie_type: "fairway",
-                  is_captain: p.id === captain,
-                  team_id: team1.includes(p.id)
-                    ? "team1"
-                    : teamMode === "partners"
-                      ? "team2"
-                      : null,
-                })),
-                teams: { type: teamMode },
-                current_wager: currentWager,
-                is_doubled: false, // Need to track this from betting events
-                current_hole_par: holePar || 4,
-              }}
-              onBettingAction={() => {
-                // Integration with actual betting state would go here
-              }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Shot Analysis - Collapsible */}
-      <div
-        style={{
-          background: theme.colors.paper,
-          borderRadius: "8px",
-          marginBottom: "12px",
-          border: `1px solid ${theme.colors.border}`,
-          overflow: "hidden",
-        }}
-      >
-        <div
-          onClick={() => setShowShotAnalysis(!showShotAnalysis)}
-          style={{
-            padding: "10px 12px",
-            fontSize: "13px",
-            fontWeight: "bold",
-            color: theme.colors.textSecondary,
-            cursor: "pointer",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            background: theme.colors.backgroundSecondary,
-          }}
-        >
-          <span>🎯 Shot Recommendations</span>
-          <span style={{ fontSize: "14px" }}>
-            {showShotAnalysis ? "▼" : "▶"}
-          </span>
-        </div>
-        {showShotAnalysis && (
-          <div style={{ padding: "12px" }}>
-            <ShotAnalysisWidget
-              holeNumber={currentHole}
-              players={players}
-              captainId={captain}
-              teamMode={teamMode}
-              playerStandings={playerStandings}
-              initialDistance={
-                courseData?.holes?.find((h) => h.hole_number === currentHole)
-                  ?.yards || 150
-              }
-            />
-          </div>
-        )}
-      </div>
+      <AnalysisPanels
+        theme={theme}
+        players={players}
+        scores={scores}
+        captain={captain}
+        team1={team1}
+        teamMode={teamMode}
+        currentWager={currentWager}
+        currentHole={currentHole}
+        holePar={holePar}
+        playerStandings={playerStandings}
+        courseData={courseData}
+        showBettingOdds={showBettingOdds}
+        setShowBettingOdds={setShowBettingOdds}
+        showShotAnalysis={showShotAnalysis}
+        setShowShotAnalysis={setShowShotAnalysis}
+      />
 
       {/* Team Mode Selection + Team Selection */}
       <TeamSelector
@@ -2371,6 +943,18 @@ const SimpleScorekeeper = ({
         setInvisibleAardvarkTossed={setInvisibleAardvarkTossed}
       />
 
+      <DoubleOfferControl
+        stuartMode={stuartMode}
+        stuartTeamInfo={stuartTeamInfo}
+        pendingOffer={pendingOffer}
+        currentWager={currentWager}
+        getPlayerName={getPlayerName}
+        respondToOffer={respondToOffer}
+        createOffer={createOffer}
+        setAiMoves={setAiMoves}
+        theme={theme}
+      />
+
       {/* Quarters Entry (Primary) - Enhanced Player Cards */}
       <QuartersPanel
         players={players}
@@ -2379,355 +963,24 @@ const SimpleScorekeeper = ({
         theme={theme}
       />
 
-      {/* Scores (Optional) - Collapsible */}
-      <div style={{ marginBottom: "20px" }}>
-        <div
-          onClick={() => setShowGolfScores(!showGolfScores)}
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "12px 16px",
-            background: theme.colors.paper,
-            borderRadius: "8px",
-            cursor: "pointer",
-            border: `2px solid ${theme.colors.border}`,
-            boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
-          }}
-        >
-          <h3
-            style={{
-              margin: 0,
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
-              fontSize: "12px",
-              fontWeight: "bold",
-              color: theme.colors.textSecondary,
-            }}
-          >
-            Golf Scores{" "}
-            <span
-              style={{ fontWeight: "normal", fontSize: "11px", opacity: 0.7 }}
-            >
-              (optional)
-            </span>
-          </h3>
-          <button
-            style={{
-              width: "28px",
-              height: "28px",
-              borderRadius: "50%",
-              background: theme.colors.backgroundSecondary,
-              border: `1px solid ${theme.colors.border}`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-            }}
-          >
-            <span style={{ fontSize: "16px" }}>
-              {showGolfScores ? "▼" : "▶"}
-            </span>
-          </button>
-        </div>
-        {showGolfScores && (
-          <div
-            style={{
-              marginTop: "12px",
-              padding: "16px",
-              background: theme.colors.paper,
-              borderRadius: "8px",
-              border: `2px solid ${theme.colors.border}`,
-            }}
-          >
-            <div
-              style={{
-                fontSize: "12px",
-                color: theme.colors.textSecondary,
-                marginBottom: "12px",
-              }}
-            >
-              Enter strokes for tracking only
-            </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: `repeat(${Math.min(2, Math.ceil(players.length / 3))}, 1fr)`,
-                gap: "12px",
-              }}
-            >
-              {players.map((player) => (
-                <div
-                  key={player.id}
-                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
-                >
-                  <label style={{ flex: 1, fontWeight: "bold" }}>
-                    {player.name}:
-                  </label>
-                  <Input
-                    data-testid={`score-input-${player.id}`}
-                    type="number"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    min="0"
-                    max="15"
-                    value={scores[player.id] || ""}
-                    onChange={(e) =>
-                      handleScoreChange(player.id, e.target.value)
-                    }
-                    variant="inline"
-                    inputStyle={{
-                      width: "60px",
-                      padding: "8px",
-                      fontSize: "16px",
-                      border: `2px solid ${theme.colors.border}`,
-                      borderRadius: "4px",
-                      textAlign: "center",
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      <OptionalEntryPanels
+        theme={theme}
+        players={players}
+        scores={scores}
+        handleScoreChange={handleScoreChange}
+        currentHole={currentHole}
+        playerStandings={playerStandings}
+        holeNotes={holeNotes}
+        setHoleNotes={setHoleNotes}
+        showGolfScores={showGolfScores}
+        setShowGolfScores={setShowGolfScores}
+        showCommissioner={showCommissioner}
+        setShowCommissioner={setShowCommissioner}
+        showNotes={showNotes}
+        setShowNotes={setShowNotes}
+      />
 
-      {/* Ask Commissioner Section - Collapsible */}
-      <div style={{ marginBottom: "20px" }}>
-        <div
-          onClick={() => setShowCommissioner(!showCommissioner)}
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "12px 16px",
-            background: theme.colors.paper,
-            borderRadius: "8px",
-            cursor: "pointer",
-            border: `2px solid ${theme.colors.border}`,
-            boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
-          }}
-        >
-          <h3
-            style={{
-              margin: 0,
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
-              fontSize: "12px",
-              fontWeight: "bold",
-              color: theme.colors.textSecondary,
-            }}
-          >
-            Ask Commissioner{" "}
-            <span
-              style={{ fontWeight: "normal", fontSize: "11px", opacity: 0.7 }}
-            >
-              (optional)
-            </span>
-          </h3>
-          <button
-            style={{
-              width: "28px",
-              height: "28px",
-              borderRadius: "50%",
-              background: theme.colors.backgroundSecondary,
-              border: `1px solid ${theme.colors.border}`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-            }}
-          >
-            <span style={{ fontSize: "16px" }}>
-              {showCommissioner ? "▼" : "▶"}
-            </span>
-          </button>
-        </div>
-        {showCommissioner && (
-          <div
-            style={{
-              marginTop: "12px",
-              padding: "16px",
-              background: theme.colors.paper,
-              borderRadius: "8px",
-              border: `2px solid ${theme.colors.border}`,
-            }}
-          >
-            <CommissionerChat
-              inline={true}
-              gameState={{
-                players,
-                current_hole: currentHole,
-                standings: playerStandings,
-              }}
-              onSaveToNotes={(text) => {
-                // Append commissioner ruling to notes with timestamp
-                const timestamp = new Date().toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                });
-                const ruling = `[${timestamp}] Commissioner: ${text}`;
-                setHoleNotes((prev) =>
-                  prev ? `${prev}\n\n${ruling}` : ruling,
-                );
-              }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Hole Notes (Optional) - Collapsible */}
-      <div style={{ marginBottom: "20px" }}>
-        <div
-          onClick={() => setShowNotes(!showNotes)}
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "12px 16px",
-            background: theme.colors.paper,
-            borderRadius: "8px",
-            cursor: "pointer",
-            border: `2px solid ${theme.colors.border}`,
-            boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
-          }}
-        >
-          <h3
-            style={{
-              margin: 0,
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
-              fontSize: "12px",
-              fontWeight: "bold",
-              color: theme.colors.textSecondary,
-            }}
-          >
-            Notes{" "}
-            <span
-              style={{ fontWeight: "normal", fontSize: "11px", opacity: 0.7 }}
-            >
-              (optional)
-            </span>
-            {!showNotes && holeNotes && (
-              <span
-                style={{
-                  marginLeft: "8px",
-                  fontSize: "11px",
-                  color: theme.colors.primary,
-                  fontWeight: "bold",
-                }}
-              >
-                ●
-              </span>
-            )}
-          </h3>
-          <button
-            style={{
-              width: "28px",
-              height: "28px",
-              borderRadius: "50%",
-              background: theme.colors.backgroundSecondary,
-              border: `1px solid ${theme.colors.border}`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-            }}
-          >
-            <span style={{ fontSize: "16px" }}>{showNotes ? "▼" : "▶"}</span>
-          </button>
-        </div>
-        {showNotes && (
-          <div
-            style={{
-              marginTop: "12px",
-              padding: "16px",
-              background: theme.colors.paper,
-              borderRadius: "8px",
-              border: `2px solid ${theme.colors.border}`,
-            }}
-          >
-            <textarea
-              value={holeNotes}
-              onChange={(e) => setHoleNotes(e.target.value)}
-              placeholder="Add notes about this hole (disputes, unusual situations, etc.)"
-              style={{
-                width: "100%",
-                minHeight: "60px",
-                padding: "10px",
-                fontSize: "14px",
-                border: `2px solid ${theme.colors.border}`,
-                borderRadius: "6px",
-                resize: "vertical",
-                fontFamily: "inherit",
-                backgroundColor:
-                  theme.colors.inputBackground || theme.colors.paper,
-                color: theme.colors.textPrimary,
-              }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Error Display with Helpful Guidance */}
-      {error && (
-        <div
-          style={{
-            background: error.includes("💡") ? "#FFF3E0" : theme.colors.error,
-            color: error.includes("💡") ? "#E65100" : "white",
-            padding: "16px",
-            borderRadius: "8px",
-            marginBottom: "20px",
-            border: error.includes("💡") ? "2px solid #FF9800" : "none",
-          }}
-        >
-          {error.includes("💡") ? (
-            <>
-              <div
-                style={{
-                  fontWeight: "bold",
-                  marginBottom: "8px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                }}
-              >
-                <span style={{ fontSize: "20px" }}>⚠️</span>
-                {error.split("\n\n")[0]}
-              </div>
-              <div
-                style={{
-                  background: "rgba(255, 152, 0, 0.1)",
-                  padding: "12px",
-                  borderRadius: "6px",
-                  fontSize: "14px",
-                  lineHeight: "1.5",
-                }}
-              >
-                {error.split("\n\n")[1]}
-              </div>
-              <button
-                onClick={() => setError(null)}
-                style={{
-                  marginTop: "12px",
-                  padding: "8px 16px",
-                  background: "#FF9800",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                  fontWeight: "bold",
-                }}
-              >
-                Got it, let me fix this
-              </button>
-            </>
-          ) : (
-            <div style={{ textAlign: "center" }}>{error}</div>
-          )}
-        </div>
-      )}
-
+      <ErrorBanner error={error} setError={setError} theme={theme} />
       {/* Old submit button removed - now in thumb zone below */}
 
       {/* Sticky Bottom Thumb Zone - Primary Actions */}
@@ -2740,8 +993,22 @@ const SimpleScorekeeper = ({
         handleSubmitHole={handleSubmitHole}
       />
 
-      {/* Old scorecard removed - now showing golf-style scorecard at top */}
+      {/* Strategy panel shows in both Coach (real round, manual scoring) and Auto
+          (full AI). aiMoves is empty in Coach since nothing auto-plays. */}
+      {(stuartMode || coachMode) && (
+        <StuartModePanel
+          players={players}
+          currentHole={currentHole}
+          strokeAllocation={strokeAllocation}
+          playerStandings={playerStandings}
+          courseData={courseData}
+          currentWager={currentWager}
+          theme={theme}
+          aiMoves={aiMoves}
+        />
+      )}
 
+      {/* Old scorecard removed - now showing golf-style scorecard at top */}
 
       {/* Edit Player Name Modal */}
       {editingPlayerName && (

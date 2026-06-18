@@ -1,79 +1,68 @@
-import json
 import logging
 import os
-import random
-import time
 import traceback
-import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime, timedelta
-from typing import Any, cast
+from datetime import UTC, datetime
+from typing import Any
 
-import httpx
 from fastapi import (
-    Body,
-    Depends,
     FastAPI,
-    File,
     Header,
     HTTPException,
-    Path,
-    Query,
     Request,
-    UploadFile,
-    WebSocket,
-    WebSocketDisconnect,
 )
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
-from sqlalchemy import and_, text
-from sqlalchemy.orm import Session
+from pydantic import BaseModel
 
 from . import database, models, schemas
 from .badge_routes import router as badge_router
-from .managers.rule_manager import RuleManager, RuleViolationError
-from .managers.scoring_manager import get_scoring_manager
-from .managers.websocket_manager import manager as websocket_manager
 from .migrations_routes import router as migrations_router
+from .observability.sentry import init_sentry
 from .post_hole_analytics import PostHoleAnalyzer
 
 # Import routers
-from .routers import admin_oauth, analytics, courses, foretees, games, games_holes, games_players, health, leaderboard, matchmaking, players, sheet_integration, wgp_actions
-from .services.email_service import get_email_service
-from .services.game_lifecycle_service import get_game_lifecycle_service
-from .services.leaderboard_service import get_leaderboard_service
-from .services.legacy_player_service import (
-    get_legacy_players,
-    validate_player_for_legacy,
+from .routers import (
+    admin_oauth,
+    analytics,
+    courses,
+    foretees,
+    games,
+    games_holes,
+    games_players,
+    groupme,
+    health,
+    leaderboard,
+    matchmaking,
+    notifications,
+    players,
+    sheet_integration,
+    tee_sheet,
 )
-from .services.legacy_signup_service import get_legacy_signup_service
-from .services.notification_service import get_notification_service
+from .routers.email_routes import initialize_email_scheduler
+
 # Simulation timeline enhancements removed
 from .state.course_manager import CourseManager
-from .validators import GameStateValidationError, GameStateValidator, HandicapValidator
-from .wolf_goat_pig import Player, WolfGoatPigGame
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 # Shared state accessors — actual state lives in state/app_state.py
-from .state.app_state import (  # noqa: E402
+from .state.app_state import (
     get_course_manager,
     get_email_scheduler,
-    get_email_service_instance,
     get_post_hole_analyzer,
     set_course_manager,
-    set_email_scheduler,
-    set_email_service_instance,
     set_post_hole_analyzer,
 )
 
+# Initialize Sentry as early as possible (no-op unless SENTRY_DSN is set).
+init_sentry()
 
 # Import shared action models from schemas
-from .schemas import ActionRequest, ActionResponse, CompleteHoleRequest, HoleTeams, ManualPointsOverride, RotationSelectionRequest  # noqa: E402
 
 
 # Testing seed models moved to routers/games_players.py
@@ -100,6 +89,53 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.error(f"Failed to initialize database: {e}")
         raise
 
+    # Apply pending SQL migrations (create_all never ALTERs existing tables —
+    # without this, migrations/*.sql files silently drift from production)
+    try:
+        from .migrations_runner import run_sql_migrations
+
+        result = run_sql_migrations(database.engine)
+        if result.get("applied"):
+            logger.info(f"SQL migrations applied: {result['applied']}")
+    except Exception as e:
+        logger.error(f"SQL migration runner failed (continuing startup): {e}")
+
+    # Seed badges if table is empty
+    try:
+        from .badge_seeds import seed_badges
+        from .database import SessionLocal
+        from .models import Badge as _Badge
+
+        _seed_db = SessionLocal()
+        try:
+            if _seed_db.query(_Badge).count() == 0:
+                logger.info("🏅 Seeding badges...")
+                seed_badges(_seed_db)
+                logger.info("✅ Badges seeded")
+            else:
+                logger.info("🏅 Badges already seeded")
+        finally:
+            _seed_db.close()
+    except Exception as e:
+        logger.error(f"Badge seeding failed: {e}")
+
+    # Seed the canonical legacy roster if empty (mirrors Jeff's tee-sheet dropdown)
+    try:
+        from .database import SessionLocal
+        from .services.legacy_player_service import seed_roster_if_empty
+
+        _roster_db = SessionLocal()
+        try:
+            inserted = seed_roster_if_empty(_roster_db)
+            if inserted:
+                logger.info(f"⛳ Seeded {inserted} canonical legacy players")
+            else:
+                logger.info("⛳ Legacy roster already seeded")
+        finally:
+            _roster_db.close()
+    except Exception as e:
+        logger.error(f"Legacy roster seeding failed: {e}")
+
     # Initialize email scheduler if enabled
     if os.getenv("ENABLE_EMAIL_NOTIFICATIONS", "true").lower() == "true":
         try:
@@ -117,7 +153,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Kick off an immediate legacy rounds sync on startup (non-blocking)
     try:
         import threading
+
         from .services.email_scheduler import email_scheduler as _sched
+
         t = threading.Thread(target=_sched._sync_legacy_rounds, daemon=True)
         t.start()
         logger.info("📊 Legacy rounds sync started in background")
@@ -155,8 +193,11 @@ app = FastAPI(
     title="Wolf Goat Pig Golf Simulation API",
     description="A comprehensive golf betting simulation API with unified Action API",
     version="1.0.0",
-    docs_url="/docs" if os.getenv("ENVIRONMENT") != "production" else None,
-    redoc_url="/redoc" if os.getenv("ENVIRONMENT") != "production" else None,
+    # Swagger UI + ReDoc are served in all environments. The OpenAPI schema
+    # (/openapi.json) is already public, so exposing the interactive docs adds
+    # no new information surface; endpoints remain auth-protected as usual.
+    docs_url="/docs",
+    redoc_url="/redoc",
     lifespan=lifespan,
 )
 
@@ -165,8 +206,7 @@ ENABLE_TEST_ENDPOINTS = os.getenv("ENABLE_TEST_ENDPOINTS", "false").lower() in {
     "true",
     "yes",
 }
-from .utils.admin_auth import require_admin  # noqa: E402
-
+from .utils.admin_auth import require_admin
 
 # Database initialization moved to main startup handler
 
@@ -247,7 +287,11 @@ app.include_router(unified_data.router)
 # Include modular routers
 app.include_router(health.router)
 app.include_router(sheet_integration.router)
+app.include_router(tee_sheet.router)
 app.include_router(players.router)
+from .routers import member_rounds
+
+app.include_router(member_rounds.router)
 app.include_router(courses.router)
 
 # Import and include course data update router
@@ -256,13 +300,28 @@ from .routers import course_data_update
 app.include_router(course_data_update.router)
 app.include_router(foretees.router)
 app.include_router(matchmaking.router)
+app.include_router(notifications.router)
+from .routers import callouts
+
+app.include_router(callouts.router)
 from .routers import commissioner, ghin, scorecard
+
 app.include_router(commissioner.router)
 app.include_router(ghin.router)
 app.include_router(scorecard.router)
 app.include_router(analytics.router)
 app.include_router(leaderboard.router)
-from .routers import admin, betting_odds, email_routes, legacy_scoring, messages, signups, team_formation, websocket_routes
+from .routers import (
+    admin,
+    betting_odds,
+    email_routes,
+    legacy_scoring,
+    messages,
+    signups,
+    team_formation,
+    websocket_routes,
+)
+
 app.include_router(messages.router)
 app.include_router(email_routes.router)
 app.include_router(signups.router)
@@ -270,11 +329,11 @@ app.include_router(admin_oauth.router)
 app.include_router(admin.router)
 app.include_router(betting_odds.router)
 app.include_router(team_formation.router)
-app.include_router(wgp_actions.router)
 app.include_router(games.router)
 app.include_router(games_holes.router)
 app.include_router(games_players.router)
 app.include_router(legacy_scoring.router)
+app.include_router(groupme.router)
 app.include_router(websocket_routes.router)
 
 logger.info("✅ All routers registered")
@@ -292,6 +351,28 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": "HTTP error", "detail": exc.detail},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """Normalize malformed-request (Pydantic) errors into the app's standard
+    error envelope, instead of FastAPI's default `{"detail": [ {loc,msg,type} ]}`
+    array — so every error response has the same shape for the frontend."""
+    fields = [
+        {
+            # Drop the leading "body"/"query"/"path" location marker for readability.
+            "field": ".".join(str(p) for p in err.get("loc", ()) if p not in ("body", "query", "path")) or "request",
+            "message": err.get("msg", "invalid"),
+            "type": err.get("type", ""),
+        }
+        for err in exc.errors()
+    ]
+    summary = "; ".join(f"{f['field']}: {f['message']}" for f in fields) or "Invalid request"
+    logger.warning("Request validation failed: %s", summary)
+    return JSONResponse(
+        status_code=422,
+        content={"error": "Validation error", "detail": summary, "fields": fields},
     )
 
 
@@ -348,10 +429,11 @@ def get_rules():
         db.close()
 
 
-
 # Games routes moved to routers/games.py, routers/games_holes.py, routers/games_players.py
 
-# WGP action engine moved to routers/wgp_actions.py + domain/wgp_handlers_*.py
+# WGP gameplay /action engine retired (orphaned — frontend never called it).
+# The WolfGoatPigGame engine code remains as a state-generation library used by
+# game creation, and domain/shot_range_analysis powers /wgp/shot-range-analysis.
 
 # Betting odds routes moved to routers/betting_odds.py
 
@@ -473,7 +555,6 @@ if STATIC_DIR.exists() and static_assets_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_assets_dir)), name="static")
 else:
     logger.warning("Frontend static assets not found. Expected %s", static_assets_dir)
-
 
 
 @app.head("/")

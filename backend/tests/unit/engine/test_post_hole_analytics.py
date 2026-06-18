@@ -14,7 +14,7 @@ import pytest
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.post_hole_analytics import (  # noqa: E402
+from app.post_hole_analytics import (
     BettingAnalysis,
     DecisionPoint,
     DecisionQuality,

@@ -7,11 +7,11 @@ Rate limited to prevent excessive API calls.
 """
 
 import logging
-from datetime import datetime
 from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
@@ -19,6 +19,7 @@ from ..database import get_db
 from ..middleware.caching import sheet_sync_cache
 from ..middleware.rate_limiting import rate_limiter
 from ..services.player_service import PlayerService
+from ..utils.time import utc_now
 
 logger = logging.getLogger("app.routers.sheet_integration")
 
@@ -98,6 +99,14 @@ router = APIRouter(
 )
 
 
+class CsvUrlRequest(BaseModel):
+    csv_url: str = Field(..., min_length=1)
+
+
+class CompareSheetRequest(BaseModel):
+    sheet_data: list[dict[str, Any]] = Field(..., min_length=1)
+
+
 @router.post("/analyze-structure")
 async def analyze_sheet_structure(sheet_headers: list[str], db: Session = Depends(get_db)) -> dict[str, Any]:
     """
@@ -159,7 +168,7 @@ async def create_leaderboard_from_sheet(sheet_data: list[dict], db: Session = De
         return {
             "leaderboard": leaderboard,
             "player_count": len(leaderboard),
-            "created_at": datetime.now().isoformat(),
+            "created_at": utc_now().isoformat(),
         }
 
     except Exception as e:
@@ -210,7 +219,7 @@ def export_current_data_for_sheet(
             "data": export_data,
             "headers": sheet_headers,
             "row_count": len(export_data),
-            "exported_at": datetime.now().isoformat(),
+            "exported_at": utc_now().isoformat(),
         }
 
     except Exception as e:
@@ -222,7 +231,7 @@ def export_current_data_for_sheet(
 
 @router.post("/sync-wgp-sheet")
 async def sync_wgp_sheet_data(
-    request: dict[str, str],
+    request: CsvUrlRequest,
     db: Session = Depends(get_db),
     x_scheduled_job: str | None = Header(None),
 ) -> dict[str, Any]:
@@ -245,9 +254,7 @@ async def sync_wgp_sheet_data(
         else:
             logger.info("Scheduled job detected - bypassing rate limit")
 
-        csv_url = request.get("csv_url")
-        if not csv_url:
-            raise HTTPException(status_code=400, detail="CSV URL is required")
+        csv_url = request.csv_url
 
         # Check cache first
         cache_key = f"sheet_sync:{csv_url}"
@@ -484,7 +491,7 @@ async def sync_wgp_sheet_data(
                 player_stats_record.avg_earnings_per_game = avg_earnings
 
                 # Update timestamp
-                player_stats_record.last_updated = datetime.now().isoformat()
+                player_stats_record.last_updated = utc_now().isoformat()
 
                 # Try to fetch GHIN data if player has GHIN ID
                 ghin_data = None
@@ -538,7 +545,7 @@ async def sync_wgp_sheet_data(
         result = {
             "sync_results": sync_results,
             "player_count": len(player_stats),
-            "synced_at": datetime.now().isoformat(),
+            "synced_at": utc_now().isoformat(),
             "headers_found": headers,
             "players_synced": list(player_stats.keys()),
             "sample_data": {name: stats for name, stats in list(player_stats.items())[:3]},  # First 3 players as sample
@@ -564,16 +571,14 @@ async def sync_wgp_sheet_data(
 
 
 @router.post("/fetch-google-sheet")
-async def fetch_google_sheet(request: dict[str, str]) -> dict[str, Any]:
+async def fetch_google_sheet(request: CsvUrlRequest) -> dict[str, Any]:
     """
     Fetch raw data from Google Sheets.
 
     Downloads CSV data from a Google Sheets export URL.
     """
     try:
-        csv_url = request.get("csv_url")
-        if not csv_url:
-            raise HTTPException(status_code=400, detail="CSV URL is required")
+        csv_url = request.csv_url
 
         # Fetch the CSV data (follow redirects for Google Sheets export URLs)
         async with httpx.AsyncClient(follow_redirects=True) as client:
@@ -605,7 +610,7 @@ async def fetch_google_sheet(request: dict[str, str]) -> dict[str, Any]:
             "headers": headers,
             "data": data,
             "row_count": len(data),
-            "fetched_at": datetime.now().isoformat(),
+            "fetched_at": utc_now().isoformat(),
         }
 
     except httpx.RequestError as e:
@@ -617,7 +622,7 @@ async def fetch_google_sheet(request: dict[str, str]) -> dict[str, Any]:
 
 
 @router.post("/compare-data")
-async def compare_sheet_to_db_data(request: dict, db: Session = Depends(get_db)) -> dict[str, Any]:
+async def compare_sheet_to_db_data(request: CompareSheetRequest, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Compare Google Sheets data with current database data.
 
@@ -626,9 +631,7 @@ async def compare_sheet_to_db_data(request: dict, db: Session = Depends(get_db))
     try:
         from ..services.leaderboard_service import LeaderboardService
 
-        sheet_data = request.get("sheet_data", [])
-        if not sheet_data:
-            raise HTTPException(status_code=400, detail="Sheet data is required")
+        sheet_data = request.sheet_data
 
         leaderboard_service = LeaderboardService(db)
         comparison = leaderboard_service.compare_with_sheet(sheet_data)  # type: ignore[attr-defined]
@@ -636,7 +639,7 @@ async def compare_sheet_to_db_data(request: dict, db: Session = Depends(get_db))
         return {
             "comparison": comparison,
             "differences_found": len(comparison.get("differences", [])),
-            "compared_at": datetime.now().isoformat(),
+            "compared_at": utc_now().isoformat(),
         }
 
     except Exception as e:

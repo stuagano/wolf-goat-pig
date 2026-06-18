@@ -100,14 +100,14 @@ const useTeeTimes = () => {
     }
   }, [authFetch]);
 
-  const bookTeeTime = useCallback(async (ttdata, transportMode = 'WLK', date = null, time = null) => {
+  const bookTeeTime = useCallback(async (ttdata, transportMode = 'WLK', date = null, time = null, players = null) => {
     setBookingLoading(true);
     setBookingError(null);
     try {
       const resp = await authFetch('/api/foretees/book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ttdata, transport_mode: transportMode, date, time }),
+        body: JSON.stringify({ ttdata, transport_mode: transportMode, date, time, players }),
       });
       const json = await resp.json();
       if (!resp.ok) {

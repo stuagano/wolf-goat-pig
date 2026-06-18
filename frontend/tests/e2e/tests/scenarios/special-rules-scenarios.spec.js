@@ -340,12 +340,12 @@ test.describe('Special Rules Scenarios', () => {
       solo: true
     });
 
-    const p1 = await scorekeeperPage.getPlayerPoints(p1);
-    const p2 = await scorekeeperPage.getPlayerPoints(p2);
-    const p3 = await scorekeeperPage.getPlayerPoints(p3);
-    const p4 = await scorekeeperPage.getPlayerPoints(p4);
+    const p1Val = await scorekeeperPage.getPlayerPoints(p1);
+    const p2Val = await scorekeeperPage.getPlayerPoints(p2);
+    const p3Val = await scorekeeperPage.getPlayerPoints(p3);
+    const p4Val = await scorekeeperPage.getPlayerPoints(p4);
 
-    const total = p1 + p2 + p3 + p4;
+    const total = p1Val + p2Val + p3Val + p4Val;
     expect(Math.abs(total)).toBeLessThan(0.01);
 
     console.log(`Zero-sum with special rules maintained: total=${total}`);

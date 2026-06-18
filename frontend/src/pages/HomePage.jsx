@@ -7,7 +7,6 @@ import StaleGameBanner from '../components/game/StaleGameBanner';
 function HomePage() {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth0();
-  const [menuOpen, setMenuOpen] = useState(false);
   const [activeGameSession, setActiveGameSession] = useState(null);
 
   // Check for active game session on mount
@@ -81,19 +80,6 @@ function HomePage() {
     return () => document.head.removeChild(styleSheet);
   }, []);
   
-  const menuItems = [
-    { icon: '📷', label: 'Scan Scorecard', path: '/scorecard-scan' },
-    { icon: '📅', label: 'Mark Availability', path: '/signup' },
-    { icon: '⚔️', label: 'Start Multiplayer Game', path: '/game' },
-    { icon: '🔗', label: 'Join Game with Code', path: '/join' },
-    { icon: '🎮', label: 'Active Games', path: '/games/active' },
-    { icon: '🏆', label: 'Game History', path: '/games/completed' },
-    { icon: '📖', label: 'Game Rules', path: '/rules' },
-    { icon: '🎓', label: 'Tutorial', path: '/tutorial' },
-    { icon: '📊', label: 'Analytics', path: '/analytics' },
-    { icon: 'ℹ️', label: 'About Wolf Goat Pig', path: '/about' },
-  ];
-  
   return (
     <div style={{ 
       minHeight: '100vh',
@@ -105,77 +91,6 @@ function HomePage() {
       padding: '20px',
       position: 'relative'
     }}>
-      {/* Hamburger Menu */}
-      <div style={{
-        position: 'fixed',
-        top: 20,
-        right: 20,
-        zIndex: 1000
-      }}>
-        <button
-          data-testid="hamburger-menu-button"
-          onClick={() => setMenuOpen(!menuOpen)}
-          style={{
-            background: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            padding: '12px',
-            cursor: 'pointer',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '4px'
-          }}
-        >
-          <div style={{ width: '24px', height: '3px', background: '#374151', borderRadius: '2px' }}></div>
-          <div style={{ width: '24px', height: '3px', background: '#374151', borderRadius: '2px' }}></div>
-          <div style={{ width: '24px', height: '3px', background: '#374151', borderRadius: '2px' }}></div>
-        </button>
-        
-        {menuOpen && (
-          <div style={{
-            position: 'absolute',
-            top: '60px',
-            right: 0,
-            background: 'white',
-            borderRadius: '12px',
-            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-            padding: '12px',
-            minWidth: '220px'
-          }}>
-            {menuItems.map((item, index) => (
-              <button
-                key={index}
-                data-testid={item.path === '/test-multiplayer' ? 'test-multiplayer-menu-item' : undefined}
-                onClick={() => {
-                  navigate(item.path);
-                  setMenuOpen(false);
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  width: '100%',
-                  padding: '12px',
-                  border: 'none',
-                  background: 'transparent',
-                  cursor: 'pointer',
-                  borderRadius: '8px',
-                  transition: 'background 0.2s',
-                  fontSize: '14px',
-                  color: '#374151'
-                }}
-                onMouseEnter={(e) => e.target.style.background = '#F3F4F6'}
-                onMouseLeave={(e) => e.target.style.background = 'transparent'}
-              >
-                <span>{item.icon}</span>
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      
       {/* Main Content */}
       <div style={{ maxWidth: '1200px', margin: '0 auto', paddingTop: '40px' }}>
         {/* Header */}
@@ -637,6 +552,34 @@ function HomePage() {
           >
             <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>🏆</div>
             <div>History</div>
+          </button>
+          <button
+            onClick={() => navigate('/rounds/post')}
+            style={{
+              padding: '20px 16px',
+              background: 'rgba(255, 255, 255, 0.95)',
+              color: '#1F2937',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.08)',
+              textAlign: 'center',
+              backdropFilter: 'blur(10px)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 8px 15px rgba(0, 0, 0, 0.12)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.08)';
+            }}
+          >
+            <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>📝</div>
+            <div>Post Round</div>
           </button>
           <button
             onClick={() => navigate('/game-scorer')}

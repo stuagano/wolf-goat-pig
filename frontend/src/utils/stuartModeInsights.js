@@ -8,6 +8,10 @@ export function computeThreatScore(handicap, strokes) {
   return handicap - strokes;
 }
 
+// Tee shot outcomes add penalty to the raw threat score — higher = less dangerous.
+// 'ob' effectively removes a player from the hole.
+const TEE_SHOT_PENALTY = { fairway: 0, rough: 2, bunker: 4, ob: 99 };
+
 const HIGH_THREAT_CEILING = 4;
 const QUARTERS_SWING_THRESHOLD = 3;
 
@@ -21,6 +25,7 @@ const QUARTERS_SWING_THRESHOLD = 3;
  * @param {Object} params.playerStandings   - { [playerId]: { quarters } }
  * @param {Object} params.courseData        - { holes: [{ hole_number, handicap }] }
  * @param {number} params.currentWager      - Current wager in quarters
+ * @param {Object} params.teeShots          - { [playerId]: 'fairway' | 'rough' | 'bunker' | 'ob' }
  *
  * @returns {{ headline, detail, threats, soloRecommendation }}
  */
@@ -31,6 +36,7 @@ export function generateInsights({
   playerStandings,
   courseData,
   currentWager,
+  teeShots = {},
 }) {
   const stuart = players.find(p => p.is_authenticated);
   if (!stuart) {
@@ -44,9 +50,14 @@ export function generateInsights({
 
   const strokeIndex = courseData?.holes?.find(h => h.hole_number === currentHole)?.handicap;
 
+  const hasTeeShots = Object.keys(teeShots).length > 0;
+
   const threats = players.map(player => {
     const strokes = strokeAllocation?.[player.id]?.[currentHole] ?? 0;
-    const threatScore = computeThreatScore(player.handicap, strokes);
+    const baseThreatScore = computeThreatScore(player.handicap, strokes);
+    const teeShotResult = teeShots[player.id] || null;
+    const teePenalty = teeShotResult ? (TEE_SHOT_PENALTY[teeShotResult] ?? 0) : 0;
+    const threatScore = baseThreatScore + teePenalty;
     const isHighThreat = !player.is_authenticated && threatScore <= HIGH_THREAT_CEILING;
     const quarters = playerStandings?.[player.id]?.quarters ?? 0;
     const hungry = isHighThreat && quarters < -QUARTERS_SWING_THRESHOLD;
@@ -56,7 +67,7 @@ export function generateInsights({
     else if (strokes >= 0.4) strokeSituation = 'creecher';
     else strokeSituation = 'none';
 
-    return { player, threatScore, strokeSituation, isHighThreat, hungry, quarters };
+    return { player, threatScore, baseThreatScore, teeShotResult, strokeSituation, isHighThreat, hungry, quarters };
   }).sort((a, b) => a.threatScore - b.threatScore);
 
   const stuartStrokes = strokeAllocation?.[stuart.id]?.[currentHole] ?? 0;
@@ -79,10 +90,18 @@ export function generateInsights({
     else if (soloRecommendation === 'avoid') soloRecommendation = 'caution';
   }
 
+  // Players whose threat was neutralised by tee shot but were originally high-threat
+  const neutralisedThreats = hasTeeShots
+    ? threats.filter(t => !t.player.is_authenticated && t.baseThreatScore <= HIGH_THREAT_CEILING && t.teeShotResult && t.teeShotResult !== 'fairway')
+    : [];
+
   let headline;
   if (highThreats.length > 0) {
     const names = highThreats.map(t => t.player.name).join(' & ');
     headline = `Watch out for ${names}`;
+  } else if (hasTeeShots && neutralisedThreats.length > 0) {
+    const names = neutralisedThreats.map(t => `${t.player.name} (${t.teeShotResult})`).join(', ');
+    headline = `Threat neutralised — ${names}`;
   } else if (stuartStrokes >= 1) {
     headline = 'Stroke advantage — you have the edge';
   } else if (stuartStrokes >= 0.4 && stuartStrokes < 1) {
@@ -109,9 +128,18 @@ export function generateInsights({
       : t.strokeSituation === 'creecher'
       ? 'gets the Creecher'
       : 'gets no stroke';
+    const shotNote = t.teeShotResult ? ` — ${t.teeShotResult}` : '';
     detailParts.push(
-      `${t.player.name} is a ${t.player.handicap} hdcp (${strokeNote}) — high threat.`
+      `${t.player.name} is a ${t.player.handicap} hdcp (${strokeNote}${shotNote}) — high threat.`
     );
+  });
+
+  neutralisedThreats.forEach(t => {
+    if (t.teeShotResult === 'ob') {
+      detailParts.push(`${t.player.name} is OB — effectively out of this hole.`);
+    } else {
+      detailParts.push(`${t.player.name} is in the ${t.teeShotResult} — threat reduced.`);
+    }
   });
 
   if (stuartQuarters < -QUARTERS_SWING_THRESHOLD) {
@@ -130,5 +158,6 @@ export function generateInsights({
     detail: detailParts.join(' '),
     threats,
     soloRecommendation,
+    hasTeeShots,
   };
 }

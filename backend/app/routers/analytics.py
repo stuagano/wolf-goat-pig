@@ -5,7 +5,6 @@ Game statistics, player performance, and analytics overview endpoints.
 """
 
 import logging
-from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import and_
@@ -13,6 +12,7 @@ from sqlalchemy import and_
 from .. import database, models
 from ..services.statistics_service import StatisticsService
 from ..state.app_state import get_course_manager
+from ..utils.time import utc_now
 
 logger = logging.getLogger("app.routers.analytics")
 
@@ -42,7 +42,7 @@ def get_game_stats():
             "course_names": course_names,
             "game_modes": ["4-man", "5-man", "6-man"],
             "betting_types": ["Wolf", "Goat", "Pig", "Aardvark"],
-            "last_updated": datetime.now().isoformat(),
+            "last_updated": utc_now().isoformat(),
         }
 
     except Exception as e:
@@ -76,7 +76,7 @@ def get_player_performance():
                 "best_round": 0,
                 "worst_round": 0,
             },
-            "last_updated": datetime.now().isoformat(),
+            "last_updated": utc_now().isoformat(),
         }
 
     except Exception as e:
@@ -113,7 +113,7 @@ def get_analytics_overview():
             "active_players": active_players,
             "total_games": total_games,
             "game_mode_analytics": game_mode_analytics,
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": utc_now().isoformat(),
         }
 
     except Exception as e:

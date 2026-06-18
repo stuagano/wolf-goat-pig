@@ -1,0 +1,45 @@
+name: LivSow Roster Snapshot
+
+# Records roster snapshots and auto-derives transactions (trades, signings,
+# releases) by diffing against the previous confirmed snapshot. Two runs/day
+# so the 30-minute debounce confirms within ~12h even with zero site traffic.
+
+on:
+  schedule:
+    - cron: '0 15 * * *'   # 8am PT
+    - cron: '0 23 * * *'   # 4pm PT
+  workflow_dispatch:
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Record LivSow roster snapshot
+      run: |
+        RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+          "https://wolf-goat-pig.onrender.com/data/livsow/snapshot" \
+          -H "Content-Type: application/json" \
+          --max-time 90)
+        HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+        BODY=$(echo "$RESPONSE" | head -n -1)
+        echo "Status: $HTTP_CODE"
+        echo "Response: $BODY"
+        if [ "$HTTP_CODE" \!= "200" ]; then
+          echo "❌ Snapshot failed with status $HTTP_CODE"
+          exit 1
+        fi
+        echo "✅ LivSow snapshot complete"
+
+    - name: Harvest league media archive
+      run: |
+        RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+          "https://wolf-goat-pig.onrender.com/groupme/media/harvest" \
+          --max-time 120)
+        HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+        echo "Status: $HTTP_CODE"
+        echo "Response: $(echo "$RESPONSE" | head -n -1)"
+        if [ "$HTTP_CODE" \!= "200" ]; then
+          echo "❌ Media harvest failed with status $HTTP_CODE"
+          exit 1
+        fi
+        echo "✅ Media harvest complete"

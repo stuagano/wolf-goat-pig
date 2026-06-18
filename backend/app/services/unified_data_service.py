@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import GamePlayerResult, GameRecord, LegacyRound
+from ..utils.time import utc_now
 from .spreadsheet_sync_service import PRIMARY_SHEET_ID, WRITABLE_SHEET_ID, RoundResult, SpreadsheetSyncService
 
 logger = logging.getLogger(__name__)
@@ -91,11 +92,11 @@ class UnifiedDataService:
         """
         try:
             # Try parsing with current year
-            current_year = datetime.now().year
+            current_year = utc_now().year
             dt = datetime.strptime(f"{date_str}-{current_year}", "%d-%b-%Y")
 
             # If date is in the future by more than a month, it's probably last year
-            if dt > datetime.now() and (dt - datetime.now()).days > 30:
+            if dt > utc_now() and (dt - utc_now()).days > 30:
                 dt = dt.replace(year=current_year - 1)
 
             return dt.strftime("%Y-%m-%d")
@@ -181,7 +182,10 @@ class UnifiedDataService:
             # Fast path: read from legacy_rounds DB cache
             try:
                 db = self._get_db()
-                for r in db.query(LegacyRound).all():
+                # Exclude pending member-posted rounds — they are not
+                # authoritative until a foursome member attests them. Sheet/db
+                # rows default to status='attested' so they are unaffected.
+                for r in db.query(LegacyRound).filter(LegacyRound.status != "pending").all():
                     unified = self._legacy_round_to_unified(r)
                     key = (unified.date_sortable, unified.group, unified.member, unified.score)
                     if key not in all_rounds:
@@ -214,9 +218,7 @@ class UnifiedDataService:
                 db = self._get_db()
                 records = db.query(GameRecord).filter(GameRecord.completed_at.isnot(None)).all()
                 for record in records:
-                    results = db.query(GamePlayerResult).filter(
-                        GamePlayerResult.game_record_id == record.id
-                    ).all()
+                    results = db.query(GamePlayerResult).filter(GamePlayerResult.game_record_id == record.id).all()
                     for result in results:
                         unified = self._db_result_to_unified(result, record)
                         key = (unified.date_sortable, unified.group, unified.member, unified.score)
@@ -312,12 +314,8 @@ class UnifiedDataService:
 
         try:
             db = self._get_db()
-            primary_count = db.query(LegacyRound).filter(
-                LegacyRound.source == "primary_sheet"
-            ).count()
-            writable_count = db.query(LegacyRound).filter(
-                LegacyRound.source == "writable_sheet"
-            ).count()
+            primary_count = db.query(LegacyRound).filter(LegacyRound.source == "primary_sheet").count()
+            writable_count = db.query(LegacyRound).filter(LegacyRound.source == "writable_sheet").count()
             status["primary_sheet"]["available"] = primary_count > 0  # type: ignore[index]
             status["primary_sheet"]["record_count"] = primary_count  # type: ignore[index]
             status["writable_sheet"]["available"] = writable_count > 0  # type: ignore[index]

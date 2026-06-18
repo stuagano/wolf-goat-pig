@@ -21,9 +21,10 @@ class TestUpdateGameCourseData:
 
     def test_returns_200_for_existing_game_no_history(self):
         # First create a game via the app's own API so the DB has it
+        from datetime import UTC, datetime
+
         from app.database import SessionLocal
         from app.models import GameStateModel
-        from datetime import datetime, UTC
 
         db = SessionLocal()
         try:
@@ -55,9 +56,10 @@ class TestUpdateGameCourseData:
             db.close()
 
     def test_updates_hole_history_pars(self):
-        from app.database import SessionLocal
+        from datetime import UTC, datetime
+
         from app.data.wing_point_course_data import WING_POINT_COURSE_DATA
-        from datetime import datetime, UTC
+        from app.database import SessionLocal
 
         # Get actual par for hole 1 from Wing Point data
         hole1_data = WING_POINT_COURSE_DATA["holes"][0]
@@ -98,8 +100,9 @@ class TestUpdateGameCourseData:
             db.close()
 
     def test_adds_holes_config_to_game_state(self):
+        from datetime import UTC, datetime
+
         from app.database import SessionLocal
-        from datetime import datetime, UTC
 
         db = SessionLocal()
         try:
@@ -168,8 +171,9 @@ class TestUpdateAllGamesCourseData:
         assert data["success"] is True
 
     def test_updates_multiple_in_progress_games(self):
+        from datetime import UTC, datetime
+
         from app.database import SessionLocal
-        from datetime import datetime, UTC
 
         db = SessionLocal()
         game_ids = ["test-bulk-1", "test-bulk-2"]
@@ -209,8 +213,9 @@ class TestUpdateAllGamesCourseData:
             db.close()
 
     def test_skips_completed_games(self):
+        from datetime import UTC, datetime
+
         from app.database import SessionLocal
-        from datetime import datetime, UTC
 
         db = SessionLocal()
         try:

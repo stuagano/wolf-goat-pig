@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiConfig } from '../../config/api.config';
 
 const API_URL = apiConfig.baseUrl;
 
 const AllPlayersAvailability = () => {
+  const navigate = useNavigate();
   const [playersAvailability, setPlayersAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -190,9 +192,12 @@ const AllPlayersAvailability = () => {
                         borderLeft: '4px solid #047857'
                       }}
                     >
-                      <div style={{ fontWeight: '600', color: '#065f46', fontSize: '15px' }}>
+                      <button
+                        onClick={() => navigate(`/players/${player.player_id}`)}
+                        style={{ background: 'none', border: 'none', padding: 0, fontWeight: '600', color: '#065f46', fontSize: '15px', cursor: 'pointer', textAlign: 'left' }}
+                      >
                         {player.player_name}
-                      </div>
+                      </button>
                       <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>
                         ⏰ {formatTimeRange(dayAvail.available_from_time, dayAvail.available_to_time)}
                       </div>

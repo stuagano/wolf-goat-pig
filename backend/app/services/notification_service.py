@@ -20,13 +20,14 @@ Notification types supported:
 """
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from ..models import Notification
+from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +110,10 @@ class NotificationService:
                 "achievement_earned",
                 "partnership_formed",
                 "hole_complete",
+                "match_found",
+                "match_accepted",
+                "match_declined",
+                "match_confirmed",
             ]
 
             if notification_type not in valid_types:
@@ -121,7 +126,7 @@ class NotificationService:
                 message=message,
                 data=data or {},
                 is_read=False,
-                created_at=datetime.now(UTC).isoformat(),
+                created_at=utc_now().isoformat(),
             )
 
             db.add(notification)
@@ -479,7 +484,7 @@ class NotificationService:
         """
         try:
             # Calculate cutoff date
-            cutoff_date = (datetime.now(UTC) - timedelta(days=days_old)).isoformat()
+            cutoff_date = (utc_now() - timedelta(days=days_old)).isoformat()
 
             # Get old notifications
             old_notifications = (

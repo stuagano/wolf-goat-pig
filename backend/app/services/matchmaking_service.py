@@ -8,6 +8,8 @@ from collections import defaultdict
 from datetime import datetime, time, timedelta
 from itertools import combinations
 
+from ..utils.time import utc_now
+
 logger = logging.getLogger(__name__)
 
 
@@ -281,7 +283,7 @@ Happy golfing! ⛳
 
         # Collect exact player groups that were suggested within the cutoff window
         recent_groups: set = set()
-        cutoff_date = datetime.now() - timedelta(days=days_between_matches)
+        cutoff_date = utc_now() - timedelta(days=days_between_matches)
 
         for past_match in recent_match_history:
             match_date = past_match.get("created_at")

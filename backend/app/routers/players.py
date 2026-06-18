@@ -13,7 +13,6 @@ To migrate: Replace players.py with this file after testing.
 """
 
 import logging
-from datetime import UTC, datetime
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, Query
@@ -25,6 +24,7 @@ from ..database import get_db
 from ..services.auth_service import get_current_user
 from ..services.player_service import PlayerService
 from ..utils.api_helpers import ApiResponse, handle_api_errors, require_not_none
+from ..utils.time import utc_now
 
 logger = logging.getLogger("app.routers.players")
 
@@ -171,7 +171,7 @@ async def update_my_legacy_name(
 
     # Update the profile
     current_user.legacy_name = legacy_name
-    current_user.updated_at = datetime.now(UTC).isoformat()
+    current_user.updated_at = utc_now().isoformat()
     db.commit()
     db.refresh(current_user)
 
@@ -192,11 +192,27 @@ async def update_my_venmo(
     if handle and not handle.startswith("@"):
         handle = f"@{handle}"
     current_user.venmo_handle = handle or None
-    current_user.updated_at = datetime.now(UTC).isoformat()
+    current_user.updated_at = utc_now().isoformat()
     db.commit()
     db.refresh(current_user)
     logger.info("Updated venmo_handle for user %s to '%s'", current_user.id, handle)
     return schemas.PlayerProfileResponse.model_validate(current_user)
+
+
+@router.put("/me/description")
+@handle_api_errors(operation_name="update description")
+async def update_my_description(
+    body: dict[str, str | None],
+    current_user: models.PlayerProfile = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update current user's profile description/bio."""
+    description = (body.get("description") or "").strip() or None
+    current_user.description = description
+    current_user.updated_at = utc_now().isoformat()
+    db.commit()
+    db.refresh(current_user)
+    return {"description": current_user.description}
 
 
 @router.get("/me/availability", response_model=list[schemas.PlayerAvailabilityResponse])
@@ -238,7 +254,7 @@ async def set_my_availability(
         .first()
     )
 
-    now = datetime.now(UTC).isoformat()
+    now = utc_now().isoformat()
 
     if existing:
         existing.available_from_time = availability.available_from_time
@@ -302,7 +318,7 @@ async def get_my_email_preferences(
     db: Session = Depends(get_db),
 ) -> schemas.EmailPreferencesResponse:
     """Get current user's email preferences."""
-    now = datetime.now(UTC).isoformat()
+    now = utc_now().isoformat()
 
     prefs = (
         db.query(models.EmailPreferences).filter(models.EmailPreferences.player_profile_id == current_user.id).first()
@@ -322,6 +338,7 @@ async def get_my_email_preferences(
         signup_reminders_enabled=bool(prefs.signup_reminders_enabled),
         game_invitations_enabled=bool(prefs.game_invitations_enabled),
         weekly_summary_enabled=bool(prefs.weekly_summary_enabled),
+        callout_list_enabled=bool(prefs.callout_list_enabled),
         email_frequency=cast("str", prefs.email_frequency),
         preferred_notification_time=cast("str", prefs.preferred_notification_time),
         created_at=cast("str", prefs.created_at),
@@ -337,7 +354,7 @@ async def update_my_email_preferences(
     db: Session = Depends(get_db),
 ) -> schemas.EmailPreferencesResponse:
     """Update current user's email preferences."""
-    now = datetime.now(UTC).isoformat()
+    now = utc_now().isoformat()
 
     prefs = (
         db.query(models.EmailPreferences).filter(models.EmailPreferences.player_profile_id == current_user.id).first()
@@ -369,6 +386,7 @@ async def update_my_email_preferences(
         signup_reminders_enabled=bool(prefs.signup_reminders_enabled),
         game_invitations_enabled=bool(prefs.game_invitations_enabled),
         weekly_summary_enabled=bool(prefs.weekly_summary_enabled),
+        callout_list_enabled=bool(prefs.callout_list_enabled),
         email_frequency=cast("str", prefs.email_frequency),
         preferred_notification_time=cast("str", prefs.preferred_notification_time),
         created_at=cast("str", prefs.created_at),
@@ -379,6 +397,101 @@ async def update_my_email_preferences(
 # ============================================================================
 # Player Profile CRUD by ID (parameterized - must be after static paths)
 # ============================================================================
+
+
+@router.get("/{player_id}/public-profile")
+@handle_api_errors(operation_name="get public player profile")
+def get_public_player_profile(
+    player_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.PlayerProfile = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Public profile visible to all authenticated WGP members."""
+    player = db.query(models.PlayerProfile).filter(models.PlayerProfile.id == player_id).first()
+    if not player:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    # Availability days (which days, no times)
+    availability_rows = (
+        db.query(models.PlayerAvailability).filter(models.PlayerAvailability.player_profile_id == player_id).all()
+    )
+    available_days = [a.day_of_week for a in availability_rows if a.is_available]
+
+    # Match history — confirmed matches (all players accepted)
+    match_players = db.query(models.MatchPlayer).filter(models.MatchPlayer.player_profile_id == player_id).all()
+    match_history = []
+    for mp in match_players:
+        suggestion = (
+            db.query(models.MatchSuggestion).filter(models.MatchSuggestion.id == mp.match_suggestion_id).first()
+        )
+        if not suggestion or suggestion.status not in ("accepted",):
+            continue
+        teammates = (
+            db.query(models.MatchPlayer)
+            .filter(
+                models.MatchPlayer.match_suggestion_id == mp.match_suggestion_id,
+                models.MatchPlayer.player_profile_id != player_id,
+            )
+            .all()
+        )
+        day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        match_history.append(
+            {
+                "match_id": suggestion.id,
+                "day_of_week": suggestion.day_of_week,
+                "day_name": day_names[suggestion.day_of_week],
+                "suggested_tee_time": suggestion.suggested_tee_time,
+                "status": suggestion.status,
+                "created_at": suggestion.created_at,
+                "players": [{"id": t.player_profile_id, "name": t.player_name} for t in teammates],
+            }
+        )
+    match_history.sort(key=lambda m: m["created_at"] or "", reverse=True)
+
+    # Stats
+    stats = db.query(models.PlayerStatistics).filter(models.PlayerStatistics.player_id == player_id).first()
+
+    # Badges
+    badge_rows = (
+        db.query(models.PlayerBadgeEarned, models.Badge)
+        .join(models.Badge, models.PlayerBadgeEarned.badge_id == models.Badge.id)
+        .filter(models.PlayerBadgeEarned.player_profile_id == player_id)
+        .order_by(models.PlayerBadgeEarned.earned_at.desc())
+        .limit(12)
+        .all()
+    )
+    badges = [
+        {
+            "name": b.name,
+            "description": b.description,
+            "rarity": b.rarity,
+            "category": b.category,
+            "emoji": b.emoji,
+            "earned_at": pbe.earned_at,
+        }
+        for pbe, b in badge_rows
+    ]
+
+    return {
+        "id": player.id,
+        "name": player.name,
+        "handicap": player.handicap,
+        "description": player.description,
+        "avatar_url": player.avatar_url,
+        "last_played": player.last_played,
+        "created_at": player.created_at,
+        "available_days": available_days,
+        "match_history": match_history[:20],
+        "badges": badges,
+        "stats": {
+            "games_played": stats.games_played if stats else 0,
+            "games_won": stats.games_won if stats else 0,
+            "total_earnings": stats.total_earnings if stats else 0.0,
+            "solo_wins": stats.solo_wins if stats else 0,
+        },
+    }
 
 
 @router.get("/{player_id}", response_model=schemas.PlayerProfileResponse)
@@ -474,7 +587,7 @@ def get_player_profile_with_stats(player_id: int, db: Session = Depends(get_db))
             best_hole_performance=[],
             worst_hole_performance=[],
             performance_trends=[],
-            last_updated=datetime.now(UTC).isoformat(),
+            last_updated=utc_now().isoformat(),
         )
 
     recent_achievements: list[Any] = []  # Placeholder for future implementation
@@ -664,7 +777,7 @@ def set_player_availability(
         .first()
     )
 
-    now = datetime.now(UTC).isoformat()
+    now = utc_now().isoformat()
 
     if existing:
         existing.available_from_time = availability.available_from_time  # type: ignore
@@ -705,7 +818,7 @@ def set_player_availability(
 @handle_api_errors(operation_name="get email preferences")
 def get_email_preferences(player_id: int, db: Session = Depends(get_db)) -> schemas.EmailPreferencesResponse:
     """Get a player's email preferences."""
-    now = datetime.now(UTC).isoformat()
+    now = utc_now().isoformat()
 
     preferences = (
         db.query(models.EmailPreferences).filter(models.EmailPreferences.player_profile_id == player_id).first()
@@ -740,7 +853,7 @@ def update_email_preferences(
         if hasattr(preferences, field):
             setattr(preferences, field, value)
 
-    preferences.updated_at = datetime.now(UTC).isoformat()  # type: ignore
+    preferences.updated_at = utc_now().isoformat()  # type: ignore
     db.commit()
     db.refresh(preferences)
 

@@ -10,15 +10,19 @@ Uses new utility patterns:
 
 import logging
 import os
-from datetime import datetime
+import time as _time
 from typing import Any, cast
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi.responses import JSONResponse
+from sentry_sdk import capture_message, get_client
 from sqlalchemy import text
 
 from .. import models
+from ..observability.external_checks import check_all
 from ..state.course_manager import CourseManager
 from ..utils.api_helpers import handle_api_errors, managed_session
+from ..utils.time import utc_now
 
 logger = logging.getLogger("app.routers.health")
 
@@ -180,13 +184,13 @@ def _check_data_seeding(health_status: dict[str, Any]) -> bool:
     return True  # Seeding check doesn't fail health
 
 
-@router.get("/health")
+@router.api_route("/health", methods=["GET", "HEAD"])
 @handle_api_errors(operation_name="health check")
 def health_check() -> dict[str, Any]:
     """Comprehensive health check endpoint verifying all critical systems"""
     health_status: dict[str, Any] = {
         "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": utc_now().isoformat(),
         "environment": os.getenv("ENVIRONMENT", "unknown"),
         "version": "1.0.0",
         "components": {},
@@ -222,7 +226,7 @@ def health_check() -> dict[str, Any]:
     return health_status
 
 
-@router.get("/healthz")
+@router.api_route("/healthz", methods=["GET", "HEAD"])
 def health_check_render_alias():
     """Simplified health endpoint for Render monitoring."""
     try:
@@ -234,14 +238,14 @@ def health_check_render_alias():
         raise exc
 
 
-@router.get("/ready")
+@router.api_route("/ready", methods=["GET", "HEAD"])
 def readiness_check():
     """
     Lightweight readiness probe for Render/K8s.
     Only checks if the app is running, not comprehensive system health.
     Use /health for detailed health checks.
     """
-    return {"status": "ready", "timestamp": datetime.now().isoformat()}
+    return {"status": "ready", "timestamp": utc_now().isoformat()}
 
 
 @router.post("/admin/ensure-schema")
@@ -342,3 +346,79 @@ def seed_course_holes() -> dict[str, Any]:
         results["status"] = "error"
         results["message"] = str(e)
         return results
+
+
+_EXTERNAL_CACHE: dict[str, Any] = {"at": 0.0, "payload": None, "http_status": 200}
+
+
+@router.api_route("/health/external", methods=["GET", "HEAD"])
+async def external_health(
+    x_monitor_key: str | None = Header(default=None),
+    monitor_key: str | None = Query(default=None),
+) -> JSONResponse:
+    """Read-only health of the external services WGP depends on.
+
+    Guarded when MONITOR_KEY is set (allow when unset): the key may be supplied
+    either as the `X-Monitor-Key` header OR a `?monitor_key=` query param — the
+    latter for uptime tools (e.g. UptimeRobot free) that can't send custom
+    headers. Cached for EXTERNAL_HEALTH_TTL seconds so frequent pings don't
+    re-probe. 200 when no configured service is down; 503 when any is.
+    """
+    expected = os.getenv("MONITOR_KEY")
+    if expected and x_monitor_key != expected and monitor_key != expected:
+        return JSONResponse(status_code=403, content={"detail": "forbidden"})
+
+    ttl = int(os.getenv("EXTERNAL_HEALTH_TTL", "300"))
+    now = _time.monotonic()
+    if _EXTERNAL_CACHE["payload"] is not None and (now - _EXTERNAL_CACHE["at"]) < ttl:
+        payload = {**_EXTERNAL_CACHE["payload"], "cached": True}
+        return JSONResponse(status_code=_EXTERNAL_CACHE["http_status"], content=payload)
+
+    statuses = await check_all()
+    any_down = any(s.status == "down" for s in statuses)
+    payload = {
+        "status": "unhealthy" if any_down else "healthy",
+        "checked_at": utc_now().isoformat(),
+        "cached": False,
+        "services": {s.name: {"status": s.status, "latency_ms": s.latency_ms, "detail": s.detail} for s in statuses},
+    }
+    http_status = 503 if any_down else 200
+
+    if any_down:
+        down = [s.name for s in statuses if s.status == "down"]
+        capture_message(f"External services down: {', '.join(down)}", level="error")
+
+    _EXTERNAL_CACHE.update(at=now, payload=payload, http_status=http_status)
+    return JSONResponse(status_code=http_status, content={**payload, "cached": False})
+
+
+@router.get("/health/sentry-test")
+async def sentry_test(
+    send: int = Query(default=0),
+    monitor_key: str | None = Query(default=None),
+    x_monitor_key: str | None = Header(default=None),
+) -> JSONResponse:
+    """Diagnostic: is Sentry initialized in this process? (`sentry_initialized`
+    is true only when SENTRY_DSN is configured and the SDK started.) Pass
+    `?send=1` with the MONITOR_KEY (header or query param) to fire a real test
+    event you can confirm in the Sentry dashboard."""
+    from ..observability import sentry as _sentry_mod
+
+    initialized = get_client().is_active()
+    dsn = os.getenv("SENTRY_DSN")
+    result: dict[str, Any] = {
+        "sentry_initialized": initialized,
+        # Diagnostics (no secret revealed — only presence/length/init error):
+        "sentry_dsn_present": bool(dsn),
+        "sentry_dsn_len": len(dsn) if dsn else 0,
+        "sentry_init_error": _sentry_mod.last_init_error,
+        "environment": os.getenv("ENVIRONMENT", "development"),
+    }
+    if send:
+        expected = os.getenv("MONITOR_KEY")
+        if expected and x_monitor_key != expected and monitor_key != expected:
+            return JSONResponse(status_code=403, content={"detail": "forbidden"})
+        result["test_event_sent"] = initialized
+        if initialized:
+            result["test_event_id"] = capture_message("WGP backend Sentry self-test", level="info")
+    return JSONResponse(content=result)

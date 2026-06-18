@@ -1,7 +1,6 @@
 from types import SimpleNamespace
 
 import pytest
-
 from backend.app.services import legacy_signup_service as legacy_sync
 
 

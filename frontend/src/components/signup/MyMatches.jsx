@@ -168,7 +168,7 @@ const MyMatches = () => {
   };
 
   const handleBookConfirm = async ({ transportMode }) => {
-    const result = await bookTeeTime(bookingSlot.ttdata, transportMode, bookingSlot.date, bookingSlot.time);
+    const result = await bookTeeTime(bookingSlot.ttdata, transportMode, bookingSlot.date, bookingSlot.time, bookingSlot.coPlayers);
     if (result?.data?.success) {
       setBookingResult({ type: 'success', message: result.message || 'Tee time booked!' });
       setBookingSlot(null);
@@ -350,12 +350,17 @@ const MyMatches = () => {
                         padding: '8px 10px', borderRadius: 6,
                       }}
                     >
-                      <span style={{
-                        fontSize: 13, fontWeight: 500,
-                        color: player.response === 'declined' ? '#991b1b' : '#065f46',
-                      }}>
+                      <button
+                        onClick={() => navigate(`/players/${player.player_profile_id}`)}
+                        style={{
+                          background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                          fontSize: 13, fontWeight: 500,
+                          color: player.response === 'declined' ? '#991b1b' : '#065f46',
+                          textAlign: 'left',
+                        }}
+                      >
                         {player.player_name}
-                      </span>
+                      </button>
                       <span style={{
                         fontSize: 12, fontWeight: 600,
                         color: player.response === 'accepted' ? '#047857'
@@ -478,7 +483,7 @@ const MyMatches = () => {
                               <button
                                 onClick={() => {
                                   clearBookingError();
-                                  setBookingSlot({ ...slot, date: formatDateDisplay(ttData.date) });
+                                  setBookingSlot({ ...slot, date: ttData.date, displayDate: formatDateDisplay(ttData.date), coPlayers: match.players.map(p => p.player_name) });
                                 }}
                                 style={{
                                   padding: '8px 16px', background: '#10b981', color: '#fff',

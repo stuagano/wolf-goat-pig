@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import '../../styles/mobile-touch.css';
 import { apiConfig } from '../../config/api.config';
+import { calculateCourseHandicap } from '../../utils';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -15,6 +16,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   const [teeTimesText, setTeeTimesText] = useState('');
   const [generatedPairings, setGeneratedPairings] = useState(null);
   const [pairingsLoading, setPairingsLoading] = useState(false);
+  const [pairingsError, setPairingsError] = useState(null);
   const [confirmingSignup, setConfirmingSignup] = useState(false);
   const [legacyReplicating, setLegacyReplicating] = useState(false);
   const [legacyResult, setLegacyResult] = useState(null);
@@ -69,15 +71,21 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     if (!date) return;
     try {
       setPairingsLoading(true);
+      setPairingsError(null);
       const response = await fetch(`${API_URL}/pairings/${date}`);
       if (response.ok) {
         const data = await response.json();
         setGeneratedPairings(data.exists ? data : null);
       } else {
+        // 404 means no pairings generated yet — anything else is an error
         setGeneratedPairings(null);
+        if (response.status !== 404) {
+          setPairingsError(`Couldn't load pairings (HTTP ${response.status})`);
+        }
       }
     } catch (err) {
       setGeneratedPairings(null);
+      setPairingsError("Couldn't load pairings — check your connection.");
     } finally {
       setPairingsLoading(false);
     }
@@ -780,7 +788,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                         {p.player_name}
                         {p.handicap && (
                           <span style={{ color: '#6b7280', fontSize: '12px', marginLeft: '6px' }}>
-                            ({p.handicap} HCP)
+                            ({calculateCourseHandicap(p.handicap)} HCP)
                           </span>
                         )}
                       </div>
@@ -819,6 +827,18 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
         {pairingsLoading && (
           <div style={{ marginTop: '16px', textAlign: 'center', color: '#6b7280', fontSize: '14px' }}>
             Loading pairings...
+          </div>
+        )}
+
+        {pairingsError && !pairingsLoading && (
+          <div style={{ marginTop: '16px', padding: '10px 14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', color: '#b45309', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+            <span>⚠️ {pairingsError}</span>
+            <button
+              onClick={() => loadGeneratedPairings(selectedDate)}
+              style={{ background: 'none', border: '1px solid #d97706', color: '#b45309', borderRadius: '6px', padding: '3px 10px', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              Retry
+            </button>
           </div>
         )}
 

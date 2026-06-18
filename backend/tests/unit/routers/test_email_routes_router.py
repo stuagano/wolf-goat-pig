@@ -42,12 +42,12 @@ class TestSendTestEmail:
         assert resp.status_code == 503
 
     @patch("app.routers.email_routes.get_email_service")
-    def test_returns_400_without_to_email(self, mock_get_svc):
+    def test_returns_422_without_to_email(self, mock_get_svc):
         mock_svc = MagicMock()
         mock_svc.is_configured = True
         mock_get_svc.return_value = mock_svc
         resp = client.post("/email/send-test", json={})
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
     @patch("app.routers.email_routes.get_email_service")
     def test_returns_500_when_send_fails(self, mock_get_svc):
@@ -393,3 +393,13 @@ class TestGetSchedulerStatus:
         assert data["initialized"] is True
         assert data["running"] is True
         assert "running" in data["message"].lower()
+
+
+class TestSendTestEmailValidation:
+    def test_missing_to_email_returns_422(self):
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        resp = TestClient(app).post("/email/send-test", json={})
+        assert resp.status_code == 422

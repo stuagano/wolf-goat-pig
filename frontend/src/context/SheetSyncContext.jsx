@@ -14,9 +14,8 @@ export const useSheetSync = () => {
 };
 
 export const SheetSyncProvider = ({ children }) => {
-  // Legacy sheet URL (kept for backward compatibility)
   const [sheetUrl, setSheetUrl] = useState(
-    "https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM/edit?pli=1&gid=0#gid=0",
+    "https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM/edit?gid=474065919#gid=474065919",
   );
   const [syncStatus, setSyncStatus] = useState("idle"); // idle, connecting, syncing, error, success
   const [lastSync, setLastSync] = useState(null);
@@ -50,28 +49,7 @@ export const SheetSyncProvider = ({ children }) => {
       }
 
       const leaderboardData = await response.json();
-
-      // Transform to match existing component expectations
-      const finalData = leaderboardData.map((entry, index) => ({
-        id: `player-${index}`,
-        player_name: entry.member,
-        name: entry.member,
-        total_earnings: entry.quarters,
-        score: entry.quarters,
-        games_played: entry.rounds,
-        total_games: entry.rounds,
-        win_percentage:
-          entry.rounds > 0
-            ? ((entry.quarters > 0 ? 1 : 0) / entry.rounds) * 100
-            : 0,
-        best_round: entry.best_round,
-        worst_round: entry.worst_round,
-        average: entry.average,
-        sources: entry.sources,
-        last_played: "N/A", // Will be populated when we add round history
-      }));
-
-      setSyncData(finalData);
+      setSyncData(leaderboardData);
 
       // Also fetch data sources status
       try {

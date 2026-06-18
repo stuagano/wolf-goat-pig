@@ -13,13 +13,14 @@ import logging
 import statistics
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any
 
 from sqlalchemy import and_, desc, func
 from sqlalchemy.orm import Session
 
 from ..models import GamePlayerResult, GameRecord, PlayerProfile, PlayerStatistics
+from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +162,7 @@ class StatisticsService:
     def get_performance_trends(self, player_id: int, days: int = 30) -> dict[str, list[TrendPoint]]:
         """Get performance trends over time."""
         try:
-            cutoff_date = (datetime.now() - timedelta(days=days)).isoformat()
+            cutoff_date = (utc_now() - timedelta(days=days)).isoformat()
 
             # Get recent game results
             results = (

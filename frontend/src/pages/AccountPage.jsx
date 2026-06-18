@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
+import { apiConfig } from '../config/api.config';
 import { useTheme } from '../theme/Provider';
 import useTeeTimes from '../hooks/useTeeTimes';
+import PlayerAvailability from '../components/signup/PlayerAvailability';
+import EmailPreferences from '../components/signup/EmailPreferences';
+import MyMatches from '../components/signup/MyMatches';
 
 const STORAGE_KEY = 'wgp_account_settings';
 
@@ -106,7 +110,7 @@ const gatherStats = () => {
 };
 
 function AccountPage() {
-  const { user, isAuthenticated, logout } = useAuth0();
+  const { user, isAuthenticated, logout, getAccessTokenSilently } = useAuth0();
   const theme = useTheme();
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -118,9 +122,11 @@ function AccountPage() {
     preferredTees: 'white',
     bettingStyle: 'moderate',
     venmoHandle: '',
+    description: '',
   });
+  const [descriptionSyncError, setDescriptionSyncError] = useState(null); // 'load' | 'save' | null
 
-  // Load settings and stats
+  // Load settings from localStorage, then merge description from backend
   useEffect(() => {
     const stored = loadSettings();
     if (stored) {
@@ -129,14 +135,50 @@ function AccountPage() {
       setSettings(prev => ({ ...prev, displayName: user.name }));
     }
     setStats(gatherStats());
-  }, [user]);
 
-  const handleSave = useCallback(() => {
+    if (isAuthenticated) {
+      getAccessTokenSilently()
+        .then(token => fetch(`${apiConfig.baseUrl}/players/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }))
+        .then(r => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
+        .then(profile => {
+          setDescriptionSyncError(null);
+          if (profile?.description != null) {
+            setSettings(prev => ({ ...prev, description: profile.description || '' }));
+          }
+        })
+        .catch(() => {
+          // If we can't load the saved bio, saving could silently wipe it —
+          // surface a warning in the edit form instead of failing silently.
+          setDescriptionSyncError('load');
+        });
+    }
+  }, [user, isAuthenticated, getAccessTokenSilently]);
+
+  const handleSave = useCallback(async () => {
     saveSettings(settings);
+    // Persist description to backend
+    try {
+      const token = await getAccessTokenSilently();
+      const resp = await fetch(`${apiConfig.baseUrl}/players/me/description`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: settings.description || '' }),
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      setDescriptionSyncError(null);
+    } catch {
+      // Other settings saved to localStorage; bio didn't reach the backend
+      setDescriptionSyncError('save');
+    }
     setEditing(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
-  }, [settings]);
+  }, [settings, getAccessTokenSilently]);
 
   const handleChange = (field, value) => {
     setSettings(prev => ({ ...prev, [field]: value }));
@@ -474,7 +516,9 @@ function AccountPage() {
             fontWeight: 500,
             marginBottom: '16px',
           }}>
-            Settings saved successfully
+            {descriptionSyncError === 'save'
+              ? 'Settings saved — but your bio couldn\'t sync to the server. Try saving again.'
+              : 'Settings saved successfully'}
           </div>
         )}
 
@@ -542,6 +586,24 @@ function AccountPage() {
               placeholder="@your-venmo"
               style={inputStyle}
             />
+
+            <label style={labelStyle}>About Me</label>
+            <textarea
+              value={settings.description}
+              onChange={(e) => handleChange('description', e.target.value)}
+              placeholder="A sentence or two about your game, style, or anything else..."
+              rows={3}
+              maxLength={300}
+              style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
+            />
+            <div style={{ fontSize: 11, color: '#9ca3af', marginTop: -8, marginBottom: 8, textAlign: 'right' }}>
+              {(settings.description || '').length}/300
+            </div>
+            {descriptionSyncError === 'load' && (
+              <div style={{ fontSize: 12, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '6px 10px', marginBottom: 8 }}>
+                ⚠️ Couldn't load your saved bio — saving now may overwrite it.
+              </div>
+            )}
           </div>
         ) : (
           <div>
@@ -578,11 +640,49 @@ function AccountPage() {
               label="Venmo"
               value={settings.venmoHandle || 'Not set'}
               theme={theme}
+            />
+            <SettingRow
+              label="About Me"
+              value={settings.description || 'Not set'}
+              theme={theme}
               noBorder
             />
           </div>
         )}
       </div>
+
+      {/* My Availability */}
+      {isAuthenticated && (
+        <div style={cardStyle}>
+          <h3 style={{ ...sectionTitle, marginBottom: '4px' }}>My Availability</h3>
+          <p style={{ fontSize: '14px', color: theme.colors.textSecondary, margin: '0 0 16px 0' }}>
+            Set your preferred times each week — used by Find a Game to suggest matches.
+          </p>
+          <PlayerAvailability />
+        </div>
+      )}
+
+      {/* My Matches */}
+      {isAuthenticated && (
+        <div style={cardStyle}>
+          <h3 style={{ ...sectionTitle, marginBottom: '4px' }}>My Matches</h3>
+          <p style={{ fontSize: '14px', color: theme.colors.textSecondary, margin: '0 0 16px 0' }}>
+            Accept or decline match suggestions. Once everyone confirms, book a tee time together.
+          </p>
+          <MyMatches />
+        </div>
+      )}
+
+      {/* Email Preferences */}
+      {isAuthenticated && (
+        <div style={cardStyle}>
+          <h3 style={{ ...sectionTitle, marginBottom: '4px' }}>Email Notifications</h3>
+          <p style={{ fontSize: '14px', color: theme.colors.textSecondary, margin: '0 0 16px 0' }}>
+            Control what emails you receive from WGP.
+          </p>
+          <EmailPreferences />
+        </div>
+      )}
 
       {/* ForeTees Integration */}
       {isAuthenticated && (

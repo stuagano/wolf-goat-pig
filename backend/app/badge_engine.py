@@ -4,7 +4,6 @@ Detects when players earn badges and manages badge awarding logic.
 """
 
 from collections.abc import Callable
-from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import and_
@@ -20,6 +19,7 @@ from .models import (
     PlayerSeriesProgress,
     PlayerStatistics,
 )
+from .utils.time import utc_now
 
 
 class BadgeEngine:
@@ -454,7 +454,7 @@ class BadgeEngine:
         progress.current_progress = int(progress.current_progress) + redoubled_wins_this_game
         progress.target_progress = 10
         progress.progress_percentage = float(int(progress.current_progress) / 10 * 100)
-        progress.updated_at = datetime.now(UTC).isoformat()
+        progress.updated_at = utc_now().isoformat()
         self.db.commit()
 
         return bool(int(progress.current_progress) >= 10)
@@ -542,16 +542,16 @@ class BadgeEngine:
         earned = PlayerBadgeEarned(
             player_profile_id=player_profile_id,
             badge_id=badge_id,
-            earned_at=datetime.now(UTC).isoformat(),
+            earned_at=utc_now().isoformat(),
             game_record_id=game_record_id,
             serial_number=serial_number,
             is_minted=False,
-            created_at=datetime.now(UTC).isoformat(),
+            created_at=utc_now().isoformat(),
         )
 
         # Update badge supply
         badge.current_supply = int(badge.current_supply) + 1
-        badge.updated_at = datetime.now(UTC).isoformat()
+        badge.updated_at = utc_now().isoformat()
 
         self.db.add(earned)
         self.db.commit()
@@ -596,8 +596,8 @@ class BadgeEngine:
                 current_progress=0,
                 target_progress=target,
                 progress_percentage=0.0,
-                created_at=datetime.now(UTC).isoformat(),
-                updated_at=datetime.now(UTC).isoformat(),
+                created_at=utc_now().isoformat(),
+                updated_at=utc_now().isoformat(),
             )
             self.db.add(progress)
             self.db.commit()
@@ -635,7 +635,7 @@ class BadgeEngine:
                     min(int(progress.current_progress) / int(progress.target_progress) * 100, 100.0)
                 )
 
-            progress.updated_at = datetime.now(UTC).isoformat()
+            progress.updated_at = utc_now().isoformat()
             self.db.commit()
 
     def _check_series_completion(self, player_profile_id: int, newly_earned_badge: Badge) -> None:
@@ -682,18 +682,18 @@ class BadgeEngine:
                 badges_earned=earned_count,
                 badges_needed=int(series.badge_count),
                 is_completed=False,
-                created_at=datetime.now(UTC).isoformat(),
-                updated_at=datetime.now(UTC).isoformat(),
+                created_at=utc_now().isoformat(),
+                updated_at=utc_now().isoformat(),
             )
             self.db.add(series_progress)
         else:
             series_progress.badges_earned = earned_count
-            series_progress.updated_at = datetime.now(UTC).isoformat()
+            series_progress.updated_at = utc_now().isoformat()
 
         # Check if series is complete
         if earned_count >= int(series.badge_count) and not series_progress.is_completed:
             series_progress.is_completed = True
-            series_progress.completed_at = datetime.now(UTC).isoformat()
+            series_progress.completed_at = utc_now().isoformat()
 
             # Award completion badge if one exists
             if series.completion_badge_id:

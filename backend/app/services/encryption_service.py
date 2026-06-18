@@ -22,7 +22,14 @@ def _get_key() -> bytes:
         return base64.urlsafe_b64encode(hashlib.sha256(raw.encode()).digest())
 
     # Fallback: derive from JWT_SECRET_KEY
-    fallback = os.getenv("JWT_SECRET_KEY", "default-dev-key")
+    fallback = os.getenv("JWT_SECRET_KEY")
+    if not fallback:
+        if os.getenv("ENVIRONMENT") == "production":
+            raise RuntimeError(
+                "FORETEES_ENCRYPTION_KEY (or JWT_SECRET_KEY) must be set in production "
+                "— refusing to encrypt credentials with a known default key"
+            )
+        fallback = "default-dev-key"
     return base64.urlsafe_b64encode(hashlib.sha256(fallback.encode()).digest())
 
 

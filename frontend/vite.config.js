@@ -8,6 +8,13 @@ export default defineConfig({
       include: '**/*.{js,jsx,ts,tsx}',
     }),
   ],
+  /*
+  esbuild: {
+    loader: 'tsx',
+    include: /src\/.*\.[tj]sx?$/,
+    exclude: [],
+  },
+  */
   optimizeDeps: {
     esbuildOptions: {
       loader: {
@@ -66,5 +73,14 @@ export default defineConfig({
         statements: 1,
       },
     },
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/cypress/**',
+      '**/.{idea,git,cache,output,temp}/**',
+      '**/{karma,rollup,webpack,vite,vitest}.config.*',
+      'tests/e2e/**',
+      '_unused/**',
+    ],
   },
 });

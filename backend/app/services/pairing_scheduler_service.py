@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
 from ..models import DailySignup, GeneratedPairing, PlayerProfile
+from ..utils.time import utc_now
 from .email_service import get_email_service
 from .team_formation_service import TeamFormationService
 
@@ -30,7 +31,7 @@ class PairingSchedulerService:
         If from_date is already Sunday, returns that Sunday.
         """
         if from_date is None:
-            from_date = datetime.now()
+            from_date = utc_now()
 
         days_until_sunday = (6 - from_date.weekday()) % 7
         if days_until_sunday == 0 and from_date.weekday() != 6:
@@ -112,7 +113,7 @@ class PairingSchedulerService:
         if not teams:
             return None, "Failed to generate teams"
 
-        now = datetime.now().isoformat()
+        now = utc_now().isoformat()
 
         # Calculate remaining players (those not in complete teams of 4)
         players_in_teams = sum(len(t.get("players", [])) for t in teams)
@@ -243,7 +244,7 @@ class PairingSchedulerService:
         # Update pairing record
         if emails_sent > 0:
             pairing.notification_sent = True
-            pairing.notification_sent_at = datetime.now().isoformat()
+            pairing.notification_sent_at = utc_now().isoformat()
             db.commit()
 
         logger.info(

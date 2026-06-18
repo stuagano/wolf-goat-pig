@@ -14,10 +14,14 @@ When your frontend is in a subdirectory (e.g., `frontend/`), use these patterns:
   "version": 2,
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/build",
-  "installCommand": "cd frontend && npm ci",
-  "framework": "create-react-app"
+  "installCommand": "cd frontend && npm install --legacy-peer-deps --no-audit",
+  "framework": null
 }
 ```
+
+> The frontend is built with **Vite**, so `framework` is left `null` and Vercel
+> runs the explicit `buildCommand`/`installCommand` above.
+> Vite emits to `frontend/build` (`build.outDir` in `vite.config.js`).
 
 ### Common Error
 ```
@@ -40,11 +44,11 @@ Replace `rootDirectory` with explicit `cd` commands in:
   "name": "wolf-goat-pig",
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/build",
-  "installCommand": "cd frontend && npm ci",
-  "framework": "create-react-app",
+  "installCommand": "cd frontend && npm install --legacy-peer-deps --no-audit",
+  "framework": null,
   "build": {
     "env": {
-      "REACT_APP_API_URL": "https://wolf-goat-pig.onrender.com"
+      "VITE_API_URL": "https://wolf-goat-pig.onrender.com"
     }
   }
 }

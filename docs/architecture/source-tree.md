@@ -1,83 +1,69 @@
 # Source Tree Documentation
 
+This documents the actual top-level layout of the repository. It is kept at the
+directory/entry-point level on purpose — exhaustive per-file listings drift fast.
+For deeper detail, browse the directories directly or see
+[architecture.md](./architecture.md).
+
 ## Project Structure Overview
 
 ```
 wolf-goat-pig/
-├── .bmad-core/           # BMad Method framework
-├── .claude/              # Claude AI agent configurations
-├── .github/              # GitHub Actions workflows
+├── api/                  # Vercel serverless functions (e.g. gemini-proxy.js)
 ├── backend/              # FastAPI backend application
-├── frontend/             # React frontend application
-├── docs/                 # BMad documentation
-├── scripts/              # Utility scripts
-└── [root files]          # Configuration and documentation
+├── booking-service/      # Standalone Node tee-sheet booking service
+├── frontend/             # React + Vite frontend application
+├── docs/                 # Project documentation
+├── scripts/              # Deployment, development, diagnostics, testing scripts
+├── render.yaml           # Render deployment (backend + booking-service)
+├── vercel.json           # Vercel deployment (frontend)
+├── docker-compose.yml    # Local container stack
+├── capabilities.yaml     # Capability manifest (caps tooling)
+├── package.json          # Root scripts that delegate into frontend/backend
+└── README.md             # Project overview
 ```
-
-## Root Directory
-
-### Configuration Files
-- `render.yaml` - Render deployment configuration
-- `vercel.json` - Vercel deployment configuration
-- `package.json` - Root package for scripts
-- `requirements.txt` - Python dependencies
-- `pytest.ini` - Test configuration
-- `.gitignore` - Git ignore patterns
-
-### Scripts
-- `deploy.sh` - Deployment automation script
-- `dev.sh` - Development environment setup
-- `deployment_check.py` - Pre-deployment validation
-- `claude-issue-monitor.py` - GitHub issue automation
-- `setup-claude-automation.sh` - Automation setup
-
-### Documentation
-- `README.md` - Project overview
-- `DEPLOYMENT_BEST_PRACTICES.md` - Deployment guide
-- `TODO.md` - Development roadmap
 
 ## Backend Structure (`/backend`)
 
 ```
 backend/
 ├── app/                  # Main application code
-│   ├── domain/          # Domain models and business logic
-│   ├── services/        # Service layer
-│   ├── state/           # State management
 │   ├── main.py          # FastAPI application entry
-│   ├── database.py      # Database configuration
+│   ├── database.py      # Database configuration / session
 │   ├── models.py        # SQLAlchemy models
-│   ├── schemas.py       # Pydantic schemas
-│   ├── crud.py          # Database operations
-│   └── game_state.py    # Game state management
-├── tests/               # Test suite
-├── venv/                # Virtual environment
-└── requirements.txt     # Python dependencies
+│   ├── wolf_goat_pig.py # Core game simulation
+│   ├── routers/         # API route modules (one file per resource area)
+│   ├── schemas/         # Pydantic request/response schemas
+│   ├── services/        # Service layer (email, ghin, foretees, callouts, ...)
+│   ├── domain/          # Domain models and game-type handlers
+│   ├── engine/          # Scoring / betting / partnership engine modules
+│   ├── managers/        # Rule, scoring, and websocket managers
+│   ├── state/           # App/course/player/shot state
+│   ├── middleware/      # Caching, rate limiting
+│   ├── mixins/          # Reusable model mixins (persistence)
+│   ├── observability/   # Sentry + external health checks
+│   ├── validators/      # Betting / game-state / handicap validators
+│   ├── utils/           # Helpers (auth, api, response types, time)
+│   ├── migrations/      # Migration package
+│   └── data/            # Seed data (legacy players, course data)
+├── migrations/          # `*_postgres.sql` files applied at startup
+├── tests/               # Test suite (see below)
+├── render-startup.py    # Render entrypoint (runs migrations, then uvicorn)
+├── requirements.txt     # Python dependencies
+└── venv/                # Virtual environment (local; not committed)
 ```
 
 ### Key Backend Modules
 
-#### `/app/domain`
-Business domain models:
-- `player.py` - Player management
-- `shot_result.py` - Shot outcome calculations
-- `shot_range_analysis.py` - Strategic shot analysis
-
-#### `/app/state`
-Game state management:
-- `course_manager.py` - Golf course data
-- `player_manager.py` - Player state
-- `betting_state.py` - Betting logic
-- `shot_state.py` - Shot tracking
-
-#### `/app/services`
-Service layer for complex operations (extensible)
-
-#### `/tests`
-Comprehensive test coverage:
-- `test_unified_action_api.py` - API testing
-- `test_game_flow.py` - Game flow validation
-- `test_simulation_components.py` - Simulation testing
+- `app/routers/` — FastAPI routers split by area: `games.py`, `games_holes.py`,
+  `games_players.py`, `players.py`, `courses.py`, `leaderboard.py`,
+  `callouts.py`, `ghin.py`, `foretees.py`, `commissioner.py`, `admin.py`,
+  `health.py`, and more.
+- `app/services/` — integration and business services: `email_service.py`,
+  `ghin_service.py`, `foretees_service.py`, `callout_service.py`,
+  `legacy_player_service.py`, `matchmaking_service.py`, etc.
+- `app/engine/` — scoring and wagering engine: `scoring.py`, `betting_actions.py`,
+  `partnership.py`, `aardvark.py`, `simulation_api.py`.
 
 ## Frontend Structure (`/frontend`)
 
@@ -85,195 +71,113 @@ Comprehensive test coverage:
 frontend/
 ├── public/              # Static assets
 ├── src/                 # Source code
-│   ├── components/      # React components
-│   ├── context/         # React context providers
+│   ├── App.jsx          # Root application component
+│   ├── index.jsx        # Application entry / React mount
+│   ├── components/      # React components (grouped by feature)
+│   ├── pages/           # Route page components (*.jsx)
+│   ├── context/         # React context providers (AuthContext, ...)
 │   ├── hooks/           # Custom React hooks
-│   ├── pages/           # Page components
-│   ├── theme/           # Theme configuration
+│   ├── services/        # API + sync + offline-storage services
+│   ├── config/          # Runtime config (api.config.js)
+│   ├── constants/       # Shared constants
+│   ├── theme/           # Theme provider and tokens
 │   ├── utils/           # Utility functions
-│   ├── App.js           # Main app component
-│   └── index.js         # Application entry
-├── package.json         # Node dependencies
-└── build/              # Production build output
+│   ├── styles/          # CSS
+│   └── sentry.js        # Sentry initialization
+├── vite.config.js       # Vite build + dev-server proxy config
+├── package.json         # Node dependencies and scripts
+└── build/               # Production build output (Vite `build.outDir`; generated, gitignored)
 ```
 
 ### Key Frontend Modules
 
-#### `/src/components`
-Reusable UI components:
-- `game/` - Game-specific components
-  - `UnifiedGameInterface.js` - Main game UI
-  - `WolfGoatPigGame.js` - Game controller
-- `simulation/` - Simulation components
-  - `SimulationMode.js` - Simulation interface
-  - `MonteCarloSimulation.js` - Monte Carlo engine
-- `ui/` - Generic UI components
-  - `Button.js`, `Card.js`, `Input.js`, `Select.js`
-- Specialized components:
-  - `ColdStartHandler.js` - Backend warmup UX
-  - `ShotRangeAnalyzer.js` - Shot analysis
-  - `AnalyticsDashboard.js` - Game analytics
+- `src/components/` — feature folders: `game/`, `betting/`, `signup/`, `chat/`,
+  `admin/`, `analytics/`, `auth/`, `email/`, `foretees/`, `tutorial/`,
+  `visualization/`, `ui/`, `common/`, `integration/`.
+- `src/config/api.config.js` — resolves the backend base URL from
+  `import.meta.env.VITE_API_URL`.
+- `src/context/AuthContext.jsx` — Auth0 wiring (reads `VITE_AUTH0_*`).
+- `src/services/` — `fetchJson.jsx`, `syncManager.jsx`, `offlineStorage.jsx`,
+  `gameReconcile.js`, `cacheManager.jsx`, `ghinService.js`.
 
-#### `/src/context`
-Global state management:
-- `GameProvider.js` - Game state context
-
-#### `/src/hooks`
-Custom React hooks:
-- `useGameApi.js` - Game API interactions
-- `useSimulationApi.js` - Simulation API
-
-#### `/src/utils`
-Utility functions:
-- `api.js` - API client with cold start handling
-
-## BMad Documentation (`/docs`)
+## Documentation (`/docs`)
 
 ```
 docs/
-├── prd.md               # Product Requirements Document
-├── architecture.md      # System architecture
-├── architecture/        # Technical documentation
-│   ├── coding-standards.md
-│   ├── tech-stack.md
-│   └── source-tree.md
-├── stories/             # User stories
-└── qa/                  # QA documentation
+├── architecture/        # System architecture, source tree, schema, tech stack
+├── backend/             # Backend-specific guides (migrations, sessions, ...)
+├── guides/              # Developer/operator guides
+├── features/            # Feature specs and rules
+├── product/             # Product context
+├── observability/       # Sentry / uptime / Render blueprint
+├── development/         # Contributor + automation docs
+└── README.md            # Documentation index
 ```
-
-## BMad Core (`/.bmad-core`)
-
-```
-.bmad-core/
-├── agents/              # AI agent definitions
-├── tasks/               # Task templates
-├── templates/           # Document templates
-├── checklists/          # Process checklists
-├── workflows/           # Development workflows
-├── data/                # Knowledge base
-└── core-config.yaml     # BMad configuration
-```
-
-## File Naming Conventions
-
-### Python Files
-- Snake_case: `game_state.py`, `betting_logic.py`
-- Test prefix: `test_<module>.py`
-
-### JavaScript Files
-- PascalCase for components: `GameDashboard.js`
-- camelCase for utilities: `apiHelpers.js`
-- Index files for exports: `index.js`
-
-### Documentation
-- UPPERCASE for root docs: `README.md`, `TODO.md`
-- Lowercase for subdocs: `coding-standards.md`
-
-## Import Patterns
-
-### Python Imports
-```python
-# Absolute imports for app modules
-from app.domain.player import Player
-from app.state.game_state import GameState
-
-# Relative imports within modules
-from .betting_state import BettingState
-```
-
-### JavaScript Imports
-```javascript
-// Named exports from components
-import { GameDashboard, PlayerCard } from './components';
-
-// Default exports for pages
-import HomePage from './pages/HomePage';
-
-// Utility imports
-import { apiGet, apiPost } from '../utils/api';
-```
-
-## Build Outputs
-
-### Backend Build
-- `__pycache__/` - Python bytecode cache
-- `*.pyc` - Compiled Python files
-- `.pytest_cache/` - Test cache
-
-### Frontend Build
-- `build/` - Production build output
-- `node_modules/` - Node dependencies
-- `.cache/` - Build cache
 
 ## Environment Variables
 
-### Backend (.env)
+### Backend (.env / Render dashboard)
 ```
 DATABASE_URL=postgresql://...
 ENVIRONMENT=development|production
 FRONTEND_URL=http://localhost:3000
 ```
 
-### Frontend (.env)
+### Frontend (.env.local / Vercel dashboard)
 ```
-REACT_APP_API_URL=http://localhost:8000
-NODE_ENV=development|production
+VITE_API_URL=http://localhost:8000   # empty locally → uses vite.config.js proxy
+VITE_AUTH0_DOMAIN=...
+VITE_AUTH0_CLIENT_ID=...
+VITE_AUTH0_AUDIENCE=https://wolf-goat-pig.onrender.com
 ```
+
+See `frontend/.env.example` for the full, authoritative list.
 
 ## Key Entry Points
 
 ### Backend Entry
 - **File**: `backend/app/main.py`
-- **Function**: FastAPI application initialization
-- **Start Command**: `uvicorn app.main:app`
+- **Render start**: `python render-startup.py` (applies migrations, then serves)
+- **Local start**: `uvicorn app.main:app`
 
 ### Frontend Entry
-- **File**: `frontend/src/index.js`
-- **Function**: React app mounting
-- **Start Command**: `npm start`
-
-## Dependencies Management
-
-### Python Dependencies
-- **File**: `backend/requirements.txt`
-- **Install**: `pip install -r requirements.txt`
-- **Virtual Env**: `backend/venv/`
-
-### Node Dependencies
-- **File**: `frontend/package.json`
-- **Install**: `npm install`
-- **Lock File**: `package-lock.json`
+- **File**: `frontend/src/index.jsx`
+- **Dev start**: `npm start` (runs Vite dev server on port 3000)
+- **Build**: `npm run build` (Vite)
 
 ## Testing Structure
 
-### Backend Tests
 ```
 backend/tests/
-├── test_api_endpoints.py    # API integration tests
-├── test_game_flow.py         # Game flow tests
-├── test_simulation.py        # Simulation tests
-└── test_unified_action.py    # Action API tests
+├── unit/                # Unit tests
+├── integration/         # Integration tests
+├── contract/            # Mocked external-service contract tests (in CI)
+├── live/                # Real external APIs (on-demand: pytest -m live)
+├── api/                 # API/router tests
+├── game_rules/          # Game-rule tests
+├── bdd/                 # behave e2e (non-CI; needs live backend)
+├── infra/               # Infra/startup tests
+├── fixtures/            # Shared fixtures
+├── manual/              # Manual/excluded-from-CI tests
+└── conftest.py          # Pytest configuration
 ```
 
-### Frontend Tests
-```
-frontend/src/
-├── *.test.js                 # Component tests
-└── __tests__/               # Test utilities
-```
+Frontend tests live alongside source under `__tests__/` directories and `*.test.js[x]`
+files, run with Vitest.
 
 ## Deployment Artifacts
 
 ### Backend Deployment
-- Render reads from root `render.yaml`
-- Uses `backend/` directory
-- PostgreSQL database connection
+- Render reads from root `render.yaml` (`rootDir: backend`).
+- Migrations run at startup via `render-startup.py` → `app/migrations_runner.py`.
 
 ### Frontend Deployment
-- Vercel reads from root `vercel.json`
-- Builds from `frontend/` directory
-- Static hosting with CDN
+- Vercel reads from root `vercel.json` (builds `frontend/` with Vite).
+- Output directory: `frontend/build`, served as a static SPA with CDN.
+
+### Booking Service
+- Separate Render service (`rootDir: booking-service`, `node server.js`).
 
 ---
 
-*This source tree documentation reflects the current project structure as of 2025-08-18.*
+*Reflects the repository structure as of 2026-06-17.*

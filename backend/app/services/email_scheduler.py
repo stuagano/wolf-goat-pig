@@ -6,14 +6,16 @@ This module handles scheduling and sending automated emails based on user prefer
 
 import logging
 import threading
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any
 
-import schedule
 from sqlalchemy.orm import Session
+
+import schedule
 
 from ..database import SessionLocal
 from ..models import EmailPreferences, PlayerProfile
+from ..utils.time import utc_now
 from .email_service import get_email_service
 from .pairing_scheduler_service import PairingSchedulerService
 
@@ -217,7 +219,7 @@ class EmailScheduler:
         """Get available signup dates for the next week"""
         # Mock implementation - replace with actual logic
         dates = []
-        today = datetime.now()
+        today = utc_now()
 
         for i in range(1, 8):  # Next 7 days
             date = today + timedelta(days=i)
@@ -314,7 +316,9 @@ class EmailScheduler:
 
         Runs every 2 hours. Direct DB call — safe to run in background thread.
         """
-        from datetime import UTC, datetime as dt
+        from datetime import UTC
+        from datetime import datetime as dt
+
         from ..models import LegacyRound
         from ..services.unified_data_service import get_unified_data_service
 
@@ -328,22 +332,35 @@ class EmailScheduler:
                 return
 
             synced_at = dt.now(UTC).isoformat()
-            db.query(LegacyRound).filter(
-                LegacyRound.source.in_(["primary_sheet", "writable_sheet"])
-            ).delete(synchronize_session=False)
+            db.query(LegacyRound).filter(LegacyRound.source.in_(["primary_sheet", "writable_sheet"])).delete(
+                synchronize_session=False
+            )
             for r in rounds:
-                db.add(LegacyRound(
-                    date=r.date_sortable,
-                    group=r.group,
-                    member=r.member,
-                    score=r.score,
-                    location=r.location or "",
-                    duration=r.duration,
-                    source=r.source,
-                    synced_at=synced_at,
-                ))
+                db.add(
+                    LegacyRound(
+                        date=r.date_sortable,
+                        group=r.group,
+                        member=r.member,
+                        score=r.score,
+                        location=r.location or "",
+                        duration=r.duration,
+                        source=r.source,
+                        synced_at=synced_at,
+                    )
+                )
             db.commit()
             logger.info("Legacy rounds sync complete: %d rows written", len(rounds))
+
+            # Keep the canonical player roster in lockstep with the dropdown by
+            # reconciling it against the players seen in round history. Isolated
+            # so a roster-sync bug can never take down the load-bearing rounds
+            # sync (rounds are already committed above).
+            try:
+                from ..services.legacy_player_service import sync_roster_from_members
+
+                sync_roster_from_members({r.member for r in rounds}, db=db)
+            except Exception as roster_exc:
+                logger.warning("Roster reconcile skipped (rounds sync unaffected): %s", roster_exc)
         except Exception as exc:
             logger.error("Legacy rounds sync failed: %s", exc)
             db.rollback()
@@ -364,9 +381,10 @@ class EmailScheduler:
         The app records per-hole scores; the legacy sheet stores only round totals.
         player_scores in the queue are expected to be the summed totals.
         """
-        from datetime import UTC, datetime as dt
+        from datetime import UTC
+        from datetime import datetime as dt
 
-        from ..models import LegacyRound, PendingSheetSync
+        from ..models import PendingSheetSync
         from .spreadsheet_sync_service import get_spreadsheet_sync_service
 
         db = self._get_db()
@@ -392,13 +410,13 @@ class EmailScheduler:
                     job.dedup_action = action
 
                     if action == "duplicate":
-                        logger.info(
-                            "Skipping duplicate round %s group=%s", job.date, job.group
-                        )
+                        logger.info("Skipping duplicate round %s group=%s", job.date, job.group)
                     else:
                         logger.info(
                             "Writing %s round %s group=%s to sheet",
-                            action, job.date, job.group,
+                            action,
+                            job.date,
+                            job.group,
                         )
                         game_date = dt.strptime(job.date, "%Y-%m-%d")
                         svc = get_spreadsheet_sync_service()
@@ -443,11 +461,7 @@ class EmailScheduler:
 
         incoming_players = set(job.player_scores.keys())
 
-        existing = (
-            db.query(LegacyRound)
-            .filter(LegacyRound.date == job.date, LegacyRound.group == job.group)
-            .all()
-        )
+        existing = db.query(LegacyRound).filter(LegacyRound.date == job.date, LegacyRound.group == job.group).all()
         if not existing:
             return "new"
 

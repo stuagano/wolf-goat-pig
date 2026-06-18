@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../theme/Provider';
 import { apiConfig } from '../../config/api.config';
+import { calculateCourseHandicap } from '../../utils';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -299,7 +300,7 @@ const GHINIntegration = () => {
                       {player.ghin_id || 'None'}
                     </td>
                     <td style={{ padding: '12px' }}>
-                      {player.handicap ? player.handicap.toFixed(1) : 'N/A'}
+                      {player.handicap ? calculateCourseHandicap(player.handicap) : 'N/A'}
                       {player.ghin_last_updated && (
                         <div style={{ fontSize: '12px', color: theme.colors.textSecondary }}>
                           Updated: {new Date(player.ghin_last_updated).toLocaleDateString()}

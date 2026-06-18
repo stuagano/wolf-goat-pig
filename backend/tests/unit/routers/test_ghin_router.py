@@ -61,9 +61,7 @@ class TestGhinLookup:
     def test_returns_200_on_success(self, MockGHINService):
         mock_svc = MagicMock()
         mock_svc.initialize = AsyncMock(return_value=True)
-        mock_svc.search_golfers = AsyncMock(
-            return_value={"golfers": [{"name": "Smith", "ghin_number": "123456"}]}
-        )
+        mock_svc.search_golfers = AsyncMock(return_value={"golfers": [{"name": "Smith", "ghin_number": "123456"}]})
         MockGHINService.return_value = mock_svc
 
         resp = client.get("/ghin/lookup", params={"last_name": "Smith"})
@@ -112,9 +110,7 @@ class TestSyncPlayerHandicap:
     def test_returns_200_on_success(self, MockGHINService):
         mock_svc = MagicMock()
         mock_svc.initialize = AsyncMock(return_value=True)
-        mock_svc.sync_player_handicap = AsyncMock(
-            return_value={"handicap_index": 12.5, "ghin_number": "123456"}
-        )
+        mock_svc.sync_player_handicap = AsyncMock(return_value={"handicap_index": 12.5, "ghin_number": "123456"})
         MockGHINService.return_value = mock_svc
 
         resp = client.post("/ghin/sync-player-handicap/1")
@@ -158,9 +154,7 @@ class TestSyncAllHandicaps:
         mock_svc = MagicMock()
         mock_svc.initialize = AsyncMock(return_value=True)
         mock_svc.is_available = MagicMock(return_value=True)
-        mock_svc.sync_all_players_handicaps = AsyncMock(
-            return_value={"synced": 3, "failed": 0}
-        )
+        mock_svc.sync_all_players_handicaps = AsyncMock(return_value={"synced": 3, "failed": 0})
         MockGHINService.return_value = mock_svc
 
         resp = client.post("/ghin/sync-handicaps")

@@ -260,13 +260,12 @@ class TestExportCurrentData:
 
 
 class TestSyncWgpSheetData:
-    def test_returns_400_without_csv_url(self):
+    def test_returns_422_without_csv_url(self):
         resp = client.post(
             "/sheet-integration/sync-wgp-sheet",
             json={},
         )
-        assert resp.status_code == 400
-        assert "CSV URL is required" in resp.json()["detail"]
+        assert resp.status_code == 422
 
     @patch("app.routers.sheet_integration.sheet_sync_cache")
     @patch("app.routers.sheet_integration.rate_limiter")
@@ -313,11 +312,7 @@ class TestSyncWgpSheetData:
     def test_parses_csv_and_syncs_players(self, mock_httpx_cls, mock_rate_limiter, mock_cache):
         mock_cache.get.return_value = None
 
-        csv_content = (
-            "Member,Score,Rounds,Average\n"
-            "Alice,10,5,2.0\n"
-            "Bob,-5,3,-1.67\n"
-        )
+        csv_content = "Member,Score,Rounds,Average\nAlice,10,5,2.0\nBob,-5,3,-1.67\n"
         mock_response = MagicMock()
         mock_response.text = csv_content
         mock_response.raise_for_status = MagicMock()
@@ -344,11 +339,7 @@ class TestSyncWgpSheetData:
     def test_skips_summary_rows(self, mock_httpx_cls, mock_rate_limiter, mock_cache):
         mock_cache.get.return_value = None
 
-        csv_content = (
-            "Member,Quarters,Rounds\n"
-            "Alice,10,5\n"
-            "Total,100,50\n"
-        )
+        csv_content = "Member,Quarters,Rounds\nAlice,10,5\nTotal,100,50\n"
         mock_response = MagicMock()
         mock_response.text = csv_content
         mock_response.raise_for_status = MagicMock()
@@ -372,12 +363,7 @@ class TestSyncWgpSheetData:
     def test_stops_at_summary_section(self, mock_httpx_cls, mock_rate_limiter, mock_cache):
         mock_cache.get.return_value = None
 
-        csv_content = (
-            "Member,Quarters,Rounds\n"
-            "Alice,10,5\n"
-            "Most Rounds Played,,\n"
-            "Bob,20,10\n"
-        )
+        csv_content = "Member,Quarters,Rounds\nAlice,10,5\nMost Rounds Played,,\nBob,20,10\n"
         mock_response = MagicMock()
         mock_response.text = csv_content
         mock_response.raise_for_status = MagicMock()
@@ -425,14 +411,13 @@ class TestSyncWgpSheetData:
 
 
 class TestFetchGoogleSheet:
-    def test_returns_500_without_csv_url(self):
-        """Missing csv_url raises HTTPException(400), but the outer except Exception
-        catches it and re-raises as 500."""
+    def test_returns_422_without_csv_url(self):
+        """Missing csv_url fails Pydantic body validation before the handler runs."""
         resp = client.post(
             "/sheet-integration/fetch-google-sheet",
             json={},
         )
-        assert resp.status_code == 500
+        assert resp.status_code == 422
 
     @patch("httpx.AsyncClient")
     def test_returns_200_with_valid_csv(self, mock_httpx_cls):
@@ -482,9 +467,7 @@ class TestFetchGoogleSheet:
         import httpx
 
         mock_client = AsyncMock()
-        mock_client.get = AsyncMock(
-            side_effect=httpx.RequestError("Connection failed", request=MagicMock())
-        )
+        mock_client.get = AsyncMock(side_effect=httpx.RequestError("Connection failed", request=MagicMock()))
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
         mock_httpx_cls.return_value = mock_client
@@ -509,14 +492,13 @@ class TestFetchGoogleSheet:
 
 
 class TestCompareSheetToDbData:
-    def test_returns_500_without_sheet_data(self):
-        """Missing sheet_data raises HTTPException(400), but the outer except Exception
-        catches it and re-raises as 500."""
+    def test_returns_422_without_sheet_data(self):
+        """Missing sheet_data fails Pydantic body validation before the handler runs."""
         resp = client.post(
             "/sheet-integration/compare-data",
             json={},
         )
-        assert resp.status_code == 500
+        assert resp.status_code == 422
 
     @patch("app.services.leaderboard_service.LeaderboardService")
     def test_returns_200_on_success(self, mock_cls):
@@ -641,3 +623,24 @@ class TestSafeInt:
         from app.routers.sheet_integration import safe_int
 
         assert safe_int(200, max_val=100) == 100
+
+
+class TestSheetIntegrationBodyValidation:
+    def _client(self):
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        return TestClient(app)
+
+    def test_sync_missing_csv_url_returns_422(self):
+        resp = self._client().post("/sheet-integration/sync-wgp-sheet", json={})
+        assert resp.status_code == 422
+
+    def test_fetch_missing_csv_url_returns_422(self):
+        resp = self._client().post("/sheet-integration/fetch-google-sheet", json={})
+        assert resp.status_code == 422
+
+    def test_compare_missing_sheet_data_returns_422(self):
+        resp = self._client().post("/sheet-integration/compare-data", json={})
+        assert resp.status_code == 422

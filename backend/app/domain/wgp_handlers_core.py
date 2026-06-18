@@ -7,7 +7,6 @@ These are plain async functions (no APIRouter). The router in
 
 import logging
 import traceback
-from datetime import datetime
 from typing import Any
 
 from fastapi import HTTPException
@@ -15,6 +14,7 @@ from fastapi import HTTPException
 from ..managers.rule_manager import RuleManager
 from ..schemas import ActionResponse
 from ..state.course_manager import CourseManager
+from ..utils.time import utc_now
 from ..validators import GameStateValidator, HandicapValidator
 from ..wolf_goat_pig import Player, WolfGoatPigGame
 
@@ -32,6 +32,7 @@ game: WolfGoatPigGame | None = None
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
+
 
 def _get_current_captain_id() -> str | None:
     """Best-effort lookup for the active captain id across legacy and unified state."""
@@ -69,6 +70,7 @@ def _serialize_game_state():
 # ---------------------------------------------------------------------------
 # Handlers — core game flow
 # ---------------------------------------------------------------------------
+
 
 async def handle_initialize_game(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle game initialization with robust error handling and fallbacks"""
@@ -247,7 +249,7 @@ async def handle_initialize_game(game: WolfGoatPigGame, payload: dict[str, Any])
             ],
             timeline_event={
                 "id": "init_1",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": utc_now().isoformat(),
                 "type": "game_start",
                 "description": f"Game started with {len(players)} players",
                 "details": {"players": players, "course": course_name},
@@ -275,7 +277,7 @@ async def handle_initialize_game(game: WolfGoatPigGame, payload: dict[str, Any])
             available_actions=[{"action_type": "RETRY_INITIALIZATION", "prompt": "Try Again"}],
             timeline_event={
                 "id": "init_error",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": utc_now().isoformat(),
                 "type": "initialization_error",
                 "description": "Game initialization failed",
                 "details": {"error": str(e)},
@@ -297,8 +299,8 @@ async def handle_play_shot(game: WolfGoatPigGame, payload: dict[str, Any] = None
                 log_message="No players available to hit",
                 available_actions=[],
                 timeline_event={
-                    "id": f"shot_{datetime.now().timestamp()}",
-                    "timestamp": datetime.now().isoformat(),
+                    "id": f"shot_{utc_now().timestamp()}",
+                    "timestamp": utc_now().isoformat(),
                     "type": "shot",
                     "description": "No players available to hit",
                     "player_name": None,
@@ -455,8 +457,8 @@ async def handle_play_shot(game: WolfGoatPigGame, payload: dict[str, Any] = None
             shot_description += f" - {shot_result.get('distance_to_pin', 0):.0f} yards to pin"
 
         timeline_event = {
-            "id": f"shot_{datetime.now().timestamp()}",
-            "timestamp": datetime.now().isoformat(),
+            "id": f"shot_{utc_now().timestamp()}",
+            "timestamp": utc_now().isoformat(),
             "type": "shot",
             "description": shot_description,
             "player_name": player_name,
@@ -510,7 +512,7 @@ async def handle_advance_hole(game: WolfGoatPigGame) -> ActionResponse:
             ],
             timeline_event={
                 "id": f"hole_start_{game.current_hole}",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": utc_now().isoformat(),
                 "type": "hole_start",
                 "description": f"Started hole {game.current_hole}",
                 "details": {"hole_number": game.current_hole},
@@ -521,12 +523,59 @@ async def handle_advance_hole(game: WolfGoatPigGame) -> ActionResponse:
         raise HTTPException(status_code=500, detail=f"Failed to advance hole: {e!s}")
 
 
-async def handle_enter_hole_scores(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
+async def handle_enter_hole_scores(game: WolfGoatPigGame, payload: dict[str, Any], db: Any = None) -> ActionResponse:
     """Handle entering hole scores"""
     try:
         scores = payload.get("scores", {})
+        hole_number = game.current_hole
 
         result = game.enter_hole_scores(scores)
+
+        if db is not None:
+            from ..models import HoleEvent
+            from ..utils.time import utc_now as _utc_now
+
+            points_changes = result.get("points_changes", {})
+            recorded_at = _utc_now().isoformat()
+
+            for player_id, gross_score in scores.items():
+                existing = (
+                    db.query(HoleEvent)
+                    .filter(
+                        HoleEvent.game_id == game.game_id,
+                        HoleEvent.hole_number == hole_number,
+                        HoleEvent.player_id == player_id,
+                    )
+                    .first()
+                )
+                player_quarters = points_changes.get(player_id, 0)
+                if existing:
+                    existing.score = gross_score
+                    existing.quarters = player_quarters
+                    existing.recorded_at = recorded_at
+                else:
+                    db.add(
+                        HoleEvent(
+                            game_id=game.game_id,
+                            hole_number=hole_number,
+                            player_id=player_id,
+                            score=gross_score,
+                            quarters=player_quarters,
+                            recorded_at=recorded_at,
+                        )
+                    )
+            db.commit()
+
+            all_events = (
+                db.query(HoleEvent).filter(HoleEvent.game_id == game.game_id).order_by(HoleEvent.hole_number).all()
+            )
+            game.apply_hole_events(
+                [
+                    {"hole_number": e.hole_number, "player_id": e.player_id, "score": e.score, "quarters": e.quarters}
+                    for e in all_events
+                ]
+            )
+
         updated_state = game.get_game_state()
 
         return ActionResponse(
@@ -540,8 +589,8 @@ async def handle_enter_hole_scores(game: WolfGoatPigGame, payload: dict[str, Any
                 {"action_type": "ADVANCE_HOLE", "prompt": "Continue to Next Hole"},
             ],
             timeline_event={
-                "id": f"scores_entered_{game.current_hole}_{datetime.now().timestamp()}",
-                "timestamp": datetime.now().isoformat(),
+                "id": f"scores_entered_{game.current_hole}_{utc_now().timestamp()}",
+                "timestamp": utc_now().isoformat(),
                 "type": "scores_entered",
                 "description": f"Scores entered for hole {game.current_hole}",
                 "details": {"scores": scores, "points_result": result},
@@ -584,8 +633,8 @@ async def handle_complete_game(game: WolfGoatPigGame, payload: dict[str, Any]) -
             log_message=f"🎉 Game completed! {result_message}",
             available_actions=[],  # No more actions available
             timeline_event={
-                "id": f"game_completed_{game.game_state.game_id}_{datetime.now().timestamp()}",  # type: ignore
-                "timestamp": datetime.now().isoformat(),
+                "id": f"game_completed_{game.game_state.game_id}_{utc_now().timestamp()}",  # type: ignore
+                "timestamp": utc_now().isoformat(),
                 "type": "game_completed",
                 "description": "Game completed and results saved",
                 "details": {
@@ -629,8 +678,8 @@ async def handle_record_net_score(game: WolfGoatPigGame, payload: dict[str, Any]
             log_message=result,
             available_actions=[],  # No specific actions after recording score
             timeline_event={
-                "id": f"score_recorded_{player_id}_{datetime.now().timestamp()}",
-                "timestamp": datetime.now().isoformat(),
+                "id": f"score_recorded_{player_id}_{utc_now().timestamp()}",
+                "timestamp": utc_now().isoformat(),
                 "type": "score_recorded",
                 "description": f"Score {score} recorded for player {player_id}",
                 "details": {"player_id": player_id, "score": score},
@@ -665,8 +714,8 @@ async def handle_calculate_hole_points(payload: dict[str, Any]) -> ActionRespons
                 {"action_type": "ADVANCE_HOLE", "prompt": "Continue to Next Hole"},
             ],
             timeline_event={
-                "id": f"points_calculated_{game_state.current_hole}_{datetime.now().timestamp()}",
-                "timestamp": datetime.now().isoformat(),
+                "id": f"points_calculated_{game_state.current_hole}_{utc_now().timestamp()}",
+                "timestamp": utc_now().isoformat(),
                 "type": "points_calculated",
                 "description": f"Points calculated for hole {game_state.current_hole}",
                 "details": {
@@ -700,8 +749,8 @@ async def handle_get_advanced_analytics(game: WolfGoatPigGame, payload: dict[str
                 },
             ],
             timeline_event={
-                "id": f"analytics_viewed_{datetime.now().timestamp()}",
-                "timestamp": datetime.now().isoformat(),
+                "id": f"analytics_viewed_{utc_now().timestamp()}",
+                "timestamp": utc_now().isoformat(),
                 "type": "analytics_viewed",
                 "description": "Advanced analytics dashboard accessed",
                 "details": analytics,  # Include full analytics data here
@@ -725,8 +774,8 @@ async def handle_get_post_hole_analysis(game: WolfGoatPigGame, payload: dict[str
             log_message=f"Post-hole analysis generated for hole {hole_number}",
             available_actions=[{"action_type": "ADVANCE_HOLE", "prompt": "Continue to next hole"}],
             timeline_event={
-                "id": f"post_hole_analysis_{hole_number}_{datetime.now().timestamp()}",
-                "timestamp": datetime.now().isoformat(),
+                "id": f"post_hole_analysis_{hole_number}_{utc_now().timestamp()}",
+                "timestamp": utc_now().isoformat(),
                 "type": "post_hole_analysis",
                 "description": f"Comprehensive analysis of hole {hole_number}",
                 "details": analysis,

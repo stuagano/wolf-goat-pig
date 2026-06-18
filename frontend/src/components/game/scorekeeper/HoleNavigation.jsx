@@ -38,19 +38,28 @@ const HoleNavigation = ({
           </div>
         </button>
 
-        {/* Primary Action - Complete/Update Hole */}
-        <button
-          data-testid="complete-hole-button"
-          className={`thumb-zone-primary ${editingHole ? "editing" : ""}`}
-          onClick={handleSubmitHole}
-          disabled={submitting}
-        >
-          {submitting
-            ? "Submitting..."
-            : editingHole
-              ? `Update Hole ${editingHole}`
-              : `\u2713 Complete Hole ${currentHole}`}
-        </button>
+        {/* Primary Action - Complete/Update Hole.
+            A round is 18 holes; past that (edit-complete mode parks currentHole
+            at 19) there is no hole to complete, so disable the action. */}
+        {(() => {
+          const pastRound = !editingHole && currentHole > 18;
+          return (
+            <button
+              data-testid="complete-hole-button"
+              className={`thumb-zone-primary ${editingHole ? "editing" : ""}`}
+              onClick={handleSubmitHole}
+              disabled={submitting || pastRound}
+            >
+              {submitting
+                ? "Submitting..."
+                : editingHole
+                  ? `Update Hole ${editingHole}`
+                  : pastRound
+                    ? "Round complete"
+                    : `\u2713 Complete Hole ${currentHole}`}
+            </button>
+          );
+        })()}
 
         {/* Next Hole Navigation */}
         <button

@@ -7,6 +7,7 @@ Email sending, scheduler management, and status endpoints.
 import logging
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
 
 from ..services.email_service import get_email_service
 from ..state.app_state import get_email_scheduler, set_email_scheduler
@@ -16,8 +17,14 @@ logger = logging.getLogger("app.routers.email_routes")
 router = APIRouter(prefix="/email", tags=["email"])
 
 
+class TestEmailRequest(BaseModel):
+    to_email: str = Field(..., min_length=1)
+    player_name: str = "Test Player"
+    signup_date: str = "Tomorrow"
+
+
 @router.post("/send-test")
-async def send_test_email(email_data: dict):  # type: ignore
+async def send_test_email(email_data: TestEmailRequest):
     """Send a test email to verify email service configuration"""
     try:
         email_service = get_email_service()
@@ -28,14 +35,12 @@ async def send_test_email(email_data: dict):  # type: ignore
                 detail="Email service not configured. Please set SMTP_USER, SMTP_PASSWORD, and SMTP_HOST environment variables.",
             )
 
-        to_email = email_data.get("to_email")
-        if not to_email:
-            raise HTTPException(status_code=400, detail="to_email is required")
+        to_email = email_data.to_email
 
         success = email_service.send_signup_confirmation(
             to_email=to_email,
-            player_name=email_data.get("player_name", "Test Player"),
-            signup_date=email_data.get("signup_date", "Tomorrow"),
+            player_name=email_data.player_name,
+            signup_date=email_data.signup_date,
         )
 
         if success:

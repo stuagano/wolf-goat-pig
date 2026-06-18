@@ -3,7 +3,6 @@ Endpoint to update course data for in-progress games
 """
 
 import logging
-from datetime import UTC
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -12,6 +11,7 @@ from sqlalchemy.orm import Session
 from .. import models
 from ..data.wing_point_course_data import WING_POINT_COURSE_DATA
 from ..database import get_db
+from ..utils.time import utc_now
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -106,9 +106,7 @@ async def update_game_course_data(game_id: str, db: Session = Depends(get_db)) -
 
         flag_modified(game, "state")
 
-        from datetime import datetime
-
-        game.updated_at = datetime.now(UTC).isoformat()
+        game.updated_at = utc_now().isoformat()
 
         db.commit()
         db.refresh(game)
@@ -219,9 +217,7 @@ async def update_all_games_course_data(db: Session = Depends(get_db)) -> dict[st
 
             flag_modified(game, "state")
 
-            from datetime import datetime
-
-            game.updated_at = datetime.now(UTC).isoformat()
+            game.updated_at = utc_now().isoformat()
 
             games_updated += 1
             total_holes_updated += holes_updated_this_game

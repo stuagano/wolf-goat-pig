@@ -3,26 +3,20 @@ Badge System Seeds - Initialize all badges in the database
 Run this script to populate the badge system with all available badges.
 """
 
-from datetime import UTC, datetime
 from typing import cast
 
 from sqlalchemy.orm import Session
 
 from .database import SessionLocal
 from .models import Badge, BadgeSeries, SeasonalBadge
+from .utils.time import utc_now
 
 
 def seed_badges(db: Session) -> None:
     """Seed all badges into the database"""
 
-    # Clear existing badges if reseeding
-    # db.query(Badge).delete()
-    # db.query(BadgeSeries).delete()
-    # db.query(SeasonalBadge).delete()
-    # db.commit()
-
     badge_id_counter = 1
-    created_at = datetime.now(UTC).isoformat()
+    created_at = utc_now().isoformat()
 
     # ====================================================================================
     # ACHIEVEMENT BADGES - One-Time Unlocks
@@ -38,6 +32,7 @@ def seed_badges(db: Session) -> None:
             "description": "Win your first solo hole (1v3)",
             "category": "achievement",
             "rarity": "common",
+            "emoji": "🐺",
             "image_url": "/badges/lone-wolf.png",
             "trigger_condition": {"type": "first_solo_win"},
             "trigger_type": "one_time",
@@ -56,6 +51,7 @@ def seed_badges(db: Session) -> None:
             "description": "Win 3 consecutive solo holes in one game",
             "category": "achievement",
             "rarity": "rare",
+            "emoji": "🦅",
             "image_url": "/badges/alpha-predator.png",
             "trigger_condition": {"type": "triple_solo_streak"},
             "trigger_type": "one_time",
@@ -74,6 +70,7 @@ def seed_badges(db: Session) -> None:
             "description": "Win 50 solo holes (career)",
             "category": "achievement",
             "rarity": "epic",
+            "emoji": "👑",
             "image_url": "/badges/wolf-pack-leader.png",
             "trigger_condition": {"type": "career_solo_50"},
             "trigger_type": "one_time",
@@ -92,6 +89,7 @@ def seed_badges(db: Session) -> None:
             "description": "Win a game going solo on every hole",
             "category": "achievement",
             "rarity": "legendary",
+            "emoji": "⚡",
             "image_url": "/badges/apex-lone-wolf.png",
             "trigger_condition": {"type": "solo_all_18"},
             "trigger_type": "one_time",
@@ -111,6 +109,7 @@ def seed_badges(db: Session) -> None:
             "description": "Win 5 partnership holes with same partner",
             "category": "achievement",
             "rarity": "common",
+            "emoji": "🤝",
             "image_url": "/badges/dynamic-duo.png",
             "trigger_condition": {"type": "first_partnership"},
             "trigger_type": "one_time",
@@ -129,6 +128,7 @@ def seed_badges(db: Session) -> None:
             "description": "100% partnership success rate (minimum 10 holes)",
             "category": "achievement",
             "rarity": "rare",
+            "emoji": "💎",
             "image_url": "/badges/perfect-partnership.png",
             "trigger_condition": {"type": "perfect_partnership_rate"},
             "trigger_type": "one_time",
@@ -148,6 +148,7 @@ def seed_badges(db: Session) -> None:
             "description": "Accept 5 doubles in a single game",
             "category": "achievement",
             "rarity": "common",
+            "emoji": "🎲",
             "image_url": "/badges/high-roller.png",
             "trigger_condition": {"type": "high_roller"},
             "trigger_type": "one_time",
@@ -166,6 +167,7 @@ def seed_badges(db: Session) -> None:
             "description": "Win a redoubled hole (4x+ wager)",
             "category": "achievement",
             "rarity": "rare",
+            "emoji": "💪",
             "image_url": "/badges/pressure-player.png",
             "trigger_condition": {"type": "win_redoubled"},
             "trigger_type": "one_time",
@@ -184,6 +186,7 @@ def seed_badges(db: Session) -> None:
             "description": "Win 100 quarters in a single game",
             "category": "achievement",
             "rarity": "epic",
+            "emoji": "🃏",
             "image_url": "/badges/the-gambler.png",
             "trigger_condition": {"type": "big_earner_100"},
             "trigger_type": "one_time",
@@ -202,6 +205,7 @@ def seed_badges(db: Session) -> None:
             "description": "Receive 50 quarters via Karl Marx rule (career)",
             "category": "achievement",
             "rarity": "rare",
+            "emoji": "☭",
             "image_url": "/badges/karl-marx-favorite.png",
             "trigger_condition": {"type": "karl_marx_50", "target": 50},
             "trigger_type": "one_time",
@@ -221,6 +225,7 @@ def seed_badges(db: Session) -> None:
             "description": "Make a hole-in-one",
             "category": "rare_event",
             "rarity": "mythic",
+            "emoji": "🦄",
             "image_url": "/badges/unicorn.png",
             "trigger_condition": {"type": "hole_in_one"},
             "trigger_type": "one_time",
@@ -239,6 +244,7 @@ def seed_badges(db: Session) -> None:
             "description": "Win every hole in a game",
             "category": "rare_event",
             "rarity": "legendary",
+            "emoji": "🏆",
             "image_url": "/badges/perfect-game.png",
             "trigger_condition": {"type": "perfect_game"},
             "trigger_type": "one_time",
@@ -257,6 +263,7 @@ def seed_badges(db: Session) -> None:
             "description": "Come back from 20+ quarters down to win",
             "category": "rare_event",
             "rarity": "epic",
+            "emoji": "🔥",
             "image_url": "/badges/lazarus.png",
             "trigger_condition": {"type": "comeback_20"},
             "trigger_type": "one_time",
@@ -268,7 +275,6 @@ def seed_badges(db: Session) -> None:
     )
     badge_id_counter += 1
 
-    # Add all achievement badges
     for badge_data in achievement_badges:
         badge = Badge(**badge_data)
         db.add(badge)
@@ -279,16 +285,11 @@ def seed_badges(db: Session) -> None:
 
     # Career Earnings Tiers
     earnings_tiers = [
-        {"tier": 0, "name": "Bronze Earner", "threshold": 100, "rarity": "common"},
-        {"tier": 1, "name": "Silver Earner", "threshold": 500, "rarity": "rare"},
-        {"tier": 2, "name": "Gold Earner", "threshold": 2000, "rarity": "epic"},
-        {
-            "tier": 3,
-            "name": "Platinum Earner",
-            "threshold": 10000,
-            "rarity": "legendary",
-        },
-        {"tier": 4, "name": "Diamond Earner", "threshold": 50000, "rarity": "mythic"},
+        {"tier": 0, "name": "Bronze Earner", "threshold": 100, "rarity": "common", "emoji": "🥉"},
+        {"tier": 1, "name": "Silver Earner", "threshold": 500, "rarity": "rare", "emoji": "🥈"},
+        {"tier": 2, "name": "Gold Earner", "threshold": 2000, "rarity": "epic", "emoji": "🥇"},
+        {"tier": 3, "name": "Platinum Earner", "threshold": 10000, "rarity": "legendary", "emoji": "💰"},
+        {"tier": 4, "name": "Diamond Earner", "threshold": 50000, "rarity": "mythic", "emoji": "💎"},
     ]
 
     for tier_data in earnings_tiers:
@@ -298,6 +299,7 @@ def seed_badges(db: Session) -> None:
             description=f"Earn {tier_data['threshold']} quarters (career)",
             category="progression",
             rarity=tier_data["rarity"],
+            emoji=tier_data["emoji"],
             image_url=f"/badges/earnings-{tier_data['tier']}.png",
             trigger_condition={
                 "type": "earnings_milestone",
@@ -315,16 +317,15 @@ def seed_badges(db: Session) -> None:
 
     # Games Played Tiers
     games_tiers = [
-        {"tier": 0, "name": "Rookie", "threshold": 10, "rarity": "common"},
-        {"tier": 1, "name": "Banquet Eligible", "threshold": 20, "rarity": "common"},
-        {"tier": 2, "name": "Journeyman", "threshold": 50, "rarity": "rare"},
-        {"tier": 3, "name": "Veteran", "threshold": 200, "rarity": "epic"},
-        {"tier": 4, "name": "Legend", "threshold": 500, "rarity": "legendary"},
-        {"tier": 5, "name": "Immortal", "threshold": 1000, "rarity": "mythic"},
+        {"tier": 0, "name": "Rookie", "threshold": 10, "rarity": "common", "emoji": "🌱"},
+        {"tier": 1, "name": "Banquet Eligible", "threshold": 20, "rarity": "common", "emoji": "🍽️"},
+        {"tier": 2, "name": "Journeyman", "threshold": 50, "rarity": "rare", "emoji": "⛳"},
+        {"tier": 3, "name": "Veteran", "threshold": 200, "rarity": "epic", "emoji": "🎖️"},
+        {"tier": 4, "name": "Legend", "threshold": 500, "rarity": "legendary", "emoji": "🌟"},
+        {"tier": 5, "name": "Immortal", "threshold": 1000, "rarity": "mythic", "emoji": "♾️"},
     ]
 
     for tier_data in games_tiers:
-        # Special description for Banquet Eligible badge
         if tier_data["name"] == "Banquet Eligible":
             description = f"Play {tier_data['threshold']} games - Earn voting rights at the Annual Banquet"
         else:
@@ -336,6 +337,7 @@ def seed_badges(db: Session) -> None:
             description=description,
             category="progression",
             rarity=tier_data["rarity"],
+            emoji=tier_data["emoji"],
             image_url=f"/badges/games-{tier_data['tier']}.png",
             trigger_condition={
                 "type": "games_played_milestone",
@@ -353,11 +355,11 @@ def seed_badges(db: Session) -> None:
 
     # Holes Won Tiers
     holes_tiers = [
-        {"tier": 0, "name": "Scrapper", "threshold": 50, "rarity": "common"},
-        {"tier": 1, "name": "Competitor", "threshold": 250, "rarity": "rare"},
-        {"tier": 2, "name": "Champion", "threshold": 1000, "rarity": "epic"},
-        {"tier": 3, "name": "Dominator", "threshold": 5000, "rarity": "legendary"},
-        {"tier": 4, "name": "Untouchable", "threshold": 20000, "rarity": "mythic"},
+        {"tier": 0, "name": "Scrapper", "threshold": 50, "rarity": "common", "emoji": "⚔️"},
+        {"tier": 1, "name": "Competitor", "threshold": 250, "rarity": "rare", "emoji": "🥊"},
+        {"tier": 2, "name": "Champion", "threshold": 1000, "rarity": "epic", "emoji": "🏅"},
+        {"tier": 3, "name": "Dominator", "threshold": 5000, "rarity": "legendary", "emoji": "👊"},
+        {"tier": 4, "name": "Untouchable", "threshold": 20000, "rarity": "mythic", "emoji": "🛡️"},
     ]
 
     for tier_data in holes_tiers:
@@ -367,6 +369,7 @@ def seed_badges(db: Session) -> None:
             description=f"Win {tier_data['threshold']} holes",
             category="progression",
             rarity=tier_data["rarity"],
+            emoji=tier_data["emoji"],
             image_url=f"/badges/holes-{tier_data['tier']}.png",
             trigger_condition={
                 "type": "holes_won_milestone",
@@ -384,10 +387,10 @@ def seed_badges(db: Session) -> None:
 
     # Win Rate Badges
     winrate_badges = [
-        {"name": "Iron Will", "rate": 0.40, "rarity": "rare"},
-        {"name": "Consistent Crusher", "rate": 0.50, "rarity": "epic"},
-        {"name": "Dominance", "rate": 0.60, "rarity": "legendary"},
-        {"name": "Godlike", "rate": 0.70, "rarity": "mythic"},
+        {"name": "Iron Will", "rate": 0.40, "rarity": "rare", "emoji": "🔩"},
+        {"name": "Consistent Crusher", "rate": 0.50, "rarity": "epic", "emoji": "💥"},
+        {"name": "Dominance", "rate": 0.60, "rarity": "legendary", "emoji": "😤"},
+        {"name": "Godlike", "rate": 0.70, "rarity": "mythic", "emoji": "🌩️"},
     ]
 
     for wr_data in winrate_badges:
@@ -398,6 +401,7 @@ def seed_badges(db: Session) -> None:
             description=f"{int(rate_val * 100)}% win rate (minimum 100 holes played)",
             category="progression",
             rarity=wr_data["rarity"],
+            emoji=wr_data["emoji"],
             image_url=f"/badges/winrate-{int(rate_val * 100)}.png",
             trigger_condition={"type": "win_rate_badge", "win_rate": wr_data["rate"]},
             trigger_type="career_milestone",
@@ -413,13 +417,12 @@ def seed_badges(db: Session) -> None:
     # COLLECTIBLE SERIES - Four Horsemen
     # ====================================================================================
 
-    # Create the series first
     four_horsemen_series = BadgeSeries(
         name="Four Horsemen",
         description="Collect all four badges to unlock Apocalypse Master",
         category="collectible",
         badge_count=4,
-        completion_badge_id=None,  # Will set after creating badges
+        completion_badge_id=None,
         image_url="/badges/series-four-horsemen.png",
         is_active=True,
         created_at=created_at,
@@ -428,7 +431,6 @@ def seed_badges(db: Session) -> None:
     db.commit()
     db.refresh(four_horsemen_series)
 
-    # Four Horsemen Badges
     horsemen_badges = []
 
     horsemen_badges.append(
@@ -438,6 +440,7 @@ def seed_badges(db: Session) -> None:
             description="Win 10 redoubled holes (career)",
             category="collectible_series",
             rarity="epic",
+            emoji="⚔️",
             image_url="/badges/horseman-war.png",
             trigger_condition={"type": "four_horsemen_war", "target": 10},
             trigger_type="one_time",
@@ -457,6 +460,7 @@ def seed_badges(db: Session) -> None:
             description="Bankrupt an opponent (reduce to -50 quarters)",
             category="collectible_series",
             rarity="epic",
+            emoji="💀",
             image_url="/badges/horseman-famine.png",
             trigger_condition={"type": "four_horsemen_famine"},
             trigger_type="one_time",
@@ -476,6 +480,7 @@ def seed_badges(db: Session) -> None:
             description="Win 5 games in a row",
             category="collectible_series",
             rarity="epic",
+            emoji="🦠",
             image_url="/badges/horseman-pestilence.png",
             trigger_condition={"type": "four_horsemen_pestilence"},
             trigger_type="one_time",
@@ -495,6 +500,7 @@ def seed_badges(db: Session) -> None:
             description="Eliminate all 3 opponents in solo mode",
             category="collectible_series",
             rarity="epic",
+            emoji="💀",
             image_url="/badges/horseman-death.png",
             trigger_condition={"type": "four_horsemen_death"},
             trigger_type="one_time",
@@ -510,13 +516,13 @@ def seed_badges(db: Session) -> None:
     for badge in horsemen_badges:
         db.add(badge)
 
-    # Create completion badge
     apocalypse_master = Badge(
         badge_id=badge_id_counter,
         name="Apocalypse Master",
         description="Completed the Four Horsemen collection",
         category="collectible_series",
         rarity="legendary",
+        emoji="🌋",
         image_url="/badges/apocalypse-master.png",
         trigger_condition={
             "type": "series_completion",
@@ -533,7 +539,6 @@ def seed_badges(db: Session) -> None:
     db.commit()
     db.refresh(apocalypse_master)
 
-    # Update series with completion badge
     four_horsemen_series.completion_badge_id = apocalypse_master.id
     db.commit()
     badge_id_counter += 1
@@ -542,13 +547,13 @@ def seed_badges(db: Session) -> None:
     # SEASONAL BADGES
     # ====================================================================================
 
-    # Example: New Year Dominator (January 2026)
     new_year_badge = Badge(
         badge_id=badge_id_counter,
         name="New Year Dominator",
         description="Win 15 games during January 2026",
         category="seasonal",
         rarity="rare",
+        emoji="🎆",
         image_url="/badges/new-year-2026.png",
         trigger_condition={
             "type": "monthly_challenge",
@@ -566,13 +571,12 @@ def seed_badges(db: Session) -> None:
     db.commit()
     db.refresh(new_year_badge)
 
-    # Create seasonal badge entry
     seasonal_entry = SeasonalBadge(
         badge_id=new_year_badge.id,
         season_name="January 2026",
         start_date="2026-01-01",
         end_date="2026-01-31",
-        is_active=False,  # Activate when ready
+        is_active=False,
         max_earners=1000,
         current_earners=0,
         created_at=created_at,

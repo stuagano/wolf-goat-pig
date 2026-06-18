@@ -1,30 +1,18 @@
-"""Hole operations routes — complete, update, delete holes; rotation; wagers; quarters-only scoring."""
+"""Hole operations — quarters-only scoring, per-player corrections, logs, validation."""
 
 import json
 import logging
 import traceback
-from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
-from .. import database, models, schemas
-from ..managers.websocket_manager import manager as websocket_manager
-from ..schemas import CompleteHoleRequest, RotationSelectionRequest
-from ..services.game_lifecycle_service import get_game_lifecycle_service
-from ..services.hole_completion_service import (
-    process_complete_hole,
-    process_update_hole,
-    replay_player_totals,
-    run_complete_hole_validations,
-    run_update_hole_validations,
-    sync_simulation,
-)
-from ..services.notification_service import get_notification_service
-from ..wolf_goat_pig import Player, WolfGoatPigGame
+from .. import database, models
+from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -35,11 +23,24 @@ router = APIRouter(prefix="/games", tags=["games"])
 # Models
 # ---------------------------------------------------------------------------
 
-class QuartersOnlyRequest(BaseModel):
-    """Simplified scoring request - just quarters per hole per player"""
 
-    hole_quarters: dict[str, dict[str, float]]  # { "1": { "player1": 2, "player2": -2 }, ... }
-    optional_details: dict[str, dict[str, Any]] | None = None  # { "1": { "notes": "..." }, ... }
+# A standard round is complete only when every hole 1-18 has score data.
+REQUIRED_HOLES = frozenset(range(1, 19))
+
+
+class HoleScore(BaseModel):
+    hole_number: int
+    quarters: dict[str, float]  # { player_id: quarters_won_or_lost }
+    gross_scores: dict[str, int] | None = None
+    notes: str | None = None
+    teams: Any | None = None
+    winner: str | None = None
+    wager: float | None = None
+    phase: str | None = None
+
+
+class ScoresRequest(BaseModel):
+    holes: list[HoleScore]
     current_hole: int = 18
 
 
@@ -48,598 +49,138 @@ class QuartersOnlyRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-@router.post("/{game_id}/holes/complete", deprecated=True)
-async def complete_hole(  # type: ignore
-    game_id: str, request: CompleteHoleRequest, db: Session = Depends(database.get_db)
-):
-    """
-    DEPRECATED: Use POST /games/{game_id}/quarters-only instead.
-
-    This endpoint has complex validation for special rules (Joe's Special, Big Dick,
-    Aardvark, Float, carry-over). For simplified scoring, use the quarters-only endpoint
-    which only validates that each hole sums to zero.
-
-    Complete a hole with all data at once - simplified scorekeeper mode.
-    No state machine validation, just direct data storage.
-    """
-    try:
-        # Get game from database
-        game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
-
-        if not game:
-            raise HTTPException(status_code=404, detail="Game not found")
-
-        game_state = game.state or {}
-
-        # Validate request
-        run_complete_hole_validations(request, game_state)
-
-        # Process hole completion (scoring, state updates)
-        hole_result, game_state = process_complete_hole(request, game_state)
-
-        # Persist to database
-        game.state = game_state
-        game.updated_at = datetime.now(UTC).isoformat()
-
-        from sqlalchemy.orm.attributes import flag_modified
-
-        flag_modified(game, "state")
-
-        db.commit()
-        db.refresh(game)
-
-        # Sync to in-memory simulation if present
-        sync_simulation(game_id, game_state, request)
-
-        logger.info(f"Completed hole {request.hole_number} for game {game_id}")
-
-        await websocket_manager.broadcast(json.dumps({"game_state": game_state}), game_id)
-
-        # Send game end notifications when final hole (18) is completed
-        if request.hole_number == 18:
-            try:
-                notification_service = get_notification_service()
-                final_standings = sorted(
-                    game_state.get("players", []),
-                    key=lambda p: p.get("points", 0),
-                    reverse=True,
-                )
-                winner_name = final_standings[0].get("id", "Unknown") if final_standings else "Unknown"
-                winner_points = final_standings[0].get("points", 0) if final_standings else 0
-
-                notification_service.broadcast_to_game(
-                    game_id=game_id,
-                    notification_type="game_end",
-                    message=f"Game completed! Winner: {winner_name} with {winner_points:+.0f}Q",
-                    db=db,
-                    data={
-                        "game_id": game_id,
-                        "final_standings": [{"id": p.get("id"), "points": p.get("points", 0)} for p in final_standings],
-                    },
-                )
-                logger.info(f"Sent game_end notifications for game {game_id}")
-            except Exception as notify_error:
-                # Don't fail the hole completion if notifications fail
-                logger.warning(f"Failed to send game_end notifications: {notify_error}")
-
-        return {
-            "success": True,
-            "game_state": game_state,
-            "hole_result": hole_result,
-            "message": f"Hole {request.hole_number} completed successfully",
-        }
-
-    except HTTPException:
-        # Re-raise HTTPException without wrapping
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error completing hole: {e}")
-        raise HTTPException(status_code=500, detail=f"Error completing hole: {e!s}")
-
-
-@router.patch("/{game_id}/holes/{hole_number}")
-async def update_hole(  # type: ignore
-    game_id: str,
-    hole_number: int,
-    request: CompleteHoleRequest,
-    db: Session = Depends(database.get_db),
-):
-    """
-    Update an existing hole's data. Uses same validation as complete_hole.
-    Recalculates all player totals from scratch after update.
-    """
-    try:
-        # Validate hole_number matches request
-        if request.hole_number != hole_number:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Hole number in URL ({hole_number}) must match request body ({request.hole_number})",
-            )
-
-        # Get game from database
-        game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
-
-        if not game:
-            raise HTTPException(status_code=404, detail="Game not found")
-
-        game_state = game.state or {}
-
-        # Check if hole exists
-        if "hole_history" not in game_state:
-            raise HTTPException(status_code=404, detail="No holes recorded for this game")
-
-        existing_hole_index = next(
-            (i for i, h in enumerate(game_state["hole_history"]) if h.get("hole") == hole_number),
-            None,
-        )
-
-        if existing_hole_index is None:
-            raise HTTPException(status_code=404, detail=f"Hole {hole_number} not found in game history")
-
-        # Validate request
-        run_update_hole_validations(request, hole_number)
-
-        # Process hole update (scoring, replay totals)
-        hole_result, game_state = process_update_hole(request, game_state, hole_number, existing_hole_index)
-
-        # Persist to database
-        game.state = game_state
-        game.updated_at = datetime.now(UTC).isoformat()
-
-        from sqlalchemy.orm.attributes import flag_modified
-
-        flag_modified(game, "state")
-
-        db.commit()
-        db.refresh(game)
-
-        logger.info(f"Updated hole {hole_number} for game {game_id}")
-
-        await websocket_manager.broadcast(json.dumps({"game_state": game_state}), game_id)
-        return {
-            "success": True,
-            "game_state": game_state,
-            "hole_result": hole_result,
-            "message": f"Hole {hole_number} updated successfully",
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error updating hole: {e}")
-        raise HTTPException(status_code=500, detail=f"Error updating hole: {e!s}")
-
-
 @router.delete("/{game_id}/holes/{hole_number}")
 async def delete_hole(game_id: str, hole_number: int, db: Session = Depends(database.get_db)):  # type: ignore
     """
-    Delete a hole from hole_history.
-    Recalculates all player totals and updates current_hole if needed.
+    Delete a hole's data. Removes from hole_events (source of truth) and from
+    the game state hole_history blob. Recalculates standings from what remains.
     """
-    try:
-        # Get game from database
-        game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
+    game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
 
-        if not game:
-            raise HTTPException(status_code=404, detail="Game not found")
+    events = (
+        db.query(models.HoleEvent)
+        .filter(models.HoleEvent.game_id == game_id, models.HoleEvent.hole_number == hole_number)
+        .all()
+    )
+    if not events:
+        raise HTTPException(status_code=404, detail=f"Hole {hole_number} not found")
 
-        game_state = game.state or {}
+    for row in events:
+        db.delete(row)
 
-        # Check if hole exists
-        if "hole_history" not in game_state or not game_state["hole_history"]:
-            raise HTTPException(status_code=404, detail="No holes recorded for this game")
+    # Keep hole_history blob in sync
+    state = game.state or {}
+    state["hole_history"] = [h for h in state.get("hole_history", []) if h.get("hole") != hole_number]
 
-        existing_hole_index = next(
-            (i for i, h in enumerate(game_state["hole_history"]) if h.get("hole") == hole_number),
-            None,
-        )
+    # Recalculate standings from remaining hole_history
+    standings: dict[str, float] = {}
+    for entry in state["hole_history"]:
+        for pid, q in entry.get("points_delta", {}).items():
+            standings[pid] = standings.get(pid, 0) + q
+    state["standings"] = standings
+    for p in state.get("players", []):
+        p["total_points"] = standings.get(p.get("id"), 0)
 
-        if existing_hole_index is None:
-            raise HTTPException(status_code=404, detail=f"Hole {hole_number} not found in game history")
+    flag_modified(game, "state")
+    game.updated_at = utc_now().isoformat()
+    db.commit()
 
-        # Remove the hole from history
-        deleted_hole = game_state["hole_history"].pop(existing_hole_index)
-
-        # Replay all player totals from scratch
-        replay_player_totals(game_state)
-
-        # Update current_hole if the deleted hole was the last one played
-        max_hole_played = max([h.get("hole", 0) for h in game_state["hole_history"]], default=0)
-        game_state["current_hole"] = max_hole_played + 1
-
-        # Update game state in database
-        game.state = game_state
-        game.updated_at = datetime.now(UTC).isoformat()
-
-        from sqlalchemy.orm.attributes import flag_modified
-
-        flag_modified(game, "state")
-
-        db.commit()
-        db.refresh(game)
-
-        logger.info(f"Deleted hole {hole_number} from game {game_id}")
-
-        return {
-            "success": True,
-            "game_state": game_state,
-            "deleted_hole": deleted_hole,
-            "message": f"Hole {hole_number} deleted successfully",
-            "remaining_holes": len(game_state["hole_history"]),
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error deleting hole: {e}")
-        raise HTTPException(status_code=500, detail=f"Error deleting hole: {e!s}")
+    logger.info(f"Deleted hole {hole_number} from game {game_id}")
+    return {"success": True, "game_id": game_id, "hole_number": hole_number}
 
 
-@router.get("/{game_id}/next-rotation", deprecated=True)
-async def get_next_rotation(game_id: str, db: Session = Depends(database.get_db)):  # type: ignore
-    """
-    DEPRECATED: Not needed for quarters-only scoring.
-
-    Calculate the next rotation order based on current hole.
-    Handles normal rotation and Hoepfinger special selection.
-    Only needed if tracking complex game mechanics (rotation, Hoepfinger, etc).
-    """
+@router.post("/{game_id}/scores")
+async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depends(database.get_db)):
+    """Submit hole scores for a game. Each hole must sum to zero. Upserts — safe to call repeatedly."""
     try:
         game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
-
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
 
-        game_state = game.state or {}
-        player_count = len(game_state.get("players", []))
+        # Collapse duplicate hole entries within this payload (last write wins).
+        # Offline sync can replay a hole, sending the same hole_number twice in
+        # one request. Left unmerged that double-counts standings (inflated money)
+        # and crashes the hole_events upsert on the (game,hole,player) unique
+        # constraint. Dedup by hole_number, preserving first-seen order.
+        holes = list({h.hole_number: h for h in request.holes}.values())
 
-        # Use game_state.get("current_hole", 1) for current_hole
-        current_hole = game_state.get("current_hole", 1)
-
-        # Determine Hoepfinger start based on player count
-        hoepfinger_start = {4: 17, 5: 16, 6: 13}.get(player_count, 17)
-
-        is_hoepfinger = current_hole >= hoepfinger_start
-
-        # Get last hole's rotation
-        hole_history = game_state.get("hole_history", [])
-        is_first_hole = len(hole_history) == 0
-
-        if hole_history:
-            last_hole = hole_history[-1]
-            last_rotation = last_hole.get("rotation_order", [p["id"] for p in game_state["players"]])
-        else:
-            # First hole - use player order (sorted by tee_order)
-            last_rotation = [p["id"] for p in game_state["players"]]
-
-        if is_hoepfinger:
-            # Hoepfinger: Goat (furthest down) selects position
-            # Calculate current standings
-            standings = {}
-            for player in game_state["players"]:
-                standings[player["id"]] = player.get("points", 0)
-
-            goat_id = min(standings, key=standings.get)  # type: ignore
-
-            return {
-                "is_hoepfinger": True,
-                "goat_id": goat_id,
-                "goat_selects_position": True,
-                "available_positions": list(range(player_count)),
-                "current_rotation": last_rotation,
-                "message": "Goat selects hitting position",
-            }
-        if is_first_hole:
-            # First hole - use initial tee order without rotation
-            new_rotation = last_rotation
-        else:
-            # Normal rotation: shift left by 1 from previous hole
-            new_rotation = last_rotation[1:] + [last_rotation[0]]
-
-        return {
-            "is_hoepfinger": False,
-            "rotation_order": new_rotation,
-            "captain_index": 0,
-            "captain_id": new_rotation[0],
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error calculating next rotation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/{game_id}/next-hole-wager", deprecated=True)
-async def get_next_hole_wager(  # type: ignore
-    game_id: str,
-    current_hole: int | None = None,
-    db: Session = Depends(database.get_db),
-):
-    """
-    DEPRECATED: Not needed for quarters-only scoring.
-
-    Calculate the base wager for the next hole.
-    Accounts for carry-over, Vinnie's Variation, and Hoepfinger rules.
-    Only needed if tracking complex game mechanics (wager escalation, carry-over, etc).
-    """
-    try:
-        game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
-
-        if not game:
-            raise HTTPException(status_code=404, detail="Game not found")
-
-        game_state = game.state or {}
-        player_count = len(game_state.get("players", []))
-
-        # Use provided current_hole or get from game state
-        if current_hole is None:
-            current_hole = game_state.get("current_hole", 1)
-
-        base_wager = game_state.get("base_wager", 1)
-
-        # Check for carry-over
-        if game_state.get("carry_over_wager"):
-            carry_over_wager = game_state["carry_over_wager"]
-            from_hole = game_state.get("carry_over_from_hole", current_hole - 1)
-
-            if game_state.get("consecutive_push_block"):
-                return {
-                    "base_wager": carry_over_wager,
-                    "carry_over": False,
-                    "message": f"Consecutive carry-over blocked. Base wager remains {carry_over_wager}Q from hole {from_hole}",
-                }
-            return {
-                "base_wager": carry_over_wager,
-                "carry_over": True,
-                "message": f"Carry-over from hole {from_hole} push",
-            }
-
-        # Check for The Option (Captain is Goat)
-        if not game_state.get("carry_over_wager"):  # Option doesn't stack with carry-over
-            # Calculate current standings to find Goat
-            standings = {}
-            for player in game_state.get("players", []):
-                standings[player["id"]] = player.get("points", 0)
-
-            if standings:
-                goat_id = min(standings, key=standings.get)  # type: ignore
-                goat_points = standings[goat_id]
-
-                # Option applies if Captain (first in rotation) is the Goat AND has negative points
-                hole_history = game_state.get("hole_history", [])
-                if hole_history:
-                    last_hole = hole_history[-1]
-                    next_rotation_order = last_hole.get("rotation_order", [])[1:] + [
-                        last_hole.get("rotation_order", [])[0]
-                    ]
-                    next_captain_id = next_rotation_order[0] if next_rotation_order else None
-
-                    if next_captain_id == goat_id and goat_points < 0:
-                        # Check if last hole turned off Option
-                        if not last_hole.get("option_turned_off", False):
-                            return {
-                                "base_wager": base_wager * 2,
-                                "option_active": True,
-                                "goat_id": goat_id,
-                                "carry_over": False,
-                                "vinnies_variation": False,
-                                "message": f"The Option: Captain is Goat ({goat_points}Q), wager doubled",
-                            }
-
-        # Check for Vinnie's Variation (holes 13-16 in 4-player)
-        if player_count == 4 and 13 <= current_hole <= 16:
-            return {
-                "base_wager": base_wager * 2,
-                "vinnies_variation": True,
-                "carry_over": False,
-                "message": f"Vinnie's Variation: holes 13-16 doubled (hole {current_hole})",
-            }
-
-        # Normal base wager
-        return {
-            "base_wager": base_wager,
-            "carry_over": False,
-            "vinnies_variation": False,
-            "message": "Normal base wager",
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error calculating next hole wager: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/{game_id}/select-rotation", deprecated=True)
-async def select_rotation(  # type: ignore
-    game_id: str,
-    request: RotationSelectionRequest,
-    db: Session = Depends(database.get_db),
-):
-    """
-    DEPRECATED: Not needed for quarters-only scoring.
-
-    Phase 5: Dynamic rotation selection for 5-man games on holes 16-18.
-    The Goat (lowest points player) selects their position in the rotation.
-    Only needed for complex 5-man game Hoepfinger mechanics.
-    """
-    # Get game state (follow same pattern as get_game_state_by_id)
-    service = get_game_lifecycle_service()
-    simulation = None
-    game = None
-    game_state = None
-
-    if game_id in service._active_games:
-        simulation = service._active_games[game_id]
-        game_state = simulation.get_game_state()
-    else:
-        # Fetch from database
-        game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
-
-        if not game:
-            raise HTTPException(status_code=404, detail="Game not found")
-
-        game_state = game.state
-
-    if not game_state:
-        raise HTTPException(status_code=404, detail="Game state not found")
-
-    player_count = len(game_state.get("players", []))
-
-    # Validate: Only 5-man games
-    if player_count != 5:
-        raise HTTPException(
-            status_code=400,
-            detail="Dynamic rotation selection only applies to 5-player games",
-        )
-
-    # Validate: Only holes 16, 17, 18
-    if request.hole_number not in [16, 17, 18]:
-        raise HTTPException(
-            status_code=400,
-            detail="Rotation selection only allowed on holes 16, 17, and 18",
-        )
-
-    # Validate: Position must be 1-5 for 5-man game
-    if request.selected_position < 1 or request.selected_position > 5:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid position {request.selected_position}. Must be 1-5 for 5-player games",
-        )
-
-    # Identify current Goat (player with lowest total points)
-    players = game_state.get("players", [])
-    if not players:
-        raise HTTPException(status_code=404, detail="No players found in game")
-
-    # Find player with lowest points
-    goat_player = min(players, key=lambda p: p.get("points", 0))
-    actual_goat_id = goat_player["id"]
-
-    # Validate: Request must be from actual Goat
-    if request.goat_player_id != actual_goat_id:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Only the Goat (player with lowest points) can select rotation. Current Goat is {actual_goat_id}, not {request.goat_player_id}",
-        )
-
-    # Get current rotation order (or use default player order)
-    current_rotation = game_state.get("current_rotation_order") or [p["id"] for p in players]
-
-    # Reorder rotation: Goat at selected position, others maintain relative order
-    goat_id = request.goat_player_id
-    selected_index = request.selected_position - 1  # Convert to 0-indexed
-
-    # Remove Goat from current rotation
-    rotation_without_goat = [pid for pid in current_rotation if pid != goat_id]
-
-    # Insert Goat at selected position
-    new_rotation = rotation_without_goat[:selected_index] + [goat_id] + rotation_without_goat[selected_index:]
-
-    # Store new rotation in game state
-    game_state["current_rotation_order"] = new_rotation
-
-    # Save updated rotation
-    if simulation:
-        # Update simulation state for in-progress games
-        simulation._game_state = game_state  # type: ignore
-    else:
-        # Update database for stored games
-        assert game is not None  # game is guaranteed non-None here (we returned 404 if None)
-        game.state = game_state
-        db.commit()
-
-    return {
-        "message": f"Rotation updated for hole {request.hole_number}",
-        "rotation_order": new_rotation,
-        "goat_id": goat_id,
-        "selected_position": request.selected_position,
-    }
-
-
-@router.post("/{game_id}/quarters-only")
-async def save_quarters_only(game_id: str, request: QuartersOnlyRequest, db: Session = Depends(database.get_db)):
-    """
-    Simplified scoring endpoint - just quarters per hole per player.
-    Only validation: each hole must sum to zero (zero-sum game).
-
-    This replaces the complex hole completion flow with a simple:
-    1. Enter quarters (+/-) for each player per hole
-    2. Validate sum is zero
-    3. Save
-    """
-    try:
-        # Get game from database
-        game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
-
-        if not game:
-            raise HTTPException(status_code=404, detail="Game not found")
-
-        # Validate: Each hole must sum to zero
-        validation_errors = []
-        for hole_str, player_quarters in request.hole_quarters.items():
-            hole_sum = sum(player_quarters.values())
-            if abs(hole_sum) > 0.001:  # Allow small floating point errors
-                validation_errors.append(f"Hole {hole_str}: sum is {hole_sum}, must be 0")
-
-        if validation_errors:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Zero-sum validation failed: {'; '.join(validation_errors)}",
-            )
+        # Validate zero-sum per hole
+        errors = [
+            f"Hole {h.hole_number}: sum is {sum(h.quarters.values())}, must be 0"
+            for h in holes
+            if abs(sum(h.quarters.values())) > 0.001
+        ]
+        if errors:
+            raise HTTPException(status_code=400, detail=f"Zero-sum validation failed: {'; '.join(errors)}")
 
         # Calculate standings
-        standings = {}
-        for hole_str, player_quarters in request.hole_quarters.items():
-            for player_id, quarters in player_quarters.items():
-                if player_id not in standings:
-                    standings[player_id] = 0
-                standings[player_id] += quarters
+        standings: dict[str, float] = {}
+        for h in holes:
+            for player_id, quarters in h.quarters.items():
+                standings[player_id] = standings.get(player_id, 0) + quarters
 
-        # Update game state with simplified data
+        # Persist to hole_events (upsert per player per hole)
+        now_ts = utc_now().isoformat()
+        for h in holes:
+            for player_id, quarters in h.quarters.items():
+                existing = (
+                    db.query(models.HoleEvent)
+                    .filter(
+                        models.HoleEvent.game_id == game_id,
+                        models.HoleEvent.hole_number == h.hole_number,
+                        models.HoleEvent.player_id == player_id,
+                    )
+                    .first()
+                )
+                gross = (h.gross_scores or {}).get(player_id)
+                if existing:
+                    existing.quarters = quarters
+                    if gross is not None:
+                        existing.score = gross
+                    existing.recorded_at = now_ts
+                else:
+                    db.add(
+                        models.HoleEvent(
+                            game_id=game_id,
+                            hole_number=h.hole_number,
+                            player_id=player_id,
+                            score=gross,
+                            quarters=quarters,
+                            recorded_at=now_ts,
+                        )
+                    )
+
+        # Keep game state blob in sync for client reads
         game_state = game.state or {}
-        game_state["quarters_only_mode"] = True
-        game_state["hole_quarters"] = request.hole_quarters
-        game_state["optional_details"] = request.optional_details or {}
         game_state["current_hole"] = request.current_hole
         game_state["standings"] = standings
-
-        # Update player points in game state
         for player in game_state.get("players", []):
-            player_id = player.get("id")
-            if player_id in standings:
-                player["total_points"] = standings[player_id]
+            player["total_points"] = standings.get(player.get("id"), 0)
 
-        # Convert hole_quarters to hole_history format for compatibility
-        # Include all optional details (teams, winner, wager, gross_scores, phase, notes)
-        hole_history = []
-        for hole_num in range(1, 19):
-            hole_str = str(hole_num)
-            if hole_str in request.hole_quarters:
-                # Get all optional details for this hole
-                hole_details = (request.optional_details or {}).get(hole_str, {})
-                hole_entry = {
-                    "hole": hole_num,
-                    "points_delta": request.hole_quarters[hole_str],
-                    "quarters_only": True,
-                    "notes": hole_details.get("notes", ""),
-                    # Include all other fields from optional_details
-                    "teams": hole_details.get("teams"),
-                    "winner": hole_details.get("winner"),
-                    "wager": hole_details.get("wager"),
-                    "gross_scores": hole_details.get("gross_scores"),
-                    "phase": hole_details.get("phase"),
-                }
-                hole_history.append(hole_entry)
+        hole_history = [
+            {
+                "hole": h.hole_number,
+                "points_delta": h.quarters,
+                "gross_scores": h.gross_scores,
+                "notes": h.notes,
+                "teams": h.teams,
+                "winner": h.winner,
+                "wager": h.wager,
+                "phase": h.phase,
+            }
+            for h in sorted(holes, key=lambda x: x.hole_number)
+        ]
         game_state["hole_history"] = hole_history
 
-        # Mark game status based on holes completed
-        holes_with_data = len([h for h in request.hole_quarters.values() if h])
-        if holes_with_data >= 18:
+        holes_with_data = len(holes)
+        # Gate completion on the DISTINCT set of holes 1-18 actually played, not
+        # the raw entry count. Counting raw entries let 18 rows that skip a real
+        # hole (or duplicate one) trip completion before hole 18 was played.
+        distinct_holes = {h.hole_number for h in holes}
+        game_complete = REQUIRED_HOLES.issubset(distinct_holes)
+        if game_complete:
             game_state["game_status"] = "completed"
             game.game_status = "completed"
         elif holes_with_data > 0:
@@ -647,13 +188,19 @@ async def save_quarters_only(game_id: str, request: QuartersOnlyRequest, db: Ses
             game.game_status = "in_progress"
 
         game.state = game_state
+        # game_state is the SAME dict object as game.state (line above:
+        # `game.state or {}`), so reassigning it does NOT mark the JSON column
+        # dirty — SQLAlchemy can't see in-place mutations of a JSON blob. Without
+        # this, hole_history/current_hole/standings never persist (only the
+        # separate hole_events rows do), and /state reads back stale-empty state.
+        flag_modified(game, "state")
         db.commit()
 
         logger.info(f"Saved quarters-only data for game {game_id}: {holes_with_data} holes")
 
         # Persist GameRecord + GamePlayerResult when game is complete
         results_created = 0
-        if holes_with_data >= 18:
+        if game_complete:
             try:
                 existing_record = db.execute(
                     text("SELECT id FROM game_records WHERE game_id = :gid LIMIT 1"),
@@ -661,7 +208,7 @@ async def save_quarters_only(game_id: str, request: QuartersOnlyRequest, db: Ses
                 ).first()
 
                 if not existing_record:
-                    now = datetime.now(UTC).isoformat()
+                    now = utc_now().isoformat()
                     players = game_state.get("players", [])
 
                     # Create GameRecord
@@ -678,7 +225,7 @@ async def save_quarters_only(game_id: str, request: QuartersOnlyRequest, db: Ses
                             "gid": game_id,
                             "course": game_state.get("course_name", "Wing Point"),
                             "pc": len(players),
-                            "holes": holes_with_data,
+                            "holes": len(distinct_holes),
                             "cat": game.created_at or now,
                             "comp": now,
                             "scores": json.dumps(standings),
@@ -698,14 +245,16 @@ async def save_quarters_only(game_id: str, request: QuartersOnlyRequest, db: Ses
                         for pid, quarters in pts.items():
                             if pid not in player_hole_data:
                                 player_hole_data[pid] = []
-                            player_hole_data[pid].append({
-                                "hole": entry.get("hole"),
-                                "quarters": quarters,
-                                "gross_score": gross.get(pid) if gross else None,
-                                "teams": entry.get("teams"),
-                                "wager": entry.get("wager"),
-                                "phase": entry.get("phase"),
-                            })
+                            player_hole_data[pid].append(
+                                {
+                                    "hole": entry.get("hole"),
+                                    "quarters": quarters,
+                                    "gross_score": gross.get(pid) if gross else None,
+                                    "teams": entry.get("teams"),
+                                    "wager": entry.get("wager"),
+                                    "phase": entry.get("phase"),
+                                }
+                            )
 
                     sorted_players = sorted(
                         players,
@@ -718,11 +267,13 @@ async def save_quarters_only(game_id: str, request: QuartersOnlyRequest, db: Ses
                         holes_data = player_hole_data.get(pid, [])
                         total_earn = standings.get(pid, 0)
                         holes_won = sum(1 for h in holes_data if h.get("quarters", 0) > 0)
-                        perf = json.dumps({
-                            "handicap": player.get("handicap"),
-                            "holes_played": len(holes_data),
-                            "avg_quarters_per_hole": round(total_earn / max(len(holes_data), 1), 2),
-                        })
+                        perf = json.dumps(
+                            {
+                                "handicap": player.get("handicap"),
+                                "holes_played": len(holes_data),
+                                "avg_quarters_per_hole": round(total_earn / max(len(holes_data), 1), 2),
+                            }
+                        )
                         db.execute(
                             text("""
                                 INSERT INTO game_player_results
@@ -770,3 +321,182 @@ async def save_quarters_only(game_id: str, request: QuartersOnlyRequest, db: Ses
         logger.error(f"Error saving quarters-only data for game {game_id}: {e}")
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Error saving data: {e!s}")
+
+
+# ---------------------------------------------------------------------------
+# Per-player hole event correction and validation
+# ---------------------------------------------------------------------------
+
+
+class HoleEventPatch(BaseModel):
+    score: int | None = None  # gross score — omit to leave unchanged
+    quarters: float | None = None  # quarters won/lost — omit to leave unchanged
+
+
+@router.patch("/{game_id}/holes/{hole_number}/players/{player_id}")
+async def patch_hole_event(
+    game_id: str,
+    hole_number: int,
+    player_id: str,
+    patch: HoleEventPatch,
+    db: Session = Depends(database.get_db),
+) -> dict[str, Any]:
+    """Independently correct a player's score or quarters for a single hole."""
+    if patch.score is None and patch.quarters is None:
+        raise HTTPException(status_code=400, detail="Provide at least one of: score, quarters")
+
+    existing = (
+        db.query(models.HoleEvent)
+        .filter(
+            models.HoleEvent.game_id == game_id,
+            models.HoleEvent.hole_number == hole_number,
+            models.HoleEvent.player_id == player_id,
+        )
+        .first()
+    )
+
+    now_ts = utc_now().isoformat()
+    if existing:
+        if patch.score is not None:
+            existing.score = patch.score
+        if patch.quarters is not None:
+            existing.quarters = patch.quarters
+        existing.recorded_at = now_ts
+    else:
+        db.add(
+            models.HoleEvent(
+                game_id=game_id,
+                hole_number=hole_number,
+                player_id=player_id,
+                score=patch.score,
+                quarters=patch.quarters if patch.quarters is not None else 0.0,
+                recorded_at=now_ts,
+            )
+        )
+
+    db.commit()
+
+    return {
+        "game_id": game_id,
+        "hole_number": hole_number,
+        "player_id": player_id,
+        "score": patch.score if patch.score is not None else (existing.score if existing else None),
+        "quarters": patch.quarters if patch.quarters is not None else (existing.quarters if existing else 0.0),
+    }
+
+
+@router.get("/{game_id}/holes/validate")
+async def validate_hole_quarters(
+    game_id: str,
+    db: Session = Depends(database.get_db),
+) -> dict[str, Any]:
+    """Check the zero-sum invariant across all recorded holes.
+
+    Returns a list of holes where SUM(quarters) != 0, so the caller knows
+    which holes need correction before finalizing the game.
+    """
+    events = (
+        db.query(models.HoleEvent)
+        .filter(models.HoleEvent.game_id == game_id)
+        .order_by(models.HoleEvent.hole_number, models.HoleEvent.player_id)
+        .all()
+    )
+
+    from collections import defaultdict
+
+    by_hole: dict[int, list] = defaultdict(list)
+    for e in events:
+        by_hole[e.hole_number].append(e)
+
+    errors = []
+    for hole_number in sorted(by_hole.keys()):
+        total = sum(e.quarters for e in by_hole[hole_number])
+        if abs(total) > 0.001:
+            errors.append(
+                {
+                    "hole": hole_number,
+                    "sum": round(total, 4),
+                    "players": {e.player_id: e.quarters for e in by_hole[hole_number]},
+                }
+            )
+
+    return {
+        "valid": len(errors) == 0,
+        "holes_checked": len(by_hole),
+        "errors": errors,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Hole log — narrative record of a hole's betting arc and play
+# ---------------------------------------------------------------------------
+
+
+class HoleLogRequest(BaseModel):
+    log_data: dict[str, Any]
+
+
+@router.put("/{game_id}/holes/{hole_number}/log")
+async def put_hole_log(
+    game_id: str,
+    hole_number: int,
+    body: HoleLogRequest,
+    db: Session = Depends(database.get_db),
+) -> dict[str, Any]:
+    """Create or replace the narrative log for a single hole."""
+    log = body.log_data
+    now_ts = utc_now().isoformat()
+
+    existing = (
+        db.query(models.HoleLog)
+        .filter(models.HoleLog.game_id == game_id, models.HoleLog.hole_number == hole_number)
+        .first()
+    )
+    if existing:
+        existing.log_data = log
+        existing.recorded_at = now_ts
+    else:
+        db.add(
+            models.HoleLog(
+                game_id=game_id,
+                hole_number=hole_number,
+                log_data=log,
+                recorded_at=now_ts,
+            )
+        )
+    db.commit()
+
+    return {"game_id": game_id, "hole_number": hole_number, "recorded_at": now_ts}
+
+
+@router.get("/{game_id}/holes/{hole_number}/log")
+async def get_hole_log(
+    game_id: str,
+    hole_number: int,
+    db: Session = Depends(database.get_db),
+) -> dict[str, Any]:
+    """Retrieve the narrative log for a single hole."""
+    entry = (
+        db.query(models.HoleLog)
+        .filter(models.HoleLog.game_id == game_id, models.HoleLog.hole_number == hole_number)
+        .first()
+    )
+    if not entry:
+        raise HTTPException(status_code=404, detail=f"No log for hole {hole_number}")
+    return entry.log_data
+
+
+@router.get("/{game_id}/log")
+async def get_game_log(
+    game_id: str,
+    db: Session = Depends(database.get_db),
+) -> dict[str, Any]:
+    """Retrieve all hole logs for a game, ordered by hole number."""
+    entries = (
+        db.query(models.HoleLog).filter(models.HoleLog.game_id == game_id).order_by(models.HoleLog.hole_number).all()
+    )
+    return {
+        "game_id": game_id,
+        "holes_logged": len(entries),
+        "log": [e.log_data for e in entries],
+    }

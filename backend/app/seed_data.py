@@ -4,7 +4,6 @@ Initializes database with all required data for proper simulation bootstrapping.
 """
 
 import logging
-from datetime import datetime
 from typing import Any, cast
 
 from sqlalchemy import text
@@ -14,6 +13,7 @@ from .database import SessionLocal, init_db
 from .models import Course, Hole, PlayerProfile, Rule
 from .seed_courses import DEFAULT_COURSES
 from .seed_rules import RULES
+from .utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -142,8 +142,8 @@ def seed_courses(db: Session) -> int:
                 total_yards=course_data["total_yards"],
                 course_rating=course_data.get("course_rating"),
                 slope_rating=course_data.get("slope_rating"),
-                created_at=datetime.now().isoformat(),
-                updated_at=datetime.now().isoformat(),
+                created_at=utc_now().isoformat(),
+                updated_at=utc_now().isoformat(),
             )
 
             db.add(course)
@@ -236,8 +236,8 @@ def seed_ai_personalities(db: Session) -> int:
                 personality_traits=personality["personality_traits"],
                 strengths=personality["strengths"],
                 weaknesses=personality["weaknesses"],
-                created_at=datetime.now().isoformat(),
-                updated_at=datetime.now().isoformat(),
+                created_at=utc_now().isoformat(),
+                updated_at=utc_now().isoformat(),
             )
 
             db.add(player)
@@ -273,8 +273,8 @@ def create_default_human_player(db: Session) -> PlayerProfile | None:
             is_ai=0,
             is_active=1,
             description="Default human player profile",
-            created_at=datetime.now().isoformat(),
-            updated_at=datetime.now().isoformat(),
+            created_at=utc_now().isoformat(),
+            updated_at=utc_now().isoformat(),
         )
 
         db.add(default_human)
@@ -398,7 +398,7 @@ def seed_all_data(force_reseed: bool = False) -> dict:
     db = SessionLocal()
     seeding_results = {
         "status": "success",
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": utc_now().isoformat(),
         "results": {},
     }
 
@@ -478,7 +478,7 @@ def seed_all_data(force_reseed: bool = False) -> dict:
         seeding_results = {
             "status": "error",
             "message": f"Seeding failed: {e!s}",
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": utc_now().isoformat(),
             "results": {},
         }
 
@@ -501,7 +501,7 @@ def get_seeding_status() -> dict:
 
         return {
             "status": "success",
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": utc_now().isoformat(),
             "verification": verification_results,
         }
 
@@ -510,7 +510,7 @@ def get_seeding_status() -> dict:
         return {
             "status": "error",
             "message": f"Status check failed: {e!s}",
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": utc_now().isoformat(),
         }
 
     finally:

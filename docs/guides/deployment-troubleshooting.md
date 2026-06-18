@@ -1,326 +1,149 @@
-# Deployment Troubleshooting Guide
+# Deployment Troubleshooting
 
-This guide helps you diagnose and fix common deployment issues with the Wolf-Goat-Pig application on Render (backend) and Vercel (frontend).
+Diagnosing and fixing deployment issues on Render (backend) and Vercel (frontend).
+For the deploy process itself, see [DEPLOYMENT.md](./DEPLOYMENT.md).
 
-## Quick Diagnostic Commands
+> Most deployment problems are environment-configuration problems. Check env vars
+> first (and remember Render does **not** read them from `render.yaml` — they live
+> in the dashboard).
+
+## Quick diagnostics
 
 ```bash
-# Check deployment readiness
-.husky/deployment-checklist
+# Backend health (environment must read "production")
+curl https://wolf-goat-pig.onrender.com/health
 
-# Test production builds locally
+# Scripted verification (backend + frontend + integration)
+python scripts/deployment/verify-deployments.py \
+  --backend https://wolf-goat-pig.onrender.com \
+  --frontend https://wolf-goat-pig.vercel.app
+
+# Local production-build smoke test before pushing
 ./scripts/deployment/test-prod-all.sh
-
-# Verify deployment health
-python scripts/deployment/verify-deployments.py --production
 ```
 
-## Common Issues and Solutions
+## Backend (Render)
 
-### 🔴 Backend (Render) Issues
+### Service won't start / deploy fails
 
-#### 1. Service Won't Start
+Symptoms: "Deploy failed", module import errors, crash on startup.
 
-**Symptoms:**
-- Render shows "Deploy failed"
-- Logs show module import errors
-- Service crashes on startup
+- Verify `requirements.txt` is complete: `cd backend && python -c "from app.main import app"`.
+- Test the production server locally: `./scripts/deployment/test-prod-backend.sh`.
+- Check the Render build/runtime logs for the failing import or migration.
 
-**Solutions:**
-```bash
-# Check requirements.txt is complete
-cd backend
-pip freeze > requirements_check.txt
-diff requirements.txt requirements_check.txt
+### Database connection fails
 
-# Test with production server locally
-./scripts/deployment/test-prod-backend.sh
+Symptoms: "could not connect to server", "relation does not exist", timeouts.
 
-# Check for missing dependencies
-python -c "from app.main import app"
-```
+- Confirm `DATABASE_URL` is set in the Render dashboard.
+- Use the internal connection string for same-region databases.
+- Migrations run automatically at startup (`render-startup.py` → `app/migrations_runner.py`);
+  a missing table usually means a migration failed — check the logs for the first error.
 
-**Common Fixes:**
-- Ensure `gunicorn` is in requirements.txt
-- Add `uvicorn[standard]` for async workers
-- Check Python version matches (3.11.x)
+### Environment variables missing
 
-#### 2. Database Connection Fails
+Symptoms: Auth0 failures, `KeyError` in logs, 500s on protected routes.
 
-**Symptoms:**
-- "could not connect to server" errors
-- "relation does not exist" errors
-- Timeout errors
+Required backend variables (set in the Render dashboard):
 
-**Solutions:**
-```bash
-# Test PostgreSQL connection locally
-docker run -d --name test-pg -e POSTGRES_PASSWORD=test -p 5432:5432 postgres:15
-export DATABASE_URL="postgresql://postgres:test@localhost:5432/test"
-python -c "from app.database import engine; engine.connect()"
-```
-
-**Render Configuration:**
-- Use internal connection string for same-region databases
-- Enable connection pooling
-- Set `SQLALCHEMY_POOL_SIZE=5` and `SQLALCHEMY_MAX_OVERFLOW=10`
-
-#### 3. Environment Variables Missing
-
-**Symptoms:**
-- Auth0 authentication fails
-- Email service errors
-- "KeyError" in logs
-
-**Check on Render:**
-```bash
-# List all environment variables (from Render dashboard)
-# Or use Render CLI
-render envvars list --service <service-name>
-
-# Set missing variables
-render envvars set KEY=value --service <service-name>
-```
-
-**Required Variables:**
 ```
 ENVIRONMENT=production
 DATABASE_URL=<postgres-url>
-AUTH0_DOMAIN=<your-domain>
-AUTH0_API_AUDIENCE=<your-audience>
-AUTH0_CLIENT_ID=<your-client-id>
-AUTH0_CLIENT_SECRET=<your-secret>
+AUTH0_DOMAIN=<tenant-domain>
+AUTH0_API_AUDIENCE=<api-audience>
+AUTH0_CLIENT_ID=<client-id>
+AUTH0_CLIENT_SECRET=<secret>
 FRONTEND_URL=<vercel-url>
 ```
 
-#### 4. CORS Errors
+A junk Bearer token to `/players/me` should return **401, not 500** — a 500 means
+auth config is broken, not just the token.
 
-**Symptoms:**
-- "CORS policy" errors in browser console
-- API calls blocked from frontend
+### CORS errors
 
-**Fix in backend/app/main.py:**
-```python
-# Ensure your Vercel URL is in allowed origins
-ALLOWED_ORIGINS = [
-    "https://your-app.vercel.app",
-    "https://your-custom-domain.com"
-]
-```
+Ensure the backend's allowed origins include the Vercel hostname and any custom
+domain. Confirm `FRONTEND_URL` is set and `VITE_API_URL` (frontend) points at
+the right backend.
 
-### 🔴 Frontend (Vercel) Issues
+## Frontend (Vercel)
 
-#### 1. Build Fails
+### Build fails
 
-**Symptoms:**
-- Vercel shows "Build Error"
-- "Module not found" errors
-- TypeScript errors
+- Test locally first: `cd frontend && npm install --legacy-peer-deps && npm run build`.
+- Watch for **case-sensitive imports** — these work on macOS but fail on Vercel's Linux builders.
+- Clear caches if needed: `npm cache clean --force`, then reinstall.
 
-**Local Testing:**
-```bash
-# Test build locally first
-cd frontend
-npm ci  # Clean install
-npm run build
+### npm / "Missing script: build" errors
 
-# Check build output size
-du -sh build/
-```
+Vercel builds from the repo root. The root `package.json` delegates `build` and
+`install` to `frontend/`, and the root `vercel.json` sets explicit `buildCommand`
+and `installCommand`. If you see "Missing script: build", confirm those root
+scripts and `vercel.json` commands are intact.
 
-**Common Fixes:**
-- Clear npm cache: `npm cache clean --force`
-- Use exact versions in package.json
-- Check for case-sensitive imports (works locally, fails on Linux)
+### Peer dependency / ERESOLVE errors
 
-#### 2. API Connection Fails
+Some dependencies declare peer ranges that predate React 19, so installs rely on
+`legacy-peer-deps`:
 
-**Symptoms:**
-- Network errors in browser
-- "Failed to fetch" errors
-- 404 on API calls
+- `.npmrc` contains `legacy-peer-deps=true`.
+- The `vercel.json` install command includes `--legacy-peer-deps`.
 
-**Verify Configuration:**
-```bash
-# Check environment variables in Vercel
-vercel env pull
+If you hit "ERESOLVE unable to resolve dependency tree", verify both are present.
 
-# Verify REACT_APP_API_URL is set correctly
-grep REACT_APP_API_URL .env.production
-```
+### API calls fail
 
-**Common Issues:**
-- Missing `REACT_APP_` prefix for React env vars
-- Using HTTP instead of HTTPS
-- Trailing slash in API URL
+- Confirm `VITE_API_URL` is set in the Vercel dashboard (remember `VITE_*`
+  is baked in at build time — change it and **redeploy**).
+- Avoid HTTP-vs-HTTPS mismatches and trailing slashes in the URL.
 
-#### 3. Authentication Issues
+### Blank page / app won't load
 
-**Symptoms:**
-- Login redirects fail
-- "Invalid callback URL" errors
-- Token validation failures
+- Check the build output exists: `ls -la frontend/build/static/`.
+- Serve the build locally to reproduce: `npx serve -s frontend/build`.
+- Inspect the browser console for the first error.
 
-**Auth0 Checklist:**
-1. Verify callback URLs in Auth0 dashboard include:
-   - `https://your-app.vercel.app/callback`
-   - Any preview URLs
-   - Local development URLs
+### Auth0 / login issues
 
-2. Check audience matches exactly:
-   ```bash
-   # Backend and frontend must use same audience
-   echo "Backend: $AUTH0_API_AUDIENCE"
-   echo "Frontend: $REACT_APP_AUTH0_AUDIENCE"
-   ```
+- Callback URLs in Auth0 must include the Vercel production URL (and preview URLs).
+- The audience must match exactly between `AUTH0_API_AUDIENCE` (backend) and
+  `VITE_AUTH0_AUDIENCE` (frontend).
 
-3. Verify client ID and domain are correct
+## Docker (local production parity)
 
-#### 4. Blank Page / App Won't Load
-
-**Symptoms:**
-- White screen on production
-- Console errors about missing files
-- React errors
-
-**Debug Steps:**
-```bash
-# Check if build files exist
-ls -la frontend/build/static/
-
-# Verify index.html has correct script tags
-grep -E "script|link" frontend/build/index.html
-
-# Test with local production server
-npx serve -s frontend/build
-```
-
-### 🔧 Docker Production Issues
-
-#### 1. Containers Won't Start
+See [DOCKER-SETUP.md](./DOCKER-SETUP.md) for the full local-container workflow.
 
 ```bash
-# Check logs
-docker-compose -f docker-compose.prod.yml logs backend
-docker-compose -f docker-compose.prod.yml logs frontend
+# Inspect logs
+docker-compose logs -f backend
+docker-compose logs -f frontend
 
 # Rebuild from scratch
-docker-compose -f docker-compose.prod.yml down -v
-docker-compose -f docker-compose.prod.yml build --no-cache
-docker-compose -f docker-compose.prod.yml up
+docker-compose down -v
+docker-compose build --no-cache
+docker-compose up
 ```
 
-#### 2. Database Migration Issues
+## Common error patterns
 
-```bash
-# Run migrations manually
-docker-compose -f docker-compose.prod.yml exec backend \
-  python -c "from app.database import init_db; init_db()"
-```
-
-## Verification Checklist
-
-### Before Deployment
-
-- [ ] Run `.husky/deployment-checklist`
-- [ ] Test with `./scripts/deployment/test-prod-all.sh`
-- [ ] Build succeeds locally
-- [ ] No console.log statements in production code
-- [ ] Environment variables configured
-- [ ] Database connection tested
-
-### After Deployment
-
-- [ ] Service health checks pass
-- [ ] API documentation accessible
-- [ ] Frontend loads without errors
-- [ ] Authentication flow works
-- [ ] API calls succeed
-- [ ] No CORS errors
-
-### Production Verification
-
-```bash
-# Full verification
-python scripts/deployment/verify-deployments.py \
-  --backend https://your-app.onrender.com \
-  --frontend https://your-app.vercel.app
-
-# Check specific endpoints
-curl https://your-app.onrender.com/health
-curl https://your-app.onrender.com/docs
-```
-
-## Emergency Rollback
-
-### Render
-1. Go to Render dashboard
-2. Select your service
-3. Click "Rollback" to previous deploy
-4. Or use CLI: `render deploy rollback --service <name>`
-
-### Vercel
-1. Go to Vercel dashboard
-2. Select your project
-3. Go to "Deployments"
-4. Click "..." on a previous deployment
-5. Select "Promote to Production"
-
-## Getting Help
-
-### Logs and Monitoring
-
-**Render Logs:**
-```bash
-render logs --service <service-name> --tail
-```
-
-**Vercel Logs:**
-```bash
-vercel logs --follow
-```
-
-### Debug Information
-
-Collect this information when seeking help:
-
-1. **Error messages** (exact text)
-2. **Deployment logs** (last 100 lines)
-3. **Environment configuration** (variable names, not values)
-4. **Local test results** (`./scripts/deployment/test-prod-all.sh` output)
-5. **Verification output** (`verify-deployments.py` results)
-
-### Common Error Patterns
-
-| Error | Likely Cause | Quick Fix |
+| Error | Likely cause | Quick fix |
 |-------|-------------|-----------|
-| `ModuleNotFoundError` | Missing dependency | Add to requirements.txt |
-| `Connection refused` | Wrong port/host | Check DATABASE_URL |
+| `ModuleNotFoundError` | Missing dependency | Add to `requirements.txt` |
+| `Connection refused` | Wrong port/host | Check `DATABASE_URL` |
 | `401 Unauthorized` | Auth misconfiguration | Verify Auth0 settings |
-| `CORS blocked` | Missing origin | Add to ALLOWED_ORIGINS |
-| `Build exceeded limit` | Large dependencies | Optimize package.json |
-| `Invalid Host header` | Proxy issue | Update webpack config |
+| `500` on protected route | Broken auth config (not just bad token) | Check `AUTH0_*` env vars |
+| `CORS blocked` | Missing origin | Add Vercel URL to allowed origins |
+| `ERESOLVE` on install | Peer-dep conflict | Confirm `.npmrc` + `--legacy-peer-deps` |
+| `Missing script: build` | Root scripts/`vercel.json` changed | Restore root `build`/`install` + Vercel commands |
 
-## Prevention Tips
+## Emergency rollback
 
-1. **Always test locally first:**
-   ```bash
-   npm run deploy:check
-   ./scripts/deployment/test-prod-all.sh
-   ```
+- **Render** — Dashboard → service → Rollback (or Manual Deploy → previous commit).
+- **Vercel** — Dashboard → Deployments → Promote a previous working deployment.
+- **Either** — `git revert HEAD && git push origin main`.
 
-2. **Use environment templates:**
-   - Keep `.env.example` updated
-   - Use `config/.env.production.template`
+## Collecting debug info
 
-3. **Monitor after deployment:**
-   - Watch logs for first 5 minutes
-   - Run verification script
-   - Test critical user paths
-
-4. **Maintain documentation:**
-   - Update this guide with new issues
-   - Document environment changes
-   - Keep README current
-
-Remember: Most deployment issues are environment configuration problems. Double-check your environment variables first!
+When asking for help, include: the exact error text, the last ~100 log lines,
+the env var **names** present (not values), and the output of
+`python scripts/deployment/verify-deployments.py`.

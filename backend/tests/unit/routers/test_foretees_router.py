@@ -19,8 +19,8 @@ def _fake_player(**overrides) -> PlayerProfile:
     """Return a minimal PlayerProfile for dependency injection."""
     p = MagicMock(spec=PlayerProfile)
     p.id = overrides.get("id", 1)
-    p.foretees_username = overrides.get("foretees_username", None)
-    p.foretees_password_encrypted = overrides.get("foretees_password_encrypted", None)
+    p.foretees_username = overrides.get("foretees_username")
+    p.foretees_password_encrypted = overrides.get("foretees_password_encrypted")
     return p
 
 
@@ -65,9 +65,7 @@ class TestGetCredentialsStatus:
         assert data["data"]["username"] is None
 
     def test_returns_200_when_credentials_configured(self):
-        _override_current_user(
-            _fake_player(foretees_username="1453-smith", foretees_password_encrypted="enc_pass")
-        )
+        _override_current_user(_fake_player(foretees_username="1453-smith", foretees_password_encrypted="enc_pass"))
         resp = client.get("/api/foretees/credentials")
         assert resp.status_code == 200
         data = resp.json()
@@ -148,9 +146,7 @@ class TestRemoveCredentials:
         assert resp.status_code in (401, 403)
 
     def test_returns_200_and_clears(self):
-        player = _override_current_user(
-            _fake_player(foretees_username="user", foretees_password_encrypted="enc")
-        )
+        player = _override_current_user(_fake_player(foretees_username="user", foretees_password_encrypted="enc"))
         resp = client.delete("/api/foretees/credentials")
         assert resp.status_code == 200
         assert player.foretees_username is None
@@ -272,9 +268,7 @@ class TestBookTeeTime:
         _override_current_user()
         mock_svc = AsyncMock()
         mock_svc.config = MagicMock(enabled=True)
-        mock_svc.book_tee_time = AsyncMock(
-            return_value={"success": True, "messages": ["Booking confirmed"]}
-        )
+        mock_svc.book_tee_time = AsyncMock(return_value={"success": True, "messages": ["Booking confirmed"]})
         mock_svc.close = AsyncMock()
         mock_get_svc.return_value = mock_svc
 
@@ -290,9 +284,7 @@ class TestBookTeeTime:
         _override_current_user()
         mock_svc = AsyncMock()
         mock_svc.config = MagicMock(enabled=True)
-        mock_svc.book_tee_time = AsyncMock(
-            return_value={"success": False, "error": "Slot taken"}
-        )
+        mock_svc.book_tee_time = AsyncMock(return_value={"success": False, "error": "Slot taken"})
         mock_svc.close = AsyncMock()
         mock_get_svc.return_value = mock_svc
 
@@ -357,9 +349,7 @@ class TestCancelTeeTime:
         _override_current_user()
         mock_svc = AsyncMock()
         mock_svc.config = MagicMock(enabled=True)
-        mock_svc.cancel_tee_time = AsyncMock(
-            return_value={"success": True, "messages": ["Cancelled"]}
-        )
+        mock_svc.cancel_tee_time = AsyncMock(return_value={"success": True, "messages": ["Cancelled"]})
         mock_svc.close = AsyncMock()
         mock_get_svc.return_value = mock_svc
 
@@ -375,9 +365,7 @@ class TestCancelTeeTime:
         _override_current_user()
         mock_svc = AsyncMock()
         mock_svc.config = MagicMock(enabled=True)
-        mock_svc.cancel_tee_time = AsyncMock(
-            return_value={"success": False, "error": "Not found"}
-        )
+        mock_svc.cancel_tee_time = AsyncMock(return_value={"success": False, "error": "Not found"})
         mock_svc.close = AsyncMock()
         mock_get_svc.return_value = mock_svc
 

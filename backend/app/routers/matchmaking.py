@@ -7,19 +7,20 @@ Handles match suggestions, accept/decline responses, and the
 
 import logging
 import os
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
-from .. import database, models, schemas
+from .. import models, schemas
 from ..database import get_db
 from ..services.auth_service import get_current_user
 from ..services.email_service import get_email_service
 from ..services.matchmaking_service import MatchmakingService
 from ..services.notification_service import get_notification_service
 from ..utils.api_helpers import handle_api_errors
+from ..utils.time import utc_now
 
 logger = logging.getLogger("app.routers.matchmaking")
 
@@ -66,7 +67,7 @@ def _get_all_players_availability(db: Session) -> list[dict[str, Any]]:
 
 def _get_recent_match_history(db: Session, days: int = 7) -> list[dict[str, Any]]:
     """Get recent match history for filtering."""
-    cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
+    cutoff = (utc_now() - timedelta(days=days)).isoformat()
     recent_matches = db.query(models.MatchSuggestion).filter(models.MatchSuggestion.created_at >= cutoff).all()
     history: list[dict[str, Any]] = []
     for match in recent_matches:
@@ -85,8 +86,8 @@ def _save_match_to_db(
     match_data: dict[str, Any],
 ) -> models.MatchSuggestion:
     """Save a match suggestion and its players to the database."""
-    now = datetime.now(UTC).isoformat()
-    expires = (datetime.now(UTC) + timedelta(days=7)).isoformat()
+    now = utc_now().isoformat()
+    expires = (utc_now() + timedelta(days=7)).isoformat()
 
     match = models.MatchSuggestion(
         day_of_week=match_data["day_of_week"],
@@ -221,7 +222,7 @@ def run_matchmaking_for_player(
     recent_db_matches = (
         db.query(models.MatchSuggestion)
         .filter(
-            models.MatchSuggestion.created_at >= (datetime.now(UTC) - timedelta(days=7)).isoformat(),
+            models.MatchSuggestion.created_at >= (utc_now() - timedelta(days=7)).isoformat(),
             models.MatchSuggestion.status.in_(["pending", "accepted"]),
         )
         .all()
@@ -362,7 +363,7 @@ async def respond_to_match(
             detail=f"You have already responded with '{match_player.response}'",
         )
 
-    now = datetime.now(UTC).isoformat()
+    now = utc_now().isoformat()
     match_player.response = response_body.response  # type: ignore
     match_player.responded_at = now  # type: ignore
     match_player.updated_at = now  # type: ignore
@@ -667,7 +668,7 @@ def get_match_suggestions(
         # Get recent match history to filter out recently matched players
         recent_matches = (
             db.query(models.MatchSuggestion)
-            .filter(models.MatchSuggestion.created_at >= (datetime.now() - timedelta(days=7)).isoformat())
+            .filter(models.MatchSuggestion.created_at >= (utc_now() - timedelta(days=7)).isoformat())
             .all()
         )
 
@@ -738,8 +739,8 @@ async def create_and_notify_matches(db: Session = Depends(get_db)) -> dict[str, 
                     suggested_tee_time=match_data["suggested_tee_time"],
                     match_quality_score=match_data["match_quality"],
                     status="pending",
-                    created_at=datetime.now().isoformat(),
-                    expires_at=(datetime.now() + timedelta(days=7)).isoformat(),
+                    created_at=utc_now().isoformat(),
+                    expires_at=(utc_now() + timedelta(days=7)).isoformat(),
                 )
                 db.add(match)
                 db.commit()
@@ -752,7 +753,7 @@ async def create_and_notify_matches(db: Session = Depends(get_db)) -> dict[str, 
                         player_profile_id=player["player_id"],
                         player_name=player["player_name"],
                         player_email=player["email"],
-                        created_at=datetime.now().isoformat(),
+                        created_at=utc_now().isoformat(),
                     )
                     db.add(match_player)
 
@@ -773,7 +774,7 @@ async def create_and_notify_matches(db: Session = Depends(get_db)) -> dict[str, 
 
                     # Mark as sent
                     match.notification_sent = True  # type: ignore
-                    match.notification_sent_at = datetime.now().isoformat()  # type: ignore
+                    match.notification_sent_at = utc_now().isoformat()  # type: ignore
                     db.commit()
 
                     notifications_sent.append(

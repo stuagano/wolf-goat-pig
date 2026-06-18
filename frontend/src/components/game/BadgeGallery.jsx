@@ -98,11 +98,15 @@ const BadgeGallery = ({ playerId }) => {
       >
         <div className="badge-image-container">
           {earned ? (
-            <img
-              src={badge.image_url || '/badges/placeholder.png'}
-              alt={badge.name}
-              className="badge-image"
-            />
+            badge.emoji ? (
+              <div className="badge-emoji">{badge.emoji}</div>
+            ) : (
+              <img
+                src={badge.image_url || '/badges/placeholder.png'}
+                alt={badge.name}
+                className="badge-image"
+              />
+            )
           ) : (
             <div className="badge-locked">
               <span className="lock-icon">🔒</span>
@@ -140,10 +144,14 @@ const BadgeGallery = ({ playerId }) => {
           <div className={`modal-header ${getBadgeRarityClass(selectedBadge.rarity)}`}>
             <div className="modal-badge-image">
               {selectedBadge.earned ? (
-                <img
-                  src={selectedBadge.image_url || '/badges/placeholder.png'}
-                  alt={selectedBadge.name}
-                />
+                selectedBadge.emoji ? (
+                  <div className="badge-emoji-large">{selectedBadge.emoji}</div>
+                ) : (
+                  <img
+                    src={selectedBadge.image_url || '/badges/placeholder.png'}
+                    alt={selectedBadge.name}
+                  />
+                )
               ) : (
                 <div className="badge-locked-large">
                   <span className="lock-icon">🔒</span>

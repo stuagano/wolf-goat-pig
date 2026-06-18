@@ -36,6 +36,26 @@
   object-fit: contain;
 }
 
+.badge-emoji {
+  font-size: 48px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+}
+
+.badge-emoji-large {
+  font-size: 72px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 120px;
+  height: 120px;
+}
+
 @media (max-width: 768px) {
   .badge-grid {
     grid-template-columns: repeat(auto-fill, minwidth(150px, 1fr));

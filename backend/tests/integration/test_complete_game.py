@@ -4,26 +4,26 @@ Test script to complete a full 18-hole game using the simplified API.
 Tests implicit team assignment where Team 2 is automatically calculated.
 """
 
-import requests
 import json
 import random
-from typing import List, Dict
+from typing import Dict, List
+
+import requests
 
 API_URL = "http://localhost:8000"
 
-def create_test_game() -> Dict:
+
+def create_test_game() -> dict:
     """Create a new game with 4 test players."""
     response = requests.post(
         f"{API_URL}/wgp/simplified/start-game",
-        json={
-            "player_names": ["Alice", "Bob", "Charlie", "Diana"],
-            "base_wager": 1
-        }
+        json={"player_names": ["Alice", "Bob", "Charlie", "Diana"], "base_wager": 1},
     )
     response.raise_for_status()
     return response.json()
 
-def complete_hole(game_id: str, hole_number: int, use_implicit_team2: bool = True) -> Dict:
+
+def complete_hole(game_id: str, hole_number: int, use_implicit_team2: bool = True) -> dict:
     """
     Complete a single hole.
 
@@ -46,11 +46,7 @@ def complete_hole(game_id: str, hole_number: int, use_implicit_team2: bool = Tru
     if use_solo:
         # Solo mode: one player vs the rest
         captain_id = player_ids[hole_number % len(player_ids)]
-        teams = {
-            "type": "solo",
-            "captain": captain_id,
-            "opponents": [pid for pid in player_ids if pid != captain_id]
-        }
+        teams = {"type": "solo", "captain": captain_id, "opponents": [pid for pid in player_ids if pid != captain_id]}
         # Determine winner based on scores
         captain_score = scores[captain_id]
         opponent_scores = [scores[pid] for pid in teams["opponents"]]
@@ -70,17 +66,13 @@ def complete_hole(game_id: str, hole_number: int, use_implicit_team2: bool = Tru
             # Test implicit team assignment - don't send team2
             teams = {
                 "type": "partners",
-                "team1": team1
+                "team1": team1,
                 # team2 will be calculated automatically by the backend
             }
         else:
             # Explicit team assignment
             team2 = player_ids[2:]
-            teams = {
-                "type": "partners",
-                "team1": team1,
-                "team2": team2
-            }
+            teams = {"type": "partners", "team1": team1, "team2": team2}
 
         # Determine winner based on best ball scoring
         team1_score = min(scores[pid] for pid in team1)
@@ -101,19 +93,17 @@ def complete_hole(game_id: str, hole_number: int, use_implicit_team2: bool = Tru
         "final_wager": 1,
         "winner": winner,
         "scores": scores,
-        "hole_par": 4
+        "hole_par": 4,
     }
 
     print(f"Hole {hole_number}: {teams['type']} mode, winner: {winner}")
     if use_implicit_team2 and teams["type"] == "partners":
         print(f"  ✓ Testing implicit team2 assignment (only sent team1: {team1})")
 
-    response = requests.post(
-        f"{API_URL}/games/{game_id}/holes/complete",
-        json=payload
-    )
+    response = requests.post(f"{API_URL}/games/{game_id}/holes/complete", json=payload)
     response.raise_for_status()
     return response.json()
+
 
 def complete_full_game(use_implicit_team2: bool = True):
     """Complete a full 18-hole game."""
@@ -141,7 +131,7 @@ def complete_full_game(use_implicit_team2: bool = True):
     print("\n" + "=" * 60)
     print("GAME COMPLETE!")
     print("=" * 60)
-    print(f"\nFinal Standings:")
+    print("\nFinal Standings:")
     for player in final_game["players"]:
         quarters = final_game["standings"].get(player["id"], {}).get("quarters", 0)
         print(f"  {player['name']}: {quarters:+d} quarters")
@@ -151,6 +141,7 @@ def complete_full_game(use_implicit_team2: bool = True):
 
     return game_id, final_game
 
+
 if __name__ == "__main__":
     try:
         game_id, final_game = complete_full_game(use_implicit_team2=True)
@@ -159,4 +150,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n❌ Test failed: {e}")
         import traceback
+
         traceback.print_exc()
