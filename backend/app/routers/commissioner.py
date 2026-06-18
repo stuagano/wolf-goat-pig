@@ -13,10 +13,12 @@ import re
 from typing import Any
 
 import httpx
+import sqlglot
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from sqlglot import exp
 
 from ..database import get_db
 from ..utils.api_helpers import ApiResponse, handle_api_errors
@@ -136,6 +138,10 @@ def _build_data_context(db: Session) -> str:
                 func.sum(models.LegacyRound.score).label("quarters"),
                 func.count(models.LegacyRound.id).label("rounds"),
             )
+            # Exclude unattested member self-posts (status='pending') — they must
+            # not reach standings until a foursome peer attests. Matches the
+            # filter in unified_data_service / spreadsheet_sync read paths.
+            .filter(models.LegacyRound.status != "pending")
             .group_by(models.LegacyRound.member)
             .order_by(func.sum(models.LegacyRound.score).desc())
             .limit(20)
@@ -214,11 +220,14 @@ async def commissioner_chat(
 DATA_SCHEMA = """
 ## Queryable Tables
 
-### legacy_rounds
+### legacy_rounds_official
 Columns: id, date, "group", member, score, location, duration, source, synced_at
 IMPORTANT: `group` is a PostgreSQL reserved word — always quote it as "group" in queries.
 Note: Uses `member` (string name) not a foreign key. Player matching requires
 `player_profiles.name` or `player_profiles.legacy_name`.
+ALWAYS query `legacy_rounds_official` (NOT `legacy_rounds`) — it is the official
+view that excludes unattested member self-posts (status='pending'). The raw
+`legacy_rounds` table is not queryable.
 
 ### player_profiles
 Columns: id, name, legacy_name, email, handicap, ghin_id, ghin_last_updated,
@@ -276,7 +285,12 @@ revision_reason, scores_used_count, synced_at
 """.strip()
 
 _ALLOWED_TABLES = {
-    "legacy_rounds",
+    # `legacy_rounds_official` is a view that excludes unattested member
+    # self-posts (status='pending'). The raw `legacy_rounds` table is
+    # deliberately NOT allowed, so pending rounds can never surface through
+    # the Commissioner's read-only SQL path — even if the LLM names the raw
+    # table, _validate_sql rejects the query.
+    "legacy_rounds_official",
     "player_profiles",
     "player_statistics",
     "game_records",
@@ -294,6 +308,16 @@ _DENIED_COLUMNS = {
     "weaknesses",
 }
 
+_DENIED_TABLES = {
+    # Physical tables that must NEVER be referenced directly, regardless of
+    # quoting, schema-qualification, or CTE aliasing. `legacy_rounds` holds
+    # unattested member self-posts (status='pending'); only the filtered
+    # `legacy_rounds_official` view is sanctioned. This denylist takes
+    # precedence over the allow-list, so a CTE named `legacy_rounds` cannot
+    # whitelist the raw table.
+    "legacy_rounds",
+}
+
 _DANGEROUS_KEYWORDS = {
     "INSERT",
     "UPDATE",
@@ -306,6 +330,18 @@ _DANGEROUS_KEYWORDS = {
     "REVOKE",
     "EXEC",
 }
+
+
+def _base_name(ident: str) -> str:
+    """Normalize an identifier to its unquoted, lowercase base table name.
+
+    Handles schema-qualified forms (schema.table, "schema"."table") by taking
+    the final segment, then strips surrounding double-quotes.
+    """
+    last_segment = re.split(r"\s*\.\s*", ident.strip())[-1].strip()
+    if last_segment.startswith('"') and last_segment.endswith('"'):
+        last_segment = last_segment[1:-1]
+    return last_segment.lower()
 
 
 def _validate_sql(sql: str) -> bool:
@@ -342,22 +378,43 @@ def _validate_sql(sql: str) -> bool:
         if col in lower:
             return False
 
-    # Extract CTE names (WITH name AS ...) so they're treated as valid aliases
-    cte_names = {name.lower() for name in re.findall(r"\bWITH\s+(\w+)\s+AS\b", upper)}
-    cte_names |= {name.lower() for name in re.findall(r",\s*(\w+)\s+AS\s*\(", upper)}
+    # Enumerate table references and CTE names with a real SQL parser rather
+    # than regex. sqlglot walks the entire AST, so comma/implicit joins,
+    # explicit JOINs, subqueries, CTE bodies, set operations (UNION/…), and
+    # nested CTEs are all covered — closing the regex whack-a-mole bypasses.
+    # Parse with the Postgres dialect (prod), and FAIL CLOSED if it can't parse.
+    try:
+        tree = sqlglot.parse_one(cleaned, dialect="postgres")
+    except Exception:
+        return False
+    if tree is None:
+        return False
+
+    # CTE names declared in the query are valid aliases for FROM/JOIN targets.
+    cte_names = {_base_name(cte.alias) for cte in tree.find_all(exp.CTE)}
+    # A CTE may not be named after a denied physical table — that would
+    # whitelist the forbidden name. Denylist takes precedence over aliasing.
+    if any(name in _DENIED_TABLES for name in cte_names):
+        return False
     allowed = _ALLOWED_TABLES | cte_names
 
-    # Table allowlist — every FROM / JOIN target must be allowed
-    # Skip function calls (word immediately followed by '(') like jsonb_array_elements(...)
-    table_refs = []
-    for m in re.finditer(r"\b(?:FROM|JOIN)\s+(\w+)", upper):
-        name = m.group(1)
-        after = upper[m.end() :]
-        if after and after[0] == "(":
-            continue  # function call, not a table
-        table_refs.append(name)
+    # Every real table reference anywhere in the tree. exp.Table.name yields the
+    # unquoted base table name (handles quoting + schema qualification); we
+    # normalize again via _base_name for defense in depth. Function calls do not
+    # produce Table nodes, so they need no special handling.
+    # Skip nodes whose normalized base name is empty: those are table-valued
+    # function output wrappers (e.g. CROSS JOIN json_array_elements(...)), not
+    # physical table references. The denied physical table always surfaces with
+    # a non-empty name, so this cannot reopen a leak.
+    table_refs = {name for tbl in tree.find_all(exp.Table) if (name := _base_name(tbl.name))}
+
+    # Denylist takes PRECEDENCE over the allow-list: a physical table in
+    # _DENIED_TABLES is unreachable even if a same-named CTE aliases it.
     for tbl in table_refs:
-        if tbl.lower() not in allowed:
+        if tbl in _DENIED_TABLES:
+            return False
+    for tbl in table_refs:
+        if tbl not in allowed:
             return False
 
     return True
@@ -419,10 +476,10 @@ If the question is purely about rules (not data), respond directly without SQL.
 If you're unsure which player is meant, use ILIKE with wildcards for fuzzy matching.
 
 Example queries:
-- "Who has the most quarters?" → SELECT member, SUM(score) as total_quarters FROM legacy_rounds GROUP BY member ORDER BY total_quarters DESC LIMIT 10
+- "Who has the most quarters?" → SELECT member, SUM(score) as total_quarters FROM legacy_rounds_official GROUP BY member ORDER BY total_quarters DESC LIMIT 10
 - "Stuart's handicap history" → SELECT effective_date, handicap_index FROM ghin_handicap_history gh JOIN player_profiles pp ON gh.player_profile_id = pp.id WHERE pp.name ILIKE '%Stuart%' ORDER BY effective_date
-- "How many rounds per player?" → SELECT member, COUNT(*) as rounds FROM legacy_rounds GROUP BY member ORDER BY rounds DESC
-- "Best single round ever?" → SELECT member, score, date, location FROM legacy_rounds ORDER BY score DESC LIMIT 5
+- "How many rounds per player?" → SELECT member, COUNT(*) as rounds FROM legacy_rounds_official GROUP BY member ORDER BY rounds DESC
+- "Best single round ever?" → SELECT member, score, date, location FROM legacy_rounds_official ORDER BY score DESC LIMIT 5
 - "Who goes solo the most?" → SELECT pp.name, ps.solo_attempts, ps.solo_wins FROM player_statistics ps JOIN player_profiles pp ON ps.player_id = pp.id WHERE ps.solo_attempts > 0 ORDER BY ps.solo_attempts DESC"""
 
     step1_text = await _llm_generate(request.question, system)

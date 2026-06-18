@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Float, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint, text
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 from sqlalchemy.types import JSON
@@ -361,7 +361,19 @@ class LegacyRound(Base):
     """Historical round data synced from Google Sheets."""
 
     __tablename__ = "legacy_rounds"
-    __table_args__ = (Index("ix_legacy_rounds_date_group_member", "date", "group", "member"),)
+    __table_args__ = (
+        Index("ix_legacy_rounds_date_group_member", "date", "group", "member"),
+        # One member-posted round per (member, date). Partial index: only member
+        # self-posts are constrained; sheet rows can legitimately repeat.
+        Index(
+            "ux_member_round_per_day",
+            "member",
+            "date",
+            unique=True,
+            sqlite_where=text("source = 'member'"),
+            postgresql_where=text("source = 'member'"),
+        ),
+    )
     id = Column(Integer, primary_key=True, index=True)
     date = Column(String, index=True)  # e.g. "2026-04-06"
     group = Column(String)  # e.g. "A"
@@ -369,12 +381,19 @@ class LegacyRound(Base):
     score = Column(Integer)  # quarters won/lost
     location = Column(String)  # course name
     duration = Column(String, nullable=True)  # e.g. "02:15:00"
-    source = Column(String, default="sheet")  # "primary_sheet" or "writable_sheet"
+    source = Column(String, default="sheet")  # "primary_sheet" | "writable_sheet" | "member"
     synced_at = Column(String)  # ISO timestamp of last sync
     hole_scores = Column(JSON, default=dict)  # Hole-by-hole scores
     betting_history = Column(JSON, default=list)  # Detailed betting decisions
     performance_metrics = Column(JSON, default=dict)  # Advanced metrics
     created_at = Column(String)
+    # Member self-posting + peer attestation (member rows only; sheet/db rows
+    # default to "attested" so existing reads are unchanged).
+    player_profile_id = Column(Integer, ForeignKey("player_profiles.id"), nullable=True)
+    status = Column(String(16), nullable=False, default="attested", server_default="attested")
+    attested_by_profile_id = Column(Integer, ForeignKey("player_profiles.id"), nullable=True)
+    attested_at = Column(DateTime, nullable=True)
+    foursome = Column(JSON, nullable=True)  # canonical roster names eligible to attest
 
 
 class PlayerAchievement(Base):

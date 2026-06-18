@@ -103,6 +103,26 @@ def get_isolated_session() -> Generator[Session, None, None]:
         logger.debug("Closed isolated database session")
 
 
+def ensure_legacy_rounds_official_view(bind) -> None:
+    """Create the ``legacy_rounds_official`` view on SQLite (dev/test) DBs.
+
+    The view excludes unattested member self-posts (``status='pending'``) and is
+    the only legacy-rounds source the Commissioner's read-only SQL path may query.
+    On PostgreSQL the view is created by the attestation migration (after the
+    ``status`` column is added), so this skips Postgres to avoid referencing a
+    column that may not exist yet at ``init_db`` time on an upgrading DB.
+    """
+    if bind.dialect.name == "postgresql":
+        return
+    with bind.begin() as conn:
+        conn.execute(
+            text(
+                "CREATE VIEW IF NOT EXISTS legacy_rounds_official AS "
+                "SELECT * FROM legacy_rounds WHERE status <> 'pending'"
+            )
+        )
+
+
 def init_db():
     """Initialize database tables"""
     try:
@@ -111,6 +131,9 @@ def init_db():
 
         # Create all tables
         Base.metadata.create_all(bind=engine)
+        # Filtered view used by Commissioner SQL reads (SQLite dev; Postgres gets
+        # it from the attestation migration).
+        ensure_legacy_rounds_official_view(engine)
         logger.info("Database initialized successfully")
 
         # Test database connection
