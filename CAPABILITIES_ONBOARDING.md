@@ -86,9 +86,7 @@ decide together what matters:
 2. **No handicap capture during sign-up.** There's no onboarding step that asks for or
    verifies a GHIN ID / handicap. New players sit at the 18.0 default until handicap
    sync is finished.
-3. **No organizer-facing *UI* for roster management.** The add/pending/promote
-   capabilities exist as APIs (§2); there's no admin screen wrapping them yet.
-4. **No magic-link / passwordless email sign-up.** Auth0 redirect is the only entry
+3. **No magic-link / passwordless email sign-up.** Auth0 redirect is the only entry
    (note: Auth0 itself can be configured for passwordless if we want it).
 
 ---
