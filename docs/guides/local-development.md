@@ -76,7 +76,7 @@ npm start
 - Check `backend/app/main.py` for issues
 
 ### API calls failing
-- Verify proxy in `frontend/package.json` is `"proxy": "http://localhost:8000"`
+- Verify the dev proxy in `frontend/vite.config.js` (`server.proxy`) targets `http://localhost:8000`
 - Check backend is running on port 8000
 - Check frontend is running on port 3000
 
