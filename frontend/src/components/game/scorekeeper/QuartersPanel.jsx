@@ -2,6 +2,12 @@
 // Manual quarters entry: +/- buttons and direct input per player.
 import React from "react";
 import PropTypes from "prop-types";
+import {
+  parseQuarter,
+  normalizeQuarterInput,
+  flipSign,
+  isNegativeInput,
+} from "../../../utils/quarters";
 
 const QuartersPanel = ({
   players,
@@ -10,9 +16,18 @@ const QuartersPanel = ({
   theme,
 }) => {
   const totalSum = players.reduce(
-    (acc, p) => acc + (parseFloat(quarters[p.id]) || 0),
+    (acc, p) => acc + (parseQuarter(quarters[p.id]) ?? 0),
     0,
   );
+
+  // On blur, collapse a half-typed "-"/"." or "1." to a clean value so it
+  // never lingers and silently zeroes on submit.
+  const normalizeOnBlur = (playerId, raw) => {
+    const clean = normalizeQuarterInput(raw);
+    if (clean !== (quarters[playerId] ?? "")) {
+      setQuarters({ ...quarters, [playerId]: clean });
+    }
+  };
   const hasAnyValue = Object.values(quarters).some((v) => v !== "" && v !== undefined && v !== null);
 
   const sumColor = hasAnyValue && Math.abs(totalSum) < 0.001
@@ -81,11 +96,17 @@ const QuartersPanel = ({
       {/* Per-player rows */}
       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
         {players.map((player) => {
-          const val = parseFloat(quarters[player.id]) || 0;
+          const val = parseQuarter(quarters[player.id]) ?? 0;
+          const negative = isNegativeInput(quarters[player.id]);
           const adjust = (delta) => {
-            const base = parseFloat(quarters[player.id]) || 0;
+            const base = parseQuarter(quarters[player.id]) ?? 0;
             setQuarters({ ...quarters, [player.id]: (base + delta).toString() });
           };
+          const toggleSign = () =>
+            setQuarters({
+              ...quarters,
+              [player.id]: flipSign(quarters[player.id]),
+            });
 
           return (
             <div
@@ -96,21 +117,29 @@ const QuartersPanel = ({
                 borderRadius: "12px", border: `1px solid ${theme.colors.border}`,
               }}
             >
-              <div style={{ flex: 1, fontWeight: "bold", fontSize: "14px" }}>
+              <div style={{
+                flex: 1, minWidth: 0, fontWeight: "bold", fontSize: "14px",
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>
                 {player.name}
               </div>
+              {/* Sign toggle — tap BEFORE typing to make the value negative
+                  (mobile keypads have no minus key); shows current sign. */}
               <button
-                onClick={() => adjust(-1)}
+                onClick={toggleSign}
                 className="touch-optimized"
-                aria-label={`Decrease quarters for ${player.name}`}
+                aria-label={`Set sign for ${player.name} (negative or positive)`}
+                title="Tap to set negative / positive"
                 style={{
-                  width: "36px", height: "36px", borderRadius: "8px",
-                  border: "1px solid #EF5350", background: "#FFEBEE",
-                  color: "#C62828", fontWeight: "bold", fontSize: "18px",
+                  width: "40px", height: "40px", flexShrink: 0, borderRadius: "8px",
+                  border: `2px solid ${negative ? "#EF5350" : val > 0 ? "#66BB6A" : "#CBD5E1"}`,
+                  background: negative ? "#FFEBEE" : val > 0 ? "#E8F5E9" : theme.colors.backgroundSecondary,
+                  color: negative ? "#C62828" : val > 0 ? "#2E7D32" : theme.colors.textSecondary,
+                  fontWeight: "bold", fontSize: "20px",
                   cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                 }}
               >
-                -
+                {negative ? "−" : val > 0 ? "+" : "±"}
               </button>
               <input
                 type="text"
@@ -123,47 +152,41 @@ const QuartersPanel = ({
                     setQuarters({ ...quarters, [player.id]: v });
                   }
                 }}
+                onBlur={(e) => normalizeOnBlur(player.id, e.target.value)}
                 placeholder="0"
                 style={{
-                  width: "64px", padding: "8px", fontSize: "18px", fontWeight: "bold",
+                  width: "64px", flexShrink: 0, padding: "8px", fontSize: "18px", fontWeight: "bold",
                   border: `2px solid ${val > 0 ? "#4CAF50" : val < 0 ? "#f44336" : theme.colors.border}`,
                   borderRadius: "10px", textAlign: "center", outline: "none",
                   color: val > 0 ? "#4CAF50" : val < 0 ? "#f44336" : theme.colors.textPrimary,
                 }}
               />
+              {/* ±1 steppers for quick nudges (also work without the keyboard) */}
+              <button
+                onClick={() => adjust(-1)}
+                className="touch-optimized"
+                aria-label={`Decrease quarters for ${player.name} by 1`}
+                style={{
+                  width: "36px", height: "36px", flexShrink: 0, borderRadius: "8px",
+                  border: "1px solid #EF5350", background: "#FFEBEE",
+                  color: "#C62828", fontWeight: "bold", fontSize: "18px",
+                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                −1
+              </button>
               <button
                 onClick={() => adjust(1)}
                 className="touch-optimized"
-                aria-label={`Increase quarters for ${player.name}`}
+                aria-label={`Increase quarters for ${player.name} by 1`}
                 style={{
-                  width: "36px", height: "36px", borderRadius: "8px",
+                  width: "36px", height: "36px", flexShrink: 0, borderRadius: "8px",
                   border: "1px solid #66BB6A", background: "#E8F5E9",
                   color: "#2E7D32", fontWeight: "bold", fontSize: "18px",
                   cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                 }}
               >
-                +
-              </button>
-              <button
-                onClick={() => {
-                  const base = parseFloat(quarters[player.id]) || 0;
-                  if (base !== 0) {
-                    setQuarters({ ...quarters, [player.id]: (-base).toString() });
-                  }
-                }}
-                className="touch-optimized"
-                aria-label={`Invert quarters for ${player.name}`}
-                style={{
-                  width: "36px", height: "36px", borderRadius: "8px",
-                  border: `1px solid ${val < 0 ? "#66BB6A" : "#EF5350"}`,
-                  background: val < 0 ? "#E8F5E9" : "#FFEBEE",
-                  color: val < 0 ? "#2E7D32" : "#C62828",
-                  fontWeight: "bold", fontSize: "12px",
-                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                  opacity: val === 0 ? 0.4 : 1,
-                }}
-              >
-                +/−
+                +1
               </button>
             </div>
           );

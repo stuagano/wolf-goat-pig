@@ -63,7 +63,7 @@ const ScorecardSection = ({
             >
               Tap any hole to edit:
             </div>
-            <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
               {Array.from(
                 { length: Math.max(currentHole - 1, holeHistory.length) },
                 (_, i) => i + 1,
@@ -78,6 +78,7 @@ const ScorecardSection = ({
                     style={{
                       width: "32px",
                       height: "32px",
+                      flexShrink: 0,
                       borderRadius: "6px",
                       border: isEditing
                         ? `2px solid ${theme.colors.warning}`

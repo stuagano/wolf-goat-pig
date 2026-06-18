@@ -8,6 +8,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { useTheme } from '../../theme/Provider';
+import { parseQuarter, normalizeQuarterInput, flipSign, isNegativeInput } from '../../utils/quarters';
 
 const EditHoleModal = ({
   isOpen,
@@ -35,7 +36,7 @@ const EditHoleModal = ({
   const handleSave = useCallback(async () => {
     const parsedQuarters = {};
     for (const p of players) {
-      parsedQuarters[p.id] = parseFloat(quarters[p.id]) || 0;
+      parsedQuarters[p.id] = parseQuarter(quarters[p.id]) ?? 0;
     }
     setSaving(true);
     try {
@@ -64,7 +65,7 @@ const EditHoleModal = ({
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
         backgroundColor: 'rgba(0,0,0,0.5)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 1000, padding: '20px',
+        zIndex: 1000, padding: '12px',
       }}
       onClick={onClose}
       onKeyDown={handleKeyDown}
@@ -74,7 +75,7 @@ const EditHoleModal = ({
     >
       <div
         style={{
-          maxWidth: '420px', width: '100%', padding: '20px',
+          maxWidth: '420px', width: '100%', padding: '16px',
           background: theme.colors.paper, borderRadius: '16px',
           boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
         }}
@@ -91,7 +92,7 @@ const EditHoleModal = ({
 
         {/* Column headers */}
         <div style={{
-          display: 'grid', gridTemplateColumns: '1fr 80px 120px',
+          display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 64px 104px',
           gap: '8px', marginBottom: '8px', padding: '0 4px',
           fontSize: '12px', fontWeight: 'bold', color: theme.colors.textSecondary,
         }}>
@@ -102,18 +103,25 @@ const EditHoleModal = ({
 
         {/* Player rows */}
         {players.map(player => {
-          const qVal = parseFloat(quarters[player.id]) || 0;
+          const qVal = parseQuarter(quarters[player.id]) ?? 0;
+          const negative = isNegativeInput(quarters[player.id]);
+          const toggleSign = () =>
+            setQuarters({ ...quarters, [player.id]: flipSign(quarters[player.id]) });
           return (
             <div
               key={player.id}
               style={{
-                display: 'grid', gridTemplateColumns: '1fr 80px 120px',
+                display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 64px 104px',
                 gap: '8px', alignItems: 'center',
                 padding: '8px 4px',
                 borderBottom: `1px solid ${theme.colors.border}`,
               }}
             >
-              <div style={{ fontWeight: 'bold', fontSize: '14px' }}>
+              <div style={{
+                fontWeight: 'bold', fontSize: '14px',
+                minWidth: 0, overflow: 'hidden',
+                textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
                 {player.name}
               </div>
 
@@ -137,8 +145,24 @@ const EditHoleModal = ({
                 }}
               />
 
-              {/* Quarters with +/- flip */}
+              {/* Quarters: sign toggle (tap first for negatives) + amount */}
               <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                <button
+                  onClick={toggleSign}
+                  className="touch-optimized"
+                  aria-label={`Set sign for ${player.name} (negative or positive)`}
+                  title="Tap to set negative / positive"
+                  style={{
+                    width: '36px', height: '36px', borderRadius: '6px', flexShrink: 0,
+                    border: `2px solid ${negative ? '#EF5350' : qVal > 0 ? '#66BB6A' : '#CBD5E1'}`,
+                    background: negative ? '#FFEBEE' : qVal > 0 ? '#E8F5E9' : theme.colors.backgroundSecondary,
+                    color: negative ? '#C62828' : qVal > 0 ? '#2E7D32' : theme.colors.textSecondary,
+                    fontWeight: 'bold', fontSize: '18px',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  {negative ? '−' : qVal > 0 ? '+' : '±'}
+                </button>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -150,8 +174,14 @@ const EditHoleModal = ({
                       setQuarters({ ...quarters, [player.id]: v });
                     }
                   }}
+                  onBlur={e => {
+                    const clean = normalizeQuarterInput(e.target.value);
+                    if (clean !== (quarters[player.id] ?? '')) {
+                      setQuarters({ ...quarters, [player.id]: clean });
+                    }
+                  }}
                   style={{
-                    width: '60px', padding: '8px', fontSize: '16px', fontWeight: 'bold',
+                    flex: 1, minWidth: 0, padding: '8px', fontSize: '16px', fontWeight: 'bold',
                     border: `2px solid ${qVal > 0 ? '#4CAF50' : qVal < 0 ? '#f44336' : theme.colors.border}`,
                     borderRadius: '8px', textAlign: 'center', outline: 'none',
                     color: qVal > 0 ? '#4CAF50' : qVal < 0 ? '#f44336' : theme.colors.textPrimary,
@@ -159,26 +189,6 @@ const EditHoleModal = ({
                     boxSizing: 'border-box',
                   }}
                 />
-                <button
-                  onClick={() => {
-                    const base = parseFloat(quarters[player.id]) || 0;
-                    if (base !== 0) {
-                      setQuarters({ ...quarters, [player.id]: (-base).toString() });
-                    }
-                  }}
-                  className="touch-optimized"
-                  style={{
-                    width: '32px', height: '32px', borderRadius: '6px',
-                    border: `1px solid ${qVal < 0 ? '#66BB6A' : '#EF5350'}`,
-                    background: qVal < 0 ? '#E8F5E9' : '#FFEBEE',
-                    color: qVal < 0 ? '#2E7D32' : '#C62828',
-                    fontWeight: 'bold', fontSize: '11px',
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    opacity: qVal === 0 ? 0.4 : 1, flexShrink: 0,
-                  }}
-                >
-                  +/−
-                </button>
               </div>
             </div>
           );
@@ -186,7 +196,7 @@ const EditHoleModal = ({
 
         {/* Zero-sum indicator */}
         {(() => {
-          const sum = players.reduce((acc, p) => acc + (parseFloat(quarters[p.id]) || 0), 0);
+          const sum = players.reduce((acc, p) => acc + (parseQuarter(quarters[p.id]) ?? 0), 0);
           const balanced = Math.abs(sum) < 0.01;
           return (
             <div style={{

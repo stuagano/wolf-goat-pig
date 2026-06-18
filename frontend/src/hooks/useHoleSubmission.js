@@ -9,6 +9,7 @@
 import { apiConfig } from "../config/api.config";
 import { fetchJson } from "../services/fetchJson";
 import { upsertHole } from "../utils/holeHistory";
+import { parseQuarter } from "../utils/quarters";
 
 const API_URL = apiConfig.baseUrl;
 
@@ -107,11 +108,13 @@ const useHoleSubmission = (ctx) => {
     const entered = [];
     const empty = [];
     players.forEach((p) => {
-      const val = effective[p.id];
-      if (val !== undefined && val !== "" && val !== null) {
-        entered.push({ id: p.id, value: parseFloat(val) || 0 });
-      } else {
+      // A half-typed "-"/"." parses to null and counts as empty (not 0), so
+      // auto-balance can fill it and a partial entry never silently zeroes.
+      const val = parseQuarter(effective[p.id]);
+      if (val === null) {
         empty.push(p.id);
+      } else {
+        entered.push({ id: p.id, value: val });
       }
     });
     if (empty.length === 1 && entered.length >= 1) {
@@ -137,24 +140,33 @@ const useHoleSubmission = (ctx) => {
 
     // Validate with effective quarters
     const allPlayers = players.map((p) => p.id);
-    const quartersEntered = Object.keys(effectiveQuarters).length > 0;
     let validationError = null;
-    if (!quartersEntered) {
+    // Flag a half-typed / malformed entry explicitly instead of silently
+    // treating it as 0 and reporting a confusing "must sum to zero" error.
+    const malformed = players.find(
+      (p) =>
+        effectiveQuarters[p.id] !== undefined &&
+        effectiveQuarters[p.id] !== "" &&
+        effectiveQuarters[p.id] !== null &&
+        parseQuarter(effectiveQuarters[p.id]) === null,
+    );
+    const missing = allPlayers.some(
+      (id) =>
+        effectiveQuarters[id] === undefined ||
+        effectiveQuarters[id] === "" ||
+        effectiveQuarters[id] === null,
+    );
+    if (malformed) {
+      validationError = `Enter a valid number for ${malformed.name} (use the +/- or ± buttons for negatives).`;
+    } else if (missing) {
       validationError = "Please enter quarters for all players";
     } else {
-      for (const playerId of allPlayers) {
-        if (effectiveQuarters[playerId] === undefined || effectiveQuarters[playerId] === "") {
-          validationError = "Please enter quarters for all players";
-          break;
-        }
-      }
-      if (!validationError) {
-        const quartersSum = allPlayers.reduce((sum, playerId) => {
-          return sum + (parseFloat(effectiveQuarters[playerId]) || 0);
-        }, 0);
-        if (Math.abs(quartersSum) > 0.001) {
-          validationError = `Quarters must sum to zero. Current sum: ${quartersSum > 0 ? "+" : ""}${quartersSum.toFixed(2)}`;
-        }
+      const quartersSum = allPlayers.reduce(
+        (sum, playerId) => sum + (parseQuarter(effectiveQuarters[playerId]) ?? 0),
+        0,
+      );
+      if (Math.abs(quartersSum) > 0.001) {
+        validationError = `Quarters must sum to zero. Current sum: ${quartersSum > 0 ? "+" : ""}${quartersSum.toFixed(2)}`;
       }
     }
     if (validationError) {

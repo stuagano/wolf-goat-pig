@@ -164,7 +164,7 @@ const ScoreInputField = ({
           className="score-grid-mobile"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(5, 1fr)',
+            gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
             gap: '12px',
             marginBottom: '12px'
           }}
@@ -183,6 +183,7 @@ const ScoreInputField = ({
                 className="touch-optimized"
                 style={{
                   minHeight: '90px',
+                  minWidth: 0,
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
