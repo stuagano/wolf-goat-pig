@@ -306,6 +306,16 @@ _DENIED_COLUMNS = {
     "weaknesses",
 }
 
+_DENIED_TABLES = {
+    # Physical tables that must NEVER be referenced directly, regardless of
+    # quoting, schema-qualification, or CTE aliasing. `legacy_rounds` holds
+    # unattested member self-posts (status='pending'); only the filtered
+    # `legacy_rounds_official` view is sanctioned. This denylist takes
+    # precedence over the allow-list, so a CTE named `legacy_rounds` cannot
+    # whitelist the raw table.
+    "legacy_rounds",
+}
+
 _DANGEROUS_KEYWORDS = {
     "INSERT",
     "UPDATE",
@@ -354,9 +364,24 @@ def _validate_sql(sql: str) -> bool:
         if col in lower:
             return False
 
+    def _base_name(ident: str) -> str:
+        """Normalize an identifier to its unquoted, lowercase base table name.
+
+        Handles schema-qualified forms (schema.table, "schema"."table") by
+        taking the final segment, then strips surrounding double-quotes.
+        """
+        last_segment = re.split(r"\s*\.\s*", ident.strip())[-1].strip()
+        if last_segment.startswith('"') and last_segment.endswith('"'):
+            last_segment = last_segment[1:-1]
+        return last_segment.lower()
+
     # Extract CTE names (WITH name AS ...) so they're treated as valid aliases
     cte_names = {name.lower() for name in re.findall(r"\bWITH\s+(\w+)\s+AS\b", upper)}
     cte_names |= {name.lower() for name in re.findall(r",\s*(\w+)\s+AS\s*\(", upper)}
+    # A CTE may not be named after a denied physical table — that would
+    # whitelist the forbidden name. Denylist takes precedence over aliasing.
+    if any(_base_name(name) in _DENIED_TABLES for name in cte_names):
+        return False
     allowed = _ALLOWED_TABLES | cte_names
 
     # Table allowlist — every FROM / JOIN target must be allowed.
@@ -372,14 +397,16 @@ def _validate_sql(sql: str) -> bool:
         after = upper[m.end() :].lstrip()
         if after and after[0] == "(":
             continue  # function call, not a table
-        # Take the final segment (the table name) of a possibly-qualified ref,
-        # and strip surrounding double-quotes so quoting cannot bypass the check.
-        last_segment = re.split(r"\s*\.\s*", raw)[-1].strip()
-        if last_segment.startswith('"') and last_segment.endswith('"'):
-            last_segment = last_segment[1:-1]
-        table_refs.append(last_segment)
+        # Normalize to the unquoted base table name (handles quoting + schema
+        # qualification) so neither can bypass the allow/deny checks.
+        table_refs.append(_base_name(raw))
+    # Denylist takes PRECEDENCE over the allow-list: a physical table in
+    # _DENIED_TABLES is unreachable even if a same-named CTE aliases it.
     for tbl in table_refs:
-        if tbl.lower() not in allowed:
+        if tbl in _DENIED_TABLES:
+            return False
+    for tbl in table_refs:
+        if tbl not in allowed:
             return False
 
     return True

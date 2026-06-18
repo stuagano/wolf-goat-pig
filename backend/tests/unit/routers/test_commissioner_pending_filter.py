@@ -118,6 +118,37 @@ def test_quoted_and_qualified_raw_legacy_rounds_refs_are_rejected():
     assert _validate_sql('SELECT member FROM public."legacy_rounds_official"') is True
 
 
+def test_cte_alias_named_after_denied_table_is_rejected():
+    """A CTE named like the forbidden raw table cannot whitelist it (denylist wins)."""
+    from app.routers.commissioner import _validate_sql
+
+    # (a) CTE named legacy_rounds, quoted raw-table body
+    assert _validate_sql('WITH legacy_rounds AS (SELECT * FROM "legacy_rounds") SELECT * FROM legacy_rounds') is False
+    # (b) same idea, unquoted raw-table body
+    assert _validate_sql("WITH legacy_rounds AS (SELECT * FROM legacy_rounds) SELECT * FROM legacy_rounds") is False
+    # (c) CTE named legacy_rounds whose body selects from the raw table via a
+    #     schema-qualified quoted ref
+    assert (
+        _validate_sql('WITH legacy_rounds AS (SELECT * FROM public."legacy_rounds") SELECT * FROM legacy_rounds')
+        is False
+    )
+    # A legitimate CTE over the sanctioned view still passes.
+    assert _validate_sql("WITH r AS (SELECT * FROM legacy_rounds_official) SELECT * FROM r") is True
+
+
+def test_legitimate_cte_over_official_view_excludes_pending(db_session):
+    """A valid CTE over the official view passes and still hides pending rows."""
+    from app.routers.commissioner import _execute_readonly_sql, _validate_sql
+
+    sql = "WITH r AS (SELECT * FROM legacy_rounds_official) SELECT member FROM r"
+    assert _validate_sql(sql) is True
+    results = _execute_readonly_sql(db_session, sql)
+    assert "error" not in results, results
+    members = {row[0] for row in results["rows"]}
+    assert "Alice Park" in members  # attested → returned
+    assert "Bob Jones" not in members  # pending → excluded
+
+
 def test_official_view_quoted_query_still_excludes_pending(db_session):
     """A valid quoted query against the official view passes and hides pending rows."""
     from app.routers.commissioner import _execute_readonly_sql, _validate_sql
