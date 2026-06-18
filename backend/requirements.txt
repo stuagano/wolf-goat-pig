@@ -16,7 +16,7 @@ requests>=2.31.0
 pydantic>=2.6.0,<3.0
 
 # Image processing (scorecard compression + circle detection preprocessing)
-Pillow>=10.0.0
+Pillow>=12.2.0
 opencv-python-headless>=4.9.0,<5.0
 numpy>=1.26.0,<3.0
 
