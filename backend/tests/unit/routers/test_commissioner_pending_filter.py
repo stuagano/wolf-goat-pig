@@ -149,6 +149,59 @@ def test_legitimate_cte_over_official_view_excludes_pending(db_session):
     assert "Bob Jones" not in members  # pending → excluded
 
 
+def test_comma_separated_raw_legacy_rounds_refs_are_rejected():
+    """Implicit (comma) joins must not slip a raw-table ref past the validator."""
+    from app.routers.commissioner import _validate_sql
+
+    # (a) comma join, second table is raw legacy_rounds
+    assert _validate_sql("SELECT lr.member, lr.score FROM legacy_rounds_official o, legacy_rounds lr") is False
+    # (b) comma join with a quoted raw ref
+    assert _validate_sql('SELECT * FROM player_profiles p, "legacy_rounds" lr') is False
+    # (c) comma join with a schema-qualified quoted raw ref
+    assert _validate_sql('SELECT * FROM legacy_rounds_official o, public."legacy_rounds" lr') is False
+
+
+def test_prior_adversarial_cases_still_rejected():
+    """All previously-closed bypasses remain rejected under the AST validator."""
+    from app.routers.commissioner import _validate_sql
+
+    # bare / quoted / schema-qualified raw table
+    assert _validate_sql("SELECT * FROM legacy_rounds") is False
+    assert _validate_sql('SELECT * FROM "legacy_rounds"') is False
+    assert _validate_sql('SELECT * FROM public."legacy_rounds"') is False
+    assert _validate_sql('SELECT * FROM "public"."legacy_rounds"') is False
+    # raw ref inside a subquery
+    assert _validate_sql('SELECT * FROM (SELECT * FROM "legacy_rounds") x') is False
+    # CTE named after the denied table (alias collision)
+    assert _validate_sql('WITH legacy_rounds AS (SELECT * FROM "legacy_rounds") SELECT * FROM legacy_rounds') is False
+    # nested CTE whose inner body pulls from the raw table
+    assert (
+        _validate_sql(
+            "WITH outer_cte AS ("
+            "  WITH inner_cte AS (SELECT * FROM legacy_rounds) SELECT * FROM inner_cte"
+            ") SELECT * FROM outer_cte"
+        )
+        is False
+    )
+    # UNION pulling from the raw table on one side
+    assert _validate_sql("SELECT member FROM legacy_rounds_official UNION SELECT member FROM legacy_rounds") is False
+
+
+def test_fail_closed_on_unparseable_sql():
+    """If sqlglot cannot parse the statement, the validator must reject it."""
+    from app.routers.commissioner import _validate_sql
+
+    assert _validate_sql("SELECT * FROM legacy_rounds_official WHERE ((( ") is False
+    assert _validate_sql("not valid sql at all ~~~") is False
+
+
+def test_comma_join_over_allowed_tables_still_passes():
+    """An implicit join over only allowed tables must still validate."""
+    from app.routers.commissioner import _validate_sql
+
+    assert _validate_sql("SELECT * FROM legacy_rounds_official o, player_profiles p") is True
+
+
 def test_official_view_quoted_query_still_excludes_pending(db_session):
     """A valid quoted query against the official view passes and hides pending rows."""
     from app.routers.commissioner import _execute_readonly_sql, _validate_sql

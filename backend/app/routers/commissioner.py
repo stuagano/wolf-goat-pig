@@ -13,10 +13,12 @@ import re
 from typing import Any
 
 import httpx
+import sqlglot
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from sqlglot import exp
 
 from ..database import get_db
 from ..utils.api_helpers import ApiResponse, handle_api_errors
@@ -330,6 +332,18 @@ _DANGEROUS_KEYWORDS = {
 }
 
 
+def _base_name(ident: str) -> str:
+    """Normalize an identifier to its unquoted, lowercase base table name.
+
+    Handles schema-qualified forms (schema.table, "schema"."table") by taking
+    the final segment, then strips surrounding double-quotes.
+    """
+    last_segment = re.split(r"\s*\.\s*", ident.strip())[-1].strip()
+    if last_segment.startswith('"') and last_segment.endswith('"'):
+        last_segment = last_segment[1:-1]
+    return last_segment.lower()
+
+
 def _validate_sql(sql: str) -> bool:
     """Return True if *sql* is a safe, read-only SELECT against allowed tables."""
     # Strip single-line comments
@@ -364,42 +378,32 @@ def _validate_sql(sql: str) -> bool:
         if col in lower:
             return False
 
-    def _base_name(ident: str) -> str:
-        """Normalize an identifier to its unquoted, lowercase base table name.
+    # Enumerate table references and CTE names with a real SQL parser rather
+    # than regex. sqlglot walks the entire AST, so comma/implicit joins,
+    # explicit JOINs, subqueries, CTE bodies, set operations (UNION/…), and
+    # nested CTEs are all covered — closing the regex whack-a-mole bypasses.
+    # Parse with the Postgres dialect (prod), and FAIL CLOSED if it can't parse.
+    try:
+        tree = sqlglot.parse_one(cleaned, dialect="postgres")
+    except Exception:
+        return False
+    if tree is None:
+        return False
 
-        Handles schema-qualified forms (schema.table, "schema"."table") by
-        taking the final segment, then strips surrounding double-quotes.
-        """
-        last_segment = re.split(r"\s*\.\s*", ident.strip())[-1].strip()
-        if last_segment.startswith('"') and last_segment.endswith('"'):
-            last_segment = last_segment[1:-1]
-        return last_segment.lower()
-
-    # Extract CTE names (WITH name AS ...) so they're treated as valid aliases
-    cte_names = {name.lower() for name in re.findall(r"\bWITH\s+(\w+)\s+AS\b", upper)}
-    cte_names |= {name.lower() for name in re.findall(r",\s*(\w+)\s+AS\s*\(", upper)}
+    # CTE names declared in the query are valid aliases for FROM/JOIN targets.
+    cte_names = {_base_name(cte.alias) for cte in tree.find_all(exp.CTE)}
     # A CTE may not be named after a denied physical table — that would
     # whitelist the forbidden name. Denylist takes precedence over aliasing.
-    if any(_base_name(name) in _DENIED_TABLES for name in cte_names):
+    if any(name in _DENIED_TABLES for name in cte_names):
         return False
     allowed = _ALLOWED_TABLES | cte_names
 
-    # Table allowlist — every FROM / JOIN target must be allowed.
-    # Identifiers may be unquoted (\w+), double-quoted ("name"), and/or
-    # schema-qualified (schema.table, "schema"."table", public."legacy_rounds").
-    # Match all such forms so quoting cannot evade the allow-list. Each part of a
-    # qualified name is either a bare word or a double-quoted segment.
-    _ident = r'(?:"[^"]+"|\w+)'
-    _qualified = rf"{_ident}(?:\s*\.\s*{_ident})*"
-    table_refs = []
-    for m in re.finditer(rf"\b(?:FROM|JOIN)\s+({_qualified})", upper):
-        raw = m.group(1)
-        after = upper[m.end() :].lstrip()
-        if after and after[0] == "(":
-            continue  # function call, not a table
-        # Normalize to the unquoted base table name (handles quoting + schema
-        # qualification) so neither can bypass the allow/deny checks.
-        table_refs.append(_base_name(raw))
+    # Every real table reference anywhere in the tree. exp.Table.name yields the
+    # unquoted base table name (handles quoting + schema qualification); we
+    # normalize again via _base_name for defense in depth. Function calls do not
+    # produce Table nodes, so they need no special handling.
+    table_refs = {_base_name(tbl.name) for tbl in tree.find_all(exp.Table)}
+
     # Denylist takes PRECEDENCE over the allow-list: a physical table in
     # _DENIED_TABLES is unreachable even if a same-named CTE aliases it.
     for tbl in table_refs:

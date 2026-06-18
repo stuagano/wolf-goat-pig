@@ -9,6 +9,9 @@ httpx
 python-dotenv
 pydantic
 
+# SQL parsing for the Commissioner read-only SQL validator (mirrors prod).
+sqlglot>=25,<28
+
 # Type checking and linting
 mypy
 ruff
