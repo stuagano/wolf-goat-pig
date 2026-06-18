@@ -47,6 +47,7 @@ const ActiveGamesPage = React.lazy(() => import("./pages/ActiveGamesPage"));
 const CompletedGamesPage = React.lazy(() => import("./pages/CompletedGamesPage"));
 const AccountPage = React.lazy(() => import("./pages/AccountPage"));
 const BadgesPage = React.lazy(() => import("./pages/BadgesPage"));
+const PostRoundPage = React.lazy(() => import("./pages/PostRoundPage"));
 const ScorecardScanPage = React.lazy(() => import("./pages/ScorecardScanPage"));
 const AskPage = React.lazy(() => import("./pages/AskPage"));
 const FindAGamePage = React.lazy(() => import("./pages/FindAGamePage"));
@@ -420,6 +421,7 @@ function App() {
               <Route path="/lobby/:gameId" element={<GameLobbyPage />} />
               <Route path="/games/active" element={<ActiveGamesPage />} />
               <Route path="/games/completed" element={<CompletedGamesPage />} />
+              <Route path="/rounds/post" element={<ProtectedRoute><PostRoundPage /></ProtectedRoute>} />
               <Route path="/account" element={<AccountPage />} />
               <Route path="/badges" element={<BadgesPage />} />
               <Route path="/scorecard-scan" element={<ScorecardScanPage />} />
