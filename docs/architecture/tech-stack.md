@@ -65,11 +65,10 @@ Wolf Goat Pig is built with modern, production-ready technologies chosen for rel
   - Test automation
 
 ### Development Tools
-- **BMad Method** - Agile AI-driven development framework
 - **Claude Code** - AI pair programming
 - **Git** - Version control
 - **pytest** - Python testing framework
-- **Jest** (via CRA) - JavaScript testing
+- **Vitest** - JavaScript/React testing
 
 ## API Design
 

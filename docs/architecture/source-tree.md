@@ -4,12 +4,11 @@
 
 ```
 wolf-goat-pig/
-├── .bmad-core/           # BMad Method framework
 ├── .claude/              # Claude AI agent configurations
 ├── .github/              # GitHub Actions workflows
 ├── backend/              # FastAPI backend application
 ├── frontend/             # React frontend application
-├── docs/                 # BMad documentation
+├── docs/                 # Project documentation
 ├── scripts/              # Utility scripts
 └── [root files]          # Configuration and documentation
 ```
@@ -127,31 +126,18 @@ Custom React hooks:
 Utility functions:
 - `api.js` - API client with cold start handling
 
-## BMad Documentation (`/docs`)
+## Documentation (`/docs`)
 
 ```
 docs/
-├── prd.md               # Product Requirements Document
-├── architecture.md      # System architecture
-├── architecture/        # Technical documentation
+├── architecture/        # Technical architecture documentation
+│   ├── architecture.md      # System architecture (canonical)
 │   ├── coding-standards.md
 │   ├── tech-stack.md
-│   └── source-tree.md
-├── stories/             # User stories
-└── qa/                  # QA documentation
-```
-
-## BMad Core (`/.bmad-core`)
-
-```
-.bmad-core/
-├── agents/              # AI agent definitions
-├── tasks/               # Task templates
-├── templates/           # Document templates
-├── checklists/          # Process checklists
-├── workflows/           # Development workflows
-├── data/                # Knowledge base
-└── core-config.yaml     # BMad configuration
+│   ├── source-tree.md
+│   └── DATABASE_SCHEMA.md
+├── guides/              # Developer/operator guides
+└── README.md            # Documentation index
 ```
 
 ## File Naming Conventions
