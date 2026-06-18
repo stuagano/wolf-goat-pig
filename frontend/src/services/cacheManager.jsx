@@ -36,6 +36,24 @@ const CACHE_KEYS = {
   UPDATE_DISMISSED: "wgp_update_dismissed",
 };
 
+// localStorage keys that must SURVIVE cache busting. Wiping these on every
+// deploy logged users out (Auth0 stores its session in localStorage because
+// cacheLocation="localstorage") and forced the Auth0->profile linkage /
+// legacy-name onboarding to redo on every build. Stale *code* lives in the
+// Service Worker caches, never in localStorage — so identity, in-progress
+// game, and app preferences are always preserved.
+const PRESERVED_KEY_PARTS = [
+  "@@auth0spajs@@", // Auth0 SDK session tokens
+  "wolf-goat-pig-game-state",
+  "wolf-goat-pig-game-backup",
+  "legacy_name_skipped", // onboarding "I'm not on the list" choice
+  "wgp_", // app state: current game, assist mode, version, sessions
+  "wgp-", // namespaced stores (e.g. wgp-sync)
+];
+
+const isPreservedKey = (key) =>
+  PRESERVED_KEY_PARTS.some((part) => key.includes(part));
+
 // How often to check for updates (in milliseconds)
 const UPDATE_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
@@ -82,7 +100,30 @@ export function hasAppUpdated() {
 }
 
 /**
- * Clear all application caches
+ * Clear ONLY the Service Worker / asset caches. This is what actually busts
+ * stale code on a new deploy. It never touches localStorage, so the Auth0
+ * session and profile linkage survive a build.
+ */
+export async function clearServiceWorkerCaches() {
+  if (!("caches" in window)) return false;
+  try {
+    const cacheNames = await caches.keys();
+    await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+    return true;
+  } catch (error) {
+    console.error("[CacheManager] Failed to clear SW caches:", error);
+    return false;
+  }
+}
+
+/**
+ * Clear application caches. Busts the Service Worker/asset caches and clears
+ * transient localStorage/sessionStorage, but PRESERVES auth session, profile
+ * linkage, in-progress game, and app preferences (see PRESERVED_KEY_PARTS).
+ *
+ * Used by the manual "force refresh" path. The automatic per-deploy path
+ * (initCacheManager) intentionally does NOT call this — it only clears SW
+ * caches — so a routine deploy never disturbs localStorage at all.
  */
 export async function clearAllCaches() {
   const results = {
@@ -91,31 +132,12 @@ export async function clearAllCaches() {
     sessionStorage: false,
   };
 
-  try {
-    // Clear Service Worker caches
-    if ("caches" in window) {
-      const cacheNames = await caches.keys();
-      await Promise.all(
-        cacheNames.map((cacheName) => {
-          return caches.delete(cacheName);
-        }),
-      );
-      results.serviceWorkerCache = true;
-    }
-  } catch (error) {
-    console.error("[CacheManager] Failed to clear SW caches:", error);
-  }
+  results.serviceWorkerCache = await clearServiceWorkerCaches();
 
   try {
-    // Clear localStorage (except critical game data)
-    const gameDataKeys = [
-      "wolf-goat-pig-game-state",
-      "wolf-goat-pig-game-backup",
-    ];
-    const keysToKeep = [...gameDataKeys];
-
+    // Clear transient localStorage, but keep auth/identity/game/app state.
     Object.keys(localStorage).forEach((key) => {
-      if (!keysToKeep.some((k) => key.includes(k))) {
+      if (!isPreservedKey(key)) {
         localStorage.removeItem(key);
       }
     });
@@ -270,8 +292,11 @@ export async function initCacheManager() {
   if (hasAppUpdated()) {
     storeCurrentVersion();
 
-    // Clear old caches on version update
-    clearAllCaches().catch(console.error);
+    // Bust ONLY the Service Worker/asset caches on a new version. Do NOT clear
+    // localStorage here — it holds the Auth0 session and the user's profile
+    // linkage, and wiping it on every deploy logged everyone out and forced the
+    // name->login match / onboarding to redo on each build.
+    clearServiceWorkerCaches().catch(console.error);
   }
 
   // Set up periodic update checks
@@ -297,6 +322,7 @@ const cacheManager = {
   storeCurrentVersion,
   hasAppUpdated,
   clearAllCaches,
+  clearServiceWorkerCaches,
   forceRefresh,
   checkForUpdates,
   dismissUpdate,
