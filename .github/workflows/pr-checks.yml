@@ -5,15 +5,6 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
-  label-pr:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/labeler@v5
-      with:
-        repo-token: "${{ secrets.GITHUB_TOKEN }}"
-        configuration-path: .github/labeler.yml
-
   check-pr-size:
     runs-on: ubuntu-latest
     
@@ -74,4 +65,3 @@ jobs:
     - uses: kentaro-m/auto-assign-action@v2.0.0
       with:
         configuration-path: ".github/auto-assign.yml"
-
