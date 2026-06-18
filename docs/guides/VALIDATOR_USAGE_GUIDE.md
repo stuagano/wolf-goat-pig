@@ -2052,415 +2052,71 @@ class HoleState:
         self.partnership = (captain_id, partner_id)
 ```
 
----
-
 ## Testing with Validators
 
-### Testing Validation Logic
-
-#### Test Valid Cases
+Validators are pure and easy to test directly. Assert that valid input passes and
+invalid input raises the specific exception with useful details:
 
 ```python
 import pytest
 from app.validators import HandicapValidator, HandicapValidationError
 
 def test_valid_handicap():
-    """Test valid handicap passes validation."""
-    # Should not raise
-    HandicapValidator.validate_handicap(15.0)
-    HandicapValidator.validate_handicap(0.0)
-    HandicapValidator.validate_handicap(54.0)
+    HandicapValidator.validate_handicap(15.0)   # should not raise
 
-def test_valid_stroke_calculation():
-    """Test stroke calculation is correct."""
-    # Player with 15 handicap on stroke index 8 hole
-    strokes = HandicapValidator.calculate_strokes_received(
-        course_handicap=15.0,
-        stroke_index=8
-    )
-    assert strokes == 1
-
-    # Player with 25 handicap on stroke index 5 hole
-    strokes = HandicapValidator.calculate_strokes_received(
-        course_handicap=25.0,
-        stroke_index=5
-    )
-    assert strokes == 2
-```
-
-#### Test Invalid Cases
-
-```python
 def test_invalid_handicap():
-    """Test invalid handicaps raise errors."""
-    # Handicap too high
     with pytest.raises(HandicapValidationError) as exc:
         HandicapValidator.validate_handicap(60.0)
     assert "cannot exceed" in str(exc.value)
 
-    # Handicap negative
-    with pytest.raises(HandicapValidationError) as exc:
-        HandicapValidator.validate_handicap(-5.0)
-    assert "cannot be less than" in str(exc.value)
-
-    # Wrong type
-    with pytest.raises(HandicapValidationError) as exc:
-        HandicapValidator.validate_handicap("15")
-    assert "must be a number" in str(exc.value)
-```
-
-#### Test Error Details
-
-```python
-def test_validation_error_details():
-    """Test error includes useful details."""
+def test_error_details():
     try:
         HandicapValidator.validate_handicap(60.0, "player_handicap")
     except HandicapValidationError as e:
-        assert e.message == "player_handicap cannot exceed 54.0"
         assert e.field == "player_handicap"
         assert e.details == {"value": 60.0, "max": 54.0}
-
-        # Test to_dict() method
-        error_dict = e.to_dict()
-        assert "error" in error_dict
-        assert "field" in error_dict
-        assert "details" in error_dict
 ```
 
-### Mocking Validation for Unit Tests
+Other useful patterns:
 
-#### Mock Validator Methods
+- **Parameterize** range/category cases with `@pytest.mark.parametrize` (handicap
+  categories, stroke allocation, etc.).
+- **Mock** a validator when you want to test surrounding logic without validation
+  overhead: `with patch.object(BettingValidator, 'validate_double'): ...`, or a
+  `monkeypatch` fixture that bypasses validators wholesale.
+- **Integration test** the full flow (`start_hole` → `form_partnership` →
+  `apply_double` → `complete_hole`) to exercise every validator together.
 
-```python
-from unittest.mock import patch
-from app.validators import HandicapValidator
-
-def test_game_setup_with_mocked_validation():
-    """Test game setup with mocked handicap validation."""
-    with patch.object(HandicapValidator, 'validate_handicap'):
-        # Validation is bypassed
-        game = setup_game(players=[
-            {"id": "p1", "handicap": 999}  # Would normally fail
-        ])
-        assert game is not None
-```
-
-#### Pytest Fixtures for Validation
-
-```python
-import pytest
-
-@pytest.fixture
-def mock_validators(monkeypatch):
-    """Mock all validators to always pass."""
-    monkeypatch.setattr(
-        'app.validators.HandicapValidator.validate_handicap',
-        lambda x: None
-    )
-    monkeypatch.setattr(
-        'app.validators.BettingValidator.validate_double',
-        lambda **kwargs: None
-    )
-
-def test_with_mocked_validators(mock_validators):
-    """Test using mocked validators."""
-    # All validations pass
-    game = create_game_with_invalid_data()
-    assert game is not None
-```
-
-#### Selective Mocking
-
-```python
-def test_double_logic_without_validation():
-    """Test double logic without validation overhead."""
-    hole_state = HoleState()
-
-    with patch.object(BettingValidator, 'validate_double'):
-        # Test the logic, not the validation
-        hole_state.apply_double()
-        assert hole_state.doubled is True
-        assert hole_state.multiplier == 2
-```
-
-### Integration Tests with Validators
-
-```python
-def test_complete_hole_flow():
-    """Integration test: complete hole with all validations."""
-    # Setup
-    game = WolfGoatPigSimulation()
-    game.setup_players([
-        {"id": "p1", "handicap": 10.0},
-        {"id": "p2", "handicap": 15.0},
-        {"id": "p3", "handicap": 8.0},
-        {"id": "p4", "handicap": 20.0}
-    ])
-
-    # Start hole (validates hole number)
-    result = game.start_hole(1)
-    assert result['success'] is True
-
-    # Form partnership (validates partnership rules)
-    result = game.form_partnership("p1", "p2")
-    assert result['success'] is True
-
-    # Apply double (validates betting rules)
-    result = game.apply_double()
-    assert result['success'] is True
-
-    # Complete hole (validates completion)
-    result = game.complete_hole()
-    assert result['success'] is True
-```
-
-### Test Parameterization
-
-```python
-@pytest.mark.parametrize("handicap,expected_category", [
-    (3.5, "SCRATCH"),
-    (10.0, "LOW"),
-    (15.0, "MID"),
-    (25.0, "HIGH"),
-    (35.0, "BEGINNER"),
-])
-def test_handicap_categories(handicap, expected_category):
-    """Test handicap categorization."""
-    category = HandicapValidator.get_handicap_category(handicap)
-    assert category == expected_category
-
-@pytest.mark.parametrize("handicap,stroke_index,expected_strokes", [
-    (15.0, 8, 1),
-    (25.0, 5, 2),
-    (5.0, 8, 0),
-    (36.0, 1, 2),
-])
-def test_stroke_allocation(handicap, stroke_index, expected_strokes):
-    """Test stroke allocation calculation."""
-    strokes = HandicapValidator.calculate_strokes_received(
-        course_handicap=handicap,
-        stroke_index=stroke_index
-    )
-    assert strokes == expected_strokes
-```
-
----
+See `backend/tests/unit/engine/test_validators.py` and
+`backend/tests/unit/routers/test_validators.py` for live examples.
 
 ## Best Practices
 
-### 1. Validate Early, Fail Fast
-
-```python
-# GOOD: Validate before doing work
-def create_player(data: Dict):
-    HandicapValidator.validate_handicap(data['handicap'])  # Fail fast
-    player = Player(**data)  # Now safe to create
-    return player
-
-# BAD: Create first, validate later
-def create_player(data: Dict):
-    player = Player(**data)  # Might create invalid player
-    HandicapValidator.validate_handicap(player.handicap)  # Too late
-    return player
-```
-
-### 2. Use Specific Exceptions
-
-```python
-# GOOD: Catch specific exceptions
-try:
-    HandicapValidator.validate_handicap(handicap)
-except HandicapValidationError as e:
-    return {"error": e.message}
-
-# BAD: Catch generic exceptions
-try:
-    HandicapValidator.validate_handicap(handicap)
-except Exception as e:  # Too broad
-    return {"error": str(e)}
-```
-
-### 3. Provide Context in Errors
-
-```python
-# GOOD: Use field_name parameter
-for i, player in enumerate(players):
-    HandicapValidator.validate_handicap(
-        player['handicap'],
-        field_name=f"player_{i}_handicap"
-    )
-
-# BAD: Generic field name
-for player in players:
-    HandicapValidator.validate_handicap(player['handicap'])
-```
-
-### 4. Chain Validations Logically
-
-```python
-# GOOD: Logical validation order
-HandicapValidator.validate_handicap(handicap_index)
-HandicapValidator.validate_course_rating(course_rating, slope_rating)
-course_handicap = HandicapValidator.calculate_course_handicap(...)
-
-# BAD: Calculate before validating
-course_handicap = HandicapValidator.calculate_course_handicap(...)
-HandicapValidator.validate_handicap(handicap_index)  # Too late
-```
-
-### 5. Skip Validation Only When Safe
-
-```python
-# GOOD: Skip when already validated
-# First call - validate
-strokes = HandicapValidator.calculate_strokes_received(
-    course_handicap=handicap,
-    stroke_index=index,
-    validate=True
-)
-
-# Repeated calls in loop - skip validation
-for hole in holes:
-    strokes = HandicapValidator.calculate_strokes_received(
-        course_handicap=handicap,
-        stroke_index=hole.index,
-        validate=False  # Already validated once
-    )
-
-# BAD: Always skip validation
-strokes = HandicapValidator.calculate_strokes_received(
-    course_handicap=user_input,  # Untrusted!
-    stroke_index=hole.index,
-    validate=False  # Dangerous!
-)
-```
-
-### 6. Use Validators at Boundaries
-
-```python
-# GOOD: Validate at API/service boundary
-class GameAPI:
-    def create_game(self, data: Dict):
-        # Validate at boundary
-        GameStateValidator.validate_player_count(len(data['players']))
-
-        # Pass to domain layer (validated data)
-        return self.game_service.create(data)
-
-# BAD: Validate deep in domain logic
-class Game:
-    def __init__(self, players: List):
-        self.players = players
-        # Don't validate here - too late
-```
-
-### 7. Document Validation Rules
-
-```python
-# GOOD: Document what validations occur
-def setup_hole(self, hole_number: int):
-    """
-    Setup a hole for play.
-
-    Validations:
-    - Hole number must be 1-18
-    - All player handicaps must be 0-54
-    - Stroke indexes must be unique 1-18
-
-    Raises:
-        GameStateValidationError: Invalid hole number
-        HandicapValidationError: Invalid handicap or stroke allocation
-    """
-    GameStateValidator.validate_hole_number(hole_number)
-    # ...
-```
-
-### 8. Return Rich Error Context
-
-```python
-# GOOD: Return full error context
-except ValidationError as e:
-    return {
-        "success": False,
-        "error": {
-            "message": e.message,
-            "field": e.field,
-            "details": e.details,
-            "type": type(e).__name__
-        }
-    }
-
-# BAD: Return only message
-except ValidationError as e:
-    return {"error": str(e)}
-```
-
-### 9. Test Validation Separately
-
-```python
-# GOOD: Test validation in isolation
-def test_handicap_validation():
-    with pytest.raises(HandicapValidationError):
-        HandicapValidator.validate_handicap(60.0)
-
-def test_game_logic():
-    # Test game logic with valid data
-    game = create_game(valid_data)
-    assert game.ready is True
-
-# BAD: Mix validation testing with logic testing
-def test_game_with_invalid_handicap():
-    # Testing two things at once
-    with pytest.raises(HandicapValidationError):
-        game = create_game(invalid_data)
-```
-
-### 10. Use Type Hints
-
-```python
-# GOOD: Type hints make usage clear
-def validate_and_setup(
-    handicap: float,
-    course_rating: float,
-    slope_rating: int
-) -> int:
-    HandicapValidator.validate_handicap(handicap)
-    HandicapValidator.validate_course_rating(course_rating, slope_rating)
-    return HandicapValidator.calculate_course_handicap(...)
-
-# BAD: No type hints
-def validate_and_setup(handicap, course_rating, slope_rating):
-    # What types are these?
-    HandicapValidator.validate_handicap(handicap)
-    # ...
-```
-
----
+1. **Validate early, fail fast** — validate before constructing/persisting objects.
+2. **Catch specific exceptions** (`HandicapValidationError`, etc.), not bare `Exception`.
+3. **Pass `field_name`** so errors identify which input failed (e.g. `f"player_{i}_handicap"`).
+4. **Order validations logically** — validate inputs before computing from them.
+5. **Only skip validation when safe** — `validate=False` is fine for already-validated
+   values in a loop, never for untrusted input.
+6. **Validate at boundaries** (API/service layer), not deep in domain logic.
+7. **Document the validation rules** a function enforces in its docstring.
+8. **Return rich error context** — surface `message`, `field`, `details`, and type
+   (see [Using Error Details in API Responses](#using-error-details-in-api-responses)).
+9. **Test validation in isolation** from business logic.
+10. **Use type hints** on validator-facing functions.
 
 ## Summary
 
-Wolf Goat Pig validators provide:
+Wolf Goat Pig validators centralize rule enforcement with clear, structured errors:
 
-- **HandicapValidator**: USGA-compliant handicap calculations and validation
-- **BettingValidator**: Wolf Goat Pig betting rules enforcement
-- **GameStateValidator**: Game flow and state transition validation
+- **HandicapValidator** — USGA-style handicap/stroke calculations and validation.
+- **BettingValidator** — Wolf Goat Pig betting-rule enforcement.
+- **GameStateValidator** — game flow and state-transition validation.
 
-Key Benefits:
-- Centralized validation logic
-- Clear, descriptive error messages
-- Type safety and range checking
-- Easy integration with APIs
-- Comprehensive test coverage
+Use them to validate at API boundaries, enforce business rules consistently, give
+clear error feedback, and enable defensive programming.
 
-Use validators to:
-1. Validate data at API boundaries
-2. Enforce business rules consistently
-3. Provide clear error feedback
-4. Enable defensive programming
-5. Simplify testing
-
-For more examples, see:
-- `/backend/app/validators/` - Validator implementations
-- `/backend/app/validators/test_game_state_validator.py` - Test examples
-- API handlers in `/backend/app/main.py` - Integration examples
+References:
+- `backend/app/validators/` — validator implementations.
+- `backend/tests/unit/engine/test_validators.py`, `backend/tests/unit/routers/test_validators.py` — test examples.
+- API handlers under `backend/app/` — integration examples.
