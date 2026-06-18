@@ -402,7 +402,11 @@ def _validate_sql(sql: str) -> bool:
     # unquoted base table name (handles quoting + schema qualification); we
     # normalize again via _base_name for defense in depth. Function calls do not
     # produce Table nodes, so they need no special handling.
-    table_refs = {_base_name(tbl.name) for tbl in tree.find_all(exp.Table)}
+    # Skip nodes whose normalized base name is empty: those are table-valued
+    # function output wrappers (e.g. CROSS JOIN json_array_elements(...)), not
+    # physical table references. The denied physical table always surfaces with
+    # a non-empty name, so this cannot reopen a leak.
+    table_refs = {name for tbl in tree.find_all(exp.Table) if (name := _base_name(tbl.name))}
 
     # Denylist takes PRECEDENCE over the allow-list: a physical table in
     # _DENIED_TABLES is unreachable even if a same-named CTE aliases it.

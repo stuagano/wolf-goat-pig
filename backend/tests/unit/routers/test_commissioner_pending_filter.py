@@ -187,6 +187,32 @@ def test_prior_adversarial_cases_still_rejected():
     assert _validate_sql("SELECT member FROM legacy_rounds_official UNION SELECT member FROM legacy_rounds") is False
 
 
+def test_documented_table_valued_function_pattern_passes():
+    """The documented CROSS JOIN json_array_elements(...) pattern must validate.
+
+    sqlglot models the TVF output as an exp.Table with an empty name; those
+    wrappers must be skipped, not rejected (DATA_SCHEMA ~commissioner.py:265).
+    """
+    from app.routers.commissioner import _validate_sql
+
+    sql = (
+        "SELECT gpr.player_name, (h->>'hole')::int AS hole, "
+        "(h->>'quarters')::numeric AS quarters "
+        "FROM game_player_results gpr "
+        "CROSS JOIN json_array_elements(gpr.hole_scores) AS h "
+        "WHERE gpr.player_name ILIKE '%Stuart%' "
+        "ORDER BY (h->>'hole')::int"
+    )
+    assert _validate_sql(sql) is True
+
+
+def test_tvf_wrapped_attempt_to_reach_raw_table_still_rejected():
+    """Skipping empty-name TVF wrappers must not let a real raw ref slip through."""
+    from app.routers.commissioner import _validate_sql
+
+    assert _validate_sql("SELECT * FROM json_array_elements((SELECT 1)) x, legacy_rounds lr") is False
+
+
 def test_fail_closed_on_unparseable_sql():
     """If sqlglot cannot parse the statement, the validator must reject it."""
     from app.routers.commissioner import _validate_sql
