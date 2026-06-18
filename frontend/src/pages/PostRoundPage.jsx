@@ -18,6 +18,13 @@ const todayLocalDate = () => {
 
 const statusLabel = (status) => (status === "attested" ? "Attested" : "Pending");
 
+const scoreClass = (score) => {
+  const numericScore = Number(score);
+  if (numericScore < 0) return "negative";
+  if (numericScore > 0) return "positive";
+  return "";
+};
+
 const RoundStatusBadge = ({ status }) => (
   <span className={`round-status-badge ${status === "attested" ? "attested" : "pending"}`}>
     {statusLabel(status)}
@@ -58,7 +65,7 @@ const RoundList = ({ rounds, loading, error, onRefresh }) => {
           {rounds.map((round) => (
             <tr key={round.id}>
               <td>{round.date}</td>
-              <td className={Number(round.score) < 0 ? "negative" : "positive"}>
+              <td className={scoreClass(round.score)}>
                 {Number(round.score) > 0 ? "+" : ""}{round.score}
               </td>
               <td><RoundStatusBadge status={round.status} /></td>
@@ -165,7 +172,6 @@ const PostRoundPage = () => {
     loading: profileLoading,
     error: profileError,
     updateLegacyName,
-    refetch: refetchProfile,
   } = usePlayerProfile();
   const { players, loading: rosterLoading, error: rosterError } = useLegacyPlayers();
 
@@ -184,7 +190,7 @@ const PostRoundPage = () => {
   const [pendingRounds, setPendingRounds] = useState([]);
   const [pendingState, setPendingState] = useState({ loading: true, error: "" });
   const [attestingId, setAttestingId] = useState(null);
-  const [attestMessage, setAttestMessage] = useState("");
+  const [attestState, setAttestState] = useState({ error: "", success: "" });
 
   const legacyName = profile?.legacy_name || "";
 
@@ -250,7 +256,7 @@ const PostRoundPage = () => {
       loadMyRounds();
     } catch (error) {
       const message = error.status === 409 ? "already posted for that date" : error.message;
-      if (error.status === 400 && error.message === "Link your roster name first") {
+      if (error.status === 400) {
         setShowLinkFlow(true);
       }
       setSubmitState({ loading: false, error: message, success: "" });
@@ -259,21 +265,20 @@ const PostRoundPage = () => {
 
   const handleLegacySelect = async (name) => {
     await updateLegacyName(name);
-    await refetchProfile();
     setShowLinkFlow(false);
     setSubmitState({ loading: false, error: "", success: "Roster name linked. You can post your round now." });
   };
 
   const handleAttest = async (roundId) => {
     setAttestingId(roundId);
-    setAttestMessage("");
+    setAttestState({ error: "", success: "" });
     try {
       const updatedRound = await attestRound(getToken, roundId);
       setPendingRounds((rounds) => rounds.filter((round) => round.id !== roundId));
       setMyRounds((rounds) => rounds.map((round) => (round.id === updatedRound.id ? updatedRound : round)));
-      setAttestMessage("Round attested.");
+      setAttestState({ error: "", success: "Round attested." });
     } catch (error) {
-      setAttestMessage(error.message);
+      setAttestState({ error: error.message, success: "" });
     } finally {
       setAttestingId(null);
     }
@@ -390,7 +395,8 @@ const PostRoundPage = () => {
 
         <div className="round-card">
           <h2>Awaiting Your Attestation</h2>
-          {attestMessage && <div className="round-alert success">{attestMessage}</div>}
+          {attestState.error && <div className="round-alert error">{attestState.error}</div>}
+          {attestState.success && <div className="round-alert success">{attestState.success}</div>}
           <AttestationQueue
             rounds={pendingRounds}
             loading={pendingState.loading}
