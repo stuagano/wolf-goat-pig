@@ -41,7 +41,7 @@ passing build alone has shipped broken code before.
 
 ## Environment variables
 
-> ⚠️ React variables (`REACT_APP_*`) are **baked into the build at compile time**.
+> ⚠️ Vite variables (`VITE_*`) are **baked into the build at compile time**.
 > They must be set in Vercel **before** building, not at runtime.
 >
 > ⚠️ The live Render service does **not** sync env vars from `render.yaml`. Set
@@ -54,15 +54,14 @@ Settings → Environment Variables, for all environments (Production, Preview, D
 
 | Variable | Value | Notes |
 |----------|-------|-------|
-| `REACT_APP_API_URL` | `https://wolf-goat-pig.onrender.com` | Backend API URL — **critical** |
-| `REACT_APP_AUTH0_DOMAIN` | `dev-jm88n088hpt7oe48.us.auth0.com` | Auth0 tenant domain |
-| `REACT_APP_AUTH0_CLIENT_ID` | `qAZuRv5E9mPQ9uTGg7NWpkpfVj8bCeoB` | Auth0 application client ID |
-| `REACT_APP_AUTH0_AUDIENCE` | `https://api.wolf-goat-pig.com` | Auth0 API audience |
-| `REACT_APP_USE_MOCK_AUTH` | `false` | **Must be `false` in production** |
-| `REACT_APP_ENABLE_ANALYTICS` | `true` | Optional |
+| `VITE_API_URL` | `https://wolf-goat-pig.onrender.com` | Backend API URL — **critical** |
+| `VITE_AUTH0_DOMAIN` | `dev-jm88n088hpt7oe48.us.auth0.com` | Auth0 tenant domain |
+| `VITE_AUTH0_CLIENT_ID` | `qAZuRv5E9mPQ9uTGg7NWpkpfVj8bCeoB` | Auth0 application client ID |
+| `VITE_AUTH0_AUDIENCE` | `https://wolf-goat-pig.onrender.com` | Auth0 API audience — must match backend |
+| `VITE_ENABLE_ANALYTICS` | `true` | Optional |
 
-Locally the frontend uses the `package.json` proxy (`"proxy": "http://localhost:8000"`),
-so `REACT_APP_API_URL` is empty and requests are proxied to the local backend.
+Locally the frontend uses the dev proxy in `frontend/vite.config.js`,
+so `VITE_API_URL` is left empty and requests are proxied to the local backend.
 
 ### Render (Backend) — required
 
@@ -107,7 +106,7 @@ cause of Auth0 failures.
 ### Frontend (Vercel)
 
 1. Connect the GitHub repo to Vercel.
-2. **Before the first deploy**, set all required `REACT_APP_*` variables in the dashboard.
+2. **Before the first deploy**, set all required `VITE_*` variables in the dashboard.
 3. Vercel builds with the root `vercel.json` and deploys static assets.
 4. Subsequent deploys happen automatically on push to `main`; preview deploys are created for PRs.
 
@@ -120,7 +119,7 @@ Production auth failures are usually mismatched callback URLs or audiences:
 2. **Web Origins** — add the same URLs to *Allowed Web Origins*; ensure the backend's
    CORS origins include the Render and Vercel hostnames.
 3. **API Audience** — the Auth0 API Identifier must equal both `AUTH0_API_AUDIENCE`
-   (backend) and `REACT_APP_AUTH0_AUDIENCE` (frontend). Tokens for any other audience
+   (backend) and `VITE_AUTH0_AUDIENCE` (frontend). Tokens for any other audience
    fail backend validation.
 
 ## Cold starts (Render free tier)

@@ -110,7 +110,7 @@ function SyncButton() {
 Direct API call (no context):
 
 ```javascript
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const csvUrl = "https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM/export?format=csv&gid=0";
 const res = await fetch(`${API_URL}/sheet-integration/sync-wgp-sheet`, {
   method: 'POST',
@@ -187,7 +187,7 @@ Script *Triggers* panel (e.g. every 6 hours).
 | Backend not responding | Render free-tier cold start | Wait ~15s and retry |
 | Empty leaderboard | No sync has run | Trigger a manual sync (admin UI / API) |
 | "Rate limit exceeded" | One sync/hour on public endpoint | Send `X-Scheduled-Job: true`, or wait |
-| CORS error in console | Wrong `REACT_APP_API_URL` | Fix in Vercel dashboard and redeploy |
+| CORS error in console | Wrong `VITE_API_URL` | Fix in Vercel dashboard and redeploy |
 | Some players skipped | Summary rows / non-numeric scores / stray spaces | Clean the sheet data |
 | "Invalid Google Sheets URL" | Wrong URL form | Use `.../d/SHEET_ID/edit` (full `https://`) |
 
