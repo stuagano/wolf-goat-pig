@@ -554,6 +554,34 @@ function HomePage() {
             <div>History</div>
           </button>
           <button
+            onClick={() => navigate('/rounds/post')}
+            style={{
+              padding: '20px 16px',
+              background: 'rgba(255, 255, 255, 0.95)',
+              color: '#1F2937',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.08)',
+              textAlign: 'center',
+              backdropFilter: 'blur(10px)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 8px 15px rgba(0, 0, 0, 0.12)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.08)';
+            }}
+          >
+            <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>📝</div>
+            <div>Post Round</div>
+          </button>
+          <button
             onClick={() => navigate('/game-scorer')}
             style={{
               padding: '20px 16px',
