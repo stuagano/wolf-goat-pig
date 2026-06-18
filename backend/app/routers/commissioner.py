@@ -136,6 +136,10 @@ def _build_data_context(db: Session) -> str:
                 func.sum(models.LegacyRound.score).label("quarters"),
                 func.count(models.LegacyRound.id).label("rounds"),
             )
+            # Exclude unattested member self-posts (status='pending') — they must
+            # not reach standings until a foursome peer attests. Matches the
+            # filter in unified_data_service / spreadsheet_sync read paths.
+            .filter(models.LegacyRound.status != "pending")
             .group_by(models.LegacyRound.member)
             .order_by(func.sum(models.LegacyRound.score).desc())
             .limit(20)
@@ -214,11 +218,14 @@ async def commissioner_chat(
 DATA_SCHEMA = """
 ## Queryable Tables
 
-### legacy_rounds
+### legacy_rounds_official
 Columns: id, date, "group", member, score, location, duration, source, synced_at
 IMPORTANT: `group` is a PostgreSQL reserved word — always quote it as "group" in queries.
 Note: Uses `member` (string name) not a foreign key. Player matching requires
 `player_profiles.name` or `player_profiles.legacy_name`.
+ALWAYS query `legacy_rounds_official` (NOT `legacy_rounds`) — it is the official
+view that excludes unattested member self-posts (status='pending'). The raw
+`legacy_rounds` table is not queryable.
 
 ### player_profiles
 Columns: id, name, legacy_name, email, handicap, ghin_id, ghin_last_updated,
@@ -276,7 +283,12 @@ revision_reason, scores_used_count, synced_at
 """.strip()
 
 _ALLOWED_TABLES = {
-    "legacy_rounds",
+    # `legacy_rounds_official` is a view that excludes unattested member
+    # self-posts (status='pending'). The raw `legacy_rounds` table is
+    # deliberately NOT allowed, so pending rounds can never surface through
+    # the Commissioner's read-only SQL path — even if the LLM names the raw
+    # table, _validate_sql rejects the query.
+    "legacy_rounds_official",
     "player_profiles",
     "player_statistics",
     "game_records",
@@ -419,10 +431,10 @@ If the question is purely about rules (not data), respond directly without SQL.
 If you're unsure which player is meant, use ILIKE with wildcards for fuzzy matching.
 
 Example queries:
-- "Who has the most quarters?" → SELECT member, SUM(score) as total_quarters FROM legacy_rounds GROUP BY member ORDER BY total_quarters DESC LIMIT 10
+- "Who has the most quarters?" → SELECT member, SUM(score) as total_quarters FROM legacy_rounds_official GROUP BY member ORDER BY total_quarters DESC LIMIT 10
 - "Stuart's handicap history" → SELECT effective_date, handicap_index FROM ghin_handicap_history gh JOIN player_profiles pp ON gh.player_profile_id = pp.id WHERE pp.name ILIKE '%Stuart%' ORDER BY effective_date
-- "How many rounds per player?" → SELECT member, COUNT(*) as rounds FROM legacy_rounds GROUP BY member ORDER BY rounds DESC
-- "Best single round ever?" → SELECT member, score, date, location FROM legacy_rounds ORDER BY score DESC LIMIT 5
+- "How many rounds per player?" → SELECT member, COUNT(*) as rounds FROM legacy_rounds_official GROUP BY member ORDER BY rounds DESC
+- "Best single round ever?" → SELECT member, score, date, location FROM legacy_rounds_official ORDER BY score DESC LIMIT 5
 - "Who goes solo the most?" → SELECT pp.name, ps.solo_attempts, ps.solo_wins FROM player_statistics ps JOIN player_profiles pp ON ps.player_id = pp.id WHERE ps.solo_attempts > 0 ORDER BY ps.solo_attempts DESC"""
 
     step1_text = await _llm_generate(request.question, system)
