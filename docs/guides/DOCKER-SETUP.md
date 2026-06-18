@@ -37,11 +37,11 @@ Copy `.env.example` to `.env` and set values. Key variables:
 - `POSTGRES_PASSWORD` — **change from the default** (the `docker-dev.sh` script warns if unset/default).
 - `DATABASE_URL` — derived from `POSTGRES_PASSWORD`, override if needed.
 - `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID` — Auth0 config (defaults provided).
-- `REACT_APP_API_URL` — usually `http://localhost:8000`.
+- `VITE_API_URL` — usually `http://localhost:8000`.
 
 Optional: `ENVIRONMENT` (`production`/`development`), `LOG_LEVEL`, `*_PORT`,
 `ENABLE_GHIN_INTEGRATION`, `ENABLE_EMAIL_NOTIFICATIONS`, `WEB_CONCURRENCY`, and the
-`REACT_APP_*` frontend toggles. See `.env.example` for the full list.
+`VITE_*` frontend toggles. See `.env.example` for the full list.
 
 ## Common commands
 
@@ -96,7 +96,7 @@ docker-compose exec backend python -c "from app.database import SessionLocal; Se
 ```bash
 docker-compose logs frontend
 docker-compose build --no-cache frontend
-docker-compose exec frontend env | grep REACT_APP
+docker-compose exec frontend env | grep VITE
 ```
 
 **Database connection issues**

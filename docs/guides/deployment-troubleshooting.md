@@ -63,14 +63,14 @@ auth config is broken, not just the token.
 ### CORS errors
 
 Ensure the backend's allowed origins include the Vercel hostname and any custom
-domain. Confirm `FRONTEND_URL` is set and `REACT_APP_API_URL` (frontend) points at
+domain. Confirm `FRONTEND_URL` is set and `VITE_API_URL` (frontend) points at
 the right backend.
 
 ## Frontend (Vercel)
 
 ### Build fails
 
-- Test locally first: `cd frontend && npm ci && npm run build`.
+- Test locally first: `cd frontend && npm install --legacy-peer-deps && npm run build`.
 - Watch for **case-sensitive imports** — these work on macOS but fail on Vercel's Linux builders.
 - Clear caches if needed: `npm cache clean --force`, then reinstall.
 
@@ -83,7 +83,7 @@ scripts and `vercel.json` commands are intact.
 
 ### Peer dependency / ERESOLVE errors
 
-`react-scripts` expects an older React than the app uses, so installs rely on
+Some dependencies declare peer ranges that predate React 19, so installs rely on
 `legacy-peer-deps`:
 
 - `.npmrc` contains `legacy-peer-deps=true`.
@@ -93,7 +93,7 @@ If you hit "ERESOLVE unable to resolve dependency tree", verify both are present
 
 ### API calls fail
 
-- Confirm `REACT_APP_API_URL` is set in the Vercel dashboard (remember `REACT_APP_*`
+- Confirm `VITE_API_URL` is set in the Vercel dashboard (remember `VITE_*`
   is baked in at build time — change it and **redeploy**).
 - Avoid HTTP-vs-HTTPS mismatches and trailing slashes in the URL.
 
@@ -107,7 +107,7 @@ If you hit "ERESOLVE unable to resolve dependency tree", verify both are present
 
 - Callback URLs in Auth0 must include the Vercel production URL (and preview URLs).
 - The audience must match exactly between `AUTH0_API_AUDIENCE` (backend) and
-  `REACT_APP_AUTH0_AUDIENCE` (frontend).
+  `VITE_AUTH0_AUDIENCE` (frontend).
 
 ## Docker (local production parity)
 
