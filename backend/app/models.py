@@ -427,10 +427,30 @@ class EmailPreferences(Base):
     signup_reminders_enabled = Column(Integer, default=1)  # Reminders to sign up
     game_invitations_enabled = Column(Integer, default=1)  # Direct game invitations
     weekly_summary_enabled = Column(Integer, default=1)  # Weekly activity summary
+    callout_list_enabled = Column(Integer, default=0)  # Opt in to "we're short for a game" callouts
     email_frequency = Column(String, default="daily")  # daily, weekly, monthly, never
     preferred_notification_time = Column(String, default="8:00 AM")  # When to send dailies
     created_at = Column(String)
     updated_at = Column(String)
+
+
+class CalloutNotification(Base):
+    """Audit + dedup log for headcount callouts.
+
+    One row per (game_date, window) that actually fired, so the scheduler
+    never double-calls the list within the same window (pre_pairing / morning_of).
+    """
+
+    __tablename__ = "callout_notifications"
+    __table_args__ = (Index("ix_callout_notifications_date_window", "game_date", "callout_window"),)
+    id = Column(Integer, primary_key=True, index=True)
+    game_date = Column(String, index=True)  # YYYY-MM-DD the callout is for
+    callout_window = Column(String)  # "pre_pairing" or "morning_of" (window is a reserved SQL word)
+    signup_count = Column(Integer)  # Signups at the time the callout fired
+    target = Column(Integer)  # Headcount we were filling up to (next foursome)
+    shortfall = Column(Integer)  # How many more players were needed
+    recipient_count = Column(Integer)  # How many opt-in players were emailed
+    sent_at = Column(String)  # ISO timestamp
 
 
 class DailyMessage(Base):

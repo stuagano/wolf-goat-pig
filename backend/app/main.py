@@ -298,6 +298,9 @@ app.include_router(course_data_update.router)
 app.include_router(foretees.router)
 app.include_router(matchmaking.router)
 app.include_router(notifications.router)
+from .routers import callouts
+
+app.include_router(callouts.router)
 from .routers import commissioner, ghin, scorecard
 
 app.include_router(commissioner.router)

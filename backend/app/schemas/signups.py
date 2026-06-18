@@ -142,6 +142,7 @@ class EmailPreferencesCreate(BaseModel):
     signup_reminders_enabled: bool = True
     game_invitations_enabled: bool = True
     weekly_summary_enabled: bool = True
+    callout_list_enabled: bool = False
     email_frequency: str = "daily"  # daily, weekly, monthly, never
     preferred_notification_time: str = "8:00 AM"
 
@@ -160,6 +161,7 @@ class EmailPreferencesUpdate(BaseModel):
     signup_reminders_enabled: bool | None = None
     game_invitations_enabled: bool | None = None
     weekly_summary_enabled: bool | None = None
+    callout_list_enabled: bool | None = None
     email_frequency: str | None = None
     preferred_notification_time: str | None = None
 
@@ -183,6 +185,7 @@ class EmailPreferencesResponse(BaseModel):
     signup_reminders_enabled: bool
     game_invitations_enabled: bool
     weekly_summary_enabled: bool
+    callout_list_enabled: bool
     email_frequency: str
     preferred_notification_time: str
     created_at: str

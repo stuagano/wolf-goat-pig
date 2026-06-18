@@ -495,3 +495,18 @@ capabilities:
       shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_legacy_player_service.py
         tests/unit/services/test_auth_new_player_capture.py tests/unit/routers/test_legacy_roster_admin.py
         -q -p no:cacheprovider
+  - id: callout-fires-and-dedups
+    description: when signups fall short of a full foursome, run_callout emails opt-in
+      players (excluding already-signed-up/paused) and writes exactly one CalloutNotification
+      per (date,window); a not-short day sends nothing and a second run in the same
+      window is deduped
+    given: daily signups for a date plus opt-in callout-list players
+    when: run_callout evaluates the date for a window
+    then: short -> one email per eligible player + one dedup row; not-short or repeat-window
+      -> no send
+    tier: cheap
+    deps:
+    - backend/app/services/callout_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_callout_service.py
+        -q -p no:cacheprovider
