@@ -67,10 +67,11 @@ class RoundResultResponse(BaseModel):
     """Response model for a round result."""
 
     date: str
-    group: str
+    # group/location are nullable: member-posted rounds may omit them.
+    group: str | None = None
     member: str
     score: int
-    location: str
+    location: str | None = None
     duration: str | None = None
 
 
@@ -83,6 +84,8 @@ def get_spreadsheet_leaderboard(db: Session = Depends(get_db)):
             func.sum(LegacyRound.score).label("quarters"),
             func.count(LegacyRound.id).label("rounds"),
         )
+        # Exclude pending member-posted rounds (not yet attested).
+        .filter(LegacyRound.status != "pending")
         .group_by(LegacyRound.member)
         .all()
     )
@@ -116,7 +119,13 @@ def get_all_rounds(
     db: Session = Depends(get_db),
 ) -> Any:
     """Get all round results from legacy_rounds DB (synced every 2h)."""
-    rows = db.query(LegacyRound).order_by(LegacyRound.date.desc(), LegacyRound.member).limit(limit).all()
+    rows = (
+        db.query(LegacyRound)
+        .filter(LegacyRound.status != "pending")  # exclude unattested member rounds
+        .order_by(LegacyRound.date.desc(), LegacyRound.member)
+        .limit(limit)
+        .all()
+    )
     return [
         RoundResultResponse(
             date=r.date,
@@ -136,7 +145,12 @@ def get_rounds_by_date(date: str, db: Session = Depends(get_db)) -> Any:
 
     Date format: YYYY-MM-DD (e.g., "2026-07-21").
     """
-    rows = db.query(LegacyRound).filter(LegacyRound.date == date).order_by(LegacyRound.group, LegacyRound.member).all()
+    rows = (
+        db.query(LegacyRound)
+        .filter(LegacyRound.date == date, LegacyRound.status != "pending")
+        .order_by(LegacyRound.group, LegacyRound.member)
+        .all()
+    )
 
     # Group into round summaries by (date, group, location, duration)
     summaries: dict[tuple, dict] = {}
@@ -162,7 +176,12 @@ def get_rounds_by_date(date: str, db: Session = Depends(get_db)) -> Any:
 @router.get("/player/{member_name}", response_model=list[RoundResultResponse])
 def get_player_history(member_name: str, db: Session = Depends(get_db)) -> Any:
     """Get all rounds for a specific player from legacy_rounds DB (synced every 2h)."""
-    rows = db.query(LegacyRound).filter(LegacyRound.member == member_name).order_by(LegacyRound.date.desc()).all()
+    rows = (
+        db.query(LegacyRound)
+        .filter(LegacyRound.member == member_name, LegacyRound.status != "pending")
+        .order_by(LegacyRound.date.desc())
+        .all()
+    )
     return [
         RoundResultResponse(
             date=r.date,

@@ -289,6 +289,9 @@ app.include_router(health.router)
 app.include_router(sheet_integration.router)
 app.include_router(tee_sheet.router)
 app.include_router(players.router)
+from .routers import member_rounds
+
+app.include_router(member_rounds.router)
 app.include_router(courses.router)
 
 # Import and include course data update router

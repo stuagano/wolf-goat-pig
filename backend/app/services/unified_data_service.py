@@ -182,7 +182,10 @@ class UnifiedDataService:
             # Fast path: read from legacy_rounds DB cache
             try:
                 db = self._get_db()
-                for r in db.query(LegacyRound).all():
+                # Exclude pending member-posted rounds — they are not
+                # authoritative until a foursome member attests them. Sheet/db
+                # rows default to status='attested' so they are unaffected.
+                for r in db.query(LegacyRound).filter(LegacyRound.status != "pending").all():
                     unified = self._legacy_round_to_unified(r)
                     key = (unified.date_sortable, unified.group, unified.member, unified.score)
                     if key not in all_rounds:

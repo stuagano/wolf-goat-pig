@@ -238,6 +238,50 @@ class EmailService:
             text_body=text_body,
         )
 
+    def send_attestation_request(
+        self,
+        to_email: str,
+        attester_name: str,
+        poster_name: str,
+        round_date: str,
+        score: int,
+    ) -> bool:
+        """Ask a foursome member to attest a round another member just posted.
+
+        Modeled on send_welcome_email: builds and sends a transactional email
+        (HTML + plaintext via the base template), no per-method opt-out gate.
+        The poster's round becomes authoritative only once a foursome member
+        attests it in the app.
+        """
+        quarters = f"+{score}" if score > 0 else str(score)
+        content = f"""
+        <h2>Confirm a Wolf Goat Pig round</h2>
+        <p>Hi {attester_name},</p>
+        <p><strong>{poster_name}</strong> posted a round for <strong>{round_date}</strong>
+        and listed you in the foursome.</p>
+        <p>Reported result: <strong>{quarters} quarters</strong>.</p>
+        <p>Open the app to confirm it. The round won't count toward standings
+        until a foursome member attests it.</p>
+        """
+        template = Template(self._get_base_template())
+        html_body = template.render(subject="Confirm a Wolf Goat Pig round", content=content)
+
+        text_body = (
+            "Confirm a Wolf Goat Pig round\n\n"
+            f"Hi {attester_name},\n\n"
+            f"{poster_name} posted a round for {round_date} and listed you in the foursome.\n"
+            f"Reported result: {quarters} quarters.\n\n"
+            "Open the app to confirm it. The round won't count toward standings "
+            "until a foursome member attests it.\n"
+        )
+
+        return self._send_email(
+            to_email=to_email,
+            subject=f"Confirm {poster_name}'s Wolf Goat Pig round ({round_date})",
+            html_body=html_body,
+            text_body=text_body,
+        )
+
     def send_new_player_notification(
         self,
         to_email: str,
