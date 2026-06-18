@@ -96,7 +96,7 @@ docker-compose exec backend python -c "from app.database import SessionLocal; Se
 ```bash
 docker-compose logs frontend
 docker-compose build --no-cache frontend
-docker-compose exec frontend env | grep REACT_APP
+docker-compose exec frontend env | grep VITE
 ```
 
 **Database connection issues**

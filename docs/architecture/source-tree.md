@@ -86,7 +86,7 @@ frontend/
 │   └── sentry.js        # Sentry initialization
 ├── vite.config.js       # Vite build + dev-server proxy config
 ├── package.json         # Node dependencies and scripts
-└── build/               # Production build output (Vite `build.outDir`)
+└── build/               # Production build output (Vite `build.outDir`; generated, gitignored)
 ```
 
 ### Key Frontend Modules

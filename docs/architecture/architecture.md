@@ -69,7 +69,7 @@ BMad is a comprehensive digital implementation of the classic Wolf Goat Pig golf
 - **HTTP Client**: httpx 0.27.0+ for external integrations
 
 #### Frontend Stack
-- **Framework**: React 18+ with React Router DOM 6+
+- **Framework**: React 19 with React Router DOM 7
 - **Build Tool**: Vite 6 (`vite build`); Vitest for unit tests
 - **Language**: JavaScript/JSX with TypeScript for type-checking (`tsc --noEmit`)
 - **Auth**: Auth0 (SPA flow via `AuthContext`)
