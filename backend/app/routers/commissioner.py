@@ -359,15 +359,25 @@ def _validate_sql(sql: str) -> bool:
     cte_names |= {name.lower() for name in re.findall(r",\s*(\w+)\s+AS\s*\(", upper)}
     allowed = _ALLOWED_TABLES | cte_names
 
-    # Table allowlist — every FROM / JOIN target must be allowed
-    # Skip function calls (word immediately followed by '(') like jsonb_array_elements(...)
+    # Table allowlist — every FROM / JOIN target must be allowed.
+    # Identifiers may be unquoted (\w+), double-quoted ("name"), and/or
+    # schema-qualified (schema.table, "schema"."table", public."legacy_rounds").
+    # Match all such forms so quoting cannot evade the allow-list. Each part of a
+    # qualified name is either a bare word or a double-quoted segment.
+    _ident = r'(?:"[^"]+"|\w+)'
+    _qualified = rf"{_ident}(?:\s*\.\s*{_ident})*"
     table_refs = []
-    for m in re.finditer(r"\b(?:FROM|JOIN)\s+(\w+)", upper):
-        name = m.group(1)
-        after = upper[m.end() :]
+    for m in re.finditer(rf"\b(?:FROM|JOIN)\s+({_qualified})", upper):
+        raw = m.group(1)
+        after = upper[m.end() :].lstrip()
         if after and after[0] == "(":
             continue  # function call, not a table
-        table_refs.append(name)
+        # Take the final segment (the table name) of a possibly-qualified ref,
+        # and strip surrounding double-quotes so quoting cannot bypass the check.
+        last_segment = re.split(r"\s*\.\s*", raw)[-1].strip()
+        if last_segment.startswith('"') and last_segment.endswith('"'):
+            last_segment = last_segment[1:-1]
+        table_refs.append(last_segment)
     for tbl in table_refs:
         if tbl.lower() not in allowed:
             return False

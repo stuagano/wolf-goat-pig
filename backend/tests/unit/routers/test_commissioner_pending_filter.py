@@ -96,6 +96,41 @@ def test_raw_legacy_rounds_table_is_rejected_by_validator():
     assert _validate_sql("SELECT member, score FROM legacy_rounds") is False
 
 
+def test_quoted_and_qualified_raw_legacy_rounds_refs_are_rejected():
+    """Quoting / schema-qualification must not let the raw table evade the allow-list."""
+    from app.routers.commissioner import _validate_sql
+
+    # (a) plain double-quoted raw table
+    assert _validate_sql('SELECT * FROM "legacy_rounds"') is False
+    # (b) quoted raw-table ref inside a subquery
+    assert _validate_sql('SELECT * FROM (SELECT * FROM "legacy_rounds") x') is False
+    # (b') quoted raw-table ref inside a CTE
+    assert _validate_sql('WITH leaked AS (SELECT * FROM "legacy_rounds") SELECT * FROM leaked') is False
+    # (c) schema-qualified quoted refs
+    assert _validate_sql('SELECT * FROM public."legacy_rounds"') is False
+    assert _validate_sql('SELECT * FROM "public"."legacy_rounds"') is False
+    # JOIN target quoted raw table is also rejected
+    assert (
+        _validate_sql('SELECT * FROM legacy_rounds_official o JOIN "legacy_rounds" r ON o.member = r.member') is False
+    )
+    # Sanity: the genuinely-allowed view still passes, even quoted/qualified.
+    assert _validate_sql('SELECT member FROM "legacy_rounds_official"') is True
+    assert _validate_sql('SELECT member FROM public."legacy_rounds_official"') is True
+
+
+def test_official_view_quoted_query_still_excludes_pending(db_session):
+    """A valid quoted query against the official view passes and hides pending rows."""
+    from app.routers.commissioner import _execute_readonly_sql, _validate_sql
+
+    sql = 'SELECT member FROM "legacy_rounds_official"'
+    assert _validate_sql(sql) is True
+    results = _execute_readonly_sql(db_session, sql)
+    assert "error" not in results, results
+    members = {row[0] for row in results["rows"]}
+    assert "Alice Park" in members  # attested → returned
+    assert "Bob Jones" not in members  # pending → excluded
+
+
 def test_pending_becomes_visible_after_attestation(db_session):
     """Flipping pending→attested makes the round surface through both read paths."""
     from app.routers.commissioner import _build_data_context, _execute_readonly_sql
