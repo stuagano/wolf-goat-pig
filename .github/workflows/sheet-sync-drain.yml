@@ -1,0 +1,35 @@
+name: Nightly Sheet Sync Drain
+
+# Flushes the pending sheet-sync queue to the writable WGP Dashboard copy
+# (19AabC...). Driven here (not the in-process scheduler, which is a no-op shim
+# in prod) — same pattern as the GHIN sync and headcount callout crons.
+on:
+  schedule:
+    - cron: '0 8 * * *'  # 08:00 UTC (~1am PT) nightly — after weekend games
+  workflow_dispatch:       # Allow manual trigger
+
+jobs:
+  drain:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Drain pending sheet syncs
+      run: |
+        echo "📤 Draining pending sheet syncs..."
+        RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+          "https://wolf-goat-pig.onrender.com/spreadsheet/drain-pending-syncs" \
+          -H "Content-Type: application/json" \
+          --max-time 120)
+
+        HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+        BODY=$(echo "$RESPONSE" | head -n -1)
+
+        echo "Status: $HTTP_CODE"
+        echo "Response: $BODY"
+
+        if [ "$HTTP_CODE" != "200" ]; then
+          echo "❌ Drain failed with status $HTTP_CODE"
+          exit 1
+        fi
+
+        echo "✅ Sheet sync drain complete"

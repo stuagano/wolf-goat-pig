@@ -2,8 +2,14 @@
 
 This service provides two-way sync between the Wolf Goat Pig app and the
 legacy Google Sheets dashboard at:
-- Primary (read-only): https://docs.google.com/spreadsheets/d/19AabC4vx0jRXHIAmz8QJfqTIBxxvMfFUplB0abg8mdA
-- Writable copy: https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM
+- PRIMARY (canonical, read source): Jeff Green's master sheet —
+  https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM
+- WRITABLE (app write target): Stuart's "Copy of WGP Dashboard" —
+  https://docs.google.com/spreadsheets/d/19AabC4vx0jRXHIAmz8QJfqTIBxxvMfFUplB0abg8mdA
+
+Completed app games are written to the WRITABLE copy (19AabC...); the PRIMARY
+master (1PWhi5...) is the canonical read source. See PRIMARY_SHEET_ID /
+WRITABLE_SHEET_ID below.
 
 Sheet Structure:
 - Dashboard: Leaderboard summary (auto-calculated from Details)

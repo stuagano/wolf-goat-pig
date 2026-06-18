@@ -162,6 +162,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as e:
         logger.warning(f"Legacy rounds startup sync failed to launch: {e}")
 
+    # Also drain any queued sheet write-backs on startup (secondary robustness;
+    # the primary trigger is the nightly sheet-sync-drain GitHub Actions cron).
+    try:
+        import threading
+
+        from .services.email_scheduler import email_scheduler as _sched
+
+        t = threading.Thread(target=_sched._process_pending_sheet_syncs, daemon=True)
+        t.start()
+        logger.info("📤 Pending sheet-sync drain started in background")
+    except Exception as e:
+        logger.warning(f"Pending sheet-sync startup drain failed to launch: {e}")
+
     logger.info("🚀 Wolf Goat Pig API startup completed successfully!")
 
     yield  # Application runs here
@@ -278,6 +291,12 @@ app.include_router(migrations_router)
 from .routers import spreadsheet_sync
 
 app.include_router(spreadsheet_sync.router)
+
+# Cron-driven spreadsheet ops (nightly pending-sync drain — unauthenticated, like
+# /ghin/sync-handicaps and /callouts/run; the in-process scheduler is a no-op in prod)
+from .routers import spreadsheet_ops
+
+app.include_router(spreadsheet_ops.router)
 
 # Include unified data routes (merges all data sources)
 from .routers import unified_data
