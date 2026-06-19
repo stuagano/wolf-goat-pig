@@ -1,13 +1,11 @@
 """Game lifecycle routes — create, join, lobby, start, list, delete, complete, state, action, history, details."""
 
-import json
 import logging
 import traceback
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -780,105 +778,10 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
         # wouldn't persist (only the scalar game.game_status column would).
         flag_modified(game, "state")
 
-        now = utc_now().isoformat()
+        from ..services.completed_game_service import persist_completed_game
 
-        # Create GameRecord if one doesn't already exist
-        existing_record = db.query(models.GameRecord).filter(models.GameRecord.game_id == game_id).first()
-
-        if not existing_record:
-            game_record = models.GameRecord(
-                game_id=game_id,
-                course_name=state.get("course_name", "Wing Point"),
-                game_mode="wolf_goat_pig",
-                player_count=len(players),
-                total_holes_played=len(hole_quarters),
-                created_at=game.created_at or now,
-                completed_at=now,
-                final_scores=standings,
-            )
-            db.add(game_record)
-            db.flush()  # Get the ID
-            record_id = game_record.id
-        else:
-            record_id = existing_record.id
-
-        # Build per-player hole scores from hole_history
-        player_hole_data = {}
-        for entry in hole_history:
-            hole_num = entry.get("hole")
-            points_delta = entry.get("points_delta", {})
-            gross_scores = entry.get("gross_scores", {})
-            teams = entry.get("teams")
-            wager = entry.get("wager")
-            phase = entry.get("phase")
-            for pid, quarters in points_delta.items():
-                if pid not in player_hole_data:
-                    player_hole_data[pid] = []
-                player_hole_data[pid].append(
-                    {
-                        "hole": hole_num,
-                        "quarters": quarters,
-                        "gross_score": gross_scores.get(pid) if gross_scores else None,
-                        "teams": teams,
-                        "wager": wager,
-                        "phase": phase,
-                    }
-                )
-
-        # Rank players by earnings for final_position
-        sorted_players = sorted(players, key=lambda p: standings.get(p.get("id"), 0), reverse=True)
-
-        # Create GamePlayerResult for each player
-        results_created = 0
-        for rank, player in enumerate(sorted_players, 1):
-            pid = player.get("id")
-            player_name = player.get("name", "Unknown")
-            profile_id = player.get("player_profile_id")
-            total_earnings = standings.get(pid, 0)
-
-            # Count holes won (positive quarters)
-            holes_data = player_hole_data.get(pid, [])
-            holes_won = sum(1 for h in holes_data if h.get("quarters", 0) > 0)
-
-            # Check if result already exists (raw SQL to avoid ORM column mismatch)
-            exists = db.execute(
-                text("SELECT 1 FROM game_player_results WHERE game_record_id = :rid AND player_name = :pn LIMIT 1"),
-                {"rid": record_id, "pn": player_name},
-            ).first()
-
-            if not exists:
-                perf = json.dumps(
-                    {
-                        "handicap": player.get("handicap"),
-                        "holes_played": len(holes_data),
-                        "avg_quarters_per_hole": round(total_earnings / max(len(holes_data), 1), 2),
-                    }
-                )
-                db.execute(
-                    text("""
-                        INSERT INTO game_player_results
-                            (game_record_id, player_profile_id, player_name,
-                             final_position, total_earnings, holes_won,
-                             hole_scores, performance_metrics, created_at)
-                        VALUES
-                            (:rid, :pid, :pname, :pos, :earn, :hw,
-                             CAST(:hs AS jsonb), CAST(:pm AS jsonb), :cat)
-                    """),
-                    {
-                        "rid": record_id,
-                        "pid": profile_id,
-                        "pname": player_name,
-                        "pos": rank,
-                        "earn": total_earnings,
-                        "hw": holes_won,
-                        "hs": json.dumps(holes_data),
-                        "pm": perf,
-                        "cat": now,
-                    },
-                )
-                results_created += 1
-
-        db.commit()
+        results_created = persist_completed_game(db, game)
+        record_id = db.query(models.GameRecord).filter(models.GameRecord.game_id == game_id).first().id
 
         logger.info(
             "Game %s completed: %d players, %d holes, %d results created",
