@@ -147,7 +147,7 @@ def _run_scan(
 
     with (
         patch.dict("os.environ", env, clear=True),
-        patch("app.services.scorecard_scan_service._load_reference_image", return_value=None),
+        patch("app.services.scorecard_scan_service._load_reference_examples", return_value=[]),
         patch("httpx.AsyncClient", return_value=mock_client),
     ):
         result = asyncio.run(scan_scorecard(image_bytes, "image/jpeg"))

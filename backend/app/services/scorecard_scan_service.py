@@ -25,13 +25,27 @@ _GROQ_VISION_MODEL = os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17
 _EXAMPLES_DIR = Path(__file__).parent.parent / "data" / "scorecard_examples"
 
 
-def _load_reference_image() -> tuple[bytes, str] | None:
-    """Load the reference scorecard image for few-shot prompting, if available."""
-    for ext, mime in [("jpeg", "image/jpeg"), ("jpg", "image/jpeg"), ("png", "image/png")]:
-        path = _EXAMPLES_DIR / f"example_001.{ext}"
-        if path.exists():
-            return path.read_bytes(), mime
-    return None
+def _load_reference_examples() -> list[tuple[bytes, str, str]]:
+    """Load few-shot reference scorecards for prompting: (image bytes, mime, ground-truth JSON text).
+
+    Any ``example_<name>.{jpeg,jpg,png}`` in the examples dir that has a matching
+    ``example_<name>_ground_truth.json`` is used, sorted by name for a stable
+    prompt. Drop a new card pair here to improve calibration. (The held-out
+    accuracy fixture lives under ``tests/live/data`` and is deliberately NOT a
+    reference, so the eval never tests on its own training data.)
+    """
+    examples: list[tuple[bytes, str, str]] = []
+    seen: set[str] = set()
+    for path in sorted(_EXAMPLES_DIR.glob("example_*")):
+        if path.suffix.lower() not in (".jpeg", ".jpg", ".png") or path.stem in seen:
+            continue
+        gt_path = _EXAMPLES_DIR / f"{path.stem}_ground_truth.json"
+        if not gt_path.exists():
+            continue
+        seen.add(path.stem)
+        mime = "image/png" if path.suffix.lower() == ".png" else "image/jpeg"
+        examples.append((path.read_bytes(), mime, gt_path.read_text()))
+    return examples
 
 
 EXTRACTION_PROMPT = """This is a Wolf Goat Pig golf wagering scorecard photo.
@@ -135,18 +149,21 @@ async def _call_groq_vision(
     image_b64 = base64.b64encode(image_bytes).decode("utf-8")
     user_content: list[dict[str, Any]] = []
 
-    ref = _load_reference_image()
-    if ref:
-        ref_bytes, ref_mime = ref
-        ref_b64 = base64.b64encode(ref_bytes).decode("utf-8")
-        ref_gt_path = _EXAMPLES_DIR / "example_001_ground_truth.json"
-        ref_gt = ref_gt_path.read_text() if ref_gt_path.exists() else ""
-        user_content.append({"type": "text", "text": "REFERENCE SCORECARD — study the handwriting style:"})
-        user_content.append({"type": "image_url", "image_url": {"url": f"data:{ref_mime};base64,{ref_b64}"}})
-        prompt = (
-            f"Correct extraction for the reference (H1-H6 confirmed):\n{ref_gt}\n\n"
-            f"---\n\nNow extract the NEW scorecard below:\n{EXTRACTION_PROMPT}"
-        )
+    references = _load_reference_examples()
+    if references:
+        gt_blocks = []
+        for idx, (ref_bytes, ref_mime, ref_gt) in enumerate(references, 1):
+            ref_b64 = base64.b64encode(ref_bytes).decode("utf-8")
+            label = "REFERENCE SCORECARD" if len(references) == 1 else f"REFERENCE SCORECARD #{idx}"
+            user_content.append({"type": "text", "text": f"{label} — study the handwriting style:"})
+            user_content.append({"type": "image_url", "image_url": {"url": f"data:{ref_mime};base64,{ref_b64}"}})
+            gt_label = (
+                "Correct extraction for the reference"
+                if len(references) == 1
+                else f"Correct extraction for reference #{idx}"
+            )
+            gt_blocks.append(f"{gt_label}:\n{ref_gt}")
+        prompt = "\n\n".join(gt_blocks) + "\n\n---\n\nNow extract the NEW scorecard below:\n" + EXTRACTION_PROMPT
     else:
         prompt = EXTRACTION_PROMPT
     if strict:
