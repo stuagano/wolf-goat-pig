@@ -5,12 +5,13 @@
 // browser doesn't support createImageBitmap with imageOrientation, or
 // the file is HEIC and we can't decode it client-side).
 
-// Keep phone-camera resolution: scorecards are dense handwritten grids and that
-// detail is what makes the cells legible to the vision model. We only cap at a
-// generous ceiling (huge panoramas) and re-orient via EXIF; the BACKEND then
-// sizes the image to the highest resolution that fits Groq's request budget.
-const MAX_DIMENSION = 4096;
-const JPEG_QUALITY = 0.9;
+// Keep as much scorecard detail as the backend can actually use. The backend
+// caps its (full-resolution) OpenCV preprocessing at 2048px on the longest side
+// — uploading larger just wastes bandwidth and gets downscaled there — so match
+// that here, while still re-orienting via EXIF. (Real resolution gains beyond
+// this need tiled per-region scanning, not a bigger whole-card image.)
+const MAX_DIMENSION = 2048;
+const JPEG_QUALITY = 0.85;
 
 export async function preprocessScorecardImage(file) {
   if (!file || !file.type?.startsWith("image/")) return file;

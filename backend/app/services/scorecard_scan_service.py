@@ -143,6 +143,13 @@ _GROQ_REQUEST_B64_BUDGET = 3_900_000  # total base64 chars for all images in one
 _REFERENCE_MAX_DIM = 1100  # references only calibrate handwriting style — don't need full res
 _REFERENCE_B64_BUDGET = 900_000
 _MAIN_MAX_DIM = 4096  # effectively only budget-limited
+# Cap the working image BEFORE the classical CV preprocessing (Hough circle
+# detection, corner/grid detection) — those run at full resolution and are
+# far too slow on a raw ~4000px phone pic (the scan would hang). The model
+# still receives this size, which is already plenty more legible than the old
+# 1800px. Going meaningfully higher needs tiled per-region scanning, not a
+# bigger whole-card image.
+_PREPROCESS_MAX_DIM = 2048
 
 
 def _fit_image_to_budget(
@@ -323,6 +330,11 @@ async def scan_scorecard(image_bytes: bytes, content_type: str) -> dict[str, Any
     The annotated bytes are reused for both the initial call and the strict
     retry.
     """
+    # Downscale to a sane working size first — the CV preprocessing below runs
+    # at full resolution and is prohibitively slow on a raw ~4000px phone pic.
+    image_bytes, content_type = _fit_image_to_budget(
+        image_bytes, content_type, max_dim=_PREPROCESS_MAX_DIM, max_b64_chars=10**12
+    )
     deskewed_bytes, deskewed_ct, deskew_diag = deskew_to_card(image_bytes, content_type)
     cropped_bytes, cropped_ct, grid_diag = crop_to_grid(deskewed_bytes, deskewed_ct)
     annotated_bytes, annotated_ct, circle_diag = annotate_circles(cropped_bytes, cropped_ct)
