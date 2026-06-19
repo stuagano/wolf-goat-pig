@@ -12,10 +12,14 @@ const API_URL = apiConfig.baseUrl;
  *   capture → processing → review → save
  *
  * Props:
- *   gameId     — the current game ID
+ *   gameId     — the current game ID (unused in 'new-round' mode)
  *   players    — array of { id, name } player objects (in tee order)
  *   onSaved    — called with saved scores payload after successful save
  *   onCancel   — called to dismiss without saving
+ *   mode       — 'attach' (default) saves to the current game; 'new-round'
+ *                records a standalone round via /games/from-scorecard
+ *   rosterNames — roster names passed through to ScorecardReview for mapping
+ *   initialStage / initialExtraction — test seam to seed state directly
  */
 /** Build a blank extraction so ScorecardReview opens with all cells empty */
 const buildBlankExtraction = (players) => ({
@@ -24,10 +28,19 @@ const buildBlankExtraction = (players) => ({
   per_hole_scores: [],
 });
 
-const ScorecardPhoto = ({ gameId, players, onSaved, onCancel }) => {
+const ScorecardPhoto = ({
+  gameId,
+  players,
+  onSaved,
+  onCancel,
+  mode = 'attach',
+  rosterNames = [],
+  initialStage,
+  initialExtraction,
+}) => {
   // 'capture' | 'processing' | 'review' | 'saving' | 'ghin_prompt' | 'error'
-  const [stage, setStage] = useState('capture');
-  const [extraction, setExtraction] = useState(null);
+  const [stage, setStage] = useState(initialStage || 'capture');
+  const [extraction, setExtraction] = useState(initialExtraction || null);
   const [savedQuarters, setSavedQuarters] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
 
@@ -72,11 +85,27 @@ const ScorecardPhoto = ({ gameId, players, onSaved, onCancel }) => {
     }
   };
 
-  const handleConfirm = async (holeQuarters) => {
+  const handleConfirm = async (payload) => {
     setStage('saving');
     setErrorMsg(null);
 
     try {
+      if (mode === 'new-round') {
+        const res = await fetch(`${API_URL}/games/from-scorecard`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...payload, course_name: 'Wing Point' }),
+        });
+        if (!res.ok) {
+          const detail = await res.json().catch(() => ({}));
+          throw new Error(detail.detail || `Save failed: ${res.status}`);
+        }
+        const data = await res.json();
+        onSaved(data); // skip GHIN on this path
+        return;
+      }
+
+      const holeQuarters = payload;
       const holes = Object.keys(holeQuarters).map(holeStr => ({
         hole_number: parseInt(holeStr, 10),
         quarters: holeQuarters[holeStr],
@@ -115,7 +144,7 @@ const ScorecardPhoto = ({ gameId, players, onSaved, onCancel }) => {
       <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
         <div className="animate-spin text-4xl">⏳</div>
         <p className="text-gray-600 font-medium">Reading scorecard...</p>
-        <p className="text-sm text-gray-400">Gemini is extracting the values. This takes a few seconds.</p>
+        <p className="text-sm text-gray-400">Reading the scorecard. This takes a few seconds.</p>
       </div>
     );
   }
@@ -125,6 +154,8 @@ const ScorecardPhoto = ({ gameId, players, onSaved, onCancel }) => {
       <ScorecardReview
         extraction={extraction}
         players={players}
+        mode={mode}
+        rosterNames={rosterNames}
         onConfirm={handleConfirm}
         onCancel={onCancel}
       />
