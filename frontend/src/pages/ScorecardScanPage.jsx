@@ -11,6 +11,9 @@ const ScorecardScanPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedGame, setSelectedGame] = useState(null);
   const [saved, setSaved] = useState(false);
+  const [mode, setMode] = useState(null); // null = landing, 'new-round', 'attach'
+  const [rosterNames, setRosterNames] = useState([]);
+  const [savedGameId, setSavedGameId] = useState(null);
 
   useEffect(() => {
     const fetchGames = async () => {
@@ -27,6 +30,13 @@ const ScorecardScanPage = () => {
       }
     };
     fetchGames();
+  }, []);
+
+  useEffect(() => {
+    fetch(`${API_URL}/legacy-players`)
+      .then(r => (r.ok ? r.json() : { players: [] }))
+      .then(d => setRosterNames(d.players || []))
+      .catch(() => {});
   }, []);
 
   if (saved) {
@@ -46,21 +56,23 @@ const ScorecardScanPage = () => {
         <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#111827' }}>Quarters Saved!</h2>
         <p style={{ color: '#6B7280' }}>All 18 holes have been recorded.</p>
         <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-          <button
-            onClick={() => navigate(`/game/${selectedGame.game_id}`)}
-            style={{
-              padding: '12px 24px',
-              background: '#047857',
-              color: 'white',
-              border: 'none',
-              borderRadius: '10px',
-              fontWeight: '600',
-              fontSize: '15px',
-              cursor: 'pointer',
-            }}
-          >
-            View Game
-          </button>
+          {(savedGameId || selectedGame?.game_id) && (
+            <button
+              onClick={() => navigate(`/game/${savedGameId || selectedGame?.game_id}`)}
+              style={{
+                padding: '12px 24px',
+                background: '#047857',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                fontWeight: '600',
+                fontSize: '15px',
+                cursor: 'pointer',
+              }}
+            >
+              View Game
+            </button>
+          )}
           <button
             onClick={() => navigate('/')}
             style={{
@@ -81,7 +93,30 @@ const ScorecardScanPage = () => {
     );
   }
 
-  if (selectedGame) {
+  if (mode === 'new-round') {
+    return (
+      <div style={{ minHeight: '100vh', background: '#F9FAFB', padding: '16px' }}>
+        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '20px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+          }}>
+            <ScorecardPhoto
+              mode="new-round"
+              rosterNames={rosterNames}
+              players={[]}
+              onSaved={(result) => { setSavedGameId(result?.game_id || null); setSaved(true); }}
+              onCancel={() => setMode(null)}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === 'attach' && selectedGame) {
     const players = selectedGame.players || [];
     return (
       <div style={{ minHeight: '100vh', background: '#F9FAFB', padding: '16px' }}>
@@ -110,7 +145,7 @@ const ScorecardScanPage = () => {
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', paddingTop: '8px' }}>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => (mode === null ? navigate('/') : setMode(null))}
             style={{
               background: 'none',
               border: 'none',
@@ -127,12 +162,61 @@ const ScorecardScanPage = () => {
               📷 Scan Scorecard
             </h1>
             <p style={{ margin: 0, fontSize: '13px', color: '#6B7280' }}>
-              Photo → Gemini extracts quarters → save to game
+              Photo → reads the scorecard → save the round
             </p>
           </div>
         </div>
 
+        {/* Landing: choose what to scan into */}
+        {mode === null && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <button
+              onClick={() => setMode('new-round')}
+              style={{
+                width: '100%',
+                padding: '20px',
+                background: '#047857',
+                color: 'white',
+                border: 'none',
+                borderRadius: '14px',
+                fontWeight: '600',
+                fontSize: '16px',
+                cursor: 'pointer',
+                textAlign: 'left',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+              }}
+            >
+              📷 Scan a finished round
+              <div style={{ fontSize: '13px', fontWeight: '400', opacity: 0.9, marginTop: '4px' }}>
+                Record a completed scorecard as a new round
+              </div>
+            </button>
+            <button
+              onClick={() => setMode('attach')}
+              style={{
+                width: '100%',
+                padding: '20px',
+                background: 'white',
+                color: '#111827',
+                border: '2px solid #E5E7EB',
+                borderRadius: '14px',
+                fontWeight: '600',
+                fontSize: '16px',
+                cursor: 'pointer',
+                textAlign: 'left',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+              }}
+            >
+              ➕ Add to an active game
+              <div style={{ fontSize: '13px', fontWeight: '400', color: '#6B7280', marginTop: '4px' }}>
+                Save scanned quarters to a game in progress
+              </div>
+            </button>
+          </div>
+        )}
+
         {/* Game picker */}
+        {mode === 'attach' && (
         <div style={{
           background: 'white',
           borderRadius: '16px',
@@ -200,6 +284,7 @@ const ScorecardScanPage = () => {
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   );
