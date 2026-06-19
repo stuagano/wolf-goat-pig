@@ -123,6 +123,66 @@ def test_from_scorecard_rejects_out_of_range_hole():
     assert resp.status_code == 400
 
 
+def test_from_scorecard_unlinked_player_is_not_auto_linked_by_name():
+    # A guest the user marked "keep as typed (unlinked)" must NOT be linked to a
+    # roster member who happens to share the typed name — that would corrupt the
+    # member's standings with a round they didn't play.
+    models.Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        if not db.query(models.PlayerProfile).filter_by(legacy_name="GuestClash").first():
+            db.add(
+                models.PlayerProfile(
+                    name="Real GuestClash Member", legacy_name="GuestClash", created_at="2026-06-18T00:00:00"
+                )
+            )
+            db.commit()
+    finally:
+        db.close()
+
+    body = {
+        "players": [
+            {"name": "GuestClash", "unlinked": True},
+            {"name": "B"},
+            {"name": "C"},
+            {"name": "D"},
+        ],
+        "per_hole_quarters": _per_hole_4p(),
+    }
+    resp = client.post("/games/from-scorecard", json=body)
+    assert resp.status_code == 200, resp.text
+    game_id = resp.json()["game_id"]
+    db = SessionLocal()
+    try:
+        rec = db.query(models.GameRecord).filter_by(game_id=game_id).first()
+        row = db.execute(
+            text(
+                "SELECT player_profile_id FROM game_player_results "
+                "WHERE game_record_id = :rid AND player_name = 'GuestClash'"
+            ),
+            {"rid": rec.id},
+        ).first()
+        assert row.player_profile_id is None
+    finally:
+        db.close()
+
+
+def test_from_scorecard_round_is_retrievable_via_game_state():
+    # The success screen links to /game/{id}, which loads /games/{id}/state.
+    # Confirm a scan-created completed round renders there with players+standings.
+    body = {
+        "players": [{"name": "A"}, {"name": "B"}, {"name": "C"}, {"name": "D"}],
+        "per_hole_quarters": _per_hole_4p(),
+    }
+    game_id = client.post("/games/from-scorecard", json=body).json()["game_id"]
+    state = client.get(f"/games/{game_id}/state")
+    assert state.status_code == 200, state.text
+    data = state.json()
+    assert data["game_status"] == "completed"
+    assert len(data["players"]) == 4
+    assert "standings" in data
+
+
 def test_from_scorecard_rejects_bad_player_index():
     pq = _per_hole_4p()
     pq.append({"player_index": 9, "hole": 1, "quarters": 0})

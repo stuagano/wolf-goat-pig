@@ -39,3 +39,24 @@ test('new-round mode maps names to roster and confirms profile-less payload', ()
   expect(arg.per_hole_quarters.find(q => q.player_index === 0 && q.hole === 1).quarters).toBe(1);
   expect(arg.played_at).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 });
+
+test('choosing "keep as typed (unlinked)" sends unlinked:true with the typed name', () => {
+  const onConfirm = vi.fn();
+  render(
+    <ScorecardReview
+      extraction={extraction}
+      players={[]}
+      mode="new-round"
+      rosterNames={['Jon Smith', 'Mary Jones']}
+      onConfirm={onConfirm}
+      onCancel={() => {}}
+    />,
+  );
+  const selects = screen.getAllByRole('combobox');
+  fireEvent.change(selects[0], { target: { value: '__unlinked__' } });
+
+  fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+  const arg = onConfirm.mock.calls[0][0];
+  // keeps the SCANNED name (not a roster name) and flags it unlinked
+  expect(arg.players[0]).toEqual({ name: 'Jon', player_profile_id: null, unlinked: true });
+});

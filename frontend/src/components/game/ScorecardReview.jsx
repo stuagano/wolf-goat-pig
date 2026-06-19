@@ -128,10 +128,11 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
         }
       }
       onConfirm({
-        players: extractedPlayers.map((ep, pi) => ({
-          name: mapping[pi] === '__unlinked__' ? ep.name : mapping[pi],
-          player_profile_id: null,
-        })),
+        players: extractedPlayers.map((ep, pi) =>
+          mapping[pi] === '__unlinked__'
+            // explicit "keep as typed" — backend must NOT auto-link by name
+            ? { name: ep.name, player_profile_id: null, unlinked: true }
+            : { name: mapping[pi], player_profile_id: null }),
         per_hole_quarters: perHole,
         played_at: playedAt,
       });

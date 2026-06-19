@@ -215,6 +215,11 @@ async def create_game_with_join_code(
 class ScorecardRoundPlayer(BaseModel):
     name: str
     player_profile_id: int | None = None
+    # When the user explicitly chose "keep as typed (unlinked)", do NOT
+    # auto-resolve a profile from the name — otherwise a guest whose typed
+    # name happens to match a roster legacy_name would be wrongly linked to
+    # that member, corrupting their standings.
+    unlinked: bool = False
 
 
 class ScorecardRoundHoleQuarter(BaseModel):
@@ -262,7 +267,7 @@ async def create_round_from_scorecard(
     players: list[dict[str, Any]] = []
     for i, p in enumerate(body.players):
         profile_id = p.player_profile_id
-        if profile_id is None:
+        if profile_id is None and not p.unlinked:
             prof = db.query(models.PlayerProfile).filter(models.PlayerProfile.legacy_name == p.name).first()
             profile_id = prof.id if prof else None
         players.append(
