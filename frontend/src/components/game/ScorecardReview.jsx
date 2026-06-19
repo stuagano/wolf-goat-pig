@@ -28,8 +28,23 @@ const computeDeltas = (runningTotals) => {
   return deltas;
 };
 
-const ScorecardReview = ({ extraction, players, onConfirm, onCancel }) => {
+const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'attach', rosterNames = [] }) => {
   const { players: extractedPlayers, running_totals: rawTotals } = extraction;
+  const isNewRound = mode === 'new-round';
+
+  const bestRosterMatch = (name) => {
+    const lower = (name || '').toLowerCase();
+    return (
+      rosterNames.find(r => r.toLowerCase() === lower) ||
+      rosterNames.find(r => r.toLowerCase().startsWith(lower)) ||
+      rosterNames.find(r => r.toLowerCase().includes(lower)) ||
+      '__unlinked__'
+    );
+  };
+  const [mapping, setMapping] = useState(() =>
+    extractedPlayers.map(ep => bestRosterMatch(ep.name)),
+  );
+  const [playedAt, setPlayedAt] = useState(() => new Date().toISOString().slice(0, 10));
 
   // Build initial running total state: { "playerIdx-hole": value }
   const initialValues = useMemo(() => {
@@ -99,9 +114,26 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel }) => {
     return true;
   }, [values, extractedPlayers.length]);
 
-  const canConfirm = allFilled && unbalancedHoles.length === 0;
+  const canConfirm = allFilled && (isNewRound || unbalancedHoles.length === 0);
 
   const handleConfirm = () => {
+    if (isNewRound) {
+      const perHole = [];
+      for (let pi = 0; pi < extractedPlayers.length; pi++) {
+        for (let h = 1; h <= 18; h++) {
+          perHole.push({ player_index: pi, hole: h, quarters: allDeltas[pi]?.[h] ?? 0 });
+        }
+      }
+      onConfirm({
+        players: extractedPlayers.map((ep, pi) => ({
+          name: mapping[pi] === '__unlinked__' ? ep.name : mapping[pi],
+          player_profile_id: null,
+        })),
+        per_hole_quarters: perHole,
+        played_at: playedAt,
+      });
+      return;
+    }
     // Build quarters by hole for the scores endpoint
     const quartersByHole = {};
     for (let h = 1; h <= 18; h++) {
@@ -127,6 +159,39 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel }) => {
         Edit the <strong>running totals</strong> (what's on the card). Per-hole quarters update automatically.
         <span className="ml-1 text-yellow-600">Yellow = check this value.</span>
       </p>
+
+      {isNewRound && (
+        <div className="flex flex-col gap-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-semibold text-gray-700">Map scanned players to roster</span>
+            {extractedPlayers.map((ep, pi) => (
+              <div key={pi} className="flex items-center gap-2">
+                <span className="text-sm text-gray-600 min-w-[90px]">{ep.name || `Player ${pi + 1}`}</span>
+                <span className="text-gray-400">→</span>
+                <select
+                  value={mapping[pi]}
+                  onChange={e => setMapping(prev => prev.map((m, i) => (i === pi ? e.target.value : m)))}
+                  className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                >
+                  {rosterNames.map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                  <option value="__unlinked__">Keep as typed (unlinked)</option>
+                </select>
+              </div>
+            ))}
+          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <span className="font-semibold">Date played</span>
+            <input
+              type="date"
+              value={playedAt}
+              onChange={e => setPlayedAt(e.target.value)}
+              className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            />
+          </label>
+        </div>
+      )}
 
       {unbalancedHoles.length > 0 && (
         <div className="bg-red-50 border border-red-300 rounded-lg p-3 text-sm text-red-700">
