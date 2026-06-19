@@ -400,3 +400,43 @@ class TestScanScorecardCallsPreprocessing:
         assert result["preprocessing"]["grid_crop"]["grid_crop_applied"] is True
         assert result["preprocessing"]["circles"]["preprocessing_applied"] is True
         assert result["preprocessing"]["circles"]["circles_detected"] == 7
+
+
+class TestFitImageToBudget:
+    """Sizing helper that maximizes resolution under Groq's request budget."""
+
+    @staticmethod
+    def _jpeg(w, h):
+        from io import BytesIO
+
+        from PIL import Image
+
+        buf = BytesIO()
+        Image.new("RGB", (w, h), "white").save(buf, format="JPEG")
+        return buf.getvalue()
+
+    def test_caps_dimension(self):
+        from io import BytesIO
+
+        from PIL import Image
+
+        from app.services.scorecard_scan_service import _fit_image_to_budget
+
+        out, ct = _fit_image_to_budget(self._jpeg(4000, 3000), "image/jpeg", max_dim=512, max_b64_chars=5_000_000)
+        assert max(Image.open(BytesIO(out)).size) <= 512
+        assert ct == "image/jpeg"
+
+    def test_keeps_small_image_unchanged(self):
+        small = self._jpeg(120, 90)
+        from app.services.scorecard_scan_service import _fit_image_to_budget
+
+        out, ct = _fit_image_to_budget(small, "image/jpeg", max_dim=4096, max_b64_chars=5_000_000)
+        assert out == small
+        assert ct == "image/jpeg"
+
+    def test_graceful_on_non_image_bytes(self):
+        from app.services.scorecard_scan_service import _fit_image_to_budget
+
+        out, ct = _fit_image_to_budget(b"not an image", "image/jpeg", max_dim=4096, max_b64_chars=10)
+        assert out == b"not an image"
+        assert ct == "image/jpeg"

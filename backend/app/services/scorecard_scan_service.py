@@ -135,6 +135,51 @@ def _validate_zero_sum(per_hole_quarters: list[dict]) -> dict[str, Any]:
     return {"valid": not bad_holes, "bad_holes": bad_holes}
 
 
+# Groq Vision caps a request at ~4MB. We spend that budget across the (small)
+# reference image(s) + the main scorecard, maximizing the MAIN image's
+# resolution so the dense handwritten cells on a ~4000px phone pic stay legible
+# (downscaling the whole card to ~1800px made them unreadable).
+_GROQ_REQUEST_B64_BUDGET = 3_900_000  # total base64 chars for all images in one request
+_REFERENCE_MAX_DIM = 1100  # references only calibrate handwriting style — don't need full res
+_REFERENCE_B64_BUDGET = 900_000
+_MAIN_MAX_DIM = 4096  # effectively only budget-limited
+
+
+def _fit_image_to_budget(
+    image_bytes: bytes, content_type: str, *, max_dim: int, max_b64_chars: int
+) -> tuple[bytes, str]:
+    """Re-encode an image to the HIGHEST resolution that still fits a base64 char
+    budget and a max longest-side. Degrades gracefully: returns the original bytes
+    unchanged if PIL can't read them (e.g. the ``b"fake"`` stub in unit tests)."""
+    try:
+        from io import BytesIO
+
+        from PIL import Image
+
+        fits_budget = len(base64.b64encode(image_bytes)) <= max_b64_chars
+        img = Image.open(BytesIO(image_bytes))
+        if fits_budget and max(img.size) <= max_dim:
+            return image_bytes, content_type
+        img = img.convert("RGB")
+        dim = min(max_dim, max(img.size))
+        data = image_bytes
+        for _ in range(8):
+            w, h = img.size
+            scale = dim / max(w, h)
+            frame = (
+                img.resize((max(1, round(w * scale)), max(1, round(h * scale))), Image.LANCZOS) if scale < 1 else img
+            )
+            buf = BytesIO()
+            frame.save(buf, format="JPEG", quality=82)
+            data = buf.getvalue()
+            if len(base64.b64encode(data)) <= max_b64_chars:
+                return data, "image/jpeg"
+            dim = int(dim * 0.85)
+        return data, "image/jpeg"
+    except Exception:
+        return image_bytes, content_type
+
+
 async def _call_groq_vision(
     image_bytes: bytes,
     content_type: str,
@@ -146,17 +191,21 @@ async def _call_groq_vision(
     if not api_key:
         raise ValueError("GROQ_API_KEY not configured")
 
-    image_b64 = base64.b64encode(image_bytes).decode("utf-8")
     user_content: list[dict[str, Any]] = []
 
     references = _load_reference_examples()
+    ref_b64_used = 0
     if references:
         gt_blocks = []
         for idx, (ref_bytes, ref_mime, ref_gt) in enumerate(references, 1):
-            ref_b64 = base64.b64encode(ref_bytes).decode("utf-8")
+            sized_ref, sized_ref_mime = _fit_image_to_budget(
+                ref_bytes, ref_mime, max_dim=_REFERENCE_MAX_DIM, max_b64_chars=_REFERENCE_B64_BUDGET
+            )
+            ref_b64 = base64.b64encode(sized_ref).decode("utf-8")
+            ref_b64_used += len(ref_b64)
             label = "REFERENCE SCORECARD" if len(references) == 1 else f"REFERENCE SCORECARD #{idx}"
             user_content.append({"type": "text", "text": f"{label} — study the handwriting style:"})
-            user_content.append({"type": "image_url", "image_url": {"url": f"data:{ref_mime};base64,{ref_b64}"}})
+            user_content.append({"type": "image_url", "image_url": {"url": f"data:{sized_ref_mime};base64,{ref_b64}"}})
             gt_label = (
                 "Correct extraction for the reference"
                 if len(references) == 1
@@ -168,8 +217,17 @@ async def _call_groq_vision(
         prompt = EXTRACTION_PROMPT
     if strict:
         prompt += _STRICT_SUFFIX
+
+    # Give the main scorecard the entire remaining request budget so it goes in
+    # at the highest resolution that fits — that detail is what makes the cells readable.
+    main_budget = max(600_000, _GROQ_REQUEST_B64_BUDGET - ref_b64_used - len(prompt) - 4000)
+    main_bytes, main_ct = _fit_image_to_budget(
+        image_bytes, content_type, max_dim=_MAIN_MAX_DIM, max_b64_chars=main_budget
+    )
+    image_b64 = base64.b64encode(main_bytes).decode("utf-8")
+
     user_content.append({"type": "text", "text": prompt})
-    user_content.append({"type": "image_url", "image_url": {"url": f"data:{content_type};base64,{image_b64}"}})
+    user_content.append({"type": "image_url", "image_url": {"url": f"data:{main_ct};base64,{image_b64}"}})
 
     payload = {
         "model": _GROQ_VISION_MODEL,
