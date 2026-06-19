@@ -248,6 +248,16 @@ async def create_round_from_scorecard(
     if len(body.players) not in (4, 5, 6):
         raise HTTPException(status_code=400, detail="Wolf Goat Pig requires 4, 5, or 6 players")
 
+    # Validate every quarter entry references a real player and a hole in 1-18,
+    # so malformed input to this public endpoint is rejected rather than
+    # silently dropped (build_hole_history skips out-of-range entries).
+    n_players = len(body.players)
+    for q in body.per_hole_quarters:
+        if not (0 <= q.player_index < n_players):
+            raise HTTPException(status_code=400, detail=f"Invalid player_index {q.player_index}")
+        if not (1 <= q.hole <= 18):
+            raise HTTPException(status_code=400, detail=f"Invalid hole {q.hole} (must be 1-18)")
+
     # Assign stable ids; resolve profile from canonical legacy_name when absent.
     players: list[dict[str, Any]] = []
     for i, p in enumerate(body.players):

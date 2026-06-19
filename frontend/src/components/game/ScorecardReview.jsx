@@ -33,7 +33,10 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
   const isNewRound = mode === 'new-round';
 
   const bestRosterMatch = (name) => {
-    const lower = (name || '').toLowerCase();
+    const lower = (name || '').trim().toLowerCase();
+    // A blank scanned name must NOT default to the first roster entry
+    // (startsWith('') matches everything) — leave it unlinked.
+    if (!lower) return '__unlinked__';
     return (
       rosterNames.find(r => r.toLowerCase() === lower) ||
       rosterNames.find(r => r.toLowerCase().startsWith(lower)) ||
@@ -194,8 +197,13 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
       )}
 
       {unbalancedHoles.length > 0 && (
-        <div className="bg-red-50 border border-red-300 rounded-lg p-3 text-sm text-red-700">
-          ⚠️ Holes not balanced (must sum to 0): {unbalancedHoles.map(h => (
+        <div className={isNewRound
+          ? "bg-amber-50 border border-amber-300 rounded-lg p-3 text-sm text-amber-800"
+          : "bg-red-50 border border-red-300 rounded-lg p-3 text-sm text-red-700"}>
+          {isNewRound
+            ? "⚠️ Heads up — these holes don't sum to 0 (you can still save): "
+            : "⚠️ Holes not balanced (must sum to 0): "}
+          {unbalancedHoles.map(h => (
             <span key={h} className="font-semibold ml-1">
               #{h} (off by {holeBalance[h] > 0 ? '+' : ''}{holeBalance[h]})
             </span>
