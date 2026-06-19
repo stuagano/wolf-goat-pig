@@ -212,6 +212,98 @@ async def create_game_with_join_code(
         raise HTTPException(status_code=500, detail=f"Error creating game: {e!s}")
 
 
+class ScorecardRoundPlayer(BaseModel):
+    name: str
+    player_profile_id: int | None = None
+
+
+class ScorecardRoundHoleQuarter(BaseModel):
+    player_index: int
+    hole: int
+    quarters: float
+
+
+class ScorecardRoundRequest(BaseModel):
+    players: list[ScorecardRoundPlayer]
+    per_hole_quarters: list[ScorecardRoundHoleQuarter]
+    course_name: str | None = None
+    played_at: str | None = None
+
+
+@router.post("/from-scorecard")
+async def create_round_from_scorecard(
+    body: ScorecardRoundRequest,
+    db: Session = Depends(database.get_db),
+) -> dict[str, Any]:
+    """Record a completed round straight from a scanned scorecard.
+
+    Builds a completed game (players + per-hole quarters) and persists the
+    same GameRecord/GamePlayerResult rows a live-scored game would, so a
+    scanned round shows up in standings/history identically.
+    """
+    import uuid
+
+    from ..services.completed_game_service import build_hole_history, persist_completed_game
+
+    if len(body.players) not in (4, 5, 6):
+        raise HTTPException(status_code=400, detail="Wolf Goat Pig requires 4, 5, or 6 players")
+
+    # Assign stable ids; resolve profile from canonical legacy_name when absent.
+    players: list[dict[str, Any]] = []
+    for i, p in enumerate(body.players):
+        profile_id = p.player_profile_id
+        if profile_id is None:
+            prof = db.query(models.PlayerProfile).filter(models.PlayerProfile.legacy_name == p.name).first()
+            profile_id = prof.id if prof else None
+        players.append(
+            {
+                "id": f"p{i + 1}",
+                "name": p.name,
+                "player_profile_id": profile_id,
+                "handicap": 18.0,
+            }
+        )
+
+    per_hole = [q.model_dump() for q in body.per_hole_quarters]
+    hole_history, standings = build_hole_history(players, per_hole)
+
+    # Warn (do not reject) on holes whose deltas don't sum to zero.
+    warnings: dict[str, float] = {}
+    for entry in hole_history:
+        s = sum(entry["points_delta"].values())
+        if abs(s) > 0.001:
+            warnings[str(entry["hole"])] = s
+
+    try:
+        now = utc_now().isoformat()
+        created_at = (body.played_at + "T12:00:00") if body.played_at else now
+        game_id = str(uuid.uuid4())
+        game = models.GameStateModel(
+            game_id=game_id,
+            game_status="completed",
+            state={
+                "game_status": "completed",
+                "course_name": body.course_name or "Wing Point",
+                "player_count": len(players),
+                "players": players,
+                "hole_history": hole_history,
+                "hole_quarters": {str(e["hole"]): e["points_delta"] for e in hole_history},
+                "standings": standings,
+                "source": "scorecard_scan",
+            },
+            created_at=created_at,
+            updated_at=now,
+        )
+        db.add(game)
+        db.flush()
+        persist_completed_game(db, game)
+        return {"game_id": game_id, "status": "completed", "warnings": warnings}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"from-scorecard failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to record round: {e!s}")
+
+
 @router.post("/join/{join_code}")
 async def join_game_with_code(  # type: ignore
     join_code: str,
