@@ -25,3 +25,24 @@ _ensure_repo_root_on_path()
 
 # Harden default environment for backend tests.
 os.environ.setdefault("ENABLE_TEST_ENDPOINTS", "false")
+
+
+import pytest
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _heal_drifted_local_sqlite_schema():
+    """Rebuild a drifted local SQLite schema once per session.
+
+    SQLAlchemy's create_all never ALTERs existing tables, so a long-lived
+    backend/wolf_goat_pig.db keeps a stale schema after the models gain columns
+    and tests fail with "no such column". ctk.dbreset heals exactly that drift
+    (SQLite only — it never drops a Postgres DB, so CI/prod are untouched).
+    """
+    from ctk.dbreset import ensure_fresh_sqlite_schema
+
+    from app.database import engine
+    from app.models import Base
+
+    ensure_fresh_sqlite_schema(engine, Base)
+    yield
