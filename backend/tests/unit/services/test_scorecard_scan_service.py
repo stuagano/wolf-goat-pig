@@ -372,7 +372,7 @@ class TestScanScorecardCallsPreprocessing:
             assert image_bytes == b"GRID_CROPPED", "annotate must receive grid-cropped bytes"
             return b"ANNOTATED", "image/jpeg", {"preprocessing_applied": True, "circles_detected": 7}
 
-        async def fake_call_groq(image_bytes, content_type, *, strict=False):
+        async def fake_call_groq(image_bytes, content_type, *, strict=False, expected_players=None, hole_range=None):
             assert image_bytes == b"ANNOTATED", "vision must receive annotated bytes"
             return {
                 "players": [{"name": "P1", "confidence": 1.0}, {"name": "P2", "confidence": 1.0}],
@@ -490,6 +490,65 @@ class TestGuidedPlayers:
         # CK matches "C.K." normalized; SG is absent
         assert _missing_expected(result, ["CK", "SS", "SG"]) == ["SG"]
         assert _missing_expected(result, None) == []
+
+
+class TestAdaptiveScan:
+    def _valid_raw(self, players, holes_per_player):
+        # players: list[str]; holes_per_player: dict[name]-> {hole: (value, circled)}
+        pls = [{"name": n, "confidence": 1.0} for n in players]
+        rts = []
+        for i, n in enumerate(players):
+            for h, (v, c) in holes_per_player[n].items():
+                rts.append({"player_index": i, "hole": h, "value": v, "is_circled": c, "confidence": 1.0})
+        return {"players": pls, "running_totals": rts}
+
+    def test_valid_single_call_does_not_tile(self, monkeypatch):
+        import app.services.scorecard_scan_service as svc
+
+        # zero-sum balanced 2-player single result for all 18 holes
+        single = self._valid_raw(
+            ["A", "B"],
+            {"A": {h: (2, False) for h in range(1, 19)}, "B": {h: (2, True) for h in range(1, 19)}},
+        )
+        calls = {"n": 0}
+
+        async def fake_call(image_bytes, ct, *, strict=False, expected_players=None, hole_range=None):
+            calls["n"] += 1
+            return single
+
+        monkeypatch.setattr(svc, "_call_groq_vision", fake_call)
+        result = asyncio.run(svc.scan_scorecard(b"img", "image/jpeg", expected_players=["A", "B"]))
+        assert result["method"] == "single"
+        assert calls["n"] == 1  # no tiling
+
+    def test_missing_player_triggers_tiling(self, monkeypatch):
+        import app.services.scorecard_scan_service as svc
+
+        single = self._valid_raw(  # only 1 of 2 expected players -> missing -> tile
+            ["A"], {"A": {h: (0, False) for h in range(1, 19)}}
+        )
+        left = self._valid_raw(
+            ["A", "B"],
+            {"A": {h: (2, False) for h in range(1, 10)}, "B": {h: (2, True) for h in range(1, 10)}},
+        )
+        right = self._valid_raw(
+            ["A", "B"],
+            {"A": {h: (2, False) for h in range(10, 19)}, "B": {h: (2, True) for h in range(10, 19)}},
+        )
+        seq = [single, left, right]
+
+        async def fake_call(image_bytes, ct, *, strict=False, expected_players=None, hole_range=None):
+            return seq.pop(0)
+
+        monkeypatch.setattr(svc, "_call_groq_vision", fake_call)
+        monkeypatch.setattr(svc, "deskew_to_card", lambda b, ct: (b, ct, {}))
+        monkeypatch.setattr(
+            svc, "_split_horizontal_halves", lambda b, ct: ((b, "image/jpeg"), (b, "image/jpeg"))
+        )
+        result = asyncio.run(svc.scan_scorecard(b"img", "image/jpeg", expected_players=["A", "B"]))
+        assert result["method"] == "tiled"
+        assert {p["name"] for p in result["players"]} == {"A", "B"}
+        assert result["validation"]["valid"] is True
 
 
 class TestMergeTiles:
