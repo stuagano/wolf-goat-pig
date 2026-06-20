@@ -626,6 +626,28 @@ class TestAdaptiveScan:
         assert result["method"] == "single"
         assert result["validation"]["valid"] is True
 
+    def test_tiled_merge_exception_falls_back_to_single(self, monkeypatch):
+        import app.services.scorecard_scan_service as svc
+
+        # single is zero-sum invalid (both players +2 every hole) -> triggers tiling
+        single = self._valid_raw(
+            ["A", "B"],
+            {"A": {h: (2, False) for h in range(1, 19)}, "B": {h: (2, False) for h in range(1, 19)}},
+        )
+
+        async def fake_call(image_bytes, ct, *, strict=False, expected_players=None, hole_range=None):
+            return single
+
+        monkeypatch.setattr(svc, "_call_groq_vision", fake_call)
+        monkeypatch.setattr(svc, "deskew_to_card", lambda b, ct: (b, ct, {}))
+        monkeypatch.setattr(svc, "crop_to_grid", lambda b, ct: (b, ct, {}))
+        monkeypatch.setattr(svc, "annotate_circles", lambda b, ct: (b, ct, {}))
+        monkeypatch.setattr(svc, "_split_horizontal_halves", lambda b, ct: ((b, "image/jpeg"), (b, "image/jpeg")))
+        monkeypatch.setattr(svc, "_merge_tile_results", lambda *a: (_ for _ in ()).throw(KeyError("bad")))
+
+        result = asyncio.run(svc.scan_scorecard(b"img", "image/jpeg", expected_players=["A", "B"]))
+        assert result["method"] == "single"  # fell back, did not raise
+
 
 class TestMergeTiles:
     def test_merges_left_front_right_back_by_name(self):
