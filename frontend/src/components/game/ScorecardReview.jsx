@@ -44,12 +44,23 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
       const match = scanPlayers.find(sp => norm(sp.name) === normPicked);
       return match ?? scanPlayers[i] ?? { name: picked, confidence: null };
     });
-    // Build index map: old scan index → new picked index
+    // Build index map: old scan index → new picked index.
+    // First pass: exact name matches (always win over positional fallbacks).
+    // Second pass: positional fallback for unmatched picked players — mirrors
+    // the scanPlayers[i] fallback used by reorderedPlayers above so that a
+    // garbled OCR name still picks up that scan row's running_totals.
     const oldToNew = {};
     pickedPlayers.forEach((picked, newIdx) => {
       const normPicked = norm(picked);
       const oldIdx = extraction.players.findIndex(sp => norm(sp.name) === normPicked);
       if (oldIdx !== -1) oldToNew[oldIdx] = newIdx;
+    });
+    pickedPlayers.forEach((picked, newIdx) => {
+      const normPicked = norm(picked);
+      const oldIdx = extraction.players.findIndex(sp => norm(sp.name) === normPicked);
+      if (oldIdx === -1 && newIdx < scanPlayers.length && !(newIdx in oldToNew)) {
+        oldToNew[newIdx] = newIdx;
+      }
     });
     const reorderedTotals = extraction.running_totals
       .filter(t => t.player_index in oldToNew)
