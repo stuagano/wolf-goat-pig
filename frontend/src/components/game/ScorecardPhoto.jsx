@@ -35,6 +35,7 @@ const ScorecardPhoto = ({
   onCancel,
   mode = 'attach',
   rosterNames = [],
+  pickedPlayers = [],
   initialStage,
   initialExtraction,
 }) => {
@@ -60,6 +61,9 @@ const ScorecardPhoto = ({
 
     const formData = new FormData();
     formData.append('file', prepped);
+    if (pickedPlayers.length > 0) {
+      formData.append('players', JSON.stringify(pickedPlayers));
+    }
 
     try {
       const res = await fetch(`${API_URL}/scorecard/scan`, {
@@ -156,6 +160,7 @@ const ScorecardPhoto = ({
         players={players}
         mode={mode}
         rosterNames={rosterNames}
+        pickedPlayers={pickedPlayers}
         onConfirm={handleConfirm}
         onCancel={onCancel}
       />

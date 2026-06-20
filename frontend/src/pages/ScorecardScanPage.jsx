@@ -5,6 +5,114 @@ import { apiConfig } from '../config/api.config';
 
 const API_URL = apiConfig.baseUrl;
 
+/**
+ * PlayerPickStep — roster multiselect shown before the camera in new-round mode.
+ * Enforces 4–6 players selected before allowing Continue.
+ */
+const PlayerPickStep = ({ rosterNames, onConfirm, onCancel }) => {
+  const [selected, setSelected] = useState([]);
+
+  const toggle = (name) => {
+    setSelected(prev =>
+      prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name],
+    );
+  };
+
+  const canContinue = selected.length >= 4 && selected.length <= 6;
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#F9FAFB', padding: '16px' }}>
+      <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', paddingTop: '8px' }}>
+          <button
+            onClick={onCancel}
+            style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '4px', color: '#6B7280' }}
+          >
+            ←
+          </button>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 'bold', color: '#111827' }}>
+              📷 Scan Scorecard
+            </h1>
+            <p style={{ margin: 0, fontSize: '13px', color: '#6B7280' }}>
+              Select the players in this round (4–6)
+            </p>
+          </div>
+        </div>
+
+        <div style={{
+          background: 'white',
+          borderRadius: '16px',
+          padding: '20px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+        }}>
+          <h2 style={{ margin: '0 0 16px', fontSize: '1rem', fontWeight: '600', color: '#374151' }}>
+            Who played? ({selected.length} selected)
+          </h2>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+            {rosterNames.map(name => {
+              const isSelected = selected.includes(name);
+              return (
+                <label
+                  key={name}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 14px',
+                    background: isSelected ? '#ECFDF5' : '#F9FAFB',
+                    border: `2px solid ${isSelected ? '#047857' : '#E5E7EB'}`,
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    fontWeight: isSelected ? '600' : '400',
+                    color: '#111827',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggle(name)}
+                    style={{ accentColor: '#047857', width: '16px', height: '16px' }}
+                  />
+                  {name}
+                </label>
+              );
+            })}
+          </div>
+
+          {!canContinue && selected.length > 0 && (
+            <p style={{ fontSize: '13px', color: '#6B7280', marginBottom: '12px', textAlign: 'center' }}>
+              {selected.length < 4
+                ? `Select at least ${4 - selected.length} more player${4 - selected.length > 1 ? 's' : ''}`
+                : 'Maximum 6 players allowed'}
+            </p>
+          )}
+
+          <button
+            onClick={() => onConfirm(selected)}
+            disabled={!canContinue}
+            style={{
+              width: '100%',
+              padding: '14px',
+              background: canContinue ? '#047857' : '#D1D5DB',
+              color: canContinue ? 'white' : '#9CA3AF',
+              border: 'none',
+              borderRadius: '10px',
+              fontWeight: '600',
+              fontSize: '15px',
+              cursor: canContinue ? 'pointer' : 'not-allowed',
+            }}
+          >
+            Continue →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ScorecardScanPage = () => {
   const navigate = useNavigate();
   const [games, setGames] = useState([]);
@@ -13,6 +121,7 @@ const ScorecardScanPage = () => {
   const [saved, setSaved] = useState(false);
   const [mode, setMode] = useState(null); // null = landing, 'new-round', 'attach'
   const [rosterNames, setRosterNames] = useState([]);
+  const [pickedPlayers, setPickedPlayers] = useState([]);
   const [savedGameId, setSavedGameId] = useState(null);
 
   useEffect(() => {
@@ -94,6 +203,16 @@ const ScorecardScanPage = () => {
   }
 
   if (mode === 'new-round') {
+    // Pre-pick step: gate on player selection before showing the camera
+    if (pickedPlayers.length === 0) {
+      return (
+        <PlayerPickStep
+          rosterNames={rosterNames}
+          onConfirm={setPickedPlayers}
+          onCancel={() => setMode(null)}
+        />
+      );
+    }
     return (
       <div style={{ minHeight: '100vh', background: '#F9FAFB', padding: '16px' }}>
         <div style={{ maxWidth: '600px', margin: '0 auto' }}>
@@ -106,9 +225,10 @@ const ScorecardScanPage = () => {
             <ScorecardPhoto
               mode="new-round"
               rosterNames={rosterNames}
+              pickedPlayers={pickedPlayers}
               players={[]}
               onSaved={(result) => { setSavedGameId(result?.game_id || null); setSaved(true); }}
-              onCancel={() => setMode(null)}
+              onCancel={() => { setPickedPlayers([]); setMode(null); }}
             />
           </div>
         </div>
@@ -118,6 +238,7 @@ const ScorecardScanPage = () => {
 
   if (mode === 'attach' && selectedGame) {
     const players = selectedGame.players || [];
+    const attachPickedPlayers = players.map(p => p.name).filter(Boolean);
     return (
       <div style={{ minHeight: '100vh', background: '#F9FAFB', padding: '16px' }}>
         <div style={{ maxWidth: '600px', margin: '0 auto' }}>
@@ -130,6 +251,7 @@ const ScorecardScanPage = () => {
             <ScorecardPhoto
               gameId={selectedGame.game_id}
               players={players}
+              pickedPlayers={attachPickedPlayers}
               onSaved={() => setSaved(true)}
               onCancel={() => setSelectedGame(null)}
             />

@@ -28,9 +28,45 @@ const computeDeltas = (runningTotals) => {
   return deltas;
 };
 
-const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'attach', rosterNames = [] }) => {
-  const { players: extractedPlayers, running_totals: rawTotals } = extraction;
+const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'attach', rosterNames = [], pickedPlayers = [] }) => {
   const isNewRound = mode === 'new-round';
+  const knownPlayers = pickedPlayers.length > 0;
+
+  // When pickedPlayers are known, reorder extraction so index i = pickedPlayers[i].
+  // This prevents the single-scan path from attributing one player's scores to another's name.
+  const { players: extractedPlayers, running_totals: rawTotals } = (() => {
+    if (!knownPlayers) return extraction;
+    const scanPlayers = extraction.players;
+    const reorderedPlayers = pickedPlayers.map((picked, i) => {
+      const normPicked = norm(picked);
+      const match = scanPlayers.find(sp => norm(sp.name) === normPicked);
+      return match ?? scanPlayers[i] ?? { name: picked, confidence: null };
+    });
+    // Build index map: old scan index → new picked index.
+    // First pass: exact name matches (always win over positional fallbacks).
+    // Second pass: positional fallback for unmatched picked players — mirrors
+    // the scanPlayers[i] fallback used by reorderedPlayers above so that a
+    // garbled OCR name still picks up that scan row's running_totals.
+    const oldToNew = {};
+    pickedPlayers.forEach((picked, newIdx) => {
+      const normPicked = norm(picked);
+      const oldIdx = extraction.players.findIndex(sp => norm(sp.name) === normPicked);
+      if (oldIdx !== -1) oldToNew[oldIdx] = newIdx;
+    });
+    pickedPlayers.forEach((picked, newIdx) => {
+      const normPicked = norm(picked);
+      const oldIdx = extraction.players.findIndex(sp => norm(sp.name) === normPicked);
+      if (oldIdx === -1 && newIdx < scanPlayers.length && !(newIdx in oldToNew)) {
+        oldToNew[newIdx] = newIdx;
+      }
+    });
+    const reorderedTotals = extraction.running_totals
+      .filter(t => t.player_index in oldToNew)
+      .map(t => ({ ...t, player_index: oldToNew[t.player_index] }));
+    return { players: reorderedPlayers, running_totals: reorderedTotals };
+  })();
 
   const bestRosterMatch = (name) => {
     const lower = (name || '').trim().toLowerCase();
@@ -45,7 +81,9 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
     );
   };
   const [mapping, setMapping] = useState(() =>
-    extractedPlayers.map(ep => bestRosterMatch(ep.name)),
+    knownPlayers
+      ? pickedPlayers
+      : extractedPlayers.map(ep => bestRosterMatch(ep.name)),
   );
   const [playedAt, setPlayedAt] = useState(() => new Date().toISOString().slice(0, 10));
 
@@ -129,10 +167,12 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
       }
       onConfirm({
         players: extractedPlayers.map((ep, pi) =>
-          mapping[pi] === '__unlinked__'
-            // explicit "keep as typed" — backend must NOT auto-link by name
-            ? { name: ep.name, player_profile_id: null, unlinked: true }
-            : { name: mapping[pi], player_profile_id: null }),
+          knownPlayers
+            ? { name: pickedPlayers[pi] ?? ep.name, player_profile_id: null }
+            : (mapping[pi] === '__unlinked__'
+                // explicit "keep as typed" — backend must NOT auto-link by name
+                ? { name: ep.name, player_profile_id: null, unlinked: true }
+                : { name: mapping[pi], player_profile_id: null })),
         per_hole_quarters: perHole,
         played_at: playedAt,
       });
@@ -167,21 +207,31 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
       {isNewRound && (
         <div className="flex flex-col gap-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
           <div className="flex flex-col gap-2">
-            <span className="text-sm font-semibold text-gray-700">Map scanned players to roster</span>
+            <span className="text-sm font-semibold text-gray-700">
+              {knownPlayers ? 'Players' : 'Map scanned players to roster'}
+            </span>
             {extractedPlayers.map((ep, pi) => (
               <div key={pi} className="flex items-center gap-2">
-                <span className="text-sm text-gray-600 min-w-[90px]">{ep.name || `Player ${pi + 1}`}</span>
-                <span className="text-gray-400">→</span>
-                <select
-                  value={mapping[pi]}
-                  onChange={e => setMapping(prev => prev.map((m, i) => (i === pi ? e.target.value : m)))}
-                  className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                >
-                  {rosterNames.map(r => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                  <option value="__unlinked__">Keep as typed (unlinked)</option>
-                </select>
+                {knownPlayers ? (
+                  <span className="text-sm text-gray-800 font-medium">
+                    {(pickedPlayers[pi] ?? ep.name) || `Player ${pi + 1}`}
+                  </span>
+                ) : (
+                  <>
+                    <span className="text-sm text-gray-600 min-w-[90px]">{ep.name || `Player ${pi + 1}`}</span>
+                    <span className="text-gray-400">→</span>
+                    <select
+                      value={mapping[pi]}
+                      onChange={e => setMapping(prev => prev.map((m, i) => (i === pi ? e.target.value : m)))}
+                      className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    >
+                      {rosterNames.map(r => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                      <option value="__unlinked__">Keep as typed (unlinked)</option>
+                    </select>
+                  </>
+                )}
               </div>
             ))}
           </div>

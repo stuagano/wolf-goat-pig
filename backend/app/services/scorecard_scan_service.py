@@ -9,6 +9,7 @@ import base64
 import json
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,29 @@ _GROQ_VISION_MODEL = os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17
 
 # Path to reference scorecard examples for few-shot prompting
 _EXAMPLES_DIR = Path(__file__).parent.parent / "data" / "scorecard_examples"
+
+
+def _norm_name(name: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", (name or "").lower())
+
+
+def _expected_players_suffix(expected_players: list[str] | None) -> str:
+    if not expected_players:
+        return ""
+    names = ", ".join(expected_players)
+    return (
+        f"\n\nThe scorers are KNOWN: expect exactly {len(expected_players)} players "
+        f"named: {names}. Use these exact names (one row each). Some players may be "
+        f"written in a lower band below the Par row — include them. Ignore any "
+        f"golf-score rows and handwritten notes; only read the quarter running totals."
+    )
+
+
+def _missing_expected(result: dict, expected_players: list[str] | None) -> list[str]:
+    if not expected_players:
+        return []
+    found = {_norm_name(p.get("name", "")) for p in result.get("players", [])}
+    return [n for n in expected_players if _norm_name(n) not in found]
 
 
 def _load_reference_examples() -> list[tuple[bytes, str, str]]:
@@ -187,11 +211,36 @@ def _fit_image_to_budget(
         return image_bytes, content_type
 
 
+def _split_horizontal_halves(
+    image_bytes: bytes, content_type: str
+) -> tuple[tuple[bytes, str], tuple[bytes, str]] | None:
+    """Split an image at width/2 into (left, right) JPEGs. None if unreadable."""
+    try:
+        from io import BytesIO
+
+        from PIL import Image
+
+        img = Image.open(BytesIO(image_bytes)).convert("RGB")
+        w, h = img.size
+        mid = w // 2
+
+        def _enc(box):
+            buf = BytesIO()
+            img.crop(box).save(buf, format="JPEG", quality=85)
+            return buf.getvalue()
+
+        return (_enc((0, 0, mid, h)), "image/jpeg"), (_enc((mid, 0, w, h)), "image/jpeg")
+    except Exception:
+        return None
+
+
 async def _call_groq_vision(
     image_bytes: bytes,
     content_type: str,
     *,
     strict: bool = False,
+    expected_players: list[str] | None = None,
+    hole_range: tuple[int, int] | None = None,
 ) -> dict[str, Any]:
     """One round-trip to Groq Vision. Strict mode tightens the prompt and lowers temp."""
     api_key = os.getenv("GROQ_API_KEY")
@@ -222,6 +271,14 @@ async def _call_groq_vision(
         prompt = "\n\n".join(gt_blocks) + "\n\n---\n\nNow extract the NEW scorecard below:\n" + EXTRACTION_PROMPT
     else:
         prompt = EXTRACTION_PROMPT
+    prompt += _expected_players_suffix(expected_players)
+    if hole_range:
+        lo, hi = hole_range
+        half = "FRONT nine" if lo == 1 else "BACK nine"
+        prompt += (
+            f"\n\nThis image is the {half} only. Read running totals for holes "
+            f"{lo} through {hi} only; do not invent other holes."
+        )
     if strict:
         prompt += _STRICT_SUFFIX
 
@@ -281,6 +338,31 @@ async def _call_groq_vision(
     return json.loads(raw_text)
 
 
+def _merge_tile_results(expected_players: list[str], left_raw: dict, right_raw: dict) -> dict:
+    """Combine left (holes 1-9) and right (holes 10-18) raw extractions into one
+    raw extraction keyed by the player's position in expected_players."""
+    exp_index = {_norm_name(n): i for i, n in enumerate(expected_players)}
+    unified = [{"name": n, "confidence": 1.0} for n in expected_players]
+    merged: list[dict] = []
+    for raw, lo, hi in ((left_raw, 1, 9), (right_raw, 10, 18)):
+        tile_players = raw.get("players", []) if raw else []
+        idx_map: dict[int, int] = {}
+        for ti, tp in enumerate(tile_players):
+            ei = exp_index.get(_norm_name(tp.get("name", "")))
+            if ei is None and ti < len(expected_players):
+                ei = ti  # positional fallback
+            if ei is not None:
+                idx_map[ti] = ei
+        for rt in raw.get("running_totals", []) if raw else []:
+            if not (lo <= rt.get("hole", 0) <= hi):
+                continue
+            ei = idx_map.get(rt.get("player_index"))
+            if ei is None:
+                continue
+            merged.append({**rt, "player_index": ei})
+    return {"players": unified, "running_totals": merged}
+
+
 def _shape_extraction(extracted: dict[str, Any]) -> dict[str, Any]:
     """Apply circle=negative, group by player, compute per-hole deltas."""
     players = extracted.get("players", [])
@@ -310,65 +392,69 @@ def _shape_extraction(extracted: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-async def scan_scorecard(image_bytes: bytes, content_type: str) -> dict[str, Any]:
-    """
-    Send scorecard image to Groq Vision and return extracted running totals
-    plus computed per-hole quarter deltas. Retries once if the first attempt
-    returns malformed JSON or violates the zero-sum invariant — these are
-    the dominant failure modes in practice and a stricter retry catches
-    most of them without doubling latency on the happy path.
-
-    Preprocessing pipeline (each step degrades gracefully — failures fall
-    through to the previous step's bytes):
-      1. deskew_to_card: detect the card frame and perspective-warp to a
-         rectangle so the model sees a clean top-down view.
-      2. crop_to_grid: detect grid lines and tighten the frame to just the
-         table region, dropping branding/title/footer.
-      3. annotate_circles: classical Hough detection draws red rectangles
-         around hand-drawn circles to make the negative/positive sign call
-         a rectangle-spotting task instead of a circle-recognition task.
-    The annotated bytes are reused for both the initial call and the strict
-    retry.
-    """
-    # Downscale to a sane working size first — the CV preprocessing below runs
-    # at full resolution and is prohibitively slow on a raw ~4000px phone pic.
+async def scan_scorecard(
+    image_bytes: bytes, content_type: str, expected_players: list[str] | None = None
+) -> dict[str, Any]:
+    """Single guided Groq call; if it fails zero-sum or is missing an expected
+    player, fall back to a tiled (left=holes 1-9 / right=holes 10-18) scan and
+    merge by player. Returns the usual shape plus result["method"]."""
+    # Cap working size before the (full-res) CV preprocessing — see _PREPROCESS_MAX_DIM.
     image_bytes, content_type = _fit_image_to_budget(
         image_bytes, content_type, max_dim=_PREPROCESS_MAX_DIM, max_b64_chars=10**12
     )
     deskewed_bytes, deskewed_ct, deskew_diag = deskew_to_card(image_bytes, content_type)
     cropped_bytes, cropped_ct, grid_diag = crop_to_grid(deskewed_bytes, deskewed_ct)
     annotated_bytes, annotated_ct, circle_diag = annotate_circles(cropped_bytes, cropped_ct)
-    preprocessing_diag = {
-        "deskew": deskew_diag,
-        "grid_crop": grid_diag,
-        "circles": circle_diag,
-    }
+    preprocessing_diag = {"deskew": deskew_diag, "grid_crop": grid_diag, "circles": circle_diag}
 
-    parse_error: Exception | None = None
+    def _finalize(raw: dict, method: str) -> dict:
+        out = _shape_extraction(raw)
+        out["validation"] = _validate_zero_sum(out["per_hole_quarters"])
+        out["preprocessing"] = preprocessing_diag
+        out["method"] = method
+        return out
+
+    # ---- single guided attempt (with one strict retry on bad JSON) ----
     try:
-        extracted = await _call_groq_vision(annotated_bytes, annotated_ct, strict=False)
-    except json.JSONDecodeError as e:
-        logger.warning("First scan returned non-JSON, retrying strict: %s", e)
-        parse_error = e
-        extracted = None
+        single_raw = await _call_groq_vision(
+            annotated_bytes, annotated_ct, strict=False, expected_players=expected_players
+        )
+    except json.JSONDecodeError:
+        try:
+            single_raw = await _call_groq_vision(
+                annotated_bytes, annotated_ct, strict=True, expected_players=expected_players
+            )
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Failed to parse vision response: {e}")
 
-    if extracted is not None:
-        result = _shape_extraction(extracted)
-        validation = _validate_zero_sum(result["per_hole_quarters"])
-        if validation["valid"]:
-            result["validation"] = validation
-            result["preprocessing"] = preprocessing_diag
-            return result
-        logger.warning("Zero-sum violated on first scan: %s — retrying strict", validation["bad_holes"])
+    single = _finalize(single_raw, "single")
+    if single["validation"]["valid"] and not _missing_expected(single_raw, expected_players):
+        return single
 
+    # When no expected players are provided there is nothing to guide the tile
+    # merge — return the single-call result directly so a zero-sum-invalid card
+    # is still shown to the user on the review screen rather than silently
+    # replaced by an empty tiled result.
+    if not expected_players:
+        return single
+
+    # ---- tiled fallback ----
+    halves = _split_horizontal_halves(deskewed_bytes, deskewed_ct)
+    if not halves:
+        return single  # can't tile — return best single attempt
+    (left_b, left_ct), (right_b, right_ct) = halves
     try:
-        extracted = await _call_groq_vision(annotated_bytes, annotated_ct, strict=True)
-    except json.JSONDecodeError as e:
-        if parse_error is not None:
-            logger.error("Both scan attempts returned non-JSON")
-        raise ValueError(f"Failed to parse vision response: {e}")
+        left_b, left_ct, _ = annotate_circles(left_b, left_ct)
+        right_b, right_ct, _ = annotate_circles(right_b, right_ct)
+        left_raw = await _call_groq_vision(left_b, left_ct, expected_players=expected_players, hole_range=(1, 9))
+        right_raw = await _call_groq_vision(right_b, right_ct, expected_players=expected_players, hole_range=(10, 18))
+        merged_raw = _merge_tile_results(expected_players or [], left_raw, right_raw)
+        tiled = _finalize(merged_raw, "tiled")
+    except Exception as e:
+        logger.warning("Tiled scan failed (%s); using single-call result", e)
+        return single
 
-    result = _shape_extraction(extracted)
-    result["validation"] = _validate_zero_sum(result["per_hole_quarters"])
-    result["preprocessing"] = preprocessing_diag
-    return result
+    # Keep whichever attempt is balanced; prefer tiled when both/neither are.
+    if tiled["validation"]["valid"] or not single["validation"]["valid"]:
+        return tiled
+    return single
