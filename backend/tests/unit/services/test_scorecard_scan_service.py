@@ -618,6 +618,31 @@ class TestAdaptiveScan:
         assert result["method"] == "single"
         assert result["validation"]["valid"] is True
 
+    def test_no_expected_players_zero_sum_invalid_returns_single_not_empty(self, monkeypatch):
+        """When expected_players is None and the single call is zero-sum invalid,
+        the service must return that single result (non-empty) rather than
+        silently discarding it by running _merge_tile_results([], ...) which
+        produces an empty players list."""
+        import app.services.scorecard_scan_service as svc
+
+        # Both players +2 every hole → zero-sum invalid (per-hole sum = +4, not 0).
+        both_up = dict.fromkeys(range(1, 19), (2, False))
+        single = self._valid_raw(["A", "B"], {"A": both_up, "B": both_up})
+
+        async def fake_call(image_bytes, ct, *, strict=False, expected_players=None, hole_range=None):
+            return single
+
+        monkeypatch.setattr(svc, "_call_groq_vision", fake_call)
+        monkeypatch.setattr(svc, "deskew_to_card", lambda b, ct: (b, ct, {}))
+        monkeypatch.setattr(svc, "crop_to_grid", lambda b, ct: (b, ct, {}))
+        monkeypatch.setattr(svc, "annotate_circles", lambda b, ct: (b, ct, {}))
+
+        result = asyncio.run(svc.scan_scorecard(b"img", "image/jpeg", expected_players=None))
+        assert result["method"] == "single", "single-call result must be returned, not a tiled empty"
+        assert result["players"], "players must not be empty — single result was discarded"
+        assert result["running_totals"], "running_totals must not be empty — single result was discarded"
+        assert result["validation"]["valid"] is False, "zero-sum violation should still be reported"
+
     def test_tiled_merge_exception_falls_back_to_single(self, monkeypatch):
         import app.services.scorecard_scan_service as svc
 

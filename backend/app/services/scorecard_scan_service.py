@@ -431,6 +431,13 @@ async def scan_scorecard(
     if single["validation"]["valid"] and not _missing_expected(single_raw, expected_players):
         return single
 
+    # When no expected players are provided there is nothing to guide the tile
+    # merge — return the single-call result directly so a zero-sum-invalid card
+    # is still shown to the user on the review screen rather than silently
+    # replaced by an empty tiled result.
+    if not expected_players:
+        return single
+
     # ---- tiled fallback ----
     halves = _split_horizontal_halves(deskewed_bytes, deskewed_ct)
     if not halves:
