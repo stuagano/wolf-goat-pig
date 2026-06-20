@@ -148,6 +148,7 @@ def _run_scan(
     with (
         patch.dict("os.environ", env, clear=True),
         patch("app.services.scorecard_scan_service._load_reference_examples", return_value=[]),
+        patch("app.services.scorecard_scan_service._RATELIMIT_BACKOFFS", ()),
         patch("httpx.AsyncClient", return_value=mock_client),
     ):
         result = asyncio.run(scan_scorecard(image_bytes, "image/jpeg"))
@@ -295,6 +296,34 @@ class TestScanScorecardParsing:
         resp = _groq_response("", status_code=429)
         with pytest.raises(ValueError, match="rate-limited"):
             _run_scan(resp)
+
+    def test_429_then_success_retries(self):
+        """A transient 429 is retried with backoff and then succeeds (so a tiled
+        scan's burst of calls doesn't fail the moment Groq's limit is brushed)."""
+        good = _groq_response(
+            json.dumps(
+                {
+                    "players": [{"name": "A"}],
+                    "running_totals": [{"player_index": 0, "hole": 1, "value": 0, "is_circled": False}],
+                }
+            )
+        )
+        rate = _groq_response("", status_code=429)
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(side_effect=[rate, good])
+        with (
+            patch.dict("os.environ", {"GROQ_API_KEY": "k"}, clear=True),
+            patch("app.services.scorecard_scan_service._load_reference_examples", return_value=[]),
+            patch("app.services.scorecard_scan_service._RATELIMIT_BACKOFFS", (0,)),
+            patch("httpx.AsyncClient", return_value=mock_client),
+        ):
+            from app.services.scorecard_scan_service import scan_scorecard
+
+            result = asyncio.run(scan_scorecard(b"fake", "image/jpeg"))
+        assert mock_client.post.call_count == 2  # retried once after the 429
+        assert result["players"][0]["name"] == "A"
 
     def test_server_error_500_raises(self):
         """500 from Groq should raise with the error message from the body."""

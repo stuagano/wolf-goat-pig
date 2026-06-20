@@ -5,6 +5,7 @@ Uses Groq Vision (Llama 4 Scout) to extract running quarter totals
 from a photo of a physical Wolf Goat Pig scorecard. Circles = negative values.
 """
 
+import asyncio
 import base64
 import json
 import logging
@@ -18,6 +19,12 @@ import httpx
 from .scorecard_preprocess import annotate_circles, crop_to_grid, deskew_to_card
 
 logger = logging.getLogger(__name__)
+
+# Backoff (seconds) between retries when Groq returns 429. The adaptive scan
+# can fire 3 vision calls (single + 2 tiles) within a minute, which trips
+# Groq's per-minute limit; without retry the tile calls fail and tiling never
+# engages. Empty in tests to keep them fast (monkeypatch).
+_RATELIMIT_BACKOFFS = (5.0, 12.0)
 
 _GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 _GROQ_VISION_MODEL = os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
@@ -306,6 +313,21 @@ async def _call_groq_vision(
             json=payload,
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         )
+        # Retry on 429 so the burst of vision calls in a tiled scan doesn't fail
+        # the moment Groq's per-minute limit is brushed. Honor Retry-After when
+        # present (capped), else use the fixed backoff schedule.
+        for backoff in _RATELIMIT_BACKOFFS:
+            if resp.status_code != 429:
+                break
+            retry_after = resp.headers.get("retry-after", "")
+            delay = min(float(retry_after), 20.0) if retry_after.replace(".", "", 1).isdigit() else backoff
+            logger.warning("Groq 429 — backing off %.1fs then retrying", delay)
+            await asyncio.sleep(delay)
+            resp = await client.post(
+                _GROQ_API_URL,
+                json=payload,
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            )
 
     if resp.status_code == 429:
         raise ValueError("Scorecard scanner is rate-limited. Try again in a minute.")
