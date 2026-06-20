@@ -353,7 +353,7 @@ def _merge_tile_results(expected_players: list[str], left_raw: dict, right_raw: 
                 ei = ti  # positional fallback
             if ei is not None:
                 idx_map[ti] = ei
-        for rt in (raw.get("running_totals", []) if raw else []):
+        for rt in raw.get("running_totals", []) if raw else []:
             if not (lo <= rt.get("hole", 0) <= hi):
                 continue
             ei = idx_map.get(rt.get("player_index"))
@@ -439,12 +439,8 @@ async def scan_scorecard(
     try:
         left_b, left_ct, _ = annotate_circles(left_b, left_ct)
         right_b, right_ct, _ = annotate_circles(right_b, right_ct)
-        left_raw = await _call_groq_vision(
-            left_b, left_ct, expected_players=expected_players, hole_range=(1, 9)
-        )
-        right_raw = await _call_groq_vision(
-            right_b, right_ct, expected_players=expected_players, hole_range=(10, 18)
-        )
+        left_raw = await _call_groq_vision(left_b, left_ct, expected_players=expected_players, hole_range=(1, 9))
+        right_raw = await _call_groq_vision(right_b, right_ct, expected_players=expected_players, hole_range=(10, 18))
         merged_raw = _merge_tile_results(expected_players or [], left_raw, right_raw)
         tiled = _finalize(merged_raw, "tiled")
     except Exception as e:

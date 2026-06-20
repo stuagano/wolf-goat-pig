@@ -542,9 +542,7 @@ class TestAdaptiveScan:
 
         monkeypatch.setattr(svc, "_call_groq_vision", fake_call)
         monkeypatch.setattr(svc, "deskew_to_card", lambda b, ct: (b, ct, {}))
-        monkeypatch.setattr(
-            svc, "_split_horizontal_halves", lambda b, ct: ((b, "image/jpeg"), (b, "image/jpeg"))
-        )
+        monkeypatch.setattr(svc, "_split_horizontal_halves", lambda b, ct: ((b, "image/jpeg"), (b, "image/jpeg")))
         result = asyncio.run(svc.scan_scorecard(b"img", "image/jpeg", expected_players=["A", "B"]))
         assert result["method"] == "tiled"
         assert {p["name"] for p in result["players"]} == {"A", "B"}
@@ -581,9 +579,7 @@ class TestAdaptiveScan:
         monkeypatch.setattr(svc, "deskew_to_card", lambda b, ct: (b, ct, {}))
         monkeypatch.setattr(svc, "crop_to_grid", lambda b, ct: (b, ct, {}))
         monkeypatch.setattr(svc, "annotate_circles", lambda b, ct: (b, ct, {}))
-        monkeypatch.setattr(
-            svc, "_split_horizontal_halves", lambda b, ct: ((b, "image/jpeg"), (b, "image/jpeg"))
-        )
+        monkeypatch.setattr(svc, "_split_horizontal_halves", lambda b, ct: ((b, "image/jpeg"), (b, "image/jpeg")))
 
         result = asyncio.run(svc.scan_scorecard(b"img", "image/jpeg", expected_players=["A", "B"]))
         assert result["method"] == "tiled"
@@ -596,9 +592,7 @@ class TestAdaptiveScan:
 
         # Single: only player A present → missing B → triggers tiling.
         # But single itself is valid (zero-sum for a 1-player degenerate case).
-        single = self._valid_raw(
-            ["A"], {"A": {h: (0, False) for h in range(1, 19)}}
-        )
+        single = self._valid_raw(["A"], {"A": {h: (0, False) for h in range(1, 19)}})
         # Tile halves: both A and B are positive every hole → merged not zero-sum.
         left_unbalanced = self._valid_raw(
             ["A", "B"],
@@ -617,9 +611,7 @@ class TestAdaptiveScan:
         monkeypatch.setattr(svc, "deskew_to_card", lambda b, ct: (b, ct, {}))
         monkeypatch.setattr(svc, "crop_to_grid", lambda b, ct: (b, ct, {}))
         monkeypatch.setattr(svc, "annotate_circles", lambda b, ct: (b, ct, {}))
-        monkeypatch.setattr(
-            svc, "_split_horizontal_halves", lambda b, ct: ((b, "image/jpeg"), (b, "image/jpeg"))
-        )
+        monkeypatch.setattr(svc, "_split_horizontal_halves", lambda b, ct: ((b, "image/jpeg"), (b, "image/jpeg")))
 
         result = asyncio.run(svc.scan_scorecard(b"img", "image/jpeg", expected_players=["A", "B"]))
         # single is valid (zero-sum), tiled is not → keep single
