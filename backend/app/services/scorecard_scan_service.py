@@ -338,6 +338,31 @@ async def _call_groq_vision(
     return json.loads(raw_text)
 
 
+def _merge_tile_results(expected_players: list[str], left_raw: dict, right_raw: dict) -> dict:
+    """Combine left (holes 1-9) and right (holes 10-18) raw extractions into one
+    raw extraction keyed by the player's position in expected_players."""
+    exp_index = {_norm_name(n): i for i, n in enumerate(expected_players)}
+    unified = [{"name": n, "confidence": 1.0} for n in expected_players]
+    merged: list[dict] = []
+    for raw, lo, hi in ((left_raw, 1, 9), (right_raw, 10, 18)):
+        tile_players = raw.get("players", []) if raw else []
+        idx_map: dict[int, int] = {}
+        for ti, tp in enumerate(tile_players):
+            ei = exp_index.get(_norm_name(tp.get("name", "")))
+            if ei is None and ti < len(expected_players):
+                ei = ti  # positional fallback
+            if ei is not None:
+                idx_map[ti] = ei
+        for rt in (raw.get("running_totals", []) if raw else []):
+            if not (lo <= rt.get("hole", 0) <= hi):
+                continue
+            ei = idx_map.get(rt.get("player_index"))
+            if ei is None:
+                continue
+            merged.append({**rt, "player_index": ei})
+    return {"players": unified, "running_totals": merged}
+
+
 def _shape_extraction(extracted: dict[str, Any]) -> dict[str, Any]:
     """Apply circle=negative, group by player, compute per-hole deltas."""
     players = extracted.get("players", [])

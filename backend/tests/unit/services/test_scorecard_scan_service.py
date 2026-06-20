@@ -490,3 +490,31 @@ class TestGuidedPlayers:
         # CK matches "C.K." normalized; SG is absent
         assert _missing_expected(result, ["CK", "SS", "SG"]) == ["SG"]
         assert _missing_expected(result, None) == []
+
+
+class TestMergeTiles:
+    def test_merges_left_front_right_back_by_name(self):
+        from app.services.scorecard_scan_service import _merge_tile_results
+
+        left = {
+            "players": [{"name": "SS"}, {"name": "CK"}],  # note: different order than expected
+            "running_totals": [
+                {"player_index": 0, "hole": 1, "value": 4, "is_circled": False, "confidence": 1.0},
+                {"player_index": 1, "hole": 1, "value": 6, "is_circled": False, "confidence": 1.0},
+                {"player_index": 0, "hole": 99, "value": 0, "is_circled": False},  # out of range -> dropped
+            ],
+        }
+        right = {
+            "players": [{"name": "CK"}, {"name": "SS"}],
+            "running_totals": [
+                {"player_index": 0, "hole": 10, "value": 130, "is_circled": True, "confidence": 1.0},
+                {"player_index": 1, "hole": 10, "value": 70, "is_circled": False, "confidence": 1.0},
+            ],
+        }
+        merged = _merge_tile_results(["CK", "SS"], left, right)
+        assert [p["name"] for p in merged["players"]] == ["CK", "SS"]
+        # CK is expected index 0
+        ck = [r for r in merged["running_totals"] if r["player_index"] == 0]
+        assert {(r["hole"], r["value"]) for r in ck} == {(1, 6), (10, 130)}
+        ss = [r for r in merged["running_totals"] if r["player_index"] == 1]
+        assert {(r["hole"], r["value"]) for r in ss} == {(1, 4), (10, 70)}
