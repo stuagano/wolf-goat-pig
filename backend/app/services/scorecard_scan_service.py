@@ -445,12 +445,12 @@ async def scan_scorecard(
         right_raw = await _call_groq_vision(
             right_b, right_ct, expected_players=expected_players, hole_range=(10, 18)
         )
+        merged_raw = _merge_tile_results(expected_players or [], left_raw, right_raw)
+        tiled = _finalize(merged_raw, "tiled")
     except Exception as e:
         logger.warning("Tiled scan failed (%s); using single-call result", e)
         return single
 
-    merged_raw = _merge_tile_results(expected_players or [], left_raw, right_raw)
-    tiled = _finalize(merged_raw, "tiled")
     # Keep whichever attempt is balanced; prefer tiled when both/neither are.
     if tiled["validation"]["valid"] or not single["validation"]["valid"]:
         return tiled
