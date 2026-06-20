@@ -9,6 +9,7 @@ import base64
 import json
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,29 @@ _GROQ_VISION_MODEL = os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17
 
 # Path to reference scorecard examples for few-shot prompting
 _EXAMPLES_DIR = Path(__file__).parent.parent / "data" / "scorecard_examples"
+
+
+def _norm_name(name: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", (name or "").lower())
+
+
+def _expected_players_suffix(expected_players: list[str] | None) -> str:
+    if not expected_players:
+        return ""
+    names = ", ".join(expected_players)
+    return (
+        f"\n\nThe scorers are KNOWN: expect exactly {len(expected_players)} players "
+        f"named: {names}. Use these exact names (one row each). Some players may be "
+        f"written in a lower band below the Par row — include them. Ignore any "
+        f"golf-score rows and handwritten notes; only read the quarter running totals."
+    )
+
+
+def _missing_expected(result: dict, expected_players: list[str] | None) -> list[str]:
+    if not expected_players:
+        return []
+    found = {_norm_name(p.get("name", "")) for p in result.get("players", [])}
+    return [n for n in expected_players if _norm_name(n) not in found]
 
 
 def _load_reference_examples() -> list[tuple[bytes, str, str]]:
@@ -192,6 +216,8 @@ async def _call_groq_vision(
     content_type: str,
     *,
     strict: bool = False,
+    expected_players: list[str] | None = None,
+    hole_range: tuple[int, int] | None = None,
 ) -> dict[str, Any]:
     """One round-trip to Groq Vision. Strict mode tightens the prompt and lowers temp."""
     api_key = os.getenv("GROQ_API_KEY")
@@ -222,6 +248,14 @@ async def _call_groq_vision(
         prompt = "\n\n".join(gt_blocks) + "\n\n---\n\nNow extract the NEW scorecard below:\n" + EXTRACTION_PROMPT
     else:
         prompt = EXTRACTION_PROMPT
+    prompt += _expected_players_suffix(expected_players)
+    if hole_range:
+        lo, hi = hole_range
+        half = "FRONT nine" if lo == 1 else "BACK nine"
+        prompt += (
+            f"\n\nThis image is the {half} only. Read running totals for holes "
+            f"{lo} through {hi} only; do not invent other holes."
+        )
     if strict:
         prompt += _STRICT_SUFFIX
 

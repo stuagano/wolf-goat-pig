@@ -440,3 +440,21 @@ class TestFitImageToBudget:
         out, ct = _fit_image_to_budget(b"not an image", "image/jpeg", max_dim=4096, max_b64_chars=10)
         assert out == b"not an image"
         assert ct == "image/jpeg"
+
+
+class TestGuidedPlayers:
+    def test_suffix_names_players(self):
+        from app.services.scorecard_scan_service import _expected_players_suffix
+
+        s = _expected_players_suffix(["CK", "SS", "SG"])
+        assert "CK" in s and "SS" in s and "SG" in s
+        assert "exactly 3" in s
+        assert _expected_players_suffix(None) == ""
+
+    def test_missing_expected_normalized(self):
+        from app.services.scorecard_scan_service import _missing_expected
+
+        result = {"players": [{"name": "C.K."}, {"name": "ss"}]}
+        # CK matches "C.K." normalized; SG is absent
+        assert _missing_expected(result, ["CK", "SS", "SG"]) == ["SG"]
+        assert _missing_expected(result, None) == []
