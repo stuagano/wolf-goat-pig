@@ -508,7 +508,7 @@ class TestAdaptiveScan:
         # zero-sum balanced 2-player single result for all 18 holes
         single = self._valid_raw(
             ["A", "B"],
-            {"A": {h: (2, False) for h in range(1, 19)}, "B": {h: (2, True) for h in range(1, 19)}},
+            {"A": dict.fromkeys(range(1, 19), (2, False)), "B": dict.fromkeys(range(1, 19), (2, True))},
         )
         calls = {"n": 0}
 
@@ -525,15 +525,15 @@ class TestAdaptiveScan:
         import app.services.scorecard_scan_service as svc
 
         single = self._valid_raw(  # only 1 of 2 expected players -> missing -> tile
-            ["A"], {"A": {h: (0, False) for h in range(1, 19)}}
+            ["A"], {"A": dict.fromkeys(range(1, 19), (0, False))}
         )
         left = self._valid_raw(
             ["A", "B"],
-            {"A": {h: (2, False) for h in range(1, 10)}, "B": {h: (2, True) for h in range(1, 10)}},
+            {"A": dict.fromkeys(range(1, 10), (2, False)), "B": dict.fromkeys(range(1, 10), (2, True))},
         )
         right = self._valid_raw(
             ["A", "B"],
-            {"A": {h: (2, False) for h in range(10, 19)}, "B": {h: (2, True) for h in range(10, 19)}},
+            {"A": dict.fromkeys(range(10, 19), (2, False)), "B": dict.fromkeys(range(10, 19), (2, True))},
         )
         seq = [single, left, right]
 
@@ -557,18 +557,18 @@ class TestAdaptiveScan:
         single = self._valid_raw(
             ["A", "B"],
             {
-                "A": {h: (2, False) for h in range(1, 19)},
-                "B": {h: (2, False) for h in range(1, 19)},  # both positive → zero-sum broken
+                "A": dict.fromkeys(range(1, 19), (2, False)),
+                "B": dict.fromkeys(range(1, 19), (2, False)),  # both positive → zero-sum broken
             },
         )
         # Tiled halves: A is +2, B is -2 per hole → balanced.
         left = self._valid_raw(
             ["A", "B"],
-            {"A": {h: (2, False) for h in range(1, 10)}, "B": {h: (2, True) for h in range(1, 10)}},
+            {"A": dict.fromkeys(range(1, 10), (2, False)), "B": dict.fromkeys(range(1, 10), (2, True))},
         )
         right = self._valid_raw(
             ["A", "B"],
-            {"A": {h: (2, False) for h in range(10, 19)}, "B": {h: (2, True) for h in range(10, 19)}},
+            {"A": dict.fromkeys(range(10, 19), (2, False)), "B": dict.fromkeys(range(10, 19), (2, True))},
         )
         seq = [single, left, right]
 
@@ -592,15 +592,15 @@ class TestAdaptiveScan:
 
         # Single: only player A present → missing B → triggers tiling.
         # But single itself is valid (zero-sum for a 1-player degenerate case).
-        single = self._valid_raw(["A"], {"A": {h: (0, False) for h in range(1, 19)}})
+        single = self._valid_raw(["A"], {"A": dict.fromkeys(range(1, 19), (0, False))})
         # Tile halves: both A and B are positive every hole → merged not zero-sum.
         left_unbalanced = self._valid_raw(
             ["A", "B"],
-            {"A": {h: (2, False) for h in range(1, 10)}, "B": {h: (2, False) for h in range(1, 10)}},
+            {"A": dict.fromkeys(range(1, 10), (2, False)), "B": dict.fromkeys(range(1, 10), (2, False))},
         )
         right_unbalanced = self._valid_raw(
             ["A", "B"],
-            {"A": {h: (2, False) for h in range(10, 19)}, "B": {h: (2, False) for h in range(10, 19)}},
+            {"A": dict.fromkeys(range(10, 19), (2, False)), "B": dict.fromkeys(range(10, 19), (2, False))},
         )
         seq = [single, left_unbalanced, right_unbalanced]
 
@@ -649,7 +649,7 @@ class TestAdaptiveScan:
         # single is zero-sum invalid (both players +2 every hole) -> triggers tiling
         single = self._valid_raw(
             ["A", "B"],
-            {"A": {h: (2, False) for h in range(1, 19)}, "B": {h: (2, False) for h in range(1, 19)}},
+            {"A": dict.fromkeys(range(1, 19), (2, False)), "B": dict.fromkeys(range(1, 19), (2, False))},
         )
 
         async def fake_call(image_bytes, ct, *, strict=False, expected_players=None, hole_range=None):
