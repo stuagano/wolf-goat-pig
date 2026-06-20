@@ -199,12 +199,13 @@ _REFERENCE_MAX_DIM = 1100  # references only calibrate handwriting style — don
 _REFERENCE_B64_BUDGET = 900_000
 _MAIN_MAX_DIM = 4096  # effectively only budget-limited
 # Cap the working image BEFORE the classical CV preprocessing (Hough circle
-# detection, corner/grid detection) — those run at full resolution and are
-# far too slow on a raw ~4000px phone pic (the scan would hang). The model
-# still receives this size, which is already plenty more legible than the old
-# 1800px. Going meaningfully higher needs tiled per-region scanning, not a
-# bigger whole-card image.
-_PREPROCESS_MAX_DIM = 2048
+# detection, corner/grid detection). The hang that originally forced a low cap
+# only happens near full ~4000px (where deskew also mis-warps); at 3000px the
+# whole deskew+crop+annotate pipeline runs in ~0.3s locally. Crucially, 2048
+# was actively harmful: crop_to_grid over-cropped a 2048px card down to ~957px
+# (losing half the grid), and tiles came out ~930px. At 3000px the single read
+# keeps ~2748px and tiles land ~1450px — far more legible for the dense cells.
+_PREPROCESS_MAX_DIM = 3000
 
 
 def _fit_image_to_budget(

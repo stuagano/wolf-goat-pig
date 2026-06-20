@@ -6,11 +6,11 @@
 // the file is HEIC and we can't decode it client-side).
 
 // Keep as much scorecard detail as the backend can actually use. The backend
-// caps its (full-resolution) OpenCV preprocessing at 2048px on the longest side
-// — uploading larger just wastes bandwidth and gets downscaled there — so match
-// that here, while still re-orienting via EXIF. (Real resolution gains beyond
-// this need tiled per-region scanning, not a bigger whole-card image.)
-const MAX_DIMENSION = 2048;
+// caps its OpenCV preprocessing at 3000px on the longest side (its sweet spot:
+// fast, and avoids the low-res over-crop that 2048 caused) — match that here so
+// phone pics aren't pre-shrunk below what the backend works at, while still
+// re-orienting via EXIF. Uploading larger just gets downscaled at the backend.
+const MAX_DIMENSION = 3000;
 const JPEG_QUALITY = 0.85;
 
 export async function preprocessScorecardImage(file) {
