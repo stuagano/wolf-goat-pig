@@ -27,8 +27,9 @@ _IMAGE = _DATA / "scorecard_5man_001.jpeg"
 _GROUND_TRUTH = _DATA / "scorecard_5man_001_ground_truth.json"
 
 # Conservative front-nine cell-accuracy floor for this hard, low-res 5-man card.
-# Tighten once real numbers are observed; the printed diff is the primary value.
-_ACCURACY_FLOOR = 0.5
+# Raised to 0.7 after tiled scanning — tiling should clear it; adjust down only
+# with comment if real numbers say otherwise. The printed diff is the primary value.
+_ACCURACY_FLOOR = 0.7
 
 
 def _norm(name: str) -> str:
@@ -45,10 +46,15 @@ def test_scorecard_scan_front_nine_accuracy():
     ground_truth = json.loads(_GROUND_TRUTH.read_text())
     image_bytes = _IMAGE.read_bytes()
 
-    result = asyncio.run(scan_scorecard(image_bytes, "image/jpeg"))
+    expected = [p["name"] for p in ground_truth["players"]]  # CK, SS, KG, BH, SG
+    result = asyncio.run(scan_scorecard(image_bytes, "image/jpeg", expected_players=expected))
 
     scan_names = {i: _norm(p.get("name", "")) for i, p in enumerate(result.get("players", []))}
     scan_signed = {(e["player_index"], e["hole"]): _signed(e) for e in result.get("running_totals", [])}
+
+    # All five players must now be found (tiled scan should pick up all, including SG)
+    found = {_norm(p.get("name", "")) for p in result.get("players", [])}
+    assert all(_norm(n) in found for n in expected), f"missing players; method={result.get('method')}"
 
     gt_names = {i: _norm(p["name"]) for i, p in enumerate(ground_truth["players"])}
     gt_signed = {(e["player_index"], e["hole"]): _signed(e) for e in ground_truth["running_totals"]}
