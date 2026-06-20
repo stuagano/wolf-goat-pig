@@ -57,4 +57,29 @@ describe('ScorecardScanPage landing', () => {
     fireEvent.click(await screen.findByText(/Add to an active game/i));
     expect(screen.queryByTestId('scorecard-photo')).toBeNull();
   });
+
+  test("attach mode passes the game's player names as pickedPlayers to ScorecardPhoto", async () => {
+    // Override fetch to return a game with two named players.
+    global.fetch = vi.fn(async (url) => ({
+      ok: true,
+      json: async () => {
+        if (String(url).includes('/legacy-players')) return { players: ROSTER };
+        // /games/active
+        return [{ game_id: 'g1', players: [{ name: 'Alice' }, { name: 'Bob' }], created_at: null }];
+      },
+    }));
+
+    render(
+      <MemoryRouter>
+        <ScorecardScanPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByText(/Add to an active game/i));
+    // Select the game from the picker.
+    fireEvent.click(await screen.findByText('Alice, Bob'));
+    // ScorecardPhoto should now be visible with pickedPlayers wired.
+    expect(screen.getByTestId('scorecard-photo')).toBeInTheDocument();
+    expect(screen.getByTestId('picked-count')).toHaveTextContent('2');
+  });
 });

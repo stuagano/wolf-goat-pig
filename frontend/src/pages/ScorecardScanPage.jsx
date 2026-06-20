@@ -238,6 +238,7 @@ const ScorecardScanPage = () => {
 
   if (mode === 'attach' && selectedGame) {
     const players = selectedGame.players || [];
+    const attachPickedPlayers = players.map(p => p.name).filter(Boolean);
     return (
       <div style={{ minHeight: '100vh', background: '#F9FAFB', padding: '16px' }}>
         <div style={{ maxWidth: '600px', margin: '0 auto' }}>
@@ -250,6 +251,7 @@ const ScorecardScanPage = () => {
             <ScorecardPhoto
               gameId={selectedGame.game_id}
               players={players}
+              pickedPlayers={attachPickedPlayers}
               onSaved={() => setSaved(true)}
               onCancel={() => setSelectedGame(null)}
             />
