@@ -442,6 +442,38 @@ class TestFitImageToBudget:
         assert ct == "image/jpeg"
 
 
+class TestSplitHalves:
+    @staticmethod
+    def _jpeg(w, h):
+        from io import BytesIO
+
+        from PIL import Image
+
+        buf = BytesIO()
+        Image.new("RGB", (w, h), "white").save(buf, format="JPEG")
+        return buf.getvalue()
+
+    def test_splits_into_two_halves(self):
+        from io import BytesIO
+
+        from PIL import Image
+
+        from app.services.scorecard_scan_service import _split_horizontal_halves
+
+        out = _split_horizontal_halves(self._jpeg(2000, 1000), "image/jpeg")
+        assert out is not None
+        (left_b, left_ct), (right_b, right_ct) = out
+        lw = Image.open(BytesIO(left_b)).size[0]
+        rw = Image.open(BytesIO(right_b)).size[0]
+        assert 950 <= lw <= 1050 and 950 <= rw <= 1050  # ~half of 2000
+        assert left_ct == "image/jpeg" and right_ct == "image/jpeg"
+
+    def test_returns_none_on_non_image(self):
+        from app.services.scorecard_scan_service import _split_horizontal_halves
+
+        assert _split_horizontal_halves(b"nope", "image/jpeg") is None
+
+
 class TestGuidedPlayers:
     def test_suffix_names_players(self):
         from app.services.scorecard_scan_service import _expected_players_suffix

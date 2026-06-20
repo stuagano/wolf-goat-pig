@@ -211,6 +211,29 @@ def _fit_image_to_budget(
         return image_bytes, content_type
 
 
+def _split_horizontal_halves(
+    image_bytes: bytes, content_type: str
+) -> tuple[tuple[bytes, str], tuple[bytes, str]] | None:
+    """Split an image at width/2 into (left, right) JPEGs. None if unreadable."""
+    try:
+        from io import BytesIO
+
+        from PIL import Image
+
+        img = Image.open(BytesIO(image_bytes)).convert("RGB")
+        w, h = img.size
+        mid = w // 2
+
+        def _enc(box):
+            buf = BytesIO()
+            img.crop(box).save(buf, format="JPEG", quality=85)
+            return buf.getvalue()
+
+        return (_enc((0, 0, mid, h)), "image/jpeg"), (_enc((mid, 0, w, h)), "image/jpeg")
+    except Exception:
+        return None
+
+
 async def _call_groq_vision(
     image_bytes: bytes,
     content_type: str,
