@@ -541,7 +541,7 @@ class TestAdaptiveScan:
         )
         calls = {"n": 0}
 
-        async def fake_call(image_bytes, ct, *, strict=False, expected_players=None, hole_range=None):
+        async def fake_call(image_bytes, ct, *, strict=False, expected_players=None, hole_range=None, correction=None):
             calls["n"] += 1
             return single
 
@@ -566,7 +566,7 @@ class TestAdaptiveScan:
         )
         seq = [single, left, right]
 
-        async def fake_call(image_bytes, ct, *, strict=False, expected_players=None, hole_range=None):
+        async def fake_call(image_bytes, ct, *, strict=False, expected_players=None, hole_range=None, correction=None):
             return seq.pop(0)
 
         monkeypatch.setattr(svc, "_call_groq_vision", fake_call)
@@ -599,9 +599,10 @@ class TestAdaptiveScan:
             ["A", "B"],
             {"A": dict.fromkeys(range(10, 19), (2, False)), "B": dict.fromkeys(range(10, 19), (2, True))},
         )
-        seq = [single, left, right]
+        # single (invalid, all players) -> correction (still invalid) -> tile (valid)
+        seq = [single, single, left, right]
 
-        async def fake_call(image_bytes, ct, *, strict=False, expected_players=None, hole_range=None):
+        async def fake_call(image_bytes, ct, *, strict=False, expected_players=None, hole_range=None, correction=None):
             return seq.pop(0)
 
         monkeypatch.setattr(svc, "_call_groq_vision", fake_call)
@@ -613,6 +614,50 @@ class TestAdaptiveScan:
         result = asyncio.run(svc.scan_scorecard(b"img", "image/jpeg", expected_players=["A", "B"]))
         assert result["method"] == "tiled"
         assert result["validation"]["valid"] is True
+
+    def test_build_correction_prompt_names_bad_holes(self):
+        from app.services.scorecard_scan_service import _build_correction_prompt
+
+        prev = self._valid_raw(["A", "B"], {"A": {3: (6, False)}, "B": {3: (4, False)}})
+        prompt = _build_correction_prompt(prev, {3: 10})
+        assert "hole 3" in prompt
+        assert "A=6" in prompt and "B=4" in prompt
+        assert "zero-sum" in prompt.lower()
+
+    def test_zero_sum_correction_fixes_invalid_single_without_tiling(self, monkeypatch):
+        """An invalid-but-complete single is sent back for a targeted re-read; if the
+        correction balances, it's returned (corrected=True) without tiling."""
+        import app.services.scorecard_scan_service as svc
+
+        bad = self._valid_raw(  # both +2 every hole -> invalid, all players present
+            ["A", "B"],
+            {"A": dict.fromkeys(range(1, 19), (2, False)), "B": dict.fromkeys(range(1, 19), (2, False))},
+        )
+        good = self._valid_raw(  # A +2, B -2 -> balanced
+            ["A", "B"],
+            {"A": dict.fromkeys(range(1, 19), (2, False)), "B": dict.fromkeys(range(1, 19), (2, True))},
+        )
+        seq = [bad, good]
+        seen = {"correction": False, "tiles": 0}
+
+        async def fake_call(image_bytes, ct, *, strict=False, expected_players=None, hole_range=None, correction=None):
+            if correction is not None:
+                seen["correction"] = True
+            if hole_range is not None:
+                seen["tiles"] += 1
+            return seq.pop(0)
+
+        monkeypatch.setattr(svc, "_call_groq_vision", fake_call)
+        monkeypatch.setattr(svc, "deskew_to_card", lambda b, ct: (b, ct, {}))
+        monkeypatch.setattr(svc, "crop_to_grid", lambda b, ct: (b, ct, {}))
+        monkeypatch.setattr(svc, "annotate_circles", lambda b, ct: (b, ct, {}))
+
+        result = asyncio.run(svc.scan_scorecard(b"img", "image/jpeg", expected_players=["A", "B"]))
+        assert result["validation"]["valid"] is True
+        assert result.get("corrected") is True
+        assert result["method"] == "single"
+        assert seen["correction"] is True  # the correction pass fired
+        assert seen["tiles"] == 0  # correction fixed it; no tiling
 
     def test_single_valid_tiled_invalid_keeps_single(self, monkeypatch):
         """When single is valid+complete BUT tiling is triggered (missing player) and
@@ -633,7 +678,7 @@ class TestAdaptiveScan:
         )
         seq = [single, left_unbalanced, right_unbalanced]
 
-        async def fake_call(image_bytes, ct, *, strict=False, expected_players=None, hole_range=None):
+        async def fake_call(image_bytes, ct, *, strict=False, expected_players=None, hole_range=None, correction=None):
             return seq.pop(0)
 
         monkeypatch.setattr(svc, "_call_groq_vision", fake_call)
@@ -658,7 +703,7 @@ class TestAdaptiveScan:
         both_up = dict.fromkeys(range(1, 19), (2, False))
         single = self._valid_raw(["A", "B"], {"A": both_up, "B": both_up})
 
-        async def fake_call(image_bytes, ct, *, strict=False, expected_players=None, hole_range=None):
+        async def fake_call(image_bytes, ct, *, strict=False, expected_players=None, hole_range=None, correction=None):
             return single
 
         monkeypatch.setattr(svc, "_call_groq_vision", fake_call)
@@ -681,7 +726,7 @@ class TestAdaptiveScan:
             {"A": dict.fromkeys(range(1, 19), (2, False)), "B": dict.fromkeys(range(1, 19), (2, False))},
         )
 
-        async def fake_call(image_bytes, ct, *, strict=False, expected_players=None, hole_range=None):
+        async def fake_call(image_bytes, ct, *, strict=False, expected_players=None, hole_range=None, correction=None):
             return single
 
         monkeypatch.setattr(svc, "_call_groq_vision", fake_call)

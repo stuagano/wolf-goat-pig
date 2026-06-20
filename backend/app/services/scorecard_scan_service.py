@@ -166,6 +166,30 @@ def _validate_zero_sum(per_hole_quarters: list[dict]) -> dict[str, Any]:
     return {"valid": not bad_holes, "bad_holes": bad_holes}
 
 
+def _build_correction_prompt(prev_raw: dict, bad_holes: dict) -> str:
+    """Targeted re-read instruction: name the holes whose values break the zero-sum
+    invariant and show the model its own current numbers there, so it re-examines
+    exactly those cells rather than re-reading the whole card."""
+    players = [p.get("name", f"P{i}") for i, p in enumerate(prev_raw.get("players", []))]
+    signed: dict[tuple, int] = {}
+    for e in prev_raw.get("running_totals", []):
+        v = abs(e.get("value", 0))
+        signed[(e.get("player_index"), e.get("hole"))] = -v if e.get("is_circled") else v
+    lines = []
+    for h in sorted(int(k) for k in bad_holes):
+        cells = ", ".join(f"{players[i]}={signed.get((i, h), '?')}" for i in range(len(players)))
+        lines.append(f"  hole {h}: {cells}")
+    return (
+        "CORRECTION PASS — your previous read breaks the zero-sum rule on some holes.\n"
+        "In Wolf Goat Pig the per-hole CHANGE in running totals across all players must net to 0, "
+        "so a misread on one player's cell shows up as an unbalanced hole.\n"
+        "Your current running totals on the unbalanced holes:\n" + "\n".join(lines) + "\n"
+        "Re-read ONLY these holes' cells for EVERY player — check for a misread circle (= negative) "
+        "or a wrong digit (6/0/8 confusion). Return a corrected FULL extraction (all players, all 18 "
+        "holes) in the same JSON format."
+    )
+
+
 # Groq Vision caps a request at ~4MB. We spend that budget across the (small)
 # reference image(s) + the main scorecard, maximizing the MAIN image's
 # resolution so the dense handwritten cells on a ~4000px phone pic stay legible
@@ -248,8 +272,10 @@ async def _call_groq_vision(
     strict: bool = False,
     expected_players: list[str] | None = None,
     hole_range: tuple[int, int] | None = None,
+    correction: str | None = None,
 ) -> dict[str, Any]:
-    """One round-trip to Groq Vision. Strict mode tightens the prompt and lowers temp."""
+    """One round-trip to Groq Vision. Strict mode tightens the prompt and lowers temp.
+    `correction` appends a targeted re-read instruction (see _build_correction_prompt)."""
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         raise ValueError("GROQ_API_KEY not configured")
@@ -288,6 +314,8 @@ async def _call_groq_vision(
         )
     if strict:
         prompt += _STRICT_SUFFIX
+    if correction:
+        prompt += "\n\n" + correction
 
     # Give the main scorecard the entire remaining request budget so it goes in
     # at the highest resolution that fits — that detail is what makes the cells readable.
@@ -459,6 +487,28 @@ async def scan_scorecard(
     # replaced by an empty tiled result.
     if not expected_players:
         return single
+
+    # ---- zero-sum correction retry ----
+    # The single read found every player but doesn't balance: point the model at
+    # the exact unbalanced holes and have it re-read just those cells. Cheaper
+    # than tiling (1 call vs 2) and it's the cross-check that makes a manual read
+    # accurate. Only when complete-but-invalid — a missing player needs tiling.
+    if not _missing_expected(single_raw, expected_players):
+        try:
+            correction = _build_correction_prompt(single_raw, single["validation"]["bad_holes"])
+            corrected_raw = await _call_groq_vision(
+                annotated_bytes, annotated_ct, expected_players=expected_players, correction=correction
+            )
+            corrected = _finalize(corrected_raw, "single")
+            corrected["corrected"] = True
+            if corrected["validation"]["valid"] and not _missing_expected(corrected_raw, expected_players):
+                return corrected
+            # Not fully fixed — carry the better attempt (fewer bad holes) into the
+            # tiled comparison below.
+            if len(corrected["validation"]["bad_holes"]) < len(single["validation"]["bad_holes"]):
+                single, single_raw = corrected, corrected_raw
+        except Exception as e:
+            logger.warning("Zero-sum correction pass failed (%s); continuing", e)
 
     # ---- tiled fallback ----
     halves = _split_horizontal_halves(deskewed_bytes, deskewed_ct)
