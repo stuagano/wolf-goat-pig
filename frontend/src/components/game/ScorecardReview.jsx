@@ -28,10 +28,34 @@ const computeDeltas = (runningTotals) => {
   return deltas;
 };
 
+const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
 const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'attach', rosterNames = [], pickedPlayers = [] }) => {
-  const { players: extractedPlayers, running_totals: rawTotals } = extraction;
   const isNewRound = mode === 'new-round';
   const knownPlayers = pickedPlayers.length > 0;
+
+  // When pickedPlayers are known, reorder extraction so index i = pickedPlayers[i].
+  // This prevents the single-scan path from attributing one player's scores to another's name.
+  const { players: extractedPlayers, running_totals: rawTotals } = (() => {
+    if (!knownPlayers) return extraction;
+    const scanPlayers = extraction.players;
+    const reorderedPlayers = pickedPlayers.map((picked, i) => {
+      const normPicked = norm(picked);
+      const match = scanPlayers.find(sp => norm(sp.name) === normPicked);
+      return match ?? scanPlayers[i] ?? { name: picked, confidence: null };
+    });
+    // Build index map: old scan index → new picked index
+    const oldToNew = {};
+    pickedPlayers.forEach((picked, newIdx) => {
+      const normPicked = norm(picked);
+      const oldIdx = extraction.players.findIndex(sp => norm(sp.name) === normPicked);
+      if (oldIdx !== -1) oldToNew[oldIdx] = newIdx;
+    });
+    const reorderedTotals = extraction.running_totals
+      .filter(t => t.player_index in oldToNew)
+      .map(t => ({ ...t, player_index: oldToNew[t.player_index] }));
+    return { players: reorderedPlayers, running_totals: reorderedTotals };
+  })();
 
   const bestRosterMatch = (name) => {
     const lower = (name || '').trim().toLowerCase();
