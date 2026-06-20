@@ -441,6 +441,9 @@ async def scan_scorecard(
     # ---- tiled fallback ----
     halves = _split_horizontal_halves(deskewed_bytes, deskewed_ct)
     if not halves:
+        # Surface WHY we didn't tile so an invalid single scan isn't returned
+        # with no explanation — the response carries this for diagnosis.
+        single["tiling"] = {"attempted": False, "reason": "split_returned_none"}
         return single  # can't tile — return best single attempt
     (left_b, left_ct), (right_b, right_ct) = halves
     try:
@@ -451,7 +454,11 @@ async def scan_scorecard(
         merged_raw = _merge_tile_results(expected_players or [], left_raw, right_raw)
         tiled = _finalize(merged_raw, "tiled")
     except Exception as e:
+        # A tile call/merge failed. Still degrade gracefully to the single
+        # result, but record the cause so it isn't an invisible swallow — this
+        # is how we learn WHY tiling fell back in production.
         logger.warning("Tiled scan failed (%s); using single-call result", e)
+        single["tiling"] = {"attempted": True, "reason": f"{type(e).__name__}: {e}"}
         return single
 
     # Keep whichever attempt is balanced; prefer tiled when both/neither are.

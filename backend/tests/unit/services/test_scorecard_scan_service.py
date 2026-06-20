@@ -664,6 +664,9 @@ class TestAdaptiveScan:
 
         result = asyncio.run(svc.scan_scorecard(b"img", "image/jpeg", expected_players=["A", "B"]))
         assert result["method"] == "single"  # fell back, did not raise
+        # The fallback reason must be surfaced (not a silent swallow).
+        assert result["tiling"]["attempted"] is True
+        assert "KeyError" in result["tiling"]["reason"]
 
 
 class TestMergeTiles:
