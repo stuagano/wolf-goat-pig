@@ -155,3 +155,25 @@ class TestScanScorecard:
             files={"file": ("card.jpg", image_data, "image/jpeg")},
         )
         assert resp.json() == expected
+
+
+# ── players form field ─────────────────────────────────────────────────────
+
+
+def test_scan_passes_players_to_service(monkeypatch):
+    import app.services.scorecard_scan_service as svc_mod
+
+    captured = {}
+
+    async def fake_scan(image_bytes, content_type, expected_players=None):
+        captured["players"] = expected_players
+        return {"players": [], "running_totals": [], "per_hole_quarters": [], "validation": {"valid": True}}
+
+    monkeypatch.setattr(svc_mod, "scan_scorecard", fake_scan)
+    resp = client.post(
+        "/scorecard/scan",
+        files={"file": ("c.png", b"\x89PNG\r\n\x1a\n" + b"\x00" * 64, "image/png")},
+        data={"players": '["CK","SS","SG"]'},
+    )
+    assert resp.status_code == 200, resp.text
+    assert captured["players"] == ["CK", "SS", "SG"]
