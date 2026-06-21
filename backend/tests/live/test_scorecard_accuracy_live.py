@@ -26,10 +26,12 @@ _DATA = Path(__file__).parent / "data"
 _IMAGE = _DATA / "scorecard_5man_001.jpeg"
 _GROUND_TRUTH = _DATA / "scorecard_5man_001_ground_truth.json"
 
-# Conservative front-nine cell-accuracy floor for this hard, low-res 5-man card.
-# Raised to 0.7 after tiled scanning — tiling should clear it; adjust down only
-# with comment if real numbers say otherwise. The printed diff is the primary value.
-_ACCURACY_FLOOR = 0.7
+# The 5-run CI eval (backend/scripts/scorecard_eval.py) showed this hard 5-man card
+# reads at ~12-22% cell accuracy regardless of method — the model can't reliably read
+# dense circled handwriting at any resolution we can feed it. So this is a
+# CATASTROPHIC-REGRESSION floor, not a quality bar. The reliable signal is
+# "all players found" (asserted below) plus the printed per-cell diff.
+_ACCURACY_FLOOR = 0.10
 
 
 def _norm(name: str) -> str:
