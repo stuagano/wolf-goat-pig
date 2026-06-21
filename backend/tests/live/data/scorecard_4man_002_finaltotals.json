@@ -1,0 +1,10 @@
+{
+  "_notes": "Clear 4-man Wing Point card. Held-out fixture for the CLEAR-CARD case. On clear cards the model reads the legible final TOTAL column reliably even though it can't read the dense per-hole grid — so we grade FINAL TOTALS only (the number that matters for settle-up), not per-hole cells. Final totals confirmed correct by the user (scan returned exactly these and they zero-sum: -76 -48 +84 +40 = 0). Signed running total after hole 18 per player.",
+  "players": ["TF", "KG", "SS", "AA"],
+  "final_totals": {
+    "TF": -76,
+    "KG": -48,
+    "SS": 84,
+    "AA": 40
+  }
+}
