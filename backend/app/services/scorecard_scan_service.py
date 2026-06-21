@@ -10,7 +10,6 @@ import base64
 import json
 import logging
 import os
-import re
 from pathlib import Path
 from typing import Any
 
@@ -20,10 +19,9 @@ from .scorecard_preprocess import annotate_circles, crop_to_grid, deskew_to_card
 
 logger = logging.getLogger(__name__)
 
-# Backoff (seconds) between retries when Groq returns 429. The adaptive scan
-# can fire 3 vision calls (single + 2 tiles) within a minute, which trips
-# Groq's per-minute limit; without retry the tile calls fail and tiling never
-# engages. Empty in tests to keep them fast (monkeypatch).
+# Backoff (seconds) between retries when Groq returns 429. The single guided
+# read can brush Groq's per-minute limit under load; without retry the scan
+# fails on a transient rate-limit. Empty in tests to keep them fast (monkeypatch).
 _RATELIMIT_BACKOFFS = (5.0, 12.0)
 
 _GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -31,10 +29,6 @@ _GROQ_VISION_MODEL = os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17
 
 # Path to reference scorecard examples for few-shot prompting
 _EXAMPLES_DIR = Path(__file__).parent.parent / "data" / "scorecard_examples"
-
-
-def _norm_name(name: str) -> str:
-    return re.sub(r"[^a-z0-9]", "", (name or "").lower())
 
 
 def _expected_players_suffix(expected_players: list[str] | None) -> str:
@@ -47,13 +41,6 @@ def _expected_players_suffix(expected_players: list[str] | None) -> str:
         f"written in a lower band below the Par row — include them. Ignore any "
         f"golf-score rows and handwritten notes; only read the quarter running totals."
     )
-
-
-def _missing_expected(result: dict, expected_players: list[str] | None) -> list[str]:
-    if not expected_players:
-        return []
-    found = {_norm_name(p.get("name", "")) for p in result.get("players", [])}
-    return [n for n in expected_players if _norm_name(n) not in found]
 
 
 def _load_reference_examples() -> list[tuple[bytes, str, str]]:
@@ -166,30 +153,6 @@ def _validate_zero_sum(per_hole_quarters: list[dict]) -> dict[str, Any]:
     return {"valid": not bad_holes, "bad_holes": bad_holes}
 
 
-def _build_correction_prompt(prev_raw: dict, bad_holes: dict) -> str:
-    """Targeted re-read instruction: name the holes whose values break the zero-sum
-    invariant and show the model its own current numbers there, so it re-examines
-    exactly those cells rather than re-reading the whole card."""
-    players = [p.get("name", f"P{i}") for i, p in enumerate(prev_raw.get("players", []))]
-    signed: dict[tuple, int] = {}
-    for e in prev_raw.get("running_totals", []):
-        v = abs(e.get("value", 0))
-        signed[(e.get("player_index"), e.get("hole"))] = -v if e.get("is_circled") else v
-    lines = []
-    for h in sorted(int(k) for k in bad_holes):
-        cells = ", ".join(f"{players[i]}={signed.get((i, h), '?')}" for i in range(len(players)))
-        lines.append(f"  hole {h}: {cells}")
-    return (
-        "CORRECTION PASS — your previous read breaks the zero-sum rule on some holes.\n"
-        "In Wolf Goat Pig the per-hole CHANGE in running totals across all players must net to 0, "
-        "so a misread on one player's cell shows up as an unbalanced hole.\n"
-        "Your current running totals on the unbalanced holes:\n" + "\n".join(lines) + "\n"
-        "Re-read ONLY these holes' cells for EVERY player — check for a misread circle (= negative) "
-        "or a wrong digit (6/0/8 confusion). Return a corrected FULL extraction (all players, all 18 "
-        "holes) in the same JSON format."
-    )
-
-
 # Groq Vision caps a request at ~4MB. We spend that budget across the (small)
 # reference image(s) + the main scorecard, maximizing the MAIN image's
 # resolution so the dense handwritten cells on a ~4000px phone pic stay legible
@@ -243,40 +206,14 @@ def _fit_image_to_budget(
         return image_bytes, content_type
 
 
-def _split_horizontal_halves(
-    image_bytes: bytes, content_type: str
-) -> tuple[tuple[bytes, str], tuple[bytes, str]] | None:
-    """Split an image at width/2 into (left, right) JPEGs. None if unreadable."""
-    try:
-        from io import BytesIO
-
-        from PIL import Image
-
-        img = Image.open(BytesIO(image_bytes)).convert("RGB")
-        w, h = img.size
-        mid = w // 2
-
-        def _enc(box):
-            buf = BytesIO()
-            img.crop(box).save(buf, format="JPEG", quality=85)
-            return buf.getvalue()
-
-        return (_enc((0, 0, mid, h)), "image/jpeg"), (_enc((mid, 0, w, h)), "image/jpeg")
-    except Exception:
-        return None
-
-
 async def _call_groq_vision(
     image_bytes: bytes,
     content_type: str,
     *,
     strict: bool = False,
     expected_players: list[str] | None = None,
-    hole_range: tuple[int, int] | None = None,
-    correction: str | None = None,
 ) -> dict[str, Any]:
-    """One round-trip to Groq Vision. Strict mode tightens the prompt and lowers temp.
-    `correction` appends a targeted re-read instruction (see _build_correction_prompt)."""
+    """One round-trip to Groq Vision. Strict mode tightens the prompt and lowers temp."""
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         raise ValueError("GROQ_API_KEY not configured")
@@ -306,17 +243,8 @@ async def _call_groq_vision(
     else:
         prompt = EXTRACTION_PROMPT
     prompt += _expected_players_suffix(expected_players)
-    if hole_range:
-        lo, hi = hole_range
-        half = "FRONT nine" if lo == 1 else "BACK nine"
-        prompt += (
-            f"\n\nThis image is the {half} only. Read running totals for holes "
-            f"{lo} through {hi} only; do not invent other holes."
-        )
     if strict:
         prompt += _STRICT_SUFFIX
-    if correction:
-        prompt += "\n\n" + correction
 
     # Give the main scorecard the entire remaining request budget so it goes in
     # at the highest resolution that fits — that detail is what makes the cells readable.
@@ -389,31 +317,6 @@ async def _call_groq_vision(
     return json.loads(raw_text)
 
 
-def _merge_tile_results(expected_players: list[str], left_raw: dict, right_raw: dict) -> dict:
-    """Combine left (holes 1-9) and right (holes 10-18) raw extractions into one
-    raw extraction keyed by the player's position in expected_players."""
-    exp_index = {_norm_name(n): i for i, n in enumerate(expected_players)}
-    unified = [{"name": n, "confidence": 1.0} for n in expected_players]
-    merged: list[dict] = []
-    for raw, lo, hi in ((left_raw, 1, 9), (right_raw, 10, 18)):
-        tile_players = raw.get("players", []) if raw else []
-        idx_map: dict[int, int] = {}
-        for ti, tp in enumerate(tile_players):
-            ei = exp_index.get(_norm_name(tp.get("name", "")))
-            if ei is None and ti < len(expected_players):
-                ei = ti  # positional fallback
-            if ei is not None:
-                idx_map[ti] = ei
-        for rt in raw.get("running_totals", []) if raw else []:
-            if not (lo <= rt.get("hole", 0) <= hi):
-                continue
-            ei = idx_map.get(rt.get("player_index"))
-            if ei is None:
-                continue
-            merged.append({**rt, "player_index": ei})
-    return {"players": unified, "running_totals": merged}
-
-
 def _shape_extraction(extracted: dict[str, Any]) -> dict[str, Any]:
     """Apply circle=negative, group by player, compute per-hole deltas."""
     players = extracted.get("players", [])
@@ -446,9 +349,12 @@ def _shape_extraction(extracted: dict[str, Any]) -> dict[str, Any]:
 async def scan_scorecard(
     image_bytes: bytes, content_type: str, expected_players: list[str] | None = None
 ) -> dict[str, Any]:
-    """Single guided Groq call; if it fails zero-sum or is missing an expected
-    player, fall back to a tiled (left=holes 1-9 / right=holes 10-18) scan and
-    merge by player. Returns the usual shape plus result["method"]."""
+    """One guided Groq Vision read of the whole card. Passing expected_players
+    reliably makes the model find every player (the robust win — it fixes the
+    missed lower-band player); cell accuracy is model-limited on dense handwriting,
+    so the review screen is the correction step. Tiling and zero-sum correction
+    retries were removed — a repeatable 5-run eval (backend/scripts/scorecard_eval.py)
+    showed they cost ~4x the Groq calls for no gain beyond run-to-run noise."""
     # Cap working size before the (full-res) CV preprocessing — see _PREPROCESS_MAX_DIM.
     image_bytes, content_type = _fit_image_to_budget(
         image_bytes, content_type, max_dim=_PREPROCESS_MAX_DIM, max_b64_chars=10**12
@@ -458,83 +364,18 @@ async def scan_scorecard(
     annotated_bytes, annotated_ct, circle_diag = annotate_circles(cropped_bytes, cropped_ct)
     preprocessing_diag = {"deskew": deskew_diag, "grid_crop": grid_diag, "circles": circle_diag}
 
-    def _finalize(raw: dict, method: str) -> dict:
-        out = _shape_extraction(raw)
-        out["validation"] = _validate_zero_sum(out["per_hole_quarters"])
-        out["preprocessing"] = preprocessing_diag
-        out["method"] = method
-        return out
-
-    # ---- single guided attempt (with one strict retry on bad JSON) ----
+    # One guided read of the whole card, with a single strict retry only if the
+    # response won't parse as JSON.
     try:
-        single_raw = await _call_groq_vision(
-            annotated_bytes, annotated_ct, strict=False, expected_players=expected_players
-        )
+        raw = await _call_groq_vision(annotated_bytes, annotated_ct, strict=False, expected_players=expected_players)
     except json.JSONDecodeError:
         try:
-            single_raw = await _call_groq_vision(
-                annotated_bytes, annotated_ct, strict=True, expected_players=expected_players
-            )
+            raw = await _call_groq_vision(annotated_bytes, annotated_ct, strict=True, expected_players=expected_players)
         except json.JSONDecodeError as e:
             raise ValueError(f"Failed to parse vision response: {e}")
 
-    single = _finalize(single_raw, "single")
-    if single["validation"]["valid"] and not _missing_expected(single_raw, expected_players):
-        return single
-
-    # When no expected players are provided there is nothing to guide the tile
-    # merge — return the single-call result directly so a zero-sum-invalid card
-    # is still shown to the user on the review screen rather than silently
-    # replaced by an empty tiled result.
-    if not expected_players:
-        return single
-
-    # ---- zero-sum correction retry ----
-    # The single read found every player but doesn't balance: point the model at
-    # the exact unbalanced holes and have it re-read just those cells. Cheaper
-    # than tiling (1 call vs 2) and it's the cross-check that makes a manual read
-    # accurate. Only when complete-but-invalid — a missing player needs tiling.
-    if not _missing_expected(single_raw, expected_players):
-        try:
-            correction = _build_correction_prompt(single_raw, single["validation"]["bad_holes"])
-            corrected_raw = await _call_groq_vision(
-                annotated_bytes, annotated_ct, expected_players=expected_players, correction=correction
-            )
-            corrected = _finalize(corrected_raw, "single")
-            corrected["corrected"] = True
-            if corrected["validation"]["valid"] and not _missing_expected(corrected_raw, expected_players):
-                return corrected
-            # Not fully fixed — carry the better attempt (fewer bad holes) into the
-            # tiled comparison below.
-            if len(corrected["validation"]["bad_holes"]) < len(single["validation"]["bad_holes"]):
-                single, single_raw = corrected, corrected_raw
-        except Exception as e:
-            logger.warning("Zero-sum correction pass failed (%s); continuing", e)
-
-    # ---- tiled fallback ----
-    halves = _split_horizontal_halves(deskewed_bytes, deskewed_ct)
-    if not halves:
-        # Surface WHY we didn't tile so an invalid single scan isn't returned
-        # with no explanation — the response carries this for diagnosis.
-        single["tiling"] = {"attempted": False, "reason": "split_returned_none"}
-        return single  # can't tile — return best single attempt
-    (left_b, left_ct), (right_b, right_ct) = halves
-    try:
-        left_b, left_ct, _ = annotate_circles(left_b, left_ct)
-        right_b, right_ct, _ = annotate_circles(right_b, right_ct)
-        left_raw = await _call_groq_vision(left_b, left_ct, expected_players=expected_players, hole_range=(1, 9))
-        right_raw = await _call_groq_vision(right_b, right_ct, expected_players=expected_players, hole_range=(10, 18))
-        merged_raw = _merge_tile_results(expected_players or [], left_raw, right_raw)
-        tiled = _finalize(merged_raw, "tiled")
-    except Exception as e:
-        # A tile call/merge failed. Still degrade gracefully to the single
-        # result, but record the cause so it isn't an invisible swallow — this
-        # is how we learn WHY tiling fell back in production.
-        logger.warning("Tiled scan failed (%s); using single-call result", e)
-        single["tiling"] = {"attempted": True, "reason": f"{type(e).__name__}: {e}"}
-        return single
-
-    # Keep whichever attempt is balanced; prefer tiled when both/neither are.
-    if tiled["validation"]["valid"] or not single["validation"]["valid"]:
-        return tiled
-    return single
+    result = _shape_extraction(raw)
+    result["validation"] = _validate_zero_sum(result["per_hole_quarters"])
+    result["preprocessing"] = preprocessing_diag
+    result["method"] = "single"
+    return result
