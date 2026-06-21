@@ -1,14 +1,13 @@
 """Repeatable accuracy eval for the scorecard scanner (needs GROQ_API_KEY).
 
-Runs the held-out 5-man card through the real Groq Vision pipeline N times and
-reports a VARIANCE BAND (not a single sample), measuring two configs head-to-head:
+Runs the real production scan (scan_scorecard) N times and reports a VARIANCE
+BAND, not a single sample — single prod scans are dominated by temp-0.3 noise.
 
-  * guided-single : one guided whole-card read (no correction, no tiling)
-  * adaptive      : the full production scan_scorecard() (single -> correction -> tiled)
-
-Front-nine cell accuracy is scored against the committed ground truth. Use this
-to tell a real method gain from run-to-run noise, and to decide whether tiling
-(now lower-res than the single read) still earns its extra calls.
+Two cards, two metrics:
+  * 5-man (hard) : front-nine per-hole CELL accuracy vs ground truth. Stays ~1-16%
+    (model can't read dense circled handwriting) — review-and-correct does the work.
+  * 4-man (clear): FINAL TOTALS only — the legible total column the model DOES read
+    reliably, and the number that matters for settle-up.
 
 Usage (key NOT echoed):
   GROQ_API_KEY=$(cat /path/to/keyfile) backend/venv/bin/python backend/scripts/scorecard_eval.py [N]
@@ -24,15 +23,7 @@ from pathlib import Path
 _BACKEND = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_BACKEND))
 
-from app.services.scorecard_preprocess import annotate_circles, crop_to_grid, deskew_to_card  # noqa: E402
-from app.services.scorecard_scan_service import (  # noqa: E402
-    _PREPROCESS_MAX_DIM,
-    _call_groq_vision,
-    _fit_image_to_budget,
-    _shape_extraction,
-    _validate_zero_sum,
-    scan_scorecard,
-)
+from app.services.scorecard_scan_service import _PREPROCESS_MAX_DIM, scan_scorecard  # noqa: E402
 
 _DATA = _BACKEND / "tests/live/data"
 _IMAGE = _DATA / "scorecard_5man_001.jpeg"
@@ -75,18 +66,6 @@ def _score(result):
     return correct, total, n_found
 
 
-async def _guided_single(image_bytes):
-    b, ct = _fit_image_to_budget(image_bytes, "image/jpeg", max_dim=_PREPROCESS_MAX_DIM, max_b64_chars=10**12)
-    db, dct, _ = deskew_to_card(b, ct)
-    cb, cct, _ = crop_to_grid(db, dct)
-    ab, act, _ = annotate_circles(cb, cct)
-    raw = await _call_groq_vision(ab, act, expected_players=_EXPECTED)
-    out = _shape_extraction(raw)
-    out["validation"] = _validate_zero_sum(out["per_hole_quarters"])
-    out["method"] = "guided-single"
-    return out
-
-
 def _final_per_player(result):
     """player_norm -> signed running total at that player's highest hole."""
     names = {i: _norm(p.get("name", "")) for i, p in enumerate(result.get("players", []))}
@@ -111,27 +90,19 @@ def _pct(c, t):
 def main():
     n = int(sys.argv[1]) if len(sys.argv) > 1 else 5
     image_bytes = _IMAGE.read_bytes()
-    rows = {"guided-single": [], "adaptive": []}
-    print(f"Eval: {n} runs/config on {_IMAGE.name} (PREPROCESS_MAX_DIM={_PREPROCESS_MAX_DIM})\n")
+    cells = []
+    print(f"Eval: {n} runs on {_IMAGE.name} — per-hole CELLS (PREPROCESS_MAX_DIM={_PREPROCESS_MAX_DIM})\n")
     for i in range(1, n + 1):
-        for cfg, runner in (
-            ("guided-single", lambda b: _guided_single(b)),
-            ("adaptive", lambda b: scan_scorecard(b, "image/jpeg", expected_players=_EXPECTED)),
-        ):
-            res = asyncio.run(runner(image_bytes))
-            c, t, nf = _score(res)
-            rows[cfg].append(c)
-            print(
-                f"run {i} {cfg:>14}: acc {_pct(c, t):>10} | players {nf}/{len(_EXPECTED)} "
-                f"| method={res.get('method')} valid={res.get('validation', {}).get('valid')}"
-            )
-            time.sleep(8)  # ease Groq's per-minute limit between scans
-    print("\n--- summary (front-nine cells correct, of 45) ---")
-    for cfg, vals in rows.items():
-        lo, hi, mean = min(vals), max(vals), sum(vals) / len(vals)
+        res = asyncio.run(scan_scorecard(image_bytes, "image/jpeg", expected_players=_EXPECTED))
+        c, t, nf = _score(res)
+        cells.append(c)
         print(
-            f"{cfg:>14}: mean {mean:.1f}/45 ({mean / 45:.0%}) | range {lo}-{hi} ({lo / 45:.0%}-{hi / 45:.0%}) | runs {vals}"
+            f"run {i}: per-hole {_pct(c, t):>10} | players {nf}/{len(_EXPECTED)} "
+            f"| method={res.get('method')} valid={res.get('validation', {}).get('valid')}"
         )
+        time.sleep(8)  # ease Groq's per-minute limit between scans
+    lo, hi, mean = min(cells), max(cells), sum(cells) / len(cells)
+    print(f"\n--- 5-man per-hole CELLS: mean {mean:.1f}/45 ({mean / 45:.0%}) | range {lo}-{hi} | runs {cells} ---")
 
     # ---- clear 4-man card: FINAL TOTALS accuracy over N runs ----
     expected_4 = _FINALS_4MAN["players"]
