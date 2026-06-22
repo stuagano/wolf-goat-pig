@@ -210,13 +210,18 @@ class EmailService:
         content = f"""
         <h2>Welcome to Wolf Goat Pig!</h2>
         <p>Hi {player_name},</p>
-        <p>Your account is all set &mdash; welcome to the league. Here's how it works:</p>
+        <p>Glad to have you in the group. Wolf Goat Pig is a Sunday tradition out
+        here, and your spot at the table is now official &mdash; no more chasing
+        the tee sheet or squinting at a spreadsheet to see where you stand.</p>
+        <p>Here's the short version of how it works:</p>
         <ul>
-            <li><strong>Sign up for play dates</strong> and we'll sync you to the tee sheet.</li>
-            <li><strong>Get matched &amp; paired</strong> &mdash; we'll email you when a group comes together.</li>
-            <li><strong>Track your games and standings</strong> right in the app.</li>
+            <li><strong>Sign up for a play date</strong> &mdash; you'll land right on the tee sheet, same as always.</li>
+            <li><strong>We'll match &amp; pair you</strong>, and email you the moment your group comes together.</li>
+            <li><strong>Scores, standings, and your running tally</strong> all live in the app.</li>
         </ul>
-        <p>See you on the course! &#127948;</p>
+        <p>Nothing to download and nothing to set up. Just sign up for the next
+        game and show up.</p>
+        <p>Welcome aboard &mdash; see you on the first tee. &#9971;</p>
         """
         template = Template(self._get_base_template())
         html_body = template.render(subject="Welcome to Wolf Goat Pig", content=content)
@@ -224,11 +229,15 @@ class EmailService:
         text_body = (
             f"Welcome to Wolf Goat Pig!\n\n"
             f"Hi {player_name},\n\n"
-            "Your account is all set - welcome to the league. Here's how it works:\n"
-            "- Sign up for play dates and we'll sync you to the tee sheet.\n"
-            "- Get matched & paired - we'll email you when a group comes together.\n"
-            "- Track your games and standings right in the app.\n\n"
-            "See you on the course!"
+            "Glad to have you in the group. Wolf Goat Pig is a Sunday tradition out "
+            "here, and your spot at the table is now official - no more chasing the "
+            "tee sheet or squinting at a spreadsheet to see where you stand.\n\n"
+            "Here's the short version of how it works:\n"
+            "- Sign up for a play date - you'll land right on the tee sheet, same as always.\n"
+            "- We'll match & pair you, and email you the moment your group comes together.\n"
+            "- Scores, standings, and your running tally all live in the app.\n\n"
+            "Nothing to download and nothing to set up. Just sign up for the next game and show up.\n\n"
+            "Welcome aboard - see you on the first tee!"
         )
 
         return self._send_email(
