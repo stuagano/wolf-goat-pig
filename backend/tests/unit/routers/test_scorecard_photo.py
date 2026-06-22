@@ -40,17 +40,28 @@ def test_get_scorecard_photo_404_when_none():
 def test_patch_scorecard_recomputes_standings_from_new_per_hole():
     # create a round (totals-only: A +8 on hole 18, B -8)
     models.Base.metadata.create_all(bind=engine)
-    create = client.post("/games/from-scorecard", json={
-        "players": [{"name": "A"}, {"name": "B"}, {"name": "C"}, {"name": "D"}],
-        "per_hole_quarters": [{"player_index": i, "hole": 18, "quarters": q} for i, q in enumerate([8, -8, 4, -4])],
-    })
+    create = client.post(
+        "/games/from-scorecard",
+        json={
+            "players": [{"name": "A"}, {"name": "B"}, {"name": "C"}, {"name": "D"}],
+            "per_hole_quarters": [{"player_index": i, "hole": 18, "quarters": q} for i, q in enumerate([8, -8, 4, -4])],
+        },
+    )
     gid = create.json()["game_id"]
     # backfill: spread A's +8 across holes 1 and 2 (sum still 8) — standings unchanged
-    patch = client.patch(f"/games/{gid}/scorecard", json={"per_hole_quarters": [
-        {"player_index": 0, "hole": 1, "quarters": 5}, {"player_index": 0, "hole": 2, "quarters": 3},
-        {"player_index": 1, "hole": 1, "quarters": -5}, {"player_index": 1, "hole": 2, "quarters": -3},
-        {"player_index": 2, "hole": 1, "quarters": 4}, {"player_index": 3, "hole": 1, "quarters": -4},
-    ]})
+    patch = client.patch(
+        f"/games/{gid}/scorecard",
+        json={
+            "per_hole_quarters": [
+                {"player_index": 0, "hole": 1, "quarters": 5},
+                {"player_index": 0, "hole": 2, "quarters": 3},
+                {"player_index": 1, "hole": 1, "quarters": -5},
+                {"player_index": 1, "hole": 2, "quarters": -3},
+                {"player_index": 2, "hole": 1, "quarters": 4},
+                {"player_index": 3, "hole": 1, "quarters": -4},
+            ]
+        },
+    )
     assert patch.status_code == 200, patch.text
     db = SessionLocal()
     try:
