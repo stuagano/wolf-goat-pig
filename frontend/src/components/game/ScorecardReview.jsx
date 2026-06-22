@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
+import { flipSign, parseQuarter } from '../../utils/quarters';
 
 /**
  * ScorecardReview — editable grid of extracted running totals.
@@ -98,6 +99,24 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
 
   const [values, setValues] = useState(initialValues);
 
+  // Totals-first (new-round): the final total per player, pre-filled from the scan's
+  // reading of the legible total column (the reliable part). The per-hole grid is
+  // optional; saving from totals lands the amount on hole 18 so standings (= sum of
+  // quarters) equal the totals, with per-hole left blank to fill in later.
+  const initialTotals = useMemo(() => {
+    const byPlayer = {};
+    for (const e of rawTotals) {
+      const cur = byPlayer[e.player_index];
+      if (!cur || e.hole > cur.hole) byPlayer[e.player_index] = { hole: e.hole, value: e.value };
+    }
+    return extractedPlayers.map((_, pi) => {
+      const v = byPlayer[pi]?.value;
+      return v == null ? '' : String(v);
+    });
+  }, [rawTotals, extractedPlayers]);
+  const [totals, setTotals] = useState(initialTotals);
+  const [totalsMode, setTotalsMode] = useState(isNewRound);
+
   // Confidence map for cell styling
   const confidenceMap = useMemo(() => {
     const map = {};
@@ -155,9 +174,36 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
     return true;
   }, [values, extractedPlayers.length]);
 
-  const canConfirm = allFilled && (isNewRound || unbalancedHoles.length === 0);
+  const totalsFilled = totals.every(t => parseQuarter(t) != null);
+  const totalsSum = totals.reduce((a, t) => a + (parseQuarter(t) ?? 0), 0);
+  const canConfirm = (isNewRound && totalsMode)
+    ? totalsFilled
+    : allFilled && (isNewRound || unbalancedHoles.length === 0);
+
+  // Shared player payload for both new-round paths (totals + grid).
+  const buildNewRoundPlayers = () =>
+    extractedPlayers.map((ep, pi) =>
+      knownPlayers
+        ? { name: pickedPlayers[pi] ?? ep.name, player_profile_id: null }
+        : (mapping[pi] === '__unlinked__'
+            // explicit "keep as typed" — backend must NOT auto-link by name
+            ? { name: ep.name, player_profile_id: null, unlinked: true }
+            : { name: mapping[pi], player_profile_id: null }));
 
   const handleConfirm = () => {
+    if (isNewRound && totalsMode) {
+      // Totals-only: land each player's total on hole 18 so standings (= sum of
+      // quarters) equal the totals; per-hole stays blank to fill in later.
+      const perHole = [];
+      for (let pi = 0; pi < extractedPlayers.length; pi++) {
+        const total = parseQuarter(totals[pi]) ?? 0;
+        for (let h = 1; h <= 18; h++) {
+          perHole.push({ player_index: pi, hole: h, quarters: h === 18 ? total : 0 });
+        }
+      }
+      onConfirm({ players: buildNewRoundPlayers(), per_hole_quarters: perHole, played_at: playedAt });
+      return;
+    }
     if (isNewRound) {
       const perHole = [];
       for (let pi = 0; pi < extractedPlayers.length; pi++) {
@@ -165,20 +211,10 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
           perHole.push({ player_index: pi, hole: h, quarters: allDeltas[pi]?.[h] ?? 0 });
         }
       }
-      onConfirm({
-        players: extractedPlayers.map((ep, pi) =>
-          knownPlayers
-            ? { name: pickedPlayers[pi] ?? ep.name, player_profile_id: null }
-            : (mapping[pi] === '__unlinked__'
-                // explicit "keep as typed" — backend must NOT auto-link by name
-                ? { name: ep.name, player_profile_id: null, unlinked: true }
-                : { name: mapping[pi], player_profile_id: null })),
-        per_hole_quarters: perHole,
-        played_at: playedAt,
-      });
+      onConfirm({ players: buildNewRoundPlayers(), per_hole_quarters: perHole, played_at: playedAt });
       return;
     }
-    // Build quarters by hole for the scores endpoint
+    // attach mode — quarters by hole for the scores endpoint
     const quartersByHole = {};
     for (let h = 1; h <= 18; h++) {
       quartersByHole[String(h)] = {};
@@ -190,6 +226,8 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
     onConfirm(quartersByHole);
   };
 
+  const showGrid = !(isNewRound && totalsMode);
+
   const holes = Array.from({ length: 18 }, (_, i) => i + 1);
 
   return (
@@ -200,8 +238,14 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
       </div>
 
       <p className="text-sm text-gray-500">
-        Edit the <strong>running totals</strong> (what's on the card). Per-hole quarters update automatically.
-        <span className="ml-1 text-yellow-600">Yellow = check this value.</span>
+        {isNewRound && totalsMode ? (
+          <>Confirm each player's <strong>final total</strong> (read from the card). You can add the hole-by-hole detail later.</>
+        ) : (
+          <>
+            Edit the <strong>running totals</strong> (what's on the card). Per-hole quarters update automatically.
+            <span className="ml-1 text-yellow-600">Yellow = check this value.</span>
+          </>
+        )}
       </p>
 
       {isNewRound && (
@@ -232,8 +276,38 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
                     </select>
                   </>
                 )}
+                {totalsMode && (
+                  <span className="flex items-center gap-1 ml-auto">
+                    <span className="text-xs text-gray-500">total</span>
+                    <button
+                      type="button"
+                      onClick={() => setTotals(prev => prev.map((t, i) => (i === pi ? flipSign(t) : t)))}
+                      className="px-2 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100"
+                      aria-label={`toggle sign for ${(pickedPlayers[pi] ?? ep.name) || `player ${pi + 1}`}`}
+                    >
+                      ±
+                    </button>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={totals[pi] ?? ''}
+                      onChange={e => setTotals(prev => prev.map((t, i) => (i === pi ? e.target.value : t)))}
+                      className="w-16 text-center text-base font-semibold border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      placeholder="±0"
+                    />
+                  </span>
+                )}
               </div>
             ))}
+            {isNewRound && (
+              <button
+                type="button"
+                onClick={() => setTotalsMode(m => !m)}
+                className="self-start text-xs text-blue-600 hover:text-blue-800 underline"
+              >
+                {totalsMode ? '➕ Add hole-by-hole detail' : '← Back to totals only'}
+              </button>
+            )}
           </div>
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <span className="font-semibold">Date played</span>
@@ -247,7 +321,14 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
         </div>
       )}
 
-      {unbalancedHoles.length > 0 && (
+      {isNewRound && totalsMode && totalsSum !== 0 && (
+        <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-sm text-amber-800">
+          ⚠️ Heads up — the totals don't add up to 0 (they should in a zero-sum game), but you can still save.
+          <span className="font-semibold ml-1">Off by {totalsSum > 0 ? '+' : ''}{totalsSum}.</span>
+        </div>
+      )}
+
+      {showGrid && unbalancedHoles.length > 0 && (
         <div className={isNewRound
           ? "bg-amber-50 border border-amber-300 rounded-lg p-3 text-sm text-amber-800"
           : "bg-red-50 border border-red-300 rounded-lg p-3 text-sm text-red-700"}>
@@ -262,6 +343,7 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
         </div>
       )}
 
+      {showGrid && (
       <div className="overflow-x-auto">
         <table className="text-sm border-collapse min-w-full">
           <thead>
@@ -340,13 +422,20 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
           </tbody>
         </table>
       </div>
+      )}
 
       <button
         onClick={handleConfirm}
         disabled={!canConfirm}
         className="w-full py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
-        {canConfirm ? '✅ Confirm Quarters' : unbalancedHoles.length > 0 ? `Fix ${unbalancedHoles.length} unbalanced hole${unbalancedHoles.length > 1 ? 's' : ''}` : 'Fill all values to continue'}
+        {canConfirm
+          ? (isNewRound && totalsMode ? '✅ Confirm Totals' : '✅ Confirm Quarters')
+          : (isNewRound && totalsMode
+              ? 'Enter each total to continue'
+              : unbalancedHoles.length > 0
+                ? `Fix ${unbalancedHoles.length} unbalanced hole${unbalancedHoles.length > 1 ? 's' : ''}`
+                : 'Fill all values to continue')}
       </button>
     </div>
   );

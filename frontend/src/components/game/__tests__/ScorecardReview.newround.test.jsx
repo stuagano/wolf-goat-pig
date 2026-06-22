@@ -32,6 +32,8 @@ test('new-round mode maps names to roster and confirms profile-less payload', ()
   const selects = screen.getAllByRole('combobox');
   expect(selects[0].value).toBe('Jon Smith');
 
+  // covers the per-hole grid path → switch out of the default totals-first mode
+  fireEvent.click(screen.getByRole('button', { name: /hole-by-hole/i }));
   fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
   expect(onConfirm).toHaveBeenCalledTimes(1);
   const arg = onConfirm.mock.calls[0][0];
@@ -69,6 +71,8 @@ test('pickedPlayers: scanned order reversed from picked order aligns scores by n
     />,
   );
 
+  // covers per-hole alignment → switch out of the default totals-first mode
+  fireEvent.click(screen.getByRole('button', { name: /hole-by-hole/i }));
   fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
   expect(onConfirm).toHaveBeenCalledTimes(1);
   const arg = onConfirm.mock.calls[0][0];
@@ -112,6 +116,8 @@ test('pickedPlayers: garbled OCR name uses positional fallback so scores are NOT
     />,
   );
 
+  // covers per-hole positional fallback → switch out of the default totals-first mode
+  fireEvent.click(screen.getByRole('button', { name: /hole-by-hole/i }));
   fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
   expect(onConfirm).toHaveBeenCalledTimes(1);
   const arg = onConfirm.mock.calls[0][0];
@@ -146,4 +152,30 @@ test('choosing "keep as typed (unlinked)" sends unlinked:true with the typed nam
   const arg = onConfirm.mock.calls[0][0];
   // keeps the SCANNED name (not a roster name) and flags it unlinked
   expect(arg.players[0]).toEqual({ name: 'Jon', player_profile_id: null, unlinked: true });
+});
+
+test('totals-first: new-round defaults to totals and confirms each total as the hole-18 delta', () => {
+  const onConfirm = vi.fn();
+  const ext = {
+    players: [{ name: 'CK' }, { name: 'SS' }],
+    running_totals: [
+      { player_index: 0, hole: 18, value: 6 },
+      { player_index: 1, hole: 18, value: -6 },
+    ],
+  };
+  render(
+    <ScorecardReview extraction={ext} players={[]} mode="new-round"
+      rosterNames={[]} pickedPlayers={['CK', 'SS']} onConfirm={onConfirm} onCancel={() => {}} />,
+  );
+  // defaults to totals-first; totals pre-fill from the scan, so confirm works as-is
+  fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+  const arg = onConfirm.mock.calls[0][0];
+  const ck18 = arg.per_hole_quarters.find(q => q.player_index === 0 && q.hole === 18);
+  const ss18 = arg.per_hole_quarters.find(q => q.player_index === 1 && q.hole === 18);
+  expect(ck18.quarters).toBe(6);
+  expect(ss18.quarters).toBe(-6);
+  // standings = sum of quarters → settle-up correct from totals alone
+  const ckSum = arg.per_hole_quarters.filter(q => q.player_index === 0).reduce((a, q) => a + q.quarters, 0);
+  expect(ckSum).toBe(6);
+  expect(arg.players.map(p => p.name)).toEqual(['CK', 'SS']);
 });
