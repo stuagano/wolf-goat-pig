@@ -42,6 +42,12 @@ Pre-req: open the app and log in once (Auth0 — Google or email). A profile is 
 **Emails**
 8. Confirm the **welcome email** (first login) and **sign-up confirmation email** arrive.
 
+> Email plumbing is live and verified end-to-end (sent via Resend). The three
+> notifications wired today are: welcome, sign-up confirmation, and the
+> **headcount/"matchmaking" callout** (emails opt-in players when a date is short
+> of a full foursome). We've sent a sample callout to ourselves to confirm it
+> lands.
+
 **Known/expected for now**
 - New players show a **handicap of 18.0** until GHIN sync is finished (see Q2).
 - Adding a brand-new name to *your* dropdown is still **manual on your end** (see Q1).
