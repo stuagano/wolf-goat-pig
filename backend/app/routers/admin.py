@@ -59,6 +59,29 @@ def get_email_config(x_admin_email: str = Header(None)):  # type: ignore
     }
 
 
+@router.post("/admin/test-welcome-email")
+def send_test_welcome_email(
+    to: str = Query(..., description="Recipient email for the sample welcome"),
+    name: str = Query(default="Golfer", description="Player name to greet"),
+    x_admin_email: str = Header(None),  # type: ignore
+):
+    """Send the welcome email to one address (admin only).
+
+    Diagnostic for proving the welcome path works end-to-end. Sends the real
+    template — does not create an account or seed preferences.
+    """
+    require_admin(x_admin_email)
+
+    email_service = get_email_service()
+    if not email_service.is_configured():
+        raise HTTPException(status_code=503, detail="Email service not configured")
+
+    ok = email_service.send_welcome_email(to_email=to, player_name=name)
+    if not ok:
+        raise HTTPException(status_code=500, detail="Email provider returned failure")
+    return {"sent": True, "to": to, "name": name, "template": "welcome_email"}
+
+
 @router.post("/admin/email-config")
 def update_email_config(config: dict[str, Any], x_admin_email: str = Header(None)):  # type: ignore
     """Update email configuration (admin only)"""
