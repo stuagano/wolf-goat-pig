@@ -83,7 +83,7 @@ const PlayerProfilePage = () => {
     );
   }
 
-  const { name, handicap, description, last_played, created_at, available_days, match_history, badges, stats } = profile;
+  const { name, handicap, description, avatar_url, last_played, created_at, available_days, match_history, badges, stats } = profile;
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: '20px 16px' }}>
@@ -91,14 +91,25 @@ const PlayerProfilePage = () => {
       {/* Header card */}
       <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 24, marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{
-            width: 64, height: 64, borderRadius: '50%',
-            background: '#f0fdf4', border: '2px solid #10b981',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 28, flexShrink: 0,
-          }}>
-            🏌️
-          </div>
+          {avatar_url ? (
+            <img
+              src={avatar_url}
+              alt={name}
+              style={{
+                width: 64, height: 64, borderRadius: '50%',
+                objectFit: 'cover', border: '2px solid #10b981', flexShrink: 0,
+              }}
+            />
+          ) : (
+            <div style={{
+              width: 64, height: 64, borderRadius: '50%',
+              background: '#f0fdf4', border: '2px solid #10b981',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 28, flexShrink: 0,
+            }}>
+              🏌️
+            </div>
+          )}
           <div style={{ flex: 1, minWidth: 0 }}>
             <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#1f2937' }}>{name}</h1>
             <div style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
