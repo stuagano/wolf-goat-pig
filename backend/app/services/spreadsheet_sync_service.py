@@ -83,44 +83,57 @@ class RoundSummary:
 
 
 def _get_access_token() -> str | None:
-    """Get OAuth access token.
+    """Get a Google OAuth access token.
 
-    Tries in order:
-    1. GOOGLE_OAUTH_CREDENTIALS env var (for production - contains refresh token)
-    2. gcloud CLI (for local development)
+    Production uses GOOGLE_OAUTH_CREDENTIALS (a refresh-token blob). When it is set
+    we use it EXCLUSIVELY — a failure surfaces as one actionable error rather than
+    silently falling through to the dev-only gcloud CLI (which doesn't exist in
+    prod and was spamming Sentry with a misleading "gcloud not found"). The gcloud
+    path is for local dev only, where no creds env is configured.
     """
-    # Try environment variable first (production)
     oauth_creds_json = os.environ.get("GOOGLE_OAUTH_CREDENTIALS")
     if oauth_creds_json:
         try:
             creds = json.loads(oauth_creds_json)
-            refresh_token = creds.get("refresh_token")
-            client_id = creds.get("client_id")
-            client_secret = creds.get("client_secret")
-
-            if refresh_token and client_id and client_secret:
-                # Exchange refresh token for access token
-                token_url = "https://oauth2.googleapis.com/token"
-                data = urllib.parse.urlencode(
-                    {
-                        "client_id": client_id,
-                        "client_secret": client_secret,
-                        "refresh_token": refresh_token,
-                        "grant_type": "refresh_token",
-                    }
-                ).encode("utf-8")
-
-                req = urllib.request.Request(token_url, data=data, method="POST")
-                with urllib.request.urlopen(req, timeout=10) as response:
-                    result = json.loads(response.read())
-                    access_token = result.get("access_token")
-                    if access_token:
-                        logger.info("Got access token from GOOGLE_OAUTH_CREDENTIALS")
-                        return access_token  # type: ignore[no-any-return]
         except Exception as e:
-            logger.error(f"Failed to get token from GOOGLE_OAUTH_CREDENTIALS: {e}")
+            logger.error(f"GOOGLE_OAUTH_CREDENTIALS is not valid JSON: {e}")
+            return None
+        refresh_token = creds.get("refresh_token")
+        client_id = creds.get("client_id")
+        client_secret = creds.get("client_secret")
+        if not (refresh_token and client_id and client_secret):
+            logger.error(
+                "GOOGLE_OAUTH_CREDENTIALS is set but incomplete — it needs refresh_token, "
+                "client_id, and client_secret. Google Sheets access is disabled until fixed."
+            )
+            return None
+        try:
+            data = urllib.parse.urlencode(
+                {
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "refresh_token": refresh_token,
+                    "grant_type": "refresh_token",
+                }
+            ).encode("utf-8")
+            req = urllib.request.Request("https://oauth2.googleapis.com/token", data=data, method="POST")
+            with urllib.request.urlopen(req, timeout=10) as response:
+                result = json.loads(response.read())
+            access_token = result.get("access_token")
+            if access_token:
+                return access_token  # type: ignore[no-any-return]
+            logger.error(
+                "GOOGLE_OAUTH_CREDENTIALS token exchange returned no access_token "
+                f"(refresh token expired/revoked?): {result.get('error_description') or result.get('error') or result}"
+            )
+            return None
+        except Exception as e:
+            logger.error(f"GOOGLE_OAUTH_CREDENTIALS token exchange failed (refresh token expired/revoked?): {e}")
+            return None
 
-    # Fall back to gcloud CLI (local development)
+    # Local-dev fallback only (no creds env): the gcloud CLI. It's absent in prod,
+    # so a missing binary is an expected, non-actionable condition → WARNING, not an
+    # error, to keep it out of Sentry.
     try:
         result = subprocess.run(
             ["gcloud", "auth", "application-default", "print-access-token"],
@@ -130,10 +143,16 @@ def _get_access_token() -> str | None:
         )
         if result.returncode == 0:
             return result.stdout.strip()
-        logger.error(f"gcloud token failed: {result.stderr}")
+        logger.warning(f"gcloud access token unavailable: {result.stderr.strip()}")
+        return None
+    except FileNotFoundError:
+        logger.warning(
+            "Google Sheets access not configured: GOOGLE_OAUTH_CREDENTIALS is unset and the "
+            "gcloud CLI is unavailable (expected in production)."
+        )
         return None
     except Exception as e:
-        logger.error(f"Failed to get access token: {e}")
+        logger.warning(f"gcloud access token attempt failed: {e}")
         return None
 
 
