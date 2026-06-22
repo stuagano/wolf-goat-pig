@@ -89,8 +89,13 @@ def test_persist_completed_game_writes_record_and_results_on_sqlite():
         # Alice/Bob each +18, ranked above Cara/Dan at -18
         top = rows[0]
         assert top.total_earnings == 18
-        # hole_scores must round-trip as JSON, not be corrupted to 0
-        assert json.loads(top.hole_scores)[0]["hole"] == 1
+        # hole_scores must round-trip as JSON, not be corrupted to 0.
+        # Raw text() SELECT returns a JSON string on some sqlite builds and an
+        # already-deserialized list on others (Linux CI) — accept both.
+        hs = top.hole_scores
+        if isinstance(hs, (str, bytes, bytearray)):
+            hs = json.loads(hs)
+        assert hs[0]["hole"] == 1
     finally:
         db.rollback()
         db.close()
