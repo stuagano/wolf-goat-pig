@@ -64,3 +64,33 @@ export async function preprocessScorecardImage(file) {
   const baseName = (file.name || "scorecard").replace(/\.\w+$/, "");
   return new File([blob], `${baseName}.jpg`, { type: "image/jpeg" });
 }
+
+export async function downscaleToBase64(file, maxDim = 1200) {
+  if (!file || typeof createImageBitmap !== "function") return null;
+  try {
+    let bitmap;
+    try {
+      bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    } catch {
+      bitmap = await createImageBitmap(file);
+    }
+    let { width, height } = bitmap;
+    const longest = Math.max(width, height);
+    if (longest > maxDim) {
+      const scale = maxDim / longest;
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) { bitmap.close?.(); return null; }
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close?.();
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
+    return dataUrl && dataUrl.startsWith("data:image") ? dataUrl : null;
+  } catch {
+    return null;
+  }
+}

@@ -192,3 +192,32 @@ def test_from_scorecard_rejects_bad_player_index():
     }
     resp = client.post("/games/from-scorecard", json=body)
     assert resp.status_code == 400
+
+
+def test_from_scorecard_stores_image_base64():
+    models.Base.metadata.create_all(bind=engine)
+    body = {
+        "players": [{"name": "A"}, {"name": "B"}, {"name": "C"}, {"name": "D"}],
+        "per_hole_quarters": _per_hole_4p(),
+        "image_base64": "data:image/jpeg;base64,SGVsbG8=",
+    }
+    game_id = client.post("/games/from-scorecard", json=body).json()["game_id"]
+    db = SessionLocal()
+    try:
+        row = db.query(models.GameStateModel).filter_by(game_id=game_id).first()
+        assert row.scorecard_image == "data:image/jpeg;base64,SGVsbG8="
+    finally:
+        db.close()
+
+
+def test_from_scorecard_ignores_oversize_image_but_still_saves():
+    models.Base.metadata.create_all(bind=engine)
+    body = {
+        "players": [{"name": "A"}, {"name": "B"}, {"name": "C"}, {"name": "D"}],
+        "per_hole_quarters": _per_hole_4p(),
+        "image_base64": "x" * (2_000_001),  # over the 2MB ceiling
+    }
+    resp = client.post("/games/from-scorecard", json=body)
+    assert resp.status_code == 200  # round still saved
+    row = SessionLocal().query(models.GameStateModel).filter_by(game_id=resp.json()["game_id"]).first()
+    assert row.scorecard_image is None
