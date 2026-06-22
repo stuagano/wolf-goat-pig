@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ScorecardCapture from './ScorecardCapture';
 import ScorecardReview from './ScorecardReview';
 import GHINPostModal from './GHINPostModal';
@@ -44,6 +44,10 @@ const ScorecardPhoto = ({
   const [extraction, setExtraction] = useState(initialExtraction || null);
   const [savedQuarters, setSavedQuarters] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [photoUrl, setPhotoUrl] = useState(null);
+  const photoUrlRef = useRef(null);
+  // Free the retained object URL when this flow unmounts.
+  useEffect(() => () => { if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current); }, []);
 
   const enterManually = () => {
     setExtraction(buildBlankExtraction(players));
@@ -53,6 +57,18 @@ const ScorecardPhoto = ({
   const handleCapture = async (file) => {
     setStage('processing');
     setErrorMsg(null);
+
+    // Retain the ORIGINAL photo (sharpest, no preprocessing marks) so the review
+    // screen can zoom in to validate the scanned totals. Best-effort: if object
+    // URLs aren't available, skip the zoom rather than break the scan.
+    try {
+      if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
+      const url = URL.createObjectURL(file);
+      photoUrlRef.current = url;
+      setPhotoUrl(url);
+    } catch {
+      // no object URL support in this context — proceed without in-app photo zoom
+    }
 
     // Auto-orient via EXIF and downscale oversized phone shots before
     // upload — much cleaner input for the vision model and ~5–10x less
@@ -161,6 +177,7 @@ const ScorecardPhoto = ({
         mode={mode}
         rosterNames={rosterNames}
         pickedPlayers={pickedPlayers}
+        photoUrl={photoUrl}
         onConfirm={handleConfirm}
         onCancel={onCancel}
       />

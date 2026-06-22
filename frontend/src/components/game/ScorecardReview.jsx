@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { flipSign, parseQuarter } from '../../utils/quarters';
+import ScorecardPhotoZoom from './ScorecardPhotoZoom';
 
 /**
  * ScorecardReview — editable grid of extracted running totals.
@@ -31,8 +32,9 @@ const computeDeltas = (runningTotals) => {
 
 const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'attach', rosterNames = [], pickedPlayers = [] }) => {
+const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'attach', rosterNames = [], pickedPlayers = [], photoUrl = null }) => {
   const isNewRound = mode === 'new-round';
+  const [showPhoto, setShowPhoto] = useState(false);
   const knownPlayers = pickedPlayers.length > 0;
 
   // When pickedPlayers are known, reorder extraction so index i = pickedPlayers[i].
@@ -248,6 +250,16 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
         )}
       </p>
 
+      {photoUrl && (
+        <button
+          type="button"
+          onClick={() => setShowPhoto(true)}
+          className="self-start text-sm text-blue-600 hover:text-blue-800 underline"
+        >
+          📷 Check photo (zoom to verify the totals)
+        </button>
+      )}
+
       {isNewRound && (
         <div className="flex flex-col gap-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
           <div className="flex flex-col gap-2">
@@ -437,6 +449,10 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
                 ? `Fix ${unbalancedHoles.length} unbalanced hole${unbalancedHoles.length > 1 ? 's' : ''}`
                 : 'Fill all values to continue')}
       </button>
+
+      {showPhoto && photoUrl && (
+        <ScorecardPhotoZoom src={photoUrl} onClose={() => setShowPhoto(false)} />
+      )}
     </div>
   );
 };
