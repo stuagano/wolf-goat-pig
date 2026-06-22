@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint, text
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 from sqlalchemy.types import JSON
@@ -167,6 +167,7 @@ class GameStateModel(Base):
     # changes are tracked; NESTED mutation (state["players"][i]["x"] = ...) is NOT,
     # so nested writes must reassign the top-level key (state["players"] = new_list).
     state = Column(MutableDict.as_mutable(JSON))
+    scorecard_image = Column(Text, nullable=True)  # downscaled JPEG as base64/data-URL for later per-hole backfill
     created_at = Column(String)
     updated_at = Column(String)
 
