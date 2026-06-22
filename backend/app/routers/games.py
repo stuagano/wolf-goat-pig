@@ -1107,6 +1107,48 @@ async def get_game_details(game_id: str, db: Session = Depends(database.get_db))
         raise HTTPException(status_code=500, detail=f"Error retrieving game details: {e!s}")
 
 
+class ScorecardBackfillRequest(BaseModel):
+    per_hole_quarters: list[ScorecardRoundHoleQuarter]
+
+
+@router.patch("/{game_id}/scorecard")
+async def backfill_scorecard(
+    game_id: str,
+    body: ScorecardBackfillRequest,
+    db: Session = Depends(database.get_db),
+) -> dict[str, Any]:
+    """Backfill the per-hole quarters of a scanned round and recompute standings.
+    Standings come out as the sum of the submitted per-hole (settle-up identity)."""
+    from ..services.completed_game_service import build_hole_history, persist_completed_game
+
+    game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
+    if not game:
+        raise HTTPException(status_code=404, detail="Round not found")
+    state = dict(game.state or {})
+    players = state.get("players", [])
+    n = len(players)
+    for q in body.per_hole_quarters:
+        if not (0 <= q.player_index < n) or not (1 <= q.hole <= 18):
+            raise HTTPException(status_code=400, detail="Invalid per_hole_quarters entry")
+
+    per_hole = [q.model_dump() for q in body.per_hole_quarters]
+    hole_history, standings = build_hole_history(players, per_hole)
+    state["hole_history"] = hole_history
+    state["hole_quarters"] = {str(e["hole"]): e["points_delta"] for e in hole_history}
+    state["standings"] = standings
+    game.state = state  # reassign top-level so MutableDict marks dirty
+    game.updated_at = utc_now().isoformat()
+
+    # Rebuild GamePlayerResult rows for this round so /details reflects the backfill.
+    record = db.query(models.GameRecord).filter(models.GameRecord.game_id == game_id).first()
+    if record:
+        db.query(models.GamePlayerResult).filter(models.GamePlayerResult.game_record_id == record.id).delete()
+        db.flush()
+    persist_completed_game(db, game)
+    db.commit()
+    return {"game_id": game_id, "standings": standings}
+
+
 @router.get("/{game_id}/scorecard-photo")
 async def get_scorecard_photo(game_id: str, db: Session = Depends(database.get_db)) -> Response:
     """Return the stored scorecard photo for a scanned round (for later per-hole backfill)."""
