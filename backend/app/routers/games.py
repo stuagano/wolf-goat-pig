@@ -1,10 +1,11 @@
 """Game lifecycle routes — create, join, lobby, start, list, delete, complete, state, action, history, details."""
 
+import base64
 import logging
 import traceback
 from typing import Any, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
@@ -1104,3 +1105,23 @@ async def get_game_details(game_id: str, db: Session = Depends(database.get_db))
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving game details: {e!s}")
+
+
+@router.get("/{game_id}/scorecard-photo")
+async def get_scorecard_photo(game_id: str, db: Session = Depends(database.get_db)) -> Response:
+    """Return the stored scorecard photo for a scanned round (for later per-hole backfill)."""
+    game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
+    if not game or not game.scorecard_image:
+        raise HTTPException(status_code=404, detail="No scorecard photo for this round")
+    raw = game.scorecard_image
+    media_type = "image/jpeg"
+    if raw.startswith("data:"):
+        header, _, b64 = raw.partition(",")
+        media_type = header[5:].split(";", 1)[0] or media_type
+    else:
+        b64 = raw
+    try:
+        content = base64.b64decode(b64)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Stored photo is unreadable")
+    return Response(content=content, media_type=media_type)
