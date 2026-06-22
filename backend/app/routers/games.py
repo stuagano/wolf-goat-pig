@@ -233,6 +233,7 @@ class ScorecardRoundRequest(BaseModel):
     per_hole_quarters: list[ScorecardRoundHoleQuarter]
     course_name: str | None = None
     played_at: str | None = None
+    image_base64: str | None = None
 
 
 @router.post("/from-scorecard")
@@ -309,6 +310,9 @@ async def create_round_from_scorecard(
             created_at=created_at,
             updated_at=now,
         )
+        # Attach the photo for later per-hole backfill (best-effort; oversize ignored).
+        if body.image_base64 and len(body.image_base64) <= 2_000_000:
+            game.scorecard_image = body.image_base64
         db.add(game)
         db.flush()
         persist_completed_game(db, game)
