@@ -143,7 +143,9 @@ const SimpleScorekeeperPage = () => {
   }
 
   const players = gameData.players || [];
-  const currentHoleNumber = gameData.current_hole || 1;
+  // Completed games (including scorecard-scan rounds) have no current_hole in
+  // their state; use 19 so SimpleScorekeeper's isGameComplete gate fires.
+  const currentHoleNumber = gameData.current_hole || (gameData.game_status === 'completed' ? 19 : 1);
 
   // Get hole history and stroke allocation for SimpleScorekeeper
   const holeHistory = gameData.hole_history || [];

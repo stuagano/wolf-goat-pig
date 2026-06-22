@@ -13,6 +13,7 @@ import PropTypes from "prop-types";
 import { useTheme } from "../../theme/Provider";
 import { Input } from "../ui";
 import GameCompletionView from "./GameCompletionView";
+import ScorecardPhotoButton from "./ScorecardPhotoButton";
 import Scorecard from "./Scorecard";
 import ShotAnalysisWidget from "./ShotAnalysisWidget";
 import BettingOddsPanel from "../betting/BettingOddsPanel";
@@ -783,24 +784,27 @@ const SimpleScorekeeper = ({
   // Show completion view if game is complete and not in edit mode
   if (isGameComplete && !isEditingCompleteGame) {
     return (
-      <GameCompletionView
-        players={players}
-        playerStandings={playerStandings}
-        holeHistory={holeHistory}
-        onNewGame={() => {
-          // Reset to start a new game
-          window.location.reload();
-        }}
-        onEditScores={() => {
-          // Enter edit mode - set to hole 19 so ALL holes appear as "completed" and editable
-          setIsEditingCompleteGame(true);
-          setCurrentHole(19); // All holes 1-18 will show as completed (editable)
-        }}
-        onMarkComplete={handleMarkComplete}
-        isCompleted={isGameMarkedComplete}
-        courseHoles={courseData?.holes || []}
-        strokeAllocation={strokeAllocation}
-      />
+      <>
+        <GameCompletionView
+          players={players}
+          playerStandings={playerStandings}
+          holeHistory={holeHistory}
+          onNewGame={() => {
+            // Reset to start a new game
+            window.location.reload();
+          }}
+          onEditScores={() => {
+            // Enter edit mode - set to hole 19 so ALL holes appear as "completed" and editable
+            setIsEditingCompleteGame(true);
+            setCurrentHole(19); // All holes 1-18 will show as completed (editable)
+          }}
+          onMarkComplete={handleMarkComplete}
+          isCompleted={isGameMarkedComplete}
+          courseHoles={courseData?.holes || []}
+          strokeAllocation={strokeAllocation}
+        />
+        {gameId && <ScorecardPhotoButton gameId={gameId} />}
+      </>
     );
   }
 
