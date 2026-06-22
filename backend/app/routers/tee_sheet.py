@@ -128,6 +128,79 @@ class SignupRequest(BaseModel):
     name: NonBlankStr
 
 
+def _mirror_signup_to_db(name: str, date: str) -> None:
+    """Best-effort: record a CGI tee-sheet signup in our own DB and send the
+    confirmation email.
+
+    The CGI sheet stays the source of truth, but downstream features
+    (callout/headcount notifications, pairings, analytics, the confirmation
+    email) all read the ``daily_signups`` table — which the thin-client signup
+    path would otherwise never populate. This mirrors the signup so those keep
+    working. Never raises: the CGI write has already succeeded.
+    """
+    from ..database import SessionLocal
+    from ..models import DailySignup, EmailPreferences, PlayerProfile
+    from ..utils.time import utc_now
+
+    to_email: str | None = None
+    display_name = name
+    db = SessionLocal()
+    try:
+        profile = (
+            db.query(PlayerProfile).filter((PlayerProfile.legacy_name == name) | (PlayerProfile.name == name)).first()
+        )
+        profile_id = profile.id if profile else None
+        if profile and profile.name:
+            display_name = profile.name
+        now = utc_now().isoformat()
+
+        # Dedup on (date, profile) when we matched a profile, else (date, name).
+        query = db.query(DailySignup).filter(DailySignup.date == date)
+        if profile_id is not None:
+            query = query.filter(DailySignup.player_profile_id == profile_id)
+        else:
+            query = query.filter(DailySignup.player_name == name)
+        existing = query.first()
+
+        if existing:
+            if existing.status != "signed_up":
+                existing.status = "signed_up"
+                existing.updated_at = now
+        else:
+            db.add(
+                DailySignup(
+                    date=date,
+                    player_profile_id=profile_id,
+                    player_name=name,
+                    signup_time=now,
+                    status="signed_up",
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
+
+        if profile and profile.email:
+            prefs = db.query(EmailPreferences).filter(EmailPreferences.player_profile_id == profile_id).first()
+            if prefs is None or prefs.signup_confirmations_enabled:
+                to_email = profile.email
+
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("Mirror tee-sheet signup to DB failed for %s on %s", name, date)
+        return
+    finally:
+        db.close()
+
+    if to_email:
+        try:
+            from ..services.email_service import get_email_service
+
+            get_email_service().send_signup_confirmation(to_email, display_name, date)
+        except Exception:
+            logger.exception("Signup confirmation email failed for %s", to_email)
+
+
 @router.post("/signup")
 async def signup_for_tee_sheet(request: SignupRequest) -> dict[str, Any]:
     """Sign up a player for a given date on the thousand-cranes.com tee sheet."""
@@ -147,4 +220,10 @@ async def signup_for_tee_sheet(request: SignupRequest) -> dict[str, Any]:
             raise HTTPException(status_code=502, detail=f"Could not reach tee sheet: {e}")
 
     logger.info("Signed up %s on tee sheet for %s", name, request.date)
+    # Mirror into our DB + send confirmation, off the event loop. Best-effort:
+    # the CGI signup already succeeded, so never fail the request on this.
+    try:
+        await asyncio.to_thread(_mirror_signup_to_db, name, request.date)
+    except Exception:
+        logger.exception("Post-signup mirror failed for %s on %s", name, request.date)
     return {"success": True, "name": name, "date": request.date}
