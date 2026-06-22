@@ -3,7 +3,7 @@ import ScorecardCapture from './ScorecardCapture';
 import ScorecardReview from './ScorecardReview';
 import GHINPostModal from './GHINPostModal';
 import { apiConfig } from '../../config/api.config';
-import { preprocessScorecardImage } from '../../utils/scorecardImage';
+import { preprocessScorecardImage, downscaleToBase64 } from '../../utils/scorecardImage';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -46,6 +46,7 @@ const ScorecardPhoto = ({
   const [errorMsg, setErrorMsg] = useState(null);
   const [photoUrl, setPhotoUrl] = useState(null);
   const photoUrlRef = useRef(null);
+  const photoB64Ref = useRef(null);
   // Free the retained object URL when this flow unmounts.
   useEffect(() => () => { if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current); }, []);
 
@@ -69,6 +70,7 @@ const ScorecardPhoto = ({
     } catch {
       // no object URL support in this context — proceed without in-app photo zoom
     }
+    downscaleToBase64(file, 1200).then((b64) => { photoB64Ref.current = b64; }).catch(() => {});
 
     // Auto-orient via EXIF and downscale oversized phone shots before
     // upload — much cleaner input for the vision model and ~5–10x less
@@ -114,7 +116,7 @@ const ScorecardPhoto = ({
         const res = await fetch(`${API_URL}/games/from-scorecard`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...payload, course_name: 'Wing Point' }),
+          body: JSON.stringify({ ...payload, course_name: 'Wing Point', image_base64: photoB64Ref.current || undefined }),
         });
         if (!res.ok) {
           const detail = await res.json().catch(() => ({}));
