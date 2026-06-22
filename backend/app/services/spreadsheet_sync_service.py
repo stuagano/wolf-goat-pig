@@ -2,8 +2,8 @@
 
 This service provides two-way sync between the Wolf Goat Pig app and the
 legacy Google Sheets dashboard at:
-- Primary (read-only): https://docs.google.com/spreadsheets/d/19AabC4vx0jRXHIAmz8QJfqTIBxxvMfFUplB0abg8mdA
-- Writable copy: https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM
+- Primary (read-only): https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM
+- Writable copy: https://docs.google.com/spreadsheets/d/19AabC4vx0jRXHIAmz8QJfqTIBxxvMfFUplB0abg8mdA
 
 Sheet Structure:
 - Dashboard: Leaderboard summary (auto-calculated from Details)
