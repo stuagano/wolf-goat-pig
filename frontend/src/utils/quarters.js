@@ -79,3 +79,26 @@ export function isNegativeInput(raw) {
   if (typeof raw === "number") return raw < 0;
   return String(raw ?? "").trim().startsWith("-");
 }
+
+/**
+ * Convert an array of {hole, value} running totals into a per-hole delta map.
+ * The running total at hole N is the cumulative sum; the delta is the change
+ * from the previous hole (hole 1 has no predecessor so its delta = its value).
+ *
+ * Used by ScorecardReview (scorecard scan review) and ScorecardBackfill
+ * (post-round hole-by-hole backfill editor).
+ *
+ * @param {Array<{hole: number, value: number|null}>} runningTotals
+ * @returns {Object<number, number>} Map of hole number → per-hole delta
+ */
+export function computeHoleDeltas(runningTotals) {
+  const sorted = [...runningTotals].sort((a, b) => a.hole - b.hole);
+  const deltas = {};
+  let prev = 0;
+  for (const { hole, value } of sorted) {
+    const v = value ?? 0;
+    deltas[hole] = v - prev;
+    prev = v;
+  }
+  return deltas;
+}

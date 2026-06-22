@@ -1,7 +1,8 @@
 // frontend/src/pages/SimpleScorekeeperPage.js
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { SimpleScorekeeper } from '../components/game';
+import ScorecardBackfill from '../components/game/ScorecardBackfill';
 import { Card } from '../components/ui';
 import { useTheme } from '../theme/Provider';
 import ErrorBoundary, { GameErrorFallback } from '../components/common/ErrorBoundary';
@@ -19,38 +20,40 @@ const SimpleScorekeeperPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [gameData, setGameData] = useState(null);
+  const [showBackfill, setShowBackfill] = useState(false);
+
+  const loadGame = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/games/${gameId}/state`);
+
+      if (!response.ok) {
+        throw new Error('Failed to load game');
+      }
+
+      const data = await response.json();
+      // Reconcile the local cache against server truth: flush unsynced edits,
+      // or heal a stale/duplicated cache by overwriting it with server state.
+      // Map GET /state (snake_case) into the local cache shape (camelCase).
+      syncManager.reconcileOnLoad(gameId, {
+        holeHistory: data.hole_history || [],
+        currentHole: data.current_hole,
+        playerStandings: data.standings || {},
+      });
+      setGameData(data);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error loading game:', err);
+      setError(err.message);
+      setLoading(false);
+    }
+  }, [gameId]);
 
   useEffect(() => {
-    const loadGame = async () => {
-      try {
-        const response = await fetch(`${API_URL}/games/${gameId}/state`);
-
-        if (!response.ok) {
-          throw new Error('Failed to load game');
-        }
-
-        const data = await response.json();
-        // Reconcile the local cache against server truth: flush unsynced edits,
-        // or heal a stale/duplicated cache by overwriting it with server state.
-        // Map GET /state (snake_case) into the local cache shape (camelCase).
-        syncManager.reconcileOnLoad(gameId, {
-          holeHistory: data.hole_history || [],
-          currentHole: data.current_hole,
-          playerStandings: data.standings || {},
-        });
-        setGameData(data);
-        setLoading(false);
-      } catch (err) {
-        console.error('Error loading game:', err);
-        setError(err.message);
-        setLoading(false);
-      }
-    };
-
     if (gameId) {
       loadGame();
     }
-  }, [gameId]);
+  }, [gameId, loadGame]);
 
   if (loading) {
     return (
@@ -153,6 +156,28 @@ const SimpleScorekeeperPage = () => {
   const courseName = gameData.course_name || 'Wing Point Golf & Country Club';
   const baseWager = gameData.base_wager || 1;
 
+  const isCompleted = gameData.game_status === 'completed';
+
+  // "Fill in holes" backfill editor — only available for completed rounds
+  if (isCompleted && showBackfill) {
+    return (
+      <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+        <ScorecardBackfill
+          gameId={gameId}
+          players={players}
+          holeHistory={holeHistory}
+          standings={gameData.standings || {}}
+          photoUrl={`${API_URL}/games/${gameId}/scorecard-photo`}
+          onSaved={() => {
+            setShowBackfill(false);
+            loadGame();
+          }}
+          onCancel={() => setShowBackfill(false)}
+        />
+      </div>
+    );
+  }
+
   return (
     <ErrorBoundary FallbackComponent={GameErrorFallback}>
       <SimpleScorekeeper
@@ -164,6 +189,27 @@ const SimpleScorekeeperPage = () => {
         courseName={courseName}
         initialStrokeAllocation={strokeAllocation}
       />
+      {isCompleted && (
+        <div style={{ padding: '0 20px 20px', maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
+          <button
+            type="button"
+            onClick={() => setShowBackfill(true)}
+            style={{
+              padding: '12px 24px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              borderRadius: '8px',
+              border: '2px solid #f59e0b',
+              background: 'white',
+              color: '#b45309',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            ✏️ Fill in holes
+          </button>
+        </div>
+      )}
     </ErrorBoundary>
   );
 };

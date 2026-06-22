@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { flipSign, parseQuarter } from '../../utils/quarters';
+import { flipSign, parseQuarter, computeHoleDeltas } from '../../utils/quarters';
 import ScorecardPhotoZoom from './ScorecardPhotoZoom';
 
 /**
@@ -10,24 +10,13 @@ import ScorecardPhotoZoom from './ScorecardPhotoZoom';
  * Zero-sum validation highlights unbalanced holes.
  */
 
+// computeDeltas extracted to utils/quarters as computeHoleDeltas
+
 const CONFIDENCE_STYLE = (confidence) => {
   if (confidence == null) return 'border-red-400 bg-red-50';
   if (confidence >= 0.85) return 'border-gray-300';
   if (confidence >= 0.50) return 'border-yellow-400 bg-yellow-50';
   return 'border-red-400 bg-red-50';
-};
-
-const computeDeltas = (runningTotals) => {
-  // runningTotals: array of { hole, value } sorted by hole
-  const sorted = [...runningTotals].sort((a, b) => a.hole - b.hole);
-  const deltas = {};
-  let prev = 0;
-  for (const { hole, value } of sorted) {
-    const v = value ?? 0;
-    deltas[hole] = v - prev;
-    prev = v;
-  }
-  return deltas;
 };
 
 const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -142,7 +131,7 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
         const val = values[`${pi}-${h}`];
         if (val !== '' && val != null) totals.push({ hole: h, value: val });
       }
-      result[pi] = computeDeltas(totals);
+      result[pi] = computeHoleDeltas(totals);
     }
     return result;
   }, [values, extractedPlayers.length]);
