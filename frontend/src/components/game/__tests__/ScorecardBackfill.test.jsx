@@ -18,6 +18,16 @@ vi.mock('../ScorecardPhotoZoom', () => ({
   ),
 }));
 
+// Mock ScorecardPhotoButton — it is a self-probing component that fetches
+// /scorecard-photo internally. We control its rendered output per test.
+vi.mock('../ScorecardPhotoButton', () => ({
+  default: ({ gameId }) => (
+    <button aria-label="Open scorecard photo" data-testid={`photo-btn-${gameId}`}>
+      📷 Photo
+    </button>
+  ),
+}));
+
 const players = [
   { id: 'p1', name: 'Alice' },
   { id: 'p2', name: 'Bob' },
@@ -48,7 +58,6 @@ describe('ScorecardBackfill — money path', () => {
         players={players}
         holeHistory={holeHistory}
         standings={standings}
-        photoUrl="http://test-api/games/g1/scorecard-photo"
         onSaved={onSaved}
         onCancel={onCancel}
       />,
@@ -94,6 +103,16 @@ describe('ScorecardBackfill — money path', () => {
       .reduce((acc, q) => acc + q.quarters, 0);
     expect(p2Sum).toBe(-6);
 
+    // C1 regression guard: PATCH body must contain all 18 holes for each player
+    // so hole_history on the backend has full entries and allHolesPlayed() returns true.
+    const p1Holes = body.per_hole_quarters
+      .filter((q) => q.player_index === 0)
+      .map((q) => q.hole);
+    expect(p1Holes).toHaveLength(18);
+    for (let h = 1; h <= 18; h++) {
+      expect(p1Holes).toContain(h);
+    }
+
     expect(onSaved).toHaveBeenCalledTimes(1);
   });
 });
@@ -113,7 +132,6 @@ describe('ScorecardBackfill — mismatch warning', () => {
         players={players}
         holeHistory={holeHistory}
         standings={standings}
-        photoUrl={null}
         onSaved={onSaved}
         onCancel={() => {}}
       />,
@@ -137,37 +155,35 @@ describe('ScorecardBackfill — mismatch warning', () => {
 });
 
 describe('ScorecardBackfill — photo button', () => {
-  test('Photo button opens the zoom overlay when photoUrl is provided', () => {
+  test('ScorecardPhotoButton is always rendered (self-probing: it renders nothing on 404)', () => {
+    // The component always renders ScorecardPhotoButton; the button itself
+    // decides whether to show based on the /scorecard-photo endpoint response.
+    // Our mock always renders the button, confirming the component is present.
     render(
       <ScorecardBackfill
         gameId="g1"
         players={players}
         holeHistory={holeHistory}
         standings={standings}
-        photoUrl="http://test-api/games/g1/scorecard-photo"
         onSaved={() => {}}
         onCancel={() => {}}
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: /photo/i }));
-    expect(screen.getByTestId('photo-zoom')).toBeTruthy();
-    expect(screen.getByAltText('scorecard-zoom').getAttribute('src')).toBe(
-      'http://test-api/games/g1/scorecard-photo',
-    );
+    // The mocked ScorecardPhotoButton renders with this data-testid
+    expect(screen.getByTestId('photo-btn-g1')).toBeTruthy();
   });
 
-  test('No photo button when photoUrl is null', () => {
+  test('ScorecardPhotoButton receives the correct gameId prop', () => {
     render(
       <ScorecardBackfill
-        gameId="g1"
+        gameId="round-xyz"
         players={players}
         holeHistory={holeHistory}
         standings={standings}
-        photoUrl={null}
         onSaved={() => {}}
         onCancel={() => {}}
       />,
     );
-    expect(screen.queryByRole('button', { name: /photo/i })).toBeNull();
+    expect(screen.getByTestId('photo-btn-round-xyz')).toBeTruthy();
   });
 });

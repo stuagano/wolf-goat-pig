@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { computeHoleDeltas } from '../../utils/quarters';
-import ScorecardPhotoZoom from './ScorecardPhotoZoom';
+import ScorecardPhotoButton from './ScorecardPhotoButton';
 import { apiConfig } from '../../config/api.config';
 
 const API_URL = apiConfig.baseUrl;
@@ -54,7 +54,6 @@ function holeHistoryToRunningTotals(holeHistory, players) {
  *   players     — [{id, name}, ...] (order = player_index)
  *   holeHistory — [{hole, points_delta: {playerId: delta}}, ...]
  *   standings   — {playerId: signedTotal}
- *   photoUrl    — URL for the scorecard photo (or null)
  *   onSaved     — called after a successful PATCH
  *   onCancel    — called when the user cancels
  */
@@ -63,7 +62,6 @@ const ScorecardBackfill = ({
   players,
   holeHistory,
   standings,
-  photoUrl,
   onSaved,
   onCancel,
 }) => {
@@ -74,7 +72,6 @@ const ScorecardBackfill = ({
   );
 
   const [values, setValues] = useState(initialValues);
-  const [showPhoto, setShowPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
 
@@ -143,15 +140,14 @@ const ScorecardBackfill = ({
     setSaving(true);
     setSaveError(null);
 
-    // Build per_hole_quarters from deltas — only nonzero entries needed
+    // Build per_hole_quarters: emit every hole 1-18 per player so the backend
+    // hole_history contains all 18 entries and allHolesPlayed() returns true
+    // even for no-op saves. Zero-delta holes are included (quarters: 0).
     const perHoleQuarters = [];
     for (let i = 0; i < players.length; i++) {
       const deltas = allDeltas[i] || {};
       for (const h of HOLES) {
-        const q = deltas[h];
-        if (q != null && q !== 0) {
-          perHoleQuarters.push({ player_index: i, hole: h, quarters: q });
-        }
+        perHoleQuarters.push({ player_index: i, hole: h, quarters: deltas[h] ?? 0 });
       }
     }
 
@@ -193,17 +189,8 @@ const ScorecardBackfill = ({
         (from the completed round) is shown per player.
       </p>
 
-      {/* Photo button */}
-      {photoUrl && (
-        <button
-          type="button"
-          onClick={() => setShowPhoto(true)}
-          className="self-start text-sm text-blue-600 hover:text-blue-800 underline"
-          aria-label="Open scorecard photo"
-        >
-          📷 Photo
-        </button>
-      )}
+      {/* Photo button — self-probing: renders nothing when no photo on server */}
+      <ScorecardPhotoButton gameId={gameId} />
 
       {/* Mismatch warnings (non-blocking) */}
       {mismatches.length > 0 && (
@@ -346,10 +333,6 @@ const ScorecardBackfill = ({
         </button>
       </div>
 
-      {/* Photo zoom overlay */}
-      {showPhoto && photoUrl && (
-        <ScorecardPhotoZoom src={photoUrl} onClose={() => setShowPhoto(false)} />
-      )}
     </div>
   );
 };
@@ -369,13 +352,8 @@ ScorecardBackfill.propTypes = {
     }),
   ).isRequired,
   standings: PropTypes.objectOf(PropTypes.number).isRequired,
-  photoUrl: PropTypes.string,
   onSaved: PropTypes.func.isRequired,
   onCancel: PropTypes.func.isRequired,
-};
-
-ScorecardBackfill.defaultProps = {
-  photoUrl: null,
 };
 
 export default ScorecardBackfill;

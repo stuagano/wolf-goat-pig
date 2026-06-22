@@ -1144,6 +1144,11 @@ async def backfill_scorecard(
     if record:
         db.query(models.GamePlayerResult).filter(models.GamePlayerResult.game_record_id == record.id).delete()
         db.flush()
+        # Update the GameRecord summary so final_scores / total_holes_played are
+        # not stale after the backfill (persist_completed_game only sets these on
+        # initial creation, never on update).
+        record.final_scores = standings
+        record.total_holes_played = len(hole_history)
     persist_completed_game(db, game)
     db.commit()
     return {"game_id": game_id, "standings": standings}

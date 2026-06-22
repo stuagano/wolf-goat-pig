@@ -70,6 +70,19 @@ def test_patch_scorecard_recomputes_standings_from_new_per_hole():
         assert {e["hole"] for e in state["hole_history"]} == {1, 2}
         # standings preserved: A total +8
         assert state["standings"]["p1"] == 8
+
+        # I1 regression guard: GameRecord.final_scores must reflect the new standings
+        # after PATCH (not the stale initial values from before the backfill).
+        record = db.query(models.GameRecord).filter_by(game_id=gid).first()
+        assert record is not None, "GameRecord must exist after backfill"
+        assert record.final_scores is not None, "GameRecord.final_scores must be set"
+        assert record.final_scores.get("p1") == 8, (
+            f"GameRecord.final_scores['p1'] should be 8 after backfill, got {record.final_scores.get('p1')}"
+        )
+        # total_holes_played should match the number of holes in new hole_history (2)
+        assert record.total_holes_played == 2, (
+            f"GameRecord.total_holes_played should be 2 after backfill, got {record.total_holes_played}"
+        )
     finally:
         db.close()
 

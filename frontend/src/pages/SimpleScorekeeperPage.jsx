@@ -167,7 +167,6 @@ const SimpleScorekeeperPage = () => {
           players={players}
           holeHistory={holeHistory}
           standings={gameData.standings || {}}
-          photoUrl={`${API_URL}/games/${gameId}/scorecard-photo`}
           onSaved={() => {
             setShowBackfill(false);
             loadGame();
