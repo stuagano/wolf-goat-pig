@@ -1,7 +1,7 @@
 {
   "admin-banner-readback": {
-    "at": "2026-06-17T20:11:34.290087+00:00",
-    "fingerprint": "sha256:0d729383ddd7b13084bb972240c26d4c2baf4a2b808014fbfbebd1821a04a1f8",
+    "at": "2026-06-22T23:12:03.554021+00:00",
+    "fingerprint": "sha256:f59f6016640f082a24a95856af83adde9a4f49c0f713f952c64b3d017f460ea5",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -28,14 +28,21 @@
     "waiver": null
   },
   "api-surface-no-drift": {
-    "at": "2026-06-17T23:41:07.434680+00:00",
-    "fingerprint": "sha256:efbb6316c7c53965d7da2f19cf1e55408c1dced84e367885e84cf474cc534c74",
+    "at": "2026-07-09T15:39:45.711612+00:00",
+    "fingerprint": "sha256:6ee13b4a4853288892de1456f8edad3023aad72f3d7d8600e3eebbb6c4eed57a",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "auth-refresh-token-scope-paired": {
+    "at": "2026-07-09T17:52:19.139715+00:00",
+    "fingerprint": "sha256:8b2d8c2790ee6f1f2d9eb0bcba961102384e2ffa040f1ce0a51c6664ac57eed2",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "auth-rejects-junk-token": {
-    "at": "2026-06-17T20:11:34.290087+00:00",
+    "at": "2026-07-09T05:23:50.778051+00:00",
     "fingerprint": null,
     "result": "pass",
     "tier": "live",
@@ -90,6 +97,13 @@
     "tier": "cheap",
     "waiver": null
   },
+  "deploy-cache-busting-preserves-auth": {
+    "at": "2026-07-09T17:52:20.679621+00:00",
+    "fingerprint": "sha256:83b4a5c379625a93df41ec9754205b4f60d09f1eb9c8ffb8e8e294980cf03608",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
   "external-health-monitoring": {
     "at": "2026-06-17T20:11:34.290087+00:00",
     "fingerprint": "sha256:179e60db1e765cf8951db61198c3f110cc2abe78d3664ee819d89b9abe923fc8",
@@ -104,9 +118,16 @@
     "tier": "cheap",
     "waiver": null
   },
+  "frontend-live-production": {
+    "at": "2026-07-09T17:52:21.808159+00:00",
+    "fingerprint": null,
+    "result": "pass",
+    "tier": "live",
+    "waiver": null
+  },
   "game-state-db-authoritative": {
-    "at": "2026-06-17T20:11:34.290087+00:00",
-    "fingerprint": "sha256:5dfc5022da3a0af1defedc508ac1af94c980772699c66ffa0bc7e35e21b2dd3d",
+    "at": "2026-06-22T07:11:49.727259+00:00",
+    "fingerprint": "sha256:6ea5cd16f142121260591410cf5d1211ff2d0d80749fc04a16275c6bbd94af50",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -119,15 +140,15 @@
     "waiver": null
   },
   "google-sheets-contract": {
-    "at": "2026-06-17T20:11:34.290087+00:00",
-    "fingerprint": "sha256:279ef89448c0fb0c44e274103975e302f5a484bbe9c470f3257cf166caf062d5",
+    "at": "2026-06-22T21:59:38.972791+00:00",
+    "fingerprint": "sha256:aa4653aa3a3d2391a508db065cd37efaad59f86ac6624f1b8aaf063690d22a9f",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "groq-commissioner-contract": {
-    "at": "2026-06-17T20:11:34.290087+00:00",
-    "fingerprint": "sha256:d8eb31ab1dc25d48937c816f7679089e141f7cec038311f771c18b3eb1b6f5c0",
+    "at": "2026-06-20T05:08:24.427271+00:00",
+    "fingerprint": "sha256:e3bab06c1230a1672a823f96e15369ee3915f56240428ffe7c9ec9d896156e09",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -140,7 +161,7 @@
     "waiver": null
   },
   "health-live-production": {
-    "at": "2026-06-17T20:11:34.290087+00:00",
+    "at": "2026-07-09T05:24:01.539137+00:00",
     "fingerprint": null,
     "result": "pass",
     "tier": "live",
@@ -259,15 +280,15 @@
     "waiver": null
   },
   "request-validation-422-envelope": {
-    "at": "2026-06-17T23:41:16.350883+00:00",
-    "fingerprint": "sha256:8fe096db545eae646173416d9938c315585ba3dcc764ff2d54a3adf7ff4474c1",
+    "at": "2026-06-20T05:08:21.574665+00:00",
+    "fingerprint": "sha256:826867c381eb89f92e8e585f46a83c296ac7b669423375adb7ba613b745c9233",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "resend-email-contract": {
-    "at": "2026-06-17T23:21:09.920373+00:00",
-    "fingerprint": "sha256:1741ea7196d64fd980635c533df01cc08de0b96841d784804672862de61eb6cc",
+    "at": "2026-06-22T23:12:01.210986+00:00",
+    "fingerprint": "sha256:20022b08a5d378eed297052e3b4f4850b31fd747a33870007358b51927df1be3",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -280,8 +301,8 @@
     "waiver": null
   },
   "scorecard-scan": {
-    "at": "2026-06-17T20:11:34.290087+00:00",
-    "fingerprint": "sha256:6df755ee0b7c676b045575dbe2e041abf85749e18360e1b9e8ba113c57d6be5d",
+    "at": "2026-06-21T03:38:22.285105+00:00",
+    "fingerprint": "sha256:3954745c0ceb45495e9e0154f46b9bef1453daf10d6dcdea111df34e32c70265",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -315,8 +336,8 @@
     "waiver": null
   },
   "swallowed-outages-are-captured": {
-    "at": "2026-06-17T20:11:34.290087+00:00",
-    "fingerprint": "sha256:636921372dc5fbc6e6b744dbfbc75399014623f051246794f98c43a98490b363",
+    "at": "2026-06-22T21:59:26.856141+00:00",
+    "fingerprint": "sha256:facf8e15582a3c7287eb3420425d8ad4a29c91b88fb3b8c07e8bb4ea503f50d4",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -336,15 +357,15 @@
     "waiver": null
   },
   "tee-sheet-contract": {
-    "at": "2026-06-17T20:11:34.290087+00:00",
-    "fingerprint": "sha256:ad4615c52d605df1d3148914bd268cb797121fbd081dfa3b2d701cb9a1c553db",
+    "at": "2026-06-22T18:31:02.078799+00:00",
+    "fingerprint": "sha256:5ad673a1dc5c3b15ca0e38a0075096457eebcfc74175479de178a6970f38a4fc",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "unified-data-aggregation": {
-    "at": "2026-06-17T20:11:34.290087+00:00",
-    "fingerprint": "sha256:8820ead3838c461c2e56c05f6e667fd882446cd758e622ec77b8d72b18bbe123",
+    "at": "2026-06-22T05:58:50.584473+00:00",
+    "fingerprint": "sha256:9359301244208bc0440c6f49d66005495dd0e18f8cc4cdcd35765621a07801c2",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -357,8 +378,8 @@
     "waiver": null
   },
   "welcome-email-sent": {
-    "at": "2026-06-17T23:21:11.807091+00:00",
-    "fingerprint": "sha256:61cbfe684a26ddbefae3a43fdcb0bcfd01314ef5c3ebf841f2efeb268a5ca41d",
+    "at": "2026-06-22T23:12:05.060688+00:00",
+    "fingerprint": "sha256:5f23ae9bc3e5ebab2ca179f0788c48842818285d3fd2adf10620367ad0c224d6",
     "result": "pass",
     "tier": "cheap",
     "waiver": null

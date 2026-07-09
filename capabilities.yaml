@@ -510,3 +510,41 @@ capabilities:
     check:
       shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_callout_service.py
         -q -p no:cacheprovider
+  - id: auth-refresh-token-scope-paired
+    description: useRefreshTokens is only paired with the offline_access scope it requires
+      to actually get a refresh token
+    given: the Auth0Provider config in AuthContext.jsx
+    when: useRefreshTokens is enabled
+    then: authorizationParams.scope includes offline_access, so Auth0 actually issues
+      a refresh token
+    tier: cheap
+    deps:
+    - frontend/src/context/AuthContext.jsx
+    check:
+      shell: cd frontend && npx vitest run src/context/__tests__/AuthContext.test.jsx
+  - id: deploy-cache-busting-preserves-auth
+    description: per-deploy cache-busting clears stale build caches only, never localStorage,
+      so the Auth0 session and onboarding linkage survive every deploy
+    given: a stale cached app version and a real Auth0/onboarding localStorage session
+    when: initCacheManager runs on a version bump
+    then: the Auth0 session and legacy-name linkage keys are preserved; only foreign/stale
+      cache keys are dropped
+    tier: cheap
+    deps:
+    - frontend/src/services/cacheManager.jsx
+    check:
+      shell: cd frontend && npx vitest run src/services/__tests__/cacheManager.test.js
+  - id: frontend-live-production
+    description: the deployed Vercel frontend is actually serving the app shell, not
+      a blank/error page
+    given: the Vercel deployment of the frontend
+    when: GET / is requested
+    then: it returns 200 and serves the real app shell (title + root mount point), not
+      a blank or error response
+    tier: live
+    deps: []
+    check:
+      shell: resp=$(curl -sk -w "|%{http_code}" --max-time 15 https://wolf-goat-pig.vercel.app/)
+        || exit 3; code=${resp##*|}; body=${resp%|*}; [ "$code" = 200 ] || exit 1; printf
+        "%s" "$body" | grep -q "Wolf Goat Pig" || exit 1; printf "%s" "$body" | grep
+        -q "id=.root." || exit 1; exit 0
