@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { apiConfig } from '../config/api.config';
+import { usePlayerProfile } from '../hooks/usePlayerProfile';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -21,47 +22,95 @@ const formatDate = (iso) => {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 };
 
+const formatGameDate = (dateStr) => {
+  if (!dateStr) return '—';
+  // dateStr is "YYYY-MM-DD"; parse as local date to avoid UTC-midnight day-shift.
+  const [y, m, d] = dateStr.split('-').map(Number);
+  if (!y || !m || !d) return dateStr;
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+const formatScore = (q) => `${q >= 0 ? '+' : ''}${q}`;
+
 const PlayerProfilePage = () => {
   const { playerId } = useParams();
   const navigate = useNavigate();
   const { getAccessTokenSilently } = useAuth0();
+  const { profile: myProfile } = usePlayerProfile();
+  const fileInputRef = useRef(null);
 
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [livsowTeam, setLivsowTeam] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+  const [avatarVersion, setAvatarVersion] = useState(0);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const token = await getAccessTokenSilently();
+      const res = await fetch(`${API_URL}/players/${playerId}/public-profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || `Player not found`);
+      }
+      const p = await res.json();
+      setProfile(p);
+      setError(null);
+      // Look up LivSow team by name (no auth needed). Best-effort — the
+      // badge simply doesn't render if this fails.
+      if (p?.name) {
+        fetch(`${API_URL}/data/livsow/team-map`)
+          .then(r => r.ok ? r.json() : null)
+          .then(map => { if (map?.[p.name]) setLivsowTeam(map[p.name]); })
+          .catch(() => {});
+      }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const token = await getAccessTokenSilently();
-        const res = await fetch(`${API_URL}/players/${playerId}/public-profile`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.detail || `Player not found`);
-        }
-        const p = await res.json();
-        setProfile(p);
-        setError(null);
-        // Look up LivSow team by name (no auth needed). Best-effort — the
-        // badge simply doesn't render if this fails.
-        if (p?.name) {
-          fetch(`${API_URL}/data/livsow/team-map`)
-            .then(r => r.ok ? r.json() : null)
-            .then(map => { if (map?.[p.name]) setLivsowTeam(map[p.name]); })
-            .catch(() => {});
-        }
-      } catch (e) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
-      }
-    };
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerId, getAccessTokenSilently]);
+
+  const isOwnProfile = myProfile && String(myProfile.id) === String(playerId);
+
+  const handleAvatarFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file later
+    if (!file) return;
+
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const token = await getAccessTokenSilently();
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`${API_URL}/players/me/avatar`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || 'Upload failed');
+      }
+      setAvatarVersion(v => v + 1);
+      setProfile(p => (p ? { ...p, has_avatar_image: true } : p));
+    } catch (e) {
+      setUploadError(e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -83,7 +132,10 @@ const PlayerProfilePage = () => {
     );
   }
 
-  const { name, handicap, description, avatar_url, last_played, created_at, available_days, match_history, badges, stats } = profile;
+  const { name, handicap, description, avatar_url, has_avatar_image, last_played, created_at, available_days, match_history, game_history, badges, stats } = profile;
+  const avatarSrc = has_avatar_image
+    ? `${API_URL}/players/${playerId}/avatar${avatarVersion ? `?v=${avatarVersion}` : ''}`
+    : avatar_url;
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: '20px 16px' }}>
@@ -91,24 +143,50 @@ const PlayerProfilePage = () => {
       {/* Header card */}
       <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 24, marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          {avatar_url ? (
-            <img
-              src={avatar_url}
-              alt={name}
-              style={{
+          <div
+            style={{ position: 'relative', flexShrink: 0, cursor: isOwnProfile ? 'pointer' : 'default' }}
+            onClick={() => isOwnProfile && fileInputRef.current?.click()}
+            title={isOwnProfile ? 'Change photo' : undefined}
+          >
+            {avatarSrc ? (
+              <img
+                src={avatarSrc}
+                alt={name}
+                style={{
+                  width: 64, height: 64, borderRadius: '50%',
+                  objectFit: 'cover', border: '2px solid #10b981',
+                  opacity: uploading ? 0.5 : 1,
+                }}
+              />
+            ) : (
+              <div style={{
                 width: 64, height: 64, borderRadius: '50%',
-                objectFit: 'cover', border: '2px solid #10b981', flexShrink: 0,
-              }}
+                background: '#f0fdf4', border: '2px solid #10b981',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 28, opacity: uploading ? 0.5 : 1,
+              }}>
+                🏌️
+              </div>
+            )}
+            {isOwnProfile && (
+              <div style={{
+                position: 'absolute', bottom: -2, right: -2, width: 22, height: 22,
+                borderRadius: '50%', background: '#047857', border: '2px solid #fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 11,
+              }}>
+                📷
+              </div>
+            )}
+          </div>
+          {isOwnProfile && (
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+              style={{ display: 'none' }}
+              onChange={handleAvatarFileChange}
             />
-          ) : (
-            <div style={{
-              width: 64, height: 64, borderRadius: '50%',
-              background: '#f0fdf4', border: '2px solid #10b981',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 28, flexShrink: 0,
-            }}>
-              🏌️
-            </div>
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
             <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#1f2937' }}>{name}</h1>
@@ -136,6 +214,9 @@ const PlayerProfilePage = () => {
                 </span>
               )}
             </div>
+            {uploadError && (
+              <div style={{ marginTop: 6, fontSize: 12, color: '#dc2626' }}>{uploadError}</div>
+            )}
           </div>
         </div>
 
@@ -229,6 +310,42 @@ const PlayerProfilePage = () => {
                   background: '#d1fae5', color: '#065f46',
                 }}>
                   ✓ Confirmed
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Game history — actual played/scored rounds */}
+      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 20, marginBottom: 16 }}>
+        <h2 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: '#374151' }}>
+          Game History {game_history.length > 0 && <span style={{ fontWeight: 400, color: '#9ca3af', fontSize: 13 }}>({game_history.length})</span>}
+        </h2>
+        {game_history.length === 0 ? (
+          <p style={{ margin: 0, color: '#9ca3af', fontStyle: 'italic', fontSize: 13 }}>No recorded rounds yet</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {game_history.map((g, i) => (
+              <div key={`${g.date}-${i}`} style={{
+                background: '#f9fafb', borderRadius: 10, padding: '10px 14px',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: '#1f2937' }}>
+                    {formatGameDate(g.date)}
+                    {g.location && (
+                      <span style={{ marginLeft: 8, fontSize: 12, fontWeight: 400, color: '#6b7280' }}>
+                        {g.location}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <span style={{
+                  fontSize: 13, fontWeight: 700,
+                  color: g.score >= 0 ? '#047857' : '#dc2626',
+                }}>
+                  {formatScore(g.score)}
                 </span>
               </div>
             ))}

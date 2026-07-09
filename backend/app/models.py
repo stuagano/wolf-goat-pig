@@ -218,6 +218,7 @@ class PlayerProfile(Base):
     ghin_id = Column(String, nullable=True, unique=True, index=True)  # GHIN ID for handicap lookup
     ghin_last_updated = Column(String, nullable=True)  # When GHIN data was last synced
     avatar_url = Column(String, nullable=True)
+    avatar_image = Column(Text, nullable=True)  # uploaded avatar, downscaled JPEG as base64
     created_at = Column(String)
     updated_at = Column(String, nullable=True)
     last_played = Column(String, nullable=True)

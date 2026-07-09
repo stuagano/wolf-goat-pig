@@ -12,10 +12,11 @@ This is a refactored version demonstrating the new utility patterns:
 To migrate: Replace players.py with this file after testing.
 """
 
+import base64
 import logging
 from typing import Any, cast
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
@@ -23,8 +24,29 @@ from .. import models, schemas
 from ..database import get_db
 from ..services.auth_service import get_current_user
 from ..services.player_service import PlayerService
+from ..services.unified_data_service import get_unified_data_service
 from ..utils.api_helpers import ApiResponse, handle_api_errors, require_not_none
 from ..utils.time import utc_now
+
+AVATAR_ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
+AVATAR_MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # 8MB raw upload; we downscale server-side
+AVATAR_MAX_DIM = 400
+
+
+def _downscale_avatar(image_bytes: bytes) -> str:
+    """Resize to fit AVATAR_MAX_DIM, correct EXIF rotation, re-encode as base64 JPEG."""
+    from io import BytesIO
+
+    from PIL import Image, ImageOps
+
+    img = Image.open(BytesIO(image_bytes))
+    img = ImageOps.exif_transpose(img)
+    img = img.convert("RGB")
+    img.thumbnail((AVATAR_MAX_DIM, AVATAR_MAX_DIM), Image.LANCZOS)
+    buf = BytesIO()
+    img.save(buf, format="JPEG", quality=85)
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
 
 logger = logging.getLogger("app.routers.players")
 
@@ -215,6 +237,34 @@ async def update_my_description(
     return {"description": current_user.description}
 
 
+@router.post("/me/avatar")
+@handle_api_errors(operation_name="upload avatar")
+async def upload_my_avatar(
+    file: UploadFile = File(...),
+    current_user: models.PlayerProfile = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Upload a profile photo for the current user. Downscaled and stored in the DB."""
+    content_type = file.content_type or "image/jpeg"
+    if content_type not in AVATAR_ALLOWED_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported image type: {content_type}. Use JPEG, PNG, or WebP.")
+
+    image_bytes = await file.read()
+    if len(image_bytes) > AVATAR_MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="Image too large. Maximum size is 8MB.")
+
+    try:
+        current_user.avatar_image = _downscale_avatar(image_bytes)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not read image: {e}") from e
+
+    current_user.updated_at = utc_now().isoformat()
+    db.commit()
+    db.refresh(current_user)
+    logger.info(f"Updated avatar for user {current_user.id}")
+    return {"has_avatar_image": True, "updated_at": current_user.updated_at}
+
+
 @router.get("/me/availability", response_model=list[schemas.PlayerAvailabilityResponse])
 @handle_api_errors(operation_name="get my availability")
 async def get_my_availability(
@@ -399,6 +449,17 @@ async def update_my_email_preferences(
 # ============================================================================
 
 
+@router.get("/{player_id}/avatar")
+@handle_api_errors(operation_name="get player avatar")
+def get_player_avatar(player_id: int, db: Session = Depends(get_db)) -> Response:
+    """Serve a player's uploaded avatar image. Public — used directly as an <img> src."""
+    player = db.query(models.PlayerProfile).filter(models.PlayerProfile.id == player_id).first()
+    if not player or not player.avatar_image:
+        raise HTTPException(status_code=404, detail="No uploaded avatar for this player")
+    image_bytes = base64.b64decode(player.avatar_image)
+    return Response(content=image_bytes, media_type="image/jpeg")
+
+
 @router.get("/{player_id}/public-profile")
 @handle_api_errors(operation_name="get public player profile")
 def get_public_player_profile(
@@ -474,16 +535,34 @@ def get_public_player_profile(
         for pbe, b in badge_rows
     ]
 
+    # Game history — actual played/scored rounds (sheet-synced + in-app), as
+    # opposed to match_history above which is scheduling/availability data.
+    game_history = []
+    if player.legacy_name or player.name:
+        rounds = get_unified_data_service(db=db).get_player_history(player.legacy_name or player.name)
+        game_history = [
+            {
+                "date": r.date_sortable,
+                "location": r.location,
+                "score": r.score,
+                "duration": r.duration,
+                "source": r.source,
+            }
+            for r in rounds[:20]
+        ]
+
     return {
         "id": player.id,
         "name": player.name,
         "handicap": player.handicap,
         "description": player.description,
         "avatar_url": player.avatar_url,
+        "has_avatar_image": bool(player.avatar_image),
         "last_played": player.last_played,
         "created_at": player.created_at,
         "available_days": available_days,
         "match_history": match_history[:20],
+        "game_history": game_history,
         "badges": badges,
         "stats": {
             "games_played": stats.games_played if stats else 0,
