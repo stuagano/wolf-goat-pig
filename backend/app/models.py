@@ -243,6 +243,10 @@ class PlayerProfile(Base):
     strengths = Column(JSON, nullable=True)
     weaknesses = Column(JSON, nullable=True)
 
+    @property
+    def has_avatar_image(self) -> bool:
+        return bool(self.avatar_image)
+
 
 class PlayerStatistics(Base):
     __tablename__ = "player_statistics"

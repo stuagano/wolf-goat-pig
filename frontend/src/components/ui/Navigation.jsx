@@ -36,6 +36,7 @@ const Navigation = () => {
 
   // "More" sheet items
   const moreItems = [
+    { path: '/players', label: 'Players', icon: '👥' },
     { path: '/scorecard-scan', label: 'Scan Scorecard', icon: '📷' },
     { path: '/join', label: 'Join with Code', icon: '🔗' },
     { path: '/games/active', label: 'Active Games', icon: '🎮' },
@@ -61,6 +62,7 @@ const Navigation = () => {
     { path: '/signup', label: '📅 Sign Up', primary: true },
     { path: '/game', label: '⚔️ Game', primary: true },
     { path: '/games/active', label: '🎮 Active', primary: true },
+    { path: '/players', label: '👥 Players', primary: false },
     { path: '/scorecard-scan', label: '📷 Scan Scorecard', primary: false },
     { path: '/join', label: '🔗 Join with Code', primary: false },
     { path: '/games/completed', label: '🏆 History', primary: false },

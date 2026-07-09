@@ -52,6 +52,7 @@ const ScorecardScanPage = React.lazy(() => import("./pages/ScorecardScanPage"));
 const AskPage = React.lazy(() => import("./pages/AskPage"));
 const FindAGamePage = React.lazy(() => import("./pages/FindAGamePage"));
 const PlayerProfilePage = React.lazy(() => import("./pages/PlayerProfilePage"));
+const PlayersRosterPage = React.lazy(() => import("./pages/PlayersRosterPage"));
 const LivSowLeaderboard = React.lazy(() => import("./components/game/LivSowLeaderboard"));
 const LivSowTeamPage = React.lazy(() => import("./components/game/livsow/LivSowTeamPage"));
 const GroupMeChat = React.lazy(() => import("./components/chat/GroupMeChat"));
@@ -428,6 +429,7 @@ function App() {
               <Route path="/ask" element={<AskPage />} />
               <Route path="/tee-sheet" element={<Navigate to="/signup?tab=wgp-signup" />} />
               <Route path="/find-a-game" element={<FindAGamePage />} />
+              <Route path="/players" element={<PlayersRosterPage />} />
               <Route path="/players/:playerId" element={
                 <ProtectedRoute><PlayerProfilePage /></ProtectedRoute>
               } />

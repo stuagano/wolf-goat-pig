@@ -78,6 +78,7 @@ class PlayerProfileResponse(PlayerProfileBase):
     venmo_handle: str | None = None
     playing_style: str | None = None
     description: str | None = None
+    has_avatar_image: bool = False
 
 
 # Player Statistics Schemas
