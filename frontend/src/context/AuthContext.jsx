@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }) => {
         authorizationParams={{
           redirect_uri: window.location.origin,
           ...(audience && { audience }),
-          scope: "openid profile email"
+          scope: "openid profile email offline_access"
         }}
         cacheLocation="localstorage"
         useRefreshTokens={true}
