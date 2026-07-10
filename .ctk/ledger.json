@@ -28,8 +28,8 @@
     "waiver": null
   },
   "api-surface-no-drift": {
-    "at": "2026-07-10T21:59:23.066252+00:00",
-    "fingerprint": "sha256:d91da8bdca2a3e593d6632903b467a3c787585536c893a9911402b8548b639c1",
+    "at": "2026-07-10T22:55:57.559252+00:00",
+    "fingerprint": "sha256:9836febfed85503cf26fc5ad05d2b834e20e4f9445de9cbd1424f69d0d182607",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
