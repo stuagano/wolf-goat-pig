@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { apiConfig } from '../config/api.config';
 import { usePlayerProfile } from '../hooks/usePlayerProfile';
+import '../styles/clubhouse-theme.css';
 import './PlayerProfilePage.css';
 
 const API_URL = apiConfig.baseUrl;
@@ -10,7 +11,7 @@ const API_URL = apiConfig.baseUrl;
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const RARITY_ORDER = ['mythic', 'legendary', 'epic', 'rare', 'common'];
-const LOCKED_SLOT_COUNT = 4;
+const LOCKED_PREVIEW_COUNT = 3;
 
 const formatDate = (iso) => {
   if (!iso) return '—';
@@ -106,7 +107,7 @@ const PlayerProfilePage = () => {
 
   if (loading) {
     return (
-      <div className="wgp-profile">
+      <div className="wgp-clubhouse wgp-profile">
         <div style={{ display: 'flex', justifyContent: 'center', padding: 80, color: '#6b7280' }}>
           Loading...
         </div>
@@ -116,7 +117,7 @@ const PlayerProfilePage = () => {
 
   if (error) {
     return (
-      <div className="wgp-profile">
+      <div className="wgp-clubhouse wgp-profile">
         <div style={{ maxWidth: 600, margin: '0 auto', padding: '60px 20px', textAlign: 'center' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🏌️</div>
           <p style={{ color: '#9a3412' }}>{error}</p>
@@ -128,7 +129,7 @@ const PlayerProfilePage = () => {
     );
   }
 
-  const { name, handicap, description, avatar_url, has_avatar_image, last_played, created_at, available_days, game_history, badges, stats } = profile;
+  const { name, handicap, description, avatar_url, has_avatar_image, last_played, created_at, available_days, game_history, badges, total_badges, stats } = profile;
   const avatarSrc = has_avatar_image
     ? `${API_URL}/players/${playerId}/avatar${avatarVersion ? `?v=${avatarVersion}` : ''}`
     : avatar_url;
@@ -136,33 +137,34 @@ const PlayerProfilePage = () => {
   const badgesByRarity = [...badges].sort(
     (a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity)
   );
-  const lockedSlots = Math.max(0, LOCKED_SLOT_COUNT - badges.length);
+  const remainingBadges = Math.max(0, (total_badges ?? badges.length) - badges.length);
+  const lockedSlots = Math.min(remainingBadges, LOCKED_PREVIEW_COUNT);
 
   return (
-    <div className="wgp-profile">
-      <div className="wgp-profile__inner">
+    <div className="wgp-clubhouse wgp-profile">
+      <div className="wgp-clubhouse__inner wgp-profile__inner">
 
         {/* Header */}
-        <div className="wgp-profile__section">
+        <div className="wgp-clubhouse__section">
           <div className="wgp-profile__header-row">
             <div
-              className={`wgp-profile__avatar-frame${isOwnProfile ? ' wgp-profile__avatar-frame--clickable' : ''}`}
+              className={`wgp-clubhouse__avatar-frame${isOwnProfile ? ' wgp-clubhouse__avatar-frame--clickable' : ''}`}
               onClick={() => isOwnProfile && fileInputRef.current?.click()}
               title={isOwnProfile ? 'Change photo' : undefined}
             >
               {avatarSrc ? (
                 <img
-                  className="wgp-profile__avatar"
+                  className="wgp-clubhouse__avatar"
                   src={avatarSrc}
                   alt={name}
                   style={{ opacity: uploading ? 0.5 : 1 }}
                 />
               ) : (
-                <div className="wgp-profile__avatar-fallback" style={{ opacity: uploading ? 0.5 : 1 }}>
+                <div className="wgp-clubhouse__avatar-fallback" style={{ opacity: uploading ? 0.5 : 1 }}>
                   🏌️
                 </div>
               )}
-              {isOwnProfile && <div className="wgp-profile__camera-badge">📷</div>}
+              {isOwnProfile && <div className="wgp-clubhouse__camera-badge">📷</div>}
             </div>
             {isOwnProfile && (
               <input
@@ -205,15 +207,15 @@ const PlayerProfilePage = () => {
 
         {/* Bio */}
         {description && (
-          <div className="wgp-profile__section">
+          <div className="wgp-clubhouse__section">
             <p className="wgp-profile__bio">&ldquo;{description}&rdquo;</p>
           </div>
         )}
 
         {/* Availability days */}
         {available_days.length > 0 && (
-          <div className="wgp-profile__section">
-            <span className="wgp-profile__section-title">Plays on</span>
+          <div className="wgp-clubhouse__section">
+            <span className="wgp-clubhouse__section-title">Plays on</span>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {DAY_NAMES.map((d, i) => (
                 <span
@@ -228,12 +230,12 @@ const PlayerProfilePage = () => {
         )}
 
         {/* Game history — actual played/scored rounds */}
-        <div className="wgp-profile__section">
-          <span className="wgp-profile__section-title">
-            Game History {game_history.length > 0 && <span className="wgp-profile__section-count">({game_history.length})</span>}
+        <div className="wgp-clubhouse__section">
+          <span className="wgp-clubhouse__section-title">
+            Game History {game_history.length > 0 && <span className="wgp-clubhouse__section-count">({game_history.length})</span>}
           </span>
           {game_history.length === 0 ? (
-            <p className="wgp-profile__empty">No recorded rounds yet</p>
+            <p className="wgp-clubhouse__empty">No recorded rounds yet</p>
           ) : (
             <div className="wgp-profile__ledger">
               {game_history.map((g, i) => (
@@ -252,9 +254,12 @@ const PlayerProfilePage = () => {
         </div>
 
         {/* Badges — always visible, even at zero, so the badge system is discoverable */}
-        <div className="wgp-profile__section">
-          <span className="wgp-profile__section-title">
-            Badges {badges.length > 0 && <span className="wgp-profile__section-count">({badges.length})</span>}
+        <div className="wgp-clubhouse__section">
+          <span className="wgp-clubhouse__section-title">
+            Badges{' '}
+            <span className="wgp-clubhouse__section-count">
+              ({badges.length}{total_badges != null ? ` of ${total_badges}` : ''})
+            </span>
           </span>
           <div className="wgp-profile__badges">
             {badgesByRarity.map((b, i) => (
@@ -274,6 +279,9 @@ const PlayerProfilePage = () => {
           </div>
           {badges.length === 0 && (
             <p className="wgp-profile__badges-hint">No badges earned yet — keep playing to unlock some!</p>
+          )}
+          {badges.length > 0 && remainingBadges > 0 && (
+            <p className="wgp-profile__badges-hint">{remainingBadges} more to unlock</p>
           )}
         </div>
       </div>

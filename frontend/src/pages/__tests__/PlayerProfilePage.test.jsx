@@ -29,6 +29,7 @@ const baseProfile = {
     { date: '2026-06-06', location: 'Wingpoint', score: -2, duration: null, source: 'member' },
   ],
   badges: [],
+  total_badges: 33,
   stats: { games_played: 2, games_won: 1, total_earnings: 200, solo_wins: 0 },
 };
 

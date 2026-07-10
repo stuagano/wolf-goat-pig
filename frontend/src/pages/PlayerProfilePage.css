@@ -1,111 +1,19 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&display=swap');
-
 /*
-  "Clubhouse Ledger" — a nod to a century-old member ledger/scorecard book:
-  parchment paper, brass rules, forest-green felt, wax-seal badge medallions.
-  Reuses the app's existing green/gold/sand palette (theme.js) rather than
-  inventing a new one.
+  Page-specific pieces of the "Clubhouse Ledger" look for the profile page —
+  shared variables/classes (parchment background, section cards, avatar
+  ring, fonts) live in ../styles/clubhouse-theme.css.
 */
-
-.wgp-profile {
-  --wgp-ink: #1f2937;
-  --wgp-ink-soft: #57534e;
-  --wgp-paper: #fffdf8;
-  --wgp-parchment: #faf6ec;
-  --wgp-brass: #b45309;
-  --wgp-brass-soft: rgba(180, 83, 9, 0.35);
-  --wgp-green: #065f46;
-  --wgp-green-soft: rgba(6, 95, 70, 0.1);
-  --wgp-rule: rgba(6, 95, 70, 0.14);
-  --wgp-loss: #9a3412;
-  background: var(--wgp-parchment);
-  background-image:
-    radial-gradient(circle at 12% 8%, rgba(6, 95, 70, 0.05), transparent 40%),
-    radial-gradient(circle at 88% 92%, rgba(180, 83, 9, 0.05), transparent 45%);
-  min-height: 100%;
-}
-
-:root[data-theme='dark'] .wgp-profile {
-  --wgp-ink: #f1efe9;
-  --wgp-ink-soft: #b8b2a4;
-  --wgp-paper: #17251f;
-  --wgp-parchment: #0d1613;
-  --wgp-brass: #e0a34e;
-  --wgp-brass-soft: rgba(224, 163, 78, 0.3);
-  --wgp-green: #34d399;
-  --wgp-green-soft: rgba(52, 211, 153, 0.12);
-  --wgp-rule: rgba(52, 211, 153, 0.16);
-  --wgp-loss: #f87171;
-  background-image:
-    radial-gradient(circle at 12% 8%, rgba(52, 211, 153, 0.07), transparent 40%),
-    radial-gradient(circle at 88% 92%, rgba(224, 163, 78, 0.06), transparent 45%);
-}
 
 .wgp-profile__inner {
   max-width: 640px;
-  margin: 0 auto;
-  padding: 20px 16px 40px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  color: var(--wgp-ink);
 }
 
-@keyframes wgp-rise {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.wgp-profile__section {
-  background: var(--wgp-paper);
-  border: 1px solid var(--wgp-brass-soft);
-  box-shadow: 0 0 0 3px var(--wgp-green-soft), 0 10px 24px rgba(6, 95, 70, 0.08);
-  border-radius: 14px;
-  padding: 22px;
-  margin-bottom: 16px;
-  animation: wgp-rise 0.5s ease both;
-}
-
-.wgp-profile__inner > .wgp-profile__section:nth-of-type(1) { animation-delay: 0.02s; }
-.wgp-profile__inner > .wgp-profile__section:nth-of-type(2) { animation-delay: 0.08s; }
-.wgp-profile__inner > .wgp-profile__section:nth-of-type(3) { animation-delay: 0.14s; }
-.wgp-profile__inner > .wgp-profile__section:nth-of-type(4) { animation-delay: 0.2s; }
-.wgp-profile__inner > .wgp-profile__section:nth-of-type(5) { animation-delay: 0.26s; }
-.wgp-profile__inner > .wgp-profile__section:nth-of-type(6) { animation-delay: 0.32s; }
-
-.wgp-profile__section-title {
-  font-family: 'Fraunces', Georgia, serif;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--wgp-green);
-  margin: 0 0 16px;
-  display: inline-block;
-  position: relative;
-  padding-bottom: 6px;
-}
-
-.wgp-profile__section-title::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 32px;
-  height: 2px;
-  background: var(--wgp-brass);
-  border-radius: 2px;
-}
-
-.wgp-profile__section-count {
-  font-weight: 400;
-  color: var(--wgp-ink-soft);
-  font-size: 13px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-.wgp-profile__empty {
-  margin: 0;
-  color: var(--wgp-ink-soft);
-  font-style: italic;
-  font-size: 13px;
-}
+.wgp-profile__inner > .wgp-clubhouse__section:nth-of-type(1) { animation-delay: 0.02s; }
+.wgp-profile__inner > .wgp-clubhouse__section:nth-of-type(2) { animation-delay: 0.08s; }
+.wgp-profile__inner > .wgp-clubhouse__section:nth-of-type(3) { animation-delay: 0.14s; }
+.wgp-profile__inner > .wgp-clubhouse__section:nth-of-type(4) { animation-delay: 0.2s; }
+.wgp-profile__inner > .wgp-clubhouse__section:nth-of-type(5) { animation-delay: 0.26s; }
+.wgp-profile__inner > .wgp-clubhouse__section:nth-of-type(6) { animation-delay: 0.32s; }
 
 /* ---- Header ---- */
 
@@ -115,60 +23,14 @@
   gap: 18px;
 }
 
-.wgp-profile__avatar-frame {
-  position: relative;
-  flex-shrink: 0;
-}
-
-.wgp-profile__avatar-frame--clickable {
-  cursor: pointer;
-}
-
-.wgp-profile__avatar {
+.wgp-profile__header-row .wgp-clubhouse__avatar,
+.wgp-profile__header-row .wgp-clubhouse__avatar-fallback {
   width: 68px;
   height: 68px;
-  border-radius: 50%;
-  object-fit: cover;
-  display: block;
-  box-shadow:
-    0 0 0 2px var(--wgp-paper),
-    0 0 0 4px var(--wgp-brass),
-    0 0 0 6px var(--wgp-green-soft);
-  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
-.wgp-profile__avatar-frame--clickable:hover .wgp-profile__avatar {
-  transform: scale(1.03);
-}
-
-.wgp-profile__avatar-fallback {
-  width: 68px;
-  height: 68px;
-  border-radius: 50%;
-  background: var(--wgp-green-soft);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.wgp-profile__header-row .wgp-clubhouse__avatar-fallback {
   font-size: 28px;
-  box-shadow:
-    0 0 0 2px var(--wgp-paper),
-    0 0 0 4px var(--wgp-brass),
-    0 0 0 6px var(--wgp-green-soft);
-}
-
-.wgp-profile__camera-badge {
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--wgp-green);
-  border: 2px solid var(--wgp-paper);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
 }
 
 .wgp-profile__name {
@@ -283,7 +145,7 @@
   box-shadow: 0 2px 6px var(--wgp-green-soft);
 }
 
-/* ---- Ledger rows (match/game history) ---- */
+/* ---- Ledger rows (game history) ---- */
 
 .wgp-profile__ledger {
   display: flex;
@@ -400,4 +262,26 @@
   font-size: 12px;
   color: var(--wgp-ink-soft);
   font-style: italic;
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 480px) {
+  .wgp-profile__name {
+    font-size: 21px;
+  }
+
+  .wgp-profile__header-row .wgp-clubhouse__avatar,
+  .wgp-profile__header-row .wgp-clubhouse__avatar-fallback {
+    width: 56px;
+    height: 56px;
+  }
+
+  .wgp-profile__stat-value {
+    font-size: 20px;
+  }
+
+  .wgp-clubhouse__section {
+    padding: 16px;
+  }
 }

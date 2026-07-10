@@ -503,6 +503,7 @@ def get_public_player_profile(
         }
         for pbe, b in badge_rows
     ]
+    total_badges = db.query(models.Badge).count()
 
     # Game history — actual played/scored rounds (sheet-synced + in-app).
     game_history = []
@@ -531,6 +532,7 @@ def get_public_player_profile(
         "available_days": available_days,
         "game_history": game_history,
         "badges": badges,
+        "total_badges": total_badges,
         "stats": {
             "games_played": stats.games_played if stats else 0,
             "games_won": stats.games_won if stats else 0,
