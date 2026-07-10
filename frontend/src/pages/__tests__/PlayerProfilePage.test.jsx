@@ -83,6 +83,39 @@ describe('PlayerProfilePage game history', () => {
 
     expect(await screen.findByText(/No recorded rounds yet/)).toBeInTheDocument();
   });
+
+  test('a round with hole-by-hole data expands to show it on click; the nudge appears for the rest', async () => {
+    mockUsePlayerProfile.mockReturnValue({ profile: { id: 999 } });
+    global.fetch = vi.fn(async (url) => {
+      if (String(url).includes('/public-profile')) {
+        return {
+          ok: true,
+          json: async () => ({
+            ...baseProfile,
+            game_history: [
+              {
+                date: '2026-06-13', location: 'Wingpoint', score: 4, source: 'database',
+                holes: [{ hole: 1, quarters: 2, gross_score: 4 }, { hole: 2, quarters: -1, gross_score: 6 }],
+              },
+              { date: '2026-06-06', location: 'Wingpoint', score: -2, source: 'primary_sheet', holes: null },
+            ],
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+    renderPage();
+
+    expect(await screen.findByText('▾ hole-by-hole')).toBeInTheDocument();
+    expect(screen.queryByText('+2')).toBeNull(); // collapsed by default
+
+    fireEvent.click(screen.getByText('▾ hole-by-hole'));
+    expect(screen.getByText('+2')).toBeInTheDocument();
+    expect(screen.getByText('-1')).toBeInTheDocument();
+
+    expect(screen.getByText(/Score live in the app or scan your scorecard/)).toBeInTheDocument();
+    expect(screen.getByText(/1 of 2 rounds already have it/)).toBeInTheDocument();
+  });
 });
 
 describe('PlayerProfilePage badges', () => {

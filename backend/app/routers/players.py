@@ -523,6 +523,16 @@ def get_public_player_profile(
                 "score": r.score,
                 "duration": r.duration,
                 "source": r.source,
+                # Only ever present for rounds scored live in the app or via
+                # scorecard scan — legacy sheet rounds are a total only.
+                "holes": (
+                    [
+                        {"hole": h.get("hole"), "quarters": h.get("quarters"), "gross_score": h.get("gross_score")}
+                        for h in sorted(r.hole_scores, key=lambda h: h.get("hole") or 0)
+                    ]
+                    if r.hole_scores
+                    else None
+                ),
             }
             for r in rounds[:20]
         ]

@@ -160,8 +160,13 @@
   border-bottom: 1px solid var(--wgp-rule);
 }
 
-.wgp-profile__ledger-row:last-child {
+.wgp-profile__ledger-item:last-child .wgp-profile__ledger-row,
+.wgp-profile__ledger-item:last-child .wgp-profile__holes-grid {
   border-bottom: none;
+}
+
+.wgp-profile__ledger-row--clickable {
+  cursor: pointer;
 }
 
 .wgp-profile__ledger-primary {
@@ -175,6 +180,41 @@
   font-size: 12px;
   font-weight: 400;
   color: var(--wgp-ink-soft);
+}
+
+.wgp-profile__ledger-expand-hint {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--wgp-green);
+}
+
+.wgp-profile__holes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+  gap: 6px;
+  padding: 4px 4px 14px;
+  border-bottom: 1px solid var(--wgp-rule);
+}
+
+.wgp-profile__hole-cell {
+  text-align: center;
+  background: var(--wgp-green-soft);
+  border-radius: 6px;
+  padding: 4px 2px;
+}
+
+.wgp-profile__hole-num {
+  font-size: 10px;
+  color: var(--wgp-ink-soft);
+  text-transform: uppercase;
+}
+
+.wgp-profile__hole-quarters {
+  font-family: 'Fraunces', Georgia, serif;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .wgp-profile__score {

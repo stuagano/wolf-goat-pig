@@ -41,6 +41,67 @@ class TestUnifiedRound:
         r2 = UnifiedRound("6-Apr", "2026-04-06", "A", "Jeff", 4, "Wing Point")
         assert r1 != r2
 
+    def test_hole_scores_defaults_to_none(self):
+        assert UnifiedRound("6-Apr", "2026-04-06", "A", "Stuart", 4, "Wing Point").hole_scores is None
+
+
+# ── hole-by-hole detail: only real for in-app/scanned rounds, never legacy sheet ──
+
+
+class TestHoleScoresPlumbing:
+    def test_legacy_round_with_empty_dict_hole_scores_has_none(self):
+        """The model default (and every real writer) leaves this as {} — never
+        a populated list — so it must come through as None, not a truthy {}."""
+        svc = make_service()
+        row = MagicMock(
+            date="2026-04-06", group="A", member="Stuart", score=4, location="Wing Point", duration=None, hole_scores={}
+        )
+
+        unified = svc._legacy_round_to_unified(row)
+
+        assert unified.hole_scores is None
+
+    def test_legacy_round_with_populated_list_passes_through(self):
+        svc = make_service()
+        holes = [{"hole": 1, "quarters": 2}]
+        row = MagicMock(
+            date="2026-04-06",
+            group="A",
+            member="Stuart",
+            score=4,
+            location="Wing Point",
+            duration=None,
+            hole_scores=holes,
+        )
+
+        unified = svc._legacy_round_to_unified(row)
+
+        assert unified.hole_scores == holes
+
+    def test_db_result_with_real_hole_scores_passes_through(self):
+        svc = make_service()
+        holes = [{"hole": 1, "quarters": 2, "gross_score": 5}, {"hole": 2, "quarters": -1, "gross_score": 4}]
+        result = MagicMock(player_name="Stuart", total_earnings=1.0, hole_scores=holes)
+        record = MagicMock(
+            completed_at="2026-04-06T12:00:00", created_at=None, course_name="Wing Point", game_duration_minutes=None
+        )
+
+        unified = svc._db_result_to_unified(result, record)
+
+        assert unified.hole_scores == holes
+        assert unified.source == "database"
+
+    def test_db_result_with_empty_hole_scores_has_none(self):
+        svc = make_service()
+        result = MagicMock(player_name="Stuart", total_earnings=1.0, hole_scores=[])
+        record = MagicMock(
+            completed_at="2026-04-06T12:00:00", created_at=None, course_name="Wing Point", game_duration_minutes=None
+        )
+
+        unified = svc._db_result_to_unified(result, record)
+
+        assert unified.hole_scores is None
+
 
 # ── UnifiedLeaderboardEntry ───────────────────────────────────────────────────
 

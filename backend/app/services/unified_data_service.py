@@ -37,6 +37,10 @@ class UnifiedRound:
     location: str
     duration: str | None = None
     source: str = "unknown"  # "primary_sheet", "writable_sheet", "database"
+    # Per-hole detail — only ever populated for rounds scored live in the app
+    # or recorded via scorecard scan (both write real GamePlayerResult rows).
+    # Legacy/sheet-only rounds never have this; it's just a running total.
+    hole_scores: list[dict[str, Any]] | None = None
 
     def __hash__(self):
         """Hash for deduplication - same date/group/member/score is same round."""
@@ -133,6 +137,7 @@ class UnifiedDataService:
             location=r.location,
             duration=r.duration,
             source=r.source,
+            hole_scores=r.hole_scores if isinstance(r.hole_scores, list) and r.hole_scores else None,
         )
 
     def _db_result_to_unified(self, result: GamePlayerResult, record: GameRecord) -> UnifiedRound:
@@ -158,6 +163,7 @@ class UnifiedDataService:
             location=record.course_name or "Unknown",
             duration=(f"{record.game_duration_minutes}:00" if record.game_duration_minutes else None),
             source="database",
+            hole_scores=result.hole_scores if isinstance(result.hole_scores, list) and result.hole_scores else None,
         )
 
     def get_all_rounds(

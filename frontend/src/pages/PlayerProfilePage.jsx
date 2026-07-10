@@ -44,6 +44,7 @@ const PlayerProfilePage = () => {
   const [avatarVersion, setAvatarVersion] = useState(0);
   const [togglingBadgeId, setTogglingBadgeId] = useState(null);
   const [showcaseError, setShowcaseError] = useState(null);
+  const [expandedRound, setExpandedRound] = useState(null);
 
   const load = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -164,6 +165,8 @@ const PlayerProfilePage = () => {
   const remainingBadges = Math.max(0, (total_badges ?? badges.length) - badges.length);
   const lockedSlots = Math.min(remainingBadges, LOCKED_PREVIEW_COUNT);
 
+  const roundsWithoutDetail = game_history.filter(g => !g.holes || g.holes.length === 0).length;
+
   return (
     <div className="wgp-clubhouse wgp-profile">
       <div className="wgp-clubhouse__inner wgp-profile__inner">
@@ -262,18 +265,46 @@ const PlayerProfilePage = () => {
             <p className="wgp-clubhouse__empty">No recorded rounds yet</p>
           ) : (
             <div className="wgp-profile__ledger">
-              {game_history.map((g, i) => (
-                <div key={`${g.date}-${i}`} className="wgp-profile__ledger-row">
-                  <div className="wgp-profile__ledger-primary">
-                    {formatGameDate(g.date)}
-                    {g.location && <span className="wgp-profile__ledger-secondary">{g.location}</span>}
+              {game_history.map((g, i) => {
+                const hasHoleDetail = Array.isArray(g.holes) && g.holes.length > 0;
+                const isExpanded = expandedRound === i;
+                return (
+                  <div key={`${g.date}-${i}`} className="wgp-profile__ledger-item">
+                    <div
+                      className={`wgp-profile__ledger-row${hasHoleDetail ? ' wgp-profile__ledger-row--clickable' : ''}`}
+                      onClick={() => hasHoleDetail && setExpandedRound(isExpanded ? null : i)}
+                    >
+                      <div className="wgp-profile__ledger-primary">
+                        {formatGameDate(g.date)}
+                        {g.location && <span className="wgp-profile__ledger-secondary">{g.location}</span>}
+                        {hasHoleDetail && <span className="wgp-profile__ledger-expand-hint">{isExpanded ? '▲' : '▾'} hole-by-hole</span>}
+                      </div>
+                      <span className={`wgp-profile__score ${g.score >= 0 ? 'wgp-profile__score--win' : 'wgp-profile__score--loss'}`}>
+                        {formatScore(g.score)}
+                      </span>
+                    </div>
+                    {hasHoleDetail && isExpanded && (
+                      <div className="wgp-profile__holes-grid">
+                        {g.holes.map(h => (
+                          <div key={h.hole} className="wgp-profile__hole-cell">
+                            <div className="wgp-profile__hole-num">{h.hole}</div>
+                            <div className={`wgp-profile__hole-quarters ${h.quarters >= 0 ? 'wgp-profile__score--win' : 'wgp-profile__score--loss'}`}>
+                              {formatScore(h.quarters)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <span className={`wgp-profile__score ${g.score >= 0 ? 'wgp-profile__score--win' : 'wgp-profile__score--loss'}`}>
-                    {formatScore(g.score)}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
+          )}
+          {roundsWithoutDetail > 0 && (
+            <p className="wgp-profile__badges-hint">
+              💡 Score live in the app or scan your scorecard to capture hole-by-hole detail for future rounds
+              {game_history.length > roundsWithoutDetail ? ` (${game_history.length - roundsWithoutDetail} of ${game_history.length} rounds already have it)` : ''}.
+            </p>
           )}
         </div>
 

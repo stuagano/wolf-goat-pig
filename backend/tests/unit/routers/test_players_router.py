@@ -105,6 +105,54 @@ class TestPublicProfile:
         resp = client.get("/players/999999/public-profile")
         assert resp.status_code == 404
 
+    def test_public_profile_exposes_hole_by_hole_only_when_present(self):
+        """A round with real hole_scores (in-app/scanned) surfaces per-hole detail
+        under 'holes'; a legacy-sheet-only round (hole_scores=None) does not."""
+        from unittest.mock import MagicMock, patch
+
+        from app.services.unified_data_service import UnifiedRound
+
+        create = client.post("/players", json={"name": unique_name("HoleDetail"), "handicap": 12.0})
+        player_id = create.json()["id"]
+
+        rounds = [
+            UnifiedRound(
+                date="6-Apr",
+                date_sortable="2026-04-06",
+                group="A",
+                member=create.json()["name"],
+                score=4,
+                location="Wing Point",
+                source="database",
+                hole_scores=[
+                    {"hole": 2, "quarters": -1, "gross_score": 6},
+                    {"hole": 1, "quarters": 2, "gross_score": 4},
+                ],
+            ),
+            UnifiedRound(
+                date="1-Apr",
+                date_sortable="2026-04-01",
+                group="A",
+                member=create.json()["name"],
+                score=-2,
+                location="Wing Point",
+                source="primary_sheet",
+            ),
+        ]
+        fake_service = MagicMock()
+        fake_service.get_player_history.return_value = rounds
+
+        with patch("app.routers.players.get_unified_data_service", return_value=fake_service):
+            resp = client.get(f"/players/{player_id}/public-profile")
+
+        assert resp.status_code == 200
+        history = resp.json()["game_history"]
+        assert history[0]["holes"] == [
+            {"hole": 1, "quarters": 2, "gross_score": 4},
+            {"hole": 2, "quarters": -1, "gross_score": 6},
+        ]
+        assert history[1]["holes"] is None
+
 
 # ── PUT /players/{player_id} ──────────────────────────────────────────────────
 
