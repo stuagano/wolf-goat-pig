@@ -465,9 +465,9 @@ def get_player_avatar(player_id: int, db: Session = Depends(get_db)) -> Response
 def get_public_player_profile(
     player_id: int,
     db: Session = Depends(get_db),
-    current_user: models.PlayerProfile = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Public profile visible to all authenticated WGP members."""
+    """Public profile — no auth required. Returns only non-sensitive fields
+    (no email, venmo, or GHIN id)."""
     player = db.query(models.PlayerProfile).filter(models.PlayerProfile.id == player_id).first()
     if not player:
         from fastapi import HTTPException

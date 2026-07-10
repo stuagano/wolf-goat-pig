@@ -50,10 +50,7 @@ const PlayerProfilePage = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const token = await getAccessTokenSilently();
-      const res = await fetch(`${API_URL}/players/${playerId}/public-profile`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(`${API_URL}/players/${playerId}/public-profile`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.detail || `Player not found`);
@@ -79,7 +76,7 @@ const PlayerProfilePage = () => {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playerId, getAccessTokenSilently]);
+  }, [playerId]);
 
   const isOwnProfile = myProfile && String(myProfile.id) === String(playerId);
 

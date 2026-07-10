@@ -85,6 +85,27 @@ class TestGetPlayerById:
         assert resp.status_code == 404
 
 
+# ── GET /players/{player_id}/public-profile ───────────────────────────────────
+
+
+class TestPublicProfile:
+    def test_public_profile_requires_no_auth(self):
+        """Player profile pages are public — no Authorization header, no override."""
+        create = client.post("/players", json={"name": unique_name("PublicProfile"), "handicap": 12.0})
+        assert create.status_code in (200, 201)
+        player_id = create.json()["id"]
+
+        resp = client.get(f"/players/{player_id}/public-profile")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["id"] == player_id
+        assert "game_history" in body
+
+    def test_public_profile_nonexistent_player_returns_404(self):
+        resp = client.get("/players/999999/public-profile")
+        assert resp.status_code == 404
+
+
 # ── PUT /players/{player_id} ──────────────────────────────────────────────────
 
 

@@ -430,9 +430,7 @@ function App() {
               <Route path="/tee-sheet" element={<Navigate to="/signup?tab=wgp-signup" />} />
               <Route path="/find-a-game" element={<FindAGamePage />} />
               <Route path="/players" element={<PlayersRosterPage />} />
-              <Route path="/players/:playerId" element={
-                <ProtectedRoute><PlayerProfilePage /></ProtectedRoute>
-              } />
+              <Route path="/players/:playerId" element={<PlayerProfilePage />} />
               <Route path="/tee-times" element={<Navigate to="/signup" />} />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
