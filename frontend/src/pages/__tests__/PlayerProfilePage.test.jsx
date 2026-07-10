@@ -24,7 +24,6 @@ const baseProfile = {
   last_played: null,
   created_at: '2025-10-14T17:52:37.182507',
   available_days: [],
-  match_history: [],
   game_history: [
     { date: '2026-06-13', location: 'Wingpoint', score: 4, duration: '02:15:00', source: 'primary_sheet' },
     { date: '2026-06-06', location: 'Wingpoint', score: -2, duration: null, source: 'member' },

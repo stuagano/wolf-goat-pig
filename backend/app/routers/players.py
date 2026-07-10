@@ -480,37 +480,6 @@ def get_public_player_profile(
     )
     available_days = [a.day_of_week for a in availability_rows if a.is_available]
 
-    # Match history — confirmed matches (all players accepted)
-    match_players = db.query(models.MatchPlayer).filter(models.MatchPlayer.player_profile_id == player_id).all()
-    match_history = []
-    for mp in match_players:
-        suggestion = (
-            db.query(models.MatchSuggestion).filter(models.MatchSuggestion.id == mp.match_suggestion_id).first()
-        )
-        if not suggestion or suggestion.status not in ("accepted",):
-            continue
-        teammates = (
-            db.query(models.MatchPlayer)
-            .filter(
-                models.MatchPlayer.match_suggestion_id == mp.match_suggestion_id,
-                models.MatchPlayer.player_profile_id != player_id,
-            )
-            .all()
-        )
-        day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        match_history.append(
-            {
-                "match_id": suggestion.id,
-                "day_of_week": suggestion.day_of_week,
-                "day_name": day_names[suggestion.day_of_week],
-                "suggested_tee_time": suggestion.suggested_tee_time,
-                "status": suggestion.status,
-                "created_at": suggestion.created_at,
-                "players": [{"id": t.player_profile_id, "name": t.player_name} for t in teammates],
-            }
-        )
-    match_history.sort(key=lambda m: m["created_at"] or "", reverse=True)
-
     # Stats
     stats = db.query(models.PlayerStatistics).filter(models.PlayerStatistics.player_id == player_id).first()
 
@@ -535,8 +504,7 @@ def get_public_player_profile(
         for pbe, b in badge_rows
     ]
 
-    # Game history — actual played/scored rounds (sheet-synced + in-app), as
-    # opposed to match_history above which is scheduling/availability data.
+    # Game history — actual played/scored rounds (sheet-synced + in-app).
     game_history = []
     if player.legacy_name or player.name:
         rounds = get_unified_data_service(db=db).get_player_history(player.legacy_name or player.name)
@@ -561,7 +529,6 @@ def get_public_player_profile(
         "last_played": player.last_played,
         "created_at": player.created_at,
         "available_days": available_days,
-        "match_history": match_history[:20],
         "game_history": game_history,
         "badges": badges,
         "stats": {

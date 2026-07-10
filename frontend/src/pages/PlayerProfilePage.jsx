@@ -8,7 +8,6 @@ import './PlayerProfilePage.css';
 const API_URL = apiConfig.baseUrl;
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const DAY_NAMES_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const RARITY_ORDER = ['mythic', 'legendary', 'epic', 'rare', 'common'];
 const LOCKED_SLOT_COUNT = 4;
@@ -129,7 +128,7 @@ const PlayerProfilePage = () => {
     );
   }
 
-  const { name, handicap, description, avatar_url, has_avatar_image, last_played, created_at, available_days, match_history, game_history, badges, stats } = profile;
+  const { name, handicap, description, avatar_url, has_avatar_image, last_played, created_at, available_days, game_history, badges, stats } = profile;
   const avatarSrc = has_avatar_image
     ? `${API_URL}/players/${playerId}/avatar${avatarVersion ? `?v=${avatarVersion}` : ''}`
     : avatar_url;
@@ -227,45 +226,6 @@ const PlayerProfilePage = () => {
             </div>
           </div>
         )}
-
-        {/* Match history */}
-        <div className="wgp-profile__section">
-          <span className="wgp-profile__section-title">
-            Match History {match_history.length > 0 && <span className="wgp-profile__section-count">({match_history.length})</span>}
-          </span>
-          {match_history.length === 0 ? (
-            <p className="wgp-profile__empty">No confirmed matches yet</p>
-          ) : (
-            <div className="wgp-profile__ledger">
-              {match_history.map(m => (
-                <div key={m.match_id} className="wgp-profile__ledger-row">
-                  <div>
-                    <div className="wgp-profile__ledger-primary">
-                      {DAY_NAMES_FULL[m.day_of_week]}
-                      {m.suggested_tee_time && (
-                        <span className="wgp-profile__ledger-secondary">{m.suggested_tee_time}</span>
-                      )}
-                    </div>
-                    {m.players.length > 0 && (
-                      <div className="wgp-profile__ledger-sub">
-                        with{' '}
-                        {m.players.map((p, i) => (
-                          <span key={p.id}>
-                            <button onClick={() => navigate(`/players/${p.id}`)} className="wgp-profile__link">
-                              {p.name}
-                            </button>
-                            {i < m.players.length - 1 ? ', ' : ''}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <span className="wgp-profile__confirmed">✓ Confirmed</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
 
         {/* Game history — actual played/scored rounds */}
         <div className="wgp-profile__section">
