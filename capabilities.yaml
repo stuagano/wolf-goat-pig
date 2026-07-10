@@ -404,7 +404,7 @@ capabilities:
     - backend/app/badge_engine.py
     check:
       shell: cd backend && venv/bin/python -m pytest tests/unit/routers/test_badge_routes.py
-        -q -p no:cacheprovider
+        tests/unit/test_badge_engine.py -q -p no:cacheprovider
   - id: matchmaking-pairs
     description: matchmaking pairs players per its algorithm and respects constraints
     given: the relevant logic and its unit tests

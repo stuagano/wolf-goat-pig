@@ -764,3 +764,39 @@ async def run_database_migration(
             status_code=400,
             detail=f"Unknown migration: {migration}. Available: add_statistics_columns, add_missing_columns",
         )
+
+
+@router.post("/admin/badges/backfill-career")
+def backfill_career_badges(
+    x_admin_email: str = Header(None),  # type: ignore
+    db: Session = Depends(database.get_db),
+):
+    """Award career-milestone badges (earnings/games-played tiers, etc.) to every
+    active player from their current PlayerStatistics (admin only).
+
+    One-time/on-demand backfill for players whose history is legacy sheet
+    rounds — those never trigger the normal post-game badge check, which
+    requires a GamePlayerResult row. Safe to re-run: already-earned badges
+    are skipped.
+    """
+    require_admin(x_admin_email)
+
+    from ..badge_engine import BadgeEngine
+
+    engine = BadgeEngine(db)
+    players = db.query(models.PlayerProfile).filter(models.PlayerProfile.is_active == 1).all()
+
+    players_checked = 0
+    awards: list[dict[str, Any]] = []
+    for player in players:
+        players_checked += 1
+        try:
+            earned = engine.check_career_achievements(int(player.id))
+        except Exception as e:
+            logger.error(f"Career badge backfill failed for player {player.id}: {e}")
+            continue
+        for pbe in earned:
+            badge = db.query(models.Badge).filter_by(id=pbe.badge_id).first()
+            awards.append({"player_id": player.id, "player_name": player.name, "badge": badge.name if badge else None})
+
+    return {"players_checked": players_checked, "badges_awarded": len(awards), "awards": awards}

@@ -103,8 +103,11 @@ class BadgeEngine:
 
         # Check each badge
         for badge in active_badges:
-            # Skip if player already has this badge (for one-time achievements)
-            if badge.trigger_type == "one_time" and self._player_has_badge(player_profile_id, int(badge.id)):
+            # Skip if player already has this badge — a badge is earned once,
+            # regardless of trigger_type (career-milestone conditions like
+            # "games_played >= 10" stay true forever, so without this check
+            # every later game would re-award e.g. "Rookie" as a duplicate row).
+            if self._player_has_badge(player_profile_id, int(badge.id)):
                 continue
 
             # Check if badge trigger condition is in our checkers
@@ -128,6 +131,56 @@ class BadgeEngine:
 
         # Update badge progress for progression badges
         self._update_progression_badges(player_profile_id, player_stats)
+
+        return earned_badges
+
+    # Checkers whose logic only reads `stats` (PlayerStatistics) — never the
+    # per-game `result`/`game` args — so they're safe to evaluate without a
+    # GamePlayerResult row. Everything else (solo streaks, hole-in-one, four
+    # horsemen, ...) needs real per-hole/per-bet data that legacy sheet rounds
+    # never captured, so it correctly stays locked until played in-app.
+    STATS_ONLY_TRIGGERS = {
+        "first_solo_win",
+        "career_solo_50",
+        "first_partnership",
+        "perfect_partnership_rate",
+        "earnings_milestone",
+        "games_played_milestone",
+        "holes_won_milestone",
+        "win_rate_badge",
+    }
+
+    def check_career_achievements(self, player_profile_id: int) -> list[PlayerBadgeEarned]:
+        """Award any stats-only badges a player already qualifies for from their
+        current PlayerStatistics — independent of any specific GameRecord.
+
+        Used to backfill badges for players whose history is legacy/sheet
+        rounds (no GamePlayerResult row, so check_post_game_achievements never
+        runs for them) but whose career totals already clear a milestone.
+        """
+        earned_badges: list[PlayerBadgeEarned] = []
+
+        stats = self.db.query(PlayerStatistics).filter_by(player_id=player_profile_id).first()
+        if not stats:
+            return earned_badges
+
+        active_badges = self.db.query(Badge).filter_by(is_active=True).all()
+
+        for badge in active_badges:
+            trigger = badge.trigger_condition.get("type") if badge.trigger_condition else None
+            if trigger not in self.STATS_ONLY_TRIGGERS:
+                continue
+            if self._player_has_badge(player_profile_id, int(badge.id)):
+                continue
+
+            checker_func = self.badge_checkers[trigger]
+            if checker_func(player_profile_id, stats, None, None, badge):
+                earned_badge = self._award_badge(player_profile_id=player_profile_id, badge_id=int(badge.id))
+                if earned_badge:
+                    earned_badges.append(earned_badge)
+                    self._check_series_completion(player_profile_id, badge)
+
+        self._update_progression_badges(player_profile_id, stats)
 
         return earned_badges
 
@@ -545,7 +598,6 @@ class BadgeEngine:
             earned_at=utc_now().isoformat(),
             game_record_id=game_record_id,
             serial_number=serial_number,
-            is_minted=False,
             created_at=utc_now().isoformat(),
         )
 
