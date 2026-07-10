@@ -34,10 +34,15 @@ export default defineConfig({
       env: {
         VITE_API_URL: 'http://localhost:8333',
         VITE_USE_MOCK_AUTH: 'true',
+        // AuthContext.jsx hard-throws (crashing the whole app) if these are
+        // unset — dummy values are fine since Auth0Provider doesn't hit the
+        // network until something actually calls login/getAccessTokenSilently.
+        VITE_AUTH0_DOMAIN: 'test.auth0.com',
+        VITE_AUTH0_CLIENT_ID: 'test-e2e-client-id',
       },
     },
     {
-      command: 'python3 -m uvicorn app.main:app --port 8333',
+      command: 'venv/bin/python -m uvicorn app.main:app --port 8333',
       port: 8333,
       timeout: 300 * 1000,
       reuseExistingServer: true,

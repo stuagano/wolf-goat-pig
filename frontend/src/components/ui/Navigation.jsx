@@ -5,6 +5,22 @@ import { useTheme } from '../../theme/Provider';
 import NotificationBell from './NotificationBell';
 import { isAdminEmail } from '../../utils/adminAuth';
 
+// Single source of truth for this component's stacking order. A child's
+// z-index only competes within its own parent's stacking context — it was
+// exactly this that broke the desktop "More" dropdown once already: NAV had
+// a low z-index while the click-outside overlay was a page-level sibling
+// with a higher one, so the overlay covered the whole nav (dropdown
+// included) despite the dropdown's own much higher z-index.
+// Constraint that must hold: NAV > DESKTOP_DROPDOWN_OVERLAY.
+const Z_INDEX = {
+  DESKTOP_DROPDOWN_OVERLAY: 999, // page-level "click outside to close" catcher
+  MOBILE_TAB_BAR: 1000,
+  MOBILE_SHEET_OVERLAY: 1001,
+  MOBILE_SHEET: 1002,
+  DESKTOP_DROPDOWN_MENU: 1000, // scoped inside NAV's own stacking context
+  NAV: 1500, // must beat DESKTOP_DROPDOWN_OVERLAY — see comment above
+};
+
 const Navigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -122,12 +138,7 @@ const Navigation = () => {
     marginBottom: isMobile ? 0 : 20,
     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
     position: 'relative',
-    // Must outrank the desktop "click outside to close" overlay (z-index 999,
-    // a page-level sibling) — otherwise that overlay sits on top of this whole
-    // stacking context (dropdown included, despite its own z-index: 1000)
-    // and swallows every click inside the "More" dropdown before it reaches
-    // the menu items.
-    zIndex: 1500
+    zIndex: Z_INDEX.NAV
   };
 
   const navContainerStyle = {
@@ -165,7 +176,7 @@ const Navigation = () => {
     justifyContent: 'space-around',
     alignItems: 'center',
     padding: '8px 0 env(safe-area-inset-bottom, 8px)',
-    zIndex: 1000,
+    zIndex: Z_INDEX.MOBILE_TAB_BAR,
     boxShadow: '0 -2px 10px rgba(0,0,0,0.1)'
   };
 
@@ -218,7 +229,7 @@ const Navigation = () => {
     right: 0,
     bottom: 0,
     background: 'rgba(0,0,0,0.5)',
-    zIndex: 1001,
+    zIndex: Z_INDEX.MOBILE_SHEET_OVERLAY,
     opacity: isMoreSheetOpen ? 1 : 0,
     visibility: isMoreSheetOpen ? 'visible' : 'hidden',
     transition: 'opacity 0.3s, visibility 0.3s'
@@ -234,7 +245,7 @@ const Navigation = () => {
     borderTopRightRadius: '20px',
     padding: '20px',
     paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 20px))',
-    zIndex: 1002,
+    zIndex: Z_INDEX.MOBILE_SHEET,
     transform: isMoreSheetOpen ? 'translateY(0)' : 'translateY(100%)',
     transition: 'transform 0.3s ease-out',
     maxHeight: '70vh',
@@ -353,7 +364,7 @@ const Navigation = () => {
                     boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
                     padding: '8px',
                     minWidth: '200px',
-                    zIndex: 1000
+                    zIndex: Z_INDEX.DESKTOP_DROPDOWN_MENU
                   }}>
                     {allNavLinks.filter(link => !link.primary).map((link) => {
                       if (link.external) {
@@ -635,7 +646,7 @@ const Navigation = () => {
             left: 0,
             right: 0,
             bottom: 0,
-            zIndex: 999
+            zIndex: Z_INDEX.DESKTOP_DROPDOWN_OVERLAY
           }}
           onClick={() => setIsMobileMenuOpen(false)}
         />
