@@ -122,7 +122,12 @@ const Navigation = () => {
     marginBottom: isMobile ? 0 : 20,
     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
     position: 'relative',
-    zIndex: 100
+    // Must outrank the desktop "click outside to close" overlay (z-index 999,
+    // a page-level sibling) — otherwise that overlay sits on top of this whole
+    // stacking context (dropdown included, despite its own z-index: 1000)
+    // and swallows every click inside the "More" dropdown before it reaches
+    // the menu items.
+    zIndex: 1500
   };
 
   const navContainerStyle = {
