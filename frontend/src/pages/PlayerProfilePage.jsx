@@ -42,9 +42,11 @@ const PlayerProfilePage = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
   const [avatarVersion, setAvatarVersion] = useState(0);
+  const [togglingBadgeId, setTogglingBadgeId] = useState(null);
+  const [showcaseError, setShowcaseError] = useState(null);
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await fetch(`${API_URL}/players/${playerId}/public-profile`);
       if (!res.ok) {
@@ -105,6 +107,27 @@ const PlayerProfilePage = () => {
     }
   };
 
+  const handleToggleShowcase = async (badgeEarnedId) => {
+    setTogglingBadgeId(badgeEarnedId);
+    setShowcaseError(null);
+    try {
+      const token = await getAccessTokenSilently();
+      const res = await fetch(`${API_URL}/api/badges/me/${badgeEarnedId}/showcase`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || 'Could not update showcase');
+      }
+      await load(true);
+    } catch (e) {
+      setShowcaseError(e.message);
+    } finally {
+      setTogglingBadgeId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="wgp-clubhouse wgp-profile">
@@ -134,9 +157,10 @@ const PlayerProfilePage = () => {
     ? `${API_URL}/players/${playerId}/avatar${avatarVersion ? `?v=${avatarVersion}` : ''}`
     : avatar_url;
 
-  const badgesByRarity = [...badges].sort(
-    (a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity)
-  );
+  const badgesByRarity = [...badges].sort((a, b) => {
+    if (a.showcased !== b.showcased) return a.showcased ? -1 : 1;
+    return RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity);
+  });
   const remainingBadges = Math.max(0, (total_badges ?? badges.length) - badges.length);
   const lockedSlots = Math.min(remainingBadges, LOCKED_PREVIEW_COUNT);
 
@@ -263,9 +287,16 @@ const PlayerProfilePage = () => {
           </span>
           <div className="wgp-profile__badges">
             {badgesByRarity.map((b, i) => (
-              <div key={i} className="wgp-profile__badge" title={b.description}>
+              <div
+                key={i}
+                className={`wgp-profile__badge${isOwnProfile ? ' wgp-profile__badge--clickable' : ''}`}
+                title={isOwnProfile ? (b.showcased ? 'Click to unequip' : 'Click to equip on your showcase') : b.description}
+                onClick={() => isOwnProfile && togglingBadgeId === null && handleToggleShowcase(b.id)}
+                style={{ opacity: togglingBadgeId === b.id ? 0.5 : 1 }}
+              >
                 <div className={`wgp-profile__medallion wgp-profile__medallion--${b.rarity || 'common'}`}>
                   {b.emoji || '🏅'}
+                  {b.showcased && <div className="wgp-profile__equipped-mark">★</div>}
                 </div>
                 <div className="wgp-profile__badge-name">{b.name}</div>
               </div>
@@ -277,11 +308,15 @@ const PlayerProfilePage = () => {
               </div>
             ))}
           </div>
+          {showcaseError && <div className="wgp-profile__upload-error">{showcaseError}</div>}
           {badges.length === 0 && (
             <p className="wgp-profile__badges-hint">No badges earned yet — keep playing to unlock some!</p>
           )}
           {badges.length > 0 && remainingBadges > 0 && (
             <p className="wgp-profile__badges-hint">{remainingBadges} more to unlock</p>
+          )}
+          {isOwnProfile && badges.length > 0 && (
+            <p className="wgp-profile__badges-hint">Click a badge to showcase it on your profile (up to 6)</p>
           )}
         </div>
       </div>

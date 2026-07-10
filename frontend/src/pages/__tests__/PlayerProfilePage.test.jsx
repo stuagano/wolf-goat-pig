@@ -118,6 +118,38 @@ describe('PlayerProfilePage badges', () => {
     expect(screen.getByText(/No badges earned yet/)).toBeInTheDocument();
     expect(screen.getAllByText('Locked').length).toBeGreaterThan(0);
   });
+
+  test('clicking a badge on your own profile equips it and does nothing on someone else\'s', async () => {
+    const badgeProfile = {
+      ...baseProfile,
+      badges: [{ id: 42, name: 'First Win', description: 'Won your first game', rarity: 'common', emoji: '🎉', showcased: false }],
+    };
+    global.fetch = vi.fn(async (url) => {
+      if (String(url).includes('/api/badges/me/42/showcase')) {
+        return { ok: true, json: async () => ({ showcased: true, position: 1 }) };
+      }
+      if (String(url).includes('/public-profile')) {
+        return { ok: true, json: async () => badgeProfile };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+
+    // Someone else's profile: clicking the badge must not call the showcase endpoint.
+    mockUsePlayerProfile.mockReturnValue({ profile: { id: 999 } });
+    const { unmount } = renderPage();
+    fireEvent.click(await screen.findByText('First Win'));
+    await new Promise(r => setTimeout(r, 0));
+    expect(global.fetch.mock.calls.some(([url]) => String(url).includes('/showcase'))).toBe(false);
+    unmount();
+
+    // Own profile: clicking equips it.
+    mockUsePlayerProfile.mockReturnValue({ profile: { id: 21 } });
+    renderPage();
+    fireEvent.click(await screen.findByText('First Win'));
+    await waitFor(() => {
+      expect(global.fetch.mock.calls.some(([url]) => String(url).includes('/api/badges/me/42/showcase'))).toBe(true);
+    });
+  });
 });
 
 describe('PlayerProfilePage avatar upload', () => {

@@ -20,8 +20,11 @@ from .models import (
     PlayerProfile,
     PlayerSeriesProgress,
 )
+from .services.auth_service import get_current_user
 
 router = APIRouter(prefix="/api/badges", tags=["badges"])
+
+MAX_SHOWCASE_SLOTS = 6
 
 
 # ====================================================================================
@@ -149,6 +152,47 @@ def get_player_earned_badges(player_id: int, showcase_only: bool = False, db: Se
             result.append({**earned.__dict__, "badge": badge})
 
     return result
+
+
+@router.post("/me/{earned_badge_id}/showcase")
+def toggle_showcase_badge(
+    earned_badge_id: int,
+    current_user: PlayerProfile = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Equip/unequip one of the current user's earned badges into their public
+    showcase (max 6, shown first on the profile page). Toggles: calling this
+    on an already-showcased badge un-equips it."""
+    earned = (
+        db.query(PlayerBadgeEarned)
+        .filter(
+            PlayerBadgeEarned.id == earned_badge_id,
+            PlayerBadgeEarned.player_profile_id == current_user.id,
+        )
+        .first()
+    )
+    if not earned:
+        raise HTTPException(status_code=404, detail="Badge not found")
+
+    if earned.showcase_position is not None:
+        earned.showcase_position = None
+        db.commit()
+        return {"showcased": False}
+
+    showcased_count = (
+        db.query(PlayerBadgeEarned)
+        .filter(
+            PlayerBadgeEarned.player_profile_id == current_user.id,
+            PlayerBadgeEarned.showcase_position.isnot(None),
+        )
+        .count()
+    )
+    if showcased_count >= MAX_SHOWCASE_SLOTS:
+        raise HTTPException(status_code=400, detail=f"Showcase is full (max {MAX_SHOWCASE_SLOTS})")
+
+    earned.showcase_position = showcased_count + 1
+    db.commit()
+    return {"showcased": True, "position": earned.showcase_position}
 
 
 @router.get("/player/{player_id}/progress", response_model=list[BadgeProgressResponse])

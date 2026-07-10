@@ -483,23 +483,30 @@ def get_public_player_profile(
     # Stats
     stats = db.query(models.PlayerStatistics).filter(models.PlayerStatistics.player_id == player_id).first()
 
-    # Badges
+    # Badges — showcased (equipped) ones first, in their chosen order, then
+    # the rest by most-recently-earned.
     badge_rows = (
         db.query(models.PlayerBadgeEarned, models.Badge)
         .join(models.Badge, models.PlayerBadgeEarned.badge_id == models.Badge.id)
         .filter(models.PlayerBadgeEarned.player_profile_id == player_id)
-        .order_by(models.PlayerBadgeEarned.earned_at.desc())
+        .order_by(
+            models.PlayerBadgeEarned.showcase_position.is_(None),
+            models.PlayerBadgeEarned.showcase_position,
+            models.PlayerBadgeEarned.earned_at.desc(),
+        )
         .limit(12)
         .all()
     )
     badges = [
         {
+            "id": pbe.id,
             "name": b.name,
             "description": b.description,
             "rarity": b.rarity,
             "category": b.category,
             "emoji": b.emoji,
             "earned_at": pbe.earned_at,
+            "showcased": pbe.showcase_position is not None,
         }
         for pbe, b in badge_rows
     ]

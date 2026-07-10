@@ -203,6 +203,27 @@
   align-items: center;
   text-align: center;
   gap: 6px;
+  transition: opacity 0.15s ease;
+}
+
+.wgp-profile__badge--clickable {
+  cursor: pointer;
+}
+
+.wgp-profile__equipped-mark {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--wgp-brass);
+  color: #fff;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .wgp-profile__medallion {
