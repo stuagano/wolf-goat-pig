@@ -28,8 +28,8 @@
     "waiver": null
   },
   "api-surface-no-drift": {
-    "at": "2026-07-10T21:11:58.941182+00:00",
-    "fingerprint": "sha256:4887aaed6afcc6b72c3fd4d8a82bd3401ac9e79d561d8dffe687c421c7d60c9f",
+    "at": "2026-07-10T21:59:23.066252+00:00",
+    "fingerprint": "sha256:d91da8bdca2a3e593d6632903b467a3c787585536c893a9911402b8548b639c1",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -56,8 +56,8 @@
     "waiver": null
   },
   "badges-awarded": {
-    "at": "2026-07-10T20:46:51.105385+00:00",
-    "fingerprint": "sha256:bb98b6711bb3621832e60049bcc6827f6f46d9f95bf90824992271c50e718007",
+    "at": "2026-07-10T21:59:24.594553+00:00",
+    "fingerprint": "sha256:a7d292c5147b7bf6744ed8322dc6c81fdc9261883d71fcd79a2d899e9483275a",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
