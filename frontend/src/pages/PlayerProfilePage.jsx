@@ -3,19 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { apiConfig } from '../config/api.config';
 import { usePlayerProfile } from '../hooks/usePlayerProfile';
+import './PlayerProfilePage.css';
 
 const API_URL = apiConfig.baseUrl;
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const DAY_NAMES_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-const RARITY_COLORS = {
-  common: '#6b7280',
-  rare: '#0369a1',
-  epic: '#7c3aed',
-  legendary: '#d97706',
-  mythic: '#dc2626',
-};
+const RARITY_ORDER = ['mythic', 'legendary', 'epic', 'rare', 'common'];
+const LOCKED_SLOT_COUNT = 4;
 
 const formatDate = (iso) => {
   if (!iso) return '—';
@@ -111,20 +107,24 @@ const PlayerProfilePage = () => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: 80, color: '#6b7280' }}>
-        Loading...
+      <div className="wgp-profile">
+        <div style={{ display: 'flex', justifyContent: 'center', padding: 80, color: '#6b7280' }}>
+          Loading...
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ maxWidth: 600, margin: '40px auto', padding: 20, textAlign: 'center' }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>🏌️</div>
-        <p style={{ color: '#dc2626' }}>{error}</p>
-        <button onClick={() => navigate(-1)} style={{ marginTop: 12, padding: '8px 20px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer' }}>
-          Go back
-        </button>
+      <div className="wgp-profile">
+        <div style={{ maxWidth: 600, margin: '0 auto', padding: '60px 20px', textAlign: 'center' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🏌️</div>
+          <p style={{ color: '#9a3412' }}>{error}</p>
+          <button onClick={() => navigate(-1)} style={{ marginTop: 12, padding: '8px 20px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer' }}>
+            Go back
+          </button>
+        </div>
       </div>
     );
   }
@@ -134,242 +134,189 @@ const PlayerProfilePage = () => {
     ? `${API_URL}/players/${playerId}/avatar${avatarVersion ? `?v=${avatarVersion}` : ''}`
     : avatar_url;
 
+  const badgesByRarity = [...badges].sort(
+    (a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity)
+  );
+  const lockedSlots = Math.max(0, LOCKED_SLOT_COUNT - badges.length);
+
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: '20px 16px' }}>
+    <div className="wgp-profile">
+      <div className="wgp-profile__inner">
 
-      {/* Header card */}
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 24, marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div
-            style={{ position: 'relative', flexShrink: 0, cursor: isOwnProfile ? 'pointer' : 'default' }}
-            onClick={() => isOwnProfile && fileInputRef.current?.click()}
-            title={isOwnProfile ? 'Change photo' : undefined}
-          >
-            {avatarSrc ? (
-              <img
-                src={avatarSrc}
-                alt={name}
-                style={{
-                  width: 64, height: 64, borderRadius: '50%',
-                  objectFit: 'cover', border: '2px solid #10b981',
-                  opacity: uploading ? 0.5 : 1,
-                }}
-              />
-            ) : (
-              <div style={{
-                width: 64, height: 64, borderRadius: '50%',
-                background: '#f0fdf4', border: '2px solid #10b981',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 28, opacity: uploading ? 0.5 : 1,
-              }}>
-                🏌️
-              </div>
-            )}
+        {/* Header */}
+        <div className="wgp-profile__section">
+          <div className="wgp-profile__header-row">
+            <div
+              className={`wgp-profile__avatar-frame${isOwnProfile ? ' wgp-profile__avatar-frame--clickable' : ''}`}
+              onClick={() => isOwnProfile && fileInputRef.current?.click()}
+              title={isOwnProfile ? 'Change photo' : undefined}
+            >
+              {avatarSrc ? (
+                <img
+                  className="wgp-profile__avatar"
+                  src={avatarSrc}
+                  alt={name}
+                  style={{ opacity: uploading ? 0.5 : 1 }}
+                />
+              ) : (
+                <div className="wgp-profile__avatar-fallback" style={{ opacity: uploading ? 0.5 : 1 }}>
+                  🏌️
+                </div>
+              )}
+              {isOwnProfile && <div className="wgp-profile__camera-badge">📷</div>}
+            </div>
             {isOwnProfile && (
-              <div style={{
-                position: 'absolute', bottom: -2, right: -2, width: 22, height: 22,
-                borderRadius: '50%', background: '#047857', border: '2px solid #fff',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 11,
-              }}>
-                📷
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                style={{ display: 'none' }}
+                onChange={handleAvatarFileChange}
+              />
+            )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h1 className="wgp-profile__name">{name}</h1>
+              <div className="wgp-profile__meta-row">
+                <span>Handicap <strong>{handicap != null ? handicap : '—'}</strong></span>
+                {livsowTeam && (
+                  <span className="wgp-profile__livsow-pill">
+                    ⛳ {livsowTeam.team} · {livsowTeam.role}
+                  </span>
+                )}
+                {last_played && <span>Last played <strong>{formatDate(last_played)}</strong></span>}
+                {created_at && <span>Member since <strong>{formatDate(created_at)}</strong></span>}
               </div>
-            )}
-          </div>
-          {isOwnProfile && (
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-              style={{ display: 'none' }}
-              onChange={handleAvatarFileChange}
-            />
-          )}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#1f2937' }}>{name}</h1>
-            <div style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-              <span style={{ fontSize: 13, color: '#6b7280' }}>
-                Handicap <strong style={{ color: '#047857' }}>{handicap != null ? handicap : '—'}</strong>
-              </span>
-              {livsowTeam && (
-                <span style={{
-                  fontSize: 12, fontWeight: 600, padding: '2px 8px',
-                  background: '#eff6ff', color: '#2563eb', borderRadius: 9999,
-                  border: '1px solid #bfdbfe',
-                }}>
-                  ⛳ {livsowTeam.team} · {livsowTeam.role}
-                </span>
-              )}
-              {last_played && (
-                <span style={{ fontSize: 13, color: '#6b7280' }}>
-                  Last played <strong>{formatDate(last_played)}</strong>
-                </span>
-              )}
-              {created_at && (
-                <span style={{ fontSize: 13, color: '#6b7280' }}>
-                  Member since <strong>{formatDate(created_at)}</strong>
-                </span>
-              )}
+              {uploadError && <div className="wgp-profile__upload-error">{uploadError}</div>}
             </div>
-            {uploadError && (
-              <div style={{ marginTop: 6, fontSize: 12, color: '#dc2626' }}>{uploadError}</div>
-            )}
           </div>
-        </div>
 
-        {/* Stats row */}
-        <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 12, marginTop: 20, paddingTop: 20,
-          borderTop: '1px solid #f3f4f6',
-        }}>
-          {[
-            { label: 'Games', value: stats.games_played },
-            { label: 'Wins', value: stats.games_won },
-            { label: 'Earnings', value: `${stats.total_earnings >= 0 ? '+' : ''}${stats.total_earnings.toFixed(0)}¢` },
-          ].map(({ label, value }) => (
-            <div key={label} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: '#047857' }}>{value}</div>
-              <div style={{ fontSize: 12, color: '#6b7280' }}>{label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Bio */}
-      {description && (
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 20, marginBottom: 16 }}>
-          <p style={{ margin: 0, fontSize: 14, color: '#374151', lineHeight: 1.6 }}>{description}</p>
-        </div>
-      )}
-
-      {/* Availability days */}
-      {available_days.length > 0 && (
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 20, marginBottom: 16 }}>
-          <h2 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: '#374151' }}>Plays on</h2>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {DAY_NAMES.map((d, i) => (
-              <span key={i} style={{
-                padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
-                background: available_days.includes(i) ? '#f0fdf4' : '#f9fafb',
-                color: available_days.includes(i) ? '#047857' : '#9ca3af',
-                border: `1px solid ${available_days.includes(i) ? '#10b981' : '#e5e7eb'}`,
-              }}>
-                {d}
-              </span>
+          <div className="wgp-profile__scoreboard">
+            {[
+              { label: 'Games', value: stats.games_played },
+              { label: 'Wins', value: stats.games_won },
+              { label: 'Earnings', value: `${stats.total_earnings >= 0 ? '+' : ''}${stats.total_earnings.toFixed(0)}¢` },
+            ].map(({ label, value }) => (
+              <div key={label} className="wgp-profile__stat">
+                <div className="wgp-profile__stat-value">{value}</div>
+                <div className="wgp-profile__stat-label">{label}</div>
+              </div>
             ))}
           </div>
         </div>
-      )}
 
-      {/* Match history */}
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 20, marginBottom: 16 }}>
-        <h2 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: '#374151' }}>
-          Match History {match_history.length > 0 && <span style={{ fontWeight: 400, color: '#9ca3af', fontSize: 13 }}>({match_history.length})</span>}
-        </h2>
-        {match_history.length === 0 ? (
-          <p style={{ margin: 0, color: '#9ca3af', fontStyle: 'italic', fontSize: 13 }}>No confirmed matches yet</p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {match_history.map(m => (
-              <div key={m.match_id} style={{
-                background: '#f9fafb', borderRadius: 10, padding: '12px 14px',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: '#1f2937' }}>
-                    {DAY_NAMES_FULL[m.day_of_week]}
-                    {m.suggested_tee_time && (
-                      <span style={{ marginLeft: 8, fontSize: 12, fontWeight: 400, color: '#6b7280' }}>
-                        {m.suggested_tee_time}
-                      </span>
-                    )}
-                  </div>
-                  {m.players.length > 0 && (
-                    <div style={{ fontSize: 12, color: '#6b7280', marginTop: 3 }}>
-                      with{' '}
-                      {m.players.map((p, i) => (
-                        <span key={p.id}>
-                          <button
-                            onClick={() => navigate(`/players/${p.id}`)}
-                            style={{ background: 'none', border: 'none', padding: 0, color: '#047857', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
-                          >
-                            {p.name}
-                          </button>
-                          {i < m.players.length - 1 ? ', ' : ''}
-                        </span>
-                      ))}
+        {/* Bio */}
+        {description && (
+          <div className="wgp-profile__section">
+            <p className="wgp-profile__bio">&ldquo;{description}&rdquo;</p>
+          </div>
+        )}
+
+        {/* Availability days */}
+        {available_days.length > 0 && (
+          <div className="wgp-profile__section">
+            <span className="wgp-profile__section-title">Plays on</span>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {DAY_NAMES.map((d, i) => (
+                <span
+                  key={i}
+                  className={`wgp-profile__day-pill${available_days.includes(i) ? ' wgp-profile__day-pill--active' : ''}`}
+                >
+                  {d}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Match history */}
+        <div className="wgp-profile__section">
+          <span className="wgp-profile__section-title">
+            Match History {match_history.length > 0 && <span className="wgp-profile__section-count">({match_history.length})</span>}
+          </span>
+          {match_history.length === 0 ? (
+            <p className="wgp-profile__empty">No confirmed matches yet</p>
+          ) : (
+            <div className="wgp-profile__ledger">
+              {match_history.map(m => (
+                <div key={m.match_id} className="wgp-profile__ledger-row">
+                  <div>
+                    <div className="wgp-profile__ledger-primary">
+                      {DAY_NAMES_FULL[m.day_of_week]}
+                      {m.suggested_tee_time && (
+                        <span className="wgp-profile__ledger-secondary">{m.suggested_tee_time}</span>
+                      )}
                     </div>
-                  )}
-                </div>
-                <span style={{
-                  fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6,
-                  background: '#d1fae5', color: '#065f46',
-                }}>
-                  ✓ Confirmed
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Game history — actual played/scored rounds */}
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 20, marginBottom: 16 }}>
-        <h2 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: '#374151' }}>
-          Game History {game_history.length > 0 && <span style={{ fontWeight: 400, color: '#9ca3af', fontSize: 13 }}>({game_history.length})</span>}
-        </h2>
-        {game_history.length === 0 ? (
-          <p style={{ margin: 0, color: '#9ca3af', fontStyle: 'italic', fontSize: 13 }}>No recorded rounds yet</p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {game_history.map((g, i) => (
-              <div key={`${g.date}-${i}`} style={{
-                background: '#f9fafb', borderRadius: 10, padding: '10px 14px',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: '#1f2937' }}>
-                    {formatGameDate(g.date)}
-                    {g.location && (
-                      <span style={{ marginLeft: 8, fontSize: 12, fontWeight: 400, color: '#6b7280' }}>
-                        {g.location}
-                      </span>
+                    {m.players.length > 0 && (
+                      <div className="wgp-profile__ledger-sub">
+                        with{' '}
+                        {m.players.map((p, i) => (
+                          <span key={p.id}>
+                            <button onClick={() => navigate(`/players/${p.id}`)} className="wgp-profile__link">
+                              {p.name}
+                            </button>
+                            {i < m.players.length - 1 ? ', ' : ''}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
+                  <span className="wgp-profile__confirmed">✓ Confirmed</span>
                 </div>
-                <span style={{
-                  fontSize: 13, fontWeight: 700,
-                  color: g.score >= 0 ? '#047857' : '#dc2626',
-                }}>
-                  {formatScore(g.score)}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Badges */}
-      {badges.length > 0 && (
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 20 }}>
-          <h2 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: '#374151' }}>
-            Badges <span style={{ fontWeight: 400, color: '#9ca3af', fontSize: 13 }}>({badges.length})</span>
-          </h2>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {badges.map((b, i) => (
-              <div key={i} title={b.description} style={{
-                padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                background: '#f9fafb', border: `1px solid ${RARITY_COLORS[b.rarity] || '#e5e7eb'}`,
-                color: RARITY_COLORS[b.rarity] || '#374151',
-                cursor: 'default',
-              }}>
-                {b.emoji && <span style={{ marginRight: 5 }}>{b.emoji}</span>}{b.name}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Game history — actual played/scored rounds */}
+        <div className="wgp-profile__section">
+          <span className="wgp-profile__section-title">
+            Game History {game_history.length > 0 && <span className="wgp-profile__section-count">({game_history.length})</span>}
+          </span>
+          {game_history.length === 0 ? (
+            <p className="wgp-profile__empty">No recorded rounds yet</p>
+          ) : (
+            <div className="wgp-profile__ledger">
+              {game_history.map((g, i) => (
+                <div key={`${g.date}-${i}`} className="wgp-profile__ledger-row">
+                  <div className="wgp-profile__ledger-primary">
+                    {formatGameDate(g.date)}
+                    {g.location && <span className="wgp-profile__ledger-secondary">{g.location}</span>}
+                  </div>
+                  <span className={`wgp-profile__score ${g.score >= 0 ? 'wgp-profile__score--win' : 'wgp-profile__score--loss'}`}>
+                    {formatScore(g.score)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Badges — always visible, even at zero, so the badge system is discoverable */}
+        <div className="wgp-profile__section">
+          <span className="wgp-profile__section-title">
+            Badges {badges.length > 0 && <span className="wgp-profile__section-count">({badges.length})</span>}
+          </span>
+          <div className="wgp-profile__badges">
+            {badgesByRarity.map((b, i) => (
+              <div key={i} className="wgp-profile__badge" title={b.description}>
+                <div className={`wgp-profile__medallion wgp-profile__medallion--${b.rarity || 'common'}`}>
+                  {b.emoji || '🏅'}
+                </div>
+                <div className="wgp-profile__badge-name">{b.name}</div>
+              </div>
+            ))}
+            {Array.from({ length: lockedSlots }).map((_, i) => (
+              <div key={`locked-${i}`} className="wgp-profile__badge" title="Not earned yet">
+                <div className="wgp-profile__medallion wgp-profile__medallion--locked">🔒</div>
+                <div className="wgp-profile__badge-name">Locked</div>
+              </div>
+            ))}
+          </div>
+          {badges.length === 0 && (
+            <p className="wgp-profile__badges-hint">No badges earned yet — keep playing to unlock some!</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

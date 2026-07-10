@@ -85,6 +85,41 @@ describe('PlayerProfilePage game history', () => {
   });
 });
 
+describe('PlayerProfilePage badges', () => {
+  test('renders earned badges with name and rarity', async () => {
+    mockUsePlayerProfile.mockReturnValue({ profile: { id: 999 } });
+    global.fetch = vi.fn(async (url) => {
+      if (String(url).includes('/public-profile')) {
+        return {
+          ok: true,
+          json: async () => ({
+            ...baseProfile,
+            badges: [
+              { name: 'First Win', description: 'Won your first game', rarity: 'common', category: 'wins', emoji: '🎉' },
+              { name: 'Legend', description: 'Legendary feat', rarity: 'legendary', emoji: '👑' },
+            ],
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+    renderPage();
+
+    expect(await screen.findByText('First Win')).toBeInTheDocument();
+    expect(screen.getByText('Legend')).toBeInTheDocument();
+    expect(screen.queryByText(/No badges earned yet/)).toBeNull();
+  });
+
+  test('still shows the Badges section with a locked empty-state when a player has none', async () => {
+    mockUsePlayerProfile.mockReturnValue({ profile: { id: 999 } });
+    renderPage(); // baseProfile has badges: []
+
+    expect(await screen.findByText(/Badges/)).toBeInTheDocument();
+    expect(screen.getByText(/No badges earned yet/)).toBeInTheDocument();
+    expect(screen.getAllByText('Locked').length).toBeGreaterThan(0);
+  });
+});
+
 describe('PlayerProfilePage avatar upload', () => {
   test('does not show an upload control on someone else\'s profile', async () => {
     mockUsePlayerProfile.mockReturnValue({ profile: { id: 999 } });

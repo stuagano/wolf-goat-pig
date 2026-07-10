@@ -1,0 +1,429 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&display=swap');
+
+/*
+  "Clubhouse Ledger" — a nod to a century-old member ledger/scorecard book:
+  parchment paper, brass rules, forest-green felt, wax-seal badge medallions.
+  Reuses the app's existing green/gold/sand palette (theme.js) rather than
+  inventing a new one.
+*/
+
+.wgp-profile {
+  --wgp-ink: #1f2937;
+  --wgp-ink-soft: #57534e;
+  --wgp-paper: #fffdf8;
+  --wgp-parchment: #faf6ec;
+  --wgp-brass: #b45309;
+  --wgp-brass-soft: rgba(180, 83, 9, 0.35);
+  --wgp-green: #065f46;
+  --wgp-green-soft: rgba(6, 95, 70, 0.1);
+  --wgp-rule: rgba(6, 95, 70, 0.14);
+  --wgp-loss: #9a3412;
+  background: var(--wgp-parchment);
+  background-image:
+    radial-gradient(circle at 12% 8%, rgba(6, 95, 70, 0.05), transparent 40%),
+    radial-gradient(circle at 88% 92%, rgba(180, 83, 9, 0.05), transparent 45%);
+  min-height: 100%;
+}
+
+:root[data-theme='dark'] .wgp-profile {
+  --wgp-ink: #f1efe9;
+  --wgp-ink-soft: #b8b2a4;
+  --wgp-paper: #17251f;
+  --wgp-parchment: #0d1613;
+  --wgp-brass: #e0a34e;
+  --wgp-brass-soft: rgba(224, 163, 78, 0.3);
+  --wgp-green: #34d399;
+  --wgp-green-soft: rgba(52, 211, 153, 0.12);
+  --wgp-rule: rgba(52, 211, 153, 0.16);
+  --wgp-loss: #f87171;
+  background-image:
+    radial-gradient(circle at 12% 8%, rgba(52, 211, 153, 0.07), transparent 40%),
+    radial-gradient(circle at 88% 92%, rgba(224, 163, 78, 0.06), transparent 45%);
+}
+
+.wgp-profile__inner {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--wgp-ink);
+}
+
+@keyframes wgp-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.wgp-profile__section {
+  background: var(--wgp-paper);
+  border: 1px solid var(--wgp-brass-soft);
+  box-shadow: 0 0 0 3px var(--wgp-green-soft), 0 10px 24px rgba(6, 95, 70, 0.08);
+  border-radius: 14px;
+  padding: 22px;
+  margin-bottom: 16px;
+  animation: wgp-rise 0.5s ease both;
+}
+
+.wgp-profile__inner > .wgp-profile__section:nth-of-type(1) { animation-delay: 0.02s; }
+.wgp-profile__inner > .wgp-profile__section:nth-of-type(2) { animation-delay: 0.08s; }
+.wgp-profile__inner > .wgp-profile__section:nth-of-type(3) { animation-delay: 0.14s; }
+.wgp-profile__inner > .wgp-profile__section:nth-of-type(4) { animation-delay: 0.2s; }
+.wgp-profile__inner > .wgp-profile__section:nth-of-type(5) { animation-delay: 0.26s; }
+.wgp-profile__inner > .wgp-profile__section:nth-of-type(6) { animation-delay: 0.32s; }
+
+.wgp-profile__section-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--wgp-green);
+  margin: 0 0 16px;
+  display: inline-block;
+  position: relative;
+  padding-bottom: 6px;
+}
+
+.wgp-profile__section-title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 32px;
+  height: 2px;
+  background: var(--wgp-brass);
+  border-radius: 2px;
+}
+
+.wgp-profile__section-count {
+  font-weight: 400;
+  color: var(--wgp-ink-soft);
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.wgp-profile__empty {
+  margin: 0;
+  color: var(--wgp-ink-soft);
+  font-style: italic;
+  font-size: 13px;
+}
+
+/* ---- Header ---- */
+
+.wgp-profile__header-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.wgp-profile__avatar-frame {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.wgp-profile__avatar-frame--clickable {
+  cursor: pointer;
+}
+
+.wgp-profile__avatar {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  box-shadow:
+    0 0 0 2px var(--wgp-paper),
+    0 0 0 4px var(--wgp-brass),
+    0 0 0 6px var(--wgp-green-soft);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.wgp-profile__avatar-frame--clickable:hover .wgp-profile__avatar {
+  transform: scale(1.03);
+}
+
+.wgp-profile__avatar-fallback {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: var(--wgp-green-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  box-shadow:
+    0 0 0 2px var(--wgp-paper),
+    0 0 0 4px var(--wgp-brass),
+    0 0 0 6px var(--wgp-green-soft);
+}
+
+.wgp-profile__camera-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--wgp-green);
+  border: 2px solid var(--wgp-paper);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+
+.wgp-profile__name {
+  font-family: 'Fraunces', Georgia, serif;
+  margin: 0;
+  font-size: 25px;
+  font-weight: 700;
+  color: var(--wgp-ink);
+  letter-spacing: 0.2px;
+}
+
+.wgp-profile__meta-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 7px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 13px;
+  color: var(--wgp-ink-soft);
+}
+
+.wgp-profile__meta-row strong {
+  color: var(--wgp-green);
+  font-weight: 700;
+}
+
+.wgp-profile__livsow-pill {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 9px;
+  background: var(--wgp-green-soft);
+  color: var(--wgp-green);
+  border-radius: 9999px;
+  border: 1px solid var(--wgp-brass-soft);
+}
+
+.wgp-profile__upload-error {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--wgp-loss);
+}
+
+/* ---- Scoreboard strip ---- */
+
+.wgp-profile__scoreboard {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 22px;
+  padding-top: 20px;
+  border-top: 1px dashed var(--wgp-rule);
+}
+
+.wgp-profile__stat {
+  text-align: center;
+  position: relative;
+}
+
+.wgp-profile__stat + .wgp-profile__stat::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 1px;
+  background: var(--wgp-rule);
+}
+
+.wgp-profile__stat-value {
+  font-family: 'Fraunces', Georgia, serif;
+  font-variant-numeric: tabular-nums;
+  font-size: 25px;
+  font-weight: 700;
+  color: var(--wgp-green);
+}
+
+.wgp-profile__stat-label {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--wgp-ink-soft);
+  margin-top: 2px;
+}
+
+/* ---- Bio ---- */
+
+.wgp-profile__bio {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--wgp-ink);
+  font-style: italic;
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+}
+
+/* ---- Availability pills ---- */
+
+.wgp-profile__day-pill {
+  padding: 6px 15px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid var(--wgp-rule);
+  color: var(--wgp-ink-soft);
+  background: transparent;
+}
+
+.wgp-profile__day-pill--active {
+  background: var(--wgp-green);
+  color: #fff;
+  border-color: var(--wgp-green);
+  box-shadow: 0 2px 6px var(--wgp-green-soft);
+}
+
+/* ---- Ledger rows (match/game history) ---- */
+
+.wgp-profile__ledger {
+  display: flex;
+  flex-direction: column;
+}
+
+.wgp-profile__ledger-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--wgp-rule);
+}
+
+.wgp-profile__ledger-row:last-child {
+  border-bottom: none;
+}
+
+.wgp-profile__ledger-primary {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--wgp-ink);
+}
+
+.wgp-profile__ledger-secondary {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--wgp-ink-soft);
+}
+
+.wgp-profile__ledger-sub {
+  font-size: 12px;
+  color: var(--wgp-ink-soft);
+  margin-top: 3px;
+}
+
+.wgp-profile__link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--wgp-green);
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.wgp-profile__confirmed {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: var(--wgp-green-soft);
+  color: var(--wgp-green);
+  white-space: nowrap;
+}
+
+.wgp-profile__score {
+  font-family: 'Fraunces', Georgia, serif;
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.wgp-profile__score--win { color: var(--wgp-green); }
+.wgp-profile__score--loss { color: var(--wgp-loss); }
+
+/* ---- Badge medallions ---- */
+
+.wgp-profile__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 14px;
+}
+
+.wgp-profile__badge {
+  width: 78px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.wgp-profile__medallion {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  overflow: hidden;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  transition: transform 0.2s ease;
+}
+
+.wgp-profile__badge:hover .wgp-profile__medallion {
+  transform: translateY(-2px) scale(1.05);
+}
+
+.wgp-profile__medallion::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.55) 50%, transparent 60%);
+  transform: translateX(-120%);
+  transition: transform 0.5s ease;
+}
+
+.wgp-profile__badge:hover .wgp-profile__medallion::after {
+  transform: translateX(120%);
+}
+
+.wgp-profile__medallion--common { background: linear-gradient(150deg, #cbd5e1, #64748b); }
+.wgp-profile__medallion--rare { background: linear-gradient(150deg, #7dd3fc, #1d4ed8); }
+.wgp-profile__medallion--epic { background: linear-gradient(150deg, #d8b4fe, #6d28d9); }
+.wgp-profile__medallion--legendary { background: linear-gradient(150deg, #fde68a, #b45309); }
+.wgp-profile__medallion--mythic { background: linear-gradient(150deg, #fca5a5, #7f1d1d); }
+
+.wgp-profile__medallion--locked {
+  background: transparent;
+  border: 2px dashed var(--wgp-rule);
+  color: var(--wgp-ink-soft);
+  box-shadow: none;
+  opacity: 0.7;
+}
+
+.wgp-profile__badge-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--wgp-ink-soft);
+  line-height: 1.3;
+}
+
+.wgp-profile__badges-hint {
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: var(--wgp-ink-soft);
+  font-style: italic;
+}
