@@ -7,10 +7,11 @@ Two stages, both with graceful fallback to the original image on failure:
    apply a perspective warp so the card fills a rectangular frame. This
    normalizes shooting angle so downstream steps see a clean top-down view.
 
-2. annotate_circles(): detect hand-drawn circles classically (Hough) and
-   draw bright red rectangles around each one. The vision model reliably
-   detects bright red rectangles but struggles with hand-drawn circles —
-   we shift the burden.
+2. annotate_circles(): detect hand-drawn circles classically (contour shape,
+   not Hough — hand-drawn ovals rarely satisfy Hough's rigid edge-gradient
+   circle fit) and draw bright red rectangles around each one. The vision
+   model reliably detects bright red rectangles but struggles with hand-drawn
+   circles — we shift the burden.
 
 Public entry points: deskew_to_card(), annotate_circles().
 """
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 _MIN_CIRCLES = 1
 _MAX_CIRCLES = 150
 _TOP_CROP_FRACTION = 0.25
+_MIN_CIRCULARITY = 0.2  # 4*pi*area/perimeter^2; tolerant of imperfect hand-drawn ovals
 
 _RECT_COLOR_BGR = (0, 0, 255)  # pure red
 _RECT_THICKNESS = 4
@@ -60,31 +62,37 @@ def _decode_image(image_bytes: bytes) -> np.ndarray:
 
 
 def _detect_circles(img: np.ndarray) -> list[tuple[int, int, int]]:
+    """
+    Find hand-drawn circles by contour shape rather than Hough's rigid
+    circle-equation fit. Hand-drawn ovals are imperfect and rarely satisfy
+    Hough's edge-gradient model, but they still show up as roughly-round
+    connected ink regions once the image is binarized — a shape (circularity)
+    check on those regions is far more tolerant of that imperfection.
+    """
     height, _ = img.shape[:2]
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.medianBlur(gray, 3)
+    blur_k = max(3, (height // 300) | 1)  # odd, scales with image size
+    blurred = cv2.GaussianBlur(gray, (blur_k, blur_k), 0)
+    _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+
+    contours, _ = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
     min_radius = max(4, height // 80)
     max_radius = max(min_radius + 1, height // 25)
-    min_dist = max(8, height // 40)
-
-    circles = cv2.HoughCircles(
-        blurred,
-        cv2.HOUGH_GRADIENT,
-        dp=1.2,
-        minDist=min_dist,
-        param1=100,
-        param2=40,
-        minRadius=min_radius,
-        maxRadius=max_radius,
-    )
-    if circles is None:
-        return []
-
     top_cutoff = height * _TOP_CROP_FRACTION
+
     out: list[tuple[int, int, int]] = []
-    for x, y, r in circles[0]:
-        if y < top_cutoff:
+    for c in contours:
+        (x, y), r = cv2.minEnclosingCircle(c)
+        if r < min_radius or r > max_radius or y < top_cutoff:
+            continue
+        perimeter = cv2.arcLength(c, True)
+        area = cv2.contourArea(c)
+        if perimeter == 0 or area < 10:
+            continue
+        circularity = 4 * np.pi * area / (perimeter * perimeter)
+        if circularity < _MIN_CIRCULARITY:
             continue
         out.append((int(x), int(y), int(r)))
     return out
@@ -384,13 +392,13 @@ def annotate_circles(image_bytes: bytes, content_type: str) -> tuple[bytes, str,
     try:
         circles = _detect_circles(img)
     except cv2.error as e:
-        logger.warning("Scorecard preprocessing Hough failed: %s", e)
+        logger.warning("Scorecard preprocessing circle detection failed: %s", e)
         return (
             image_bytes,
             content_type,
             {
                 "preprocessing_applied": False,
-                "error": f"hough_failed: {e}",
+                "error": f"circle_detect_failed: {e}",
                 "image_dimensions": [width, height],
             },
         )
