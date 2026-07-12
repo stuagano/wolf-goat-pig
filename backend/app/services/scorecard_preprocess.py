@@ -9,9 +9,11 @@ Two stages, both with graceful fallback to the original image on failure:
 
 2. annotate_circles(): detect hand-drawn circles classically (contour shape,
    not Hough — hand-drawn ovals rarely satisfy Hough's rigid edge-gradient
-   circle fit) and draw bright red rectangles around each one. The vision
-   model reliably detects bright red rectangles but struggles with hand-drawn
-   circles — we shift the burden.
+   circle fit) and draw bright red rectangles around each one on a contrast-
+   enhanced (grayscale + CLAHE) copy of the image. The vision model reliably
+   detects bright red rectangles but struggles with hand-drawn circles — we
+   shift the burden. The contrast step separately makes the underlying
+   handwriting legible in unevenly-lit/shadowed photos.
 
 Public entry points: deskew_to_card(), annotate_circles().
 """
@@ -30,6 +32,9 @@ _MIN_CIRCLES = 1
 _MAX_CIRCLES = 150
 _TOP_CROP_FRACTION = 0.25
 _MIN_CIRCULARITY = 0.2  # 4*pi*area/perimeter^2; tolerant of imperfect hand-drawn ovals
+
+_CLAHE_CLIP_LIMIT = 3.0
+_CLAHE_TILE_GRID = (8, 8)
 
 _RECT_COLOR_BGR = (0, 0, 255)  # pure red
 _RECT_THICKNESS = 4
@@ -96,6 +101,20 @@ def _detect_circles(img: np.ndarray) -> list[tuple[int, int, int]]:
             continue
         out.append((int(x), int(y), int(r)))
     return out
+
+
+def _enhance_contrast(img: np.ndarray) -> np.ndarray:
+    """
+    Grayscale + CLAHE (local adaptive contrast), rendered back to 3-channel
+    BGR so callers can still draw colored markers on it. Evens out shadows/
+    uneven lighting that leave part of a photographed card illegible (e.g.
+    one half of a folded card lit differently than the other) -- a single
+    global contrast stretch doesn't reach a locally dark region.
+    """
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    clahe = cv2.createCLAHE(clipLimit=_CLAHE_CLIP_LIMIT, tileGridSize=_CLAHE_TILE_GRID)
+    equalized = clahe.apply(gray)
+    return cv2.cvtColor(equalized, cv2.COLOR_GRAY2BGR)
 
 
 def _draw_markers(img: np.ndarray, circles: list[tuple[int, int, int]]) -> np.ndarray:
@@ -413,7 +432,12 @@ def annotate_circles(image_bytes: bytes, content_type: str) -> tuple[bytes, str,
         return image_bytes, content_type, diag
 
     try:
-        annotated = _draw_markers(img, circles)
+        # Draw markers on a contrast-enhanced copy, not the raw photo -- circle
+        # positions were found on the original (detection calibration is
+        # unaffected), but the base image the model actually reads should be
+        # as legible as possible, especially in shadowed/unevenly-lit regions.
+        enhanced = _enhance_contrast(img)
+        annotated = _draw_markers(enhanced, circles)
         encoded = _encode_jpeg(annotated)
     except (cv2.error, ValueError) as e:
         logger.warning("Scorecard preprocessing annotation failed: %s", e)
@@ -422,4 +446,5 @@ def annotate_circles(image_bytes: bytes, content_type: str) -> tuple[bytes, str,
         return image_bytes, content_type, diag
 
     diag["preprocessing_applied"] = True
+    diag["contrast_enhanced"] = True
     return encoded, "image/jpeg", diag

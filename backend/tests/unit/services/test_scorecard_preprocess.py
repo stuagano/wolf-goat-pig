@@ -93,6 +93,23 @@ def test_annotation_introduces_red_pixels(example_image_bytes):
     assert red_mask.sum() > 100, "expected ≥100 pure-red marker pixels"
 
 
+def test_annotation_base_is_contrast_enhanced_not_raw_color(example_image_bytes):
+    """Markers are drawn on a grayscale+CLAHE base, not the raw photo -- the
+    non-marker pixels should be desaturated (R≈G≈B) even though the original
+    photo has real color variance."""
+    annotated, _, diag = annotate_circles(example_image_bytes, "image/jpeg")
+    if not diag.get("preprocessing_applied"):
+        pytest.skip("annotation skipped — sanity bounds not met for example image")
+    assert diag.get("contrast_enhanced") is True
+
+    arr = np.frombuffer(annotated, dtype=np.uint8)
+    decoded = cv2.imdecode(arr, cv2.IMREAD_COLOR).astype(np.int16)
+    # Exclude the pure-red marker pixels themselves; check everything else is desaturated.
+    red_mask = (decoded[:, :, 0] < 30) & (decoded[:, :, 1] < 30) & (decoded[:, :, 2] > 220)
+    channel_spread = np.abs(decoded[:, :, 0] - decoded[:, :, 2])
+    assert channel_spread[~red_mask].mean() < 5, "non-marker pixels should be near-grayscale"
+
+
 # ---------- Deskew ----------
 
 
