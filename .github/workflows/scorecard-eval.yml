@@ -9,6 +9,9 @@ on:
       runs:
         description: "Runs per config (guided-single and adaptive)"
         default: "5"
+      vision_model:
+        description: "Groq vision model ID"
+        default: "meta-llama/llama-4-scout-17b-16e-instruct"
 
 jobs:
   eval:
@@ -28,6 +31,6 @@ jobs:
       - name: Run scorecard accuracy eval
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          GROQ_MODEL: ${{ secrets.GROQ_MODEL }}
+          GROQ_VISION_MODEL: ${{ github.event.inputs.vision_model }}
         run: |
           python scripts/scorecard_eval.py "${{ github.event.inputs.runs }}"
