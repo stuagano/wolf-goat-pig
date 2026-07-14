@@ -42,7 +42,7 @@
     "waiver": null
   },
   "auth-rejects-junk-token": {
-    "at": "2026-07-13T19:35:01.962437+00:00",
+    "at": "2026-07-14T22:12:17.636117+00:00",
     "fingerprint": null,
     "result": "pass",
     "tier": "live",
@@ -119,7 +119,7 @@
     "waiver": null
   },
   "frontend-live-production": {
-    "at": "2026-07-13T00:25:00.621096+00:00",
+    "at": "2026-07-14T22:12:18.525039+00:00",
     "fingerprint": null,
     "result": "pass",
     "tier": "live",
@@ -161,7 +161,7 @@
     "waiver": null
   },
   "health-live-production": {
-    "at": "2026-07-13T19:34:59.950673+00:00",
+    "at": "2026-07-14T22:12:14.668497+00:00",
     "fingerprint": null,
     "result": "pass",
     "tier": "live",
@@ -301,8 +301,8 @@
     "waiver": null
   },
   "scorecard-scan": {
-    "at": "2026-06-21T03:38:22.285105+00:00",
-    "fingerprint": "sha256:3954745c0ceb45495e9e0154f46b9bef1453daf10d6dcdea111df34e32c70265",
+    "at": "2026-07-14T22:11:51.741721+00:00",
+    "fingerprint": "sha256:da40dde5cf0fbc9c3fa7afa331482108950c61a451fb0ebd7efc364d513dca18",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
