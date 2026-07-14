@@ -12,6 +12,12 @@ on:
       vision_model:
         description: "Groq vision model ID"
         default: "meta-llama/llama-4-scout-17b-16e-instruct"
+      main_max_dim:
+        description: "Max longest-side px for the main image (lower to fit a smaller TPM quota)"
+        default: "4096"
+      skip_reference_examples:
+        description: "Skip few-shot reference images (1 to skip, reduces token usage)"
+        default: "0"
 
 jobs:
   eval:
@@ -32,5 +38,7 @@ jobs:
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           GROQ_VISION_MODEL: ${{ github.event.inputs.vision_model }}
+          GROQ_MAIN_MAX_DIM: ${{ github.event.inputs.main_max_dim }}
+          GROQ_SKIP_REFERENCE_EXAMPLES: ${{ github.event.inputs.skip_reference_examples }}
         run: |
           python scripts/scorecard_eval.py "${{ github.event.inputs.runs }}"

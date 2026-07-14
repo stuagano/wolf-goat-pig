@@ -160,7 +160,12 @@ def _validate_zero_sum(per_hole_quarters: list[dict]) -> dict[str, Any]:
 _GROQ_REQUEST_B64_BUDGET = 3_900_000  # total base64 chars for all images in one request
 _REFERENCE_MAX_DIM = 1100  # references only calibrate handwriting style — don't need full res
 _REFERENCE_B64_BUDGET = 900_000
-_MAIN_MAX_DIM = 4096  # effectively only budget-limited
+# Overridable via env for eval experiments against models with a much lower
+# tokens-per-minute quota than the default (e.g. a preview model on Groq's
+# on-demand tier) — production behavior is unchanged since the defaults match
+# the prior hardcoded values.
+_MAIN_MAX_DIM = int(os.getenv("GROQ_MAIN_MAX_DIM", "4096"))  # effectively only budget-limited
+_SKIP_REFERENCE_EXAMPLES = os.getenv("GROQ_SKIP_REFERENCE_EXAMPLES", "") == "1"
 # Cap the working image BEFORE the classical CV preprocessing (Hough circle
 # detection, corner/grid detection). The hang that originally forced a low cap
 # only happens near full ~4000px (where deskew also mis-warps); at 3000px the
@@ -220,7 +225,7 @@ async def _call_groq_vision(
 
     user_content: list[dict[str, Any]] = []
 
-    references = _load_reference_examples()
+    references = [] if _SKIP_REFERENCE_EXAMPLES else _load_reference_examples()
     ref_b64_used = 0
     if references:
         gt_blocks = []
