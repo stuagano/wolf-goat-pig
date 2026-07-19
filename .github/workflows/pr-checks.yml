@@ -4,6 +4,12 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+# Cancel superseded runs: a new push to the same PR aborts the in-flight run
+# instead of piling up redundant checks.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check-pr-size:
     runs-on: ubuntu-latest

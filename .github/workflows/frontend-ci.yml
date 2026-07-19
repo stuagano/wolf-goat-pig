@@ -18,6 +18,12 @@ on:
       - 'vercel.json'
       - '.github/workflows/frontend-ci.yml'
 
+# Cancel superseded runs: a new push to the same PR/branch aborts the in-flight
+# run instead of piling up redundant CI.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -58,34 +64,40 @@ jobs:
     - name: Upload build artifacts
       uses: actions/upload-artifact@v7
       with:
-        name: frontend-build-${{ matrix.node-version }}
+        name: frontend-build
         path: frontend/build/
-      if: matrix.node-version == '20.x'
 
   analyze:
     runs-on: ubuntu-latest
     needs: test
-    
+
     steps:
     - uses: actions/checkout@v5
-    
-    - name: Use Node.js
+
+    - name: Use Node.js 20
       uses: actions/setup-node@v4
       with:
-        node-version: '18.x'
-    
+        node-version: '20.x'
+
+    # Reuse the build produced by the `test` job instead of rebuilding from
+    # scratch. There is no committed lockfile, so `npm ci` cannot run here —
+    # install deps the same way `test` does so webpack-bundle-analyzer is
+    # available for the analysis below.
+    - name: Download build artifact
+      uses: actions/download-artifact@v5
+      with:
+        name: frontend-build
+        path: frontend/build
+
     - name: Install dependencies
-      run: |
-        cd frontend
-        npm ci
-    
+      working-directory: frontend
+      run: npm install --legacy-peer-deps --no-audit
+
     - name: Run bundle size analysis
-      run: |
-        cd frontend
-        npm run build
-        npx webpack-bundle-analyzer build/static/js/*.js --mode json --report bundle-stats.json
+      working-directory: frontend
+      run: npx webpack-bundle-analyzer build/static/js/*.js --mode json --report bundle-stats.json
       continue-on-error: true
-    
+
     - name: Upload bundle analysis
       uses: actions/upload-artifact@v7
       with:
@@ -96,27 +108,29 @@ jobs:
   lighthouse:
     runs-on: ubuntu-latest
     needs: test
-    
+
     steps:
     - uses: actions/checkout@v5
-    
-    - name: Use Node.js
+
+    - name: Use Node.js 20
       uses: actions/setup-node@v4
       with:
-        node-version: '18.x'
-    
+        node-version: '20.x'
+
+    # Reuse the `test` job's build (Lighthouse runs against ./build via
+    # .lighthouserc.js staticDistDir) rather than rebuilding a third time.
+    - name: Download build artifact
+      uses: actions/download-artifact@v5
+      with:
+        name: frontend-build
+        path: frontend/build
+
     - name: Install dependencies
-      run: |
-        cd frontend
-        npm ci
-    
-    - name: Build application
-      run: |
-        cd frontend
-        npm run build
-    
+      working-directory: frontend
+      run: npm install --legacy-peer-deps --no-audit
+
     - name: Run Lighthouse CI
-      uses: treosh/lighthouse-ci-action@v10
+      uses: treosh/lighthouse-ci-action@v12
       with:
         configPath: './frontend/.lighthouserc.js'
         uploadArtifacts: true

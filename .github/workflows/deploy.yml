@@ -5,6 +5,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Serialize production deploys so overlapping pushes don't race, but never
+# cancel a deploy that's already live — let it finish before the next starts.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -29,22 +35,11 @@ jobs:
           -w "HTTP Status: %{http_code}\n"
         echo "✅ Render deploy triggered"
 
-    - name: Trigger Vercel Deploy
-      env:
-        VERCEL_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
-      run: |
-        if [ -z "$VERCEL_HOOK" ]; then
-          echo "⚠️ VERCEL_DEPLOY_HOOK_URL secret not set - skipping"
-          exit 0
-        fi
-        echo "📦 Triggering Vercel frontend deployment..."
-        curl -X POST "$VERCEL_HOOK" \
-          --fail \
-          --silent \
-          --show-error \
-          -o /dev/null \
-          -w "HTTP Status: %{http_code}\n"
-        echo "✅ Vercel deploy triggered"
+    # Vercel deploys are handled by Vercel's native GitHub integration
+    # (see frontend-ci.yml and vercel.json) — it auto-deploys the frontend on
+    # every push to main. Firing a deploy hook here too produced two Vercel
+    # deploys per push, so the redundant hook step was removed. This workflow
+    # still verifies the Vercel frontend came up healthy below.
 
     - name: Wait for deployments to start
       run: |

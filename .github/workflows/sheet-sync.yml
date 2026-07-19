@@ -5,28 +5,17 @@ on:
     - cron: '0 */2 * * *'  # every 2 hours (mirrors the in-process job that no-ops in prod)
   workflow_dispatch:        # Allow manual trigger
 
+# Don't let a slow run overlap the next scheduled fire; never cancel one that's
+# already talking to the backend.
+concurrency:
+  group: sheet-sync
+  cancel-in-progress: false
+
 jobs:
   sync:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Sync Google Sheets rounds into legacy_rounds
-      run: |
-        echo "📋 Syncing sheet rounds into DB..."
-        RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-          "https://wolf-goat-pig.onrender.com/admin/spreadsheet/sync-legacy-rounds" \
-          -H "X-Admin-Email: stuagano@gmail.com" \
-          --max-time 120)
-
-        HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-        BODY=$(echo "$RESPONSE" | head -n -1)
-
-        echo "Status: $HTTP_CODE"
-        echo "Response: $BODY"
-
-        if [ "$HTTP_CODE" != "200" ]; then
-          echo "❌ Sync failed with status $HTTP_CODE"
-          exit 1
-        fi
-
-        echo "✅ Sheet → DB sync complete"
+    uses: ./.github/workflows/_cron-curl.yml
+    with:
+      label: Sheet → DB sync
+      url: https://wolf-goat-pig.onrender.com/admin/spreadsheet/sync-legacy-rounds
+      headers: 'X-Admin-Email: stuagano@gmail.com'
+      max-time: 120

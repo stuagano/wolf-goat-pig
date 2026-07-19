@@ -1,0 +1,67 @@
+name: Reusable Cron Curl POST
+
+# Shared logic for the scheduled "hit an endpoint on a cron" workflows
+# (ghin-sync, sheet-sync, livsow-snapshot, callout-list). Each caller supplies
+# its endpoint URL (and any headers); this fires a POST, prints the response,
+# and fails the run on any non-200 status. Callers keep their own name +
+# schedule; only the duplicated curl block lives here.
+
+on:
+  workflow_call:
+    inputs:
+      url:
+        description: 'Endpoint to POST to'
+        required: true
+        type: string
+      label:
+        description: 'Human-readable label for logs'
+        required: false
+        type: string
+        default: 'Endpoint'
+      headers:
+        description: 'Newline-separated "Header: value" lines to send'
+        required: false
+        type: string
+        default: ''
+      max-time:
+        description: 'curl --max-time (seconds)'
+        required: false
+        type: number
+        default: 60
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+    - name: POST to endpoint
+      env:
+        TARGET_URL: ${{ inputs.url }}
+        HEADERS: ${{ inputs.headers }}
+        MAX_TIME: ${{ inputs.max-time }}
+        LABEL: ${{ inputs.label }}
+      run: |
+        echo "▶️ ${LABEL}: POST ${TARGET_URL}"
+
+        # Build -H args from the (possibly multi-line) headers input.
+        HEADER_ARGS=()
+        while IFS= read -r line; do
+          [ -n "$line" ] && HEADER_ARGS+=(-H "$line")
+        done <<< "$HEADERS"
+
+        RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+          "$TARGET_URL" \
+          "${HEADER_ARGS[@]}" \
+          --max-time "$MAX_TIME")
+
+        HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+        BODY=$(echo "$RESPONSE" | head -n -1)
+
+        echo "Status: $HTTP_CODE"
+        echo "Response: $BODY"
+
+        if [ "$HTTP_CODE" != "200" ]; then
+          echo "❌ ${LABEL} failed with status $HTTP_CODE"
+          exit 1
+        fi
+
+        echo "✅ ${LABEL} complete"
