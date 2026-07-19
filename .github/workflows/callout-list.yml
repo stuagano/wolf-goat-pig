@@ -18,10 +18,17 @@ on:
           - pre_pairing
           - morning_of
 
-jobs:
-  callout:
-    runs-on: ubuntu-latest
+# Don't let a slow run overlap the next scheduled fire; never cancel one that's
+# already talking to the backend.
+concurrency:
+  group: callout-list
+  cancel-in-progress: false
 
+jobs:
+  determine-window:
+    runs-on: ubuntu-latest
+    outputs:
+      window: ${{ steps.window.outputs.window }}
     steps:
     - name: Determine window
       id: window
@@ -36,24 +43,11 @@ jobs:
         echo "window=$WINDOW" >> "$GITHUB_OUTPUT"
         echo "Using window: $WINDOW"
 
-    - name: Run headcount callout
-      run: |
-        WINDOW="${{ steps.window.outputs.window }}"
-        echo "📣 Running callout (window=$WINDOW)..."
-        RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-          "https://wolf-goat-pig.onrender.com/callouts/run?window=$WINDOW" \
-          -H "Content-Type: application/json" \
-          --max-time 60)
-
-        HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-        BODY=$(echo "$RESPONSE" | head -n -1)
-
-        echo "Status: $HTTP_CODE"
-        echo "Response: $BODY"
-
-        if [ "$HTTP_CODE" != "200" ]; then
-          echo "❌ Callout failed with status $HTTP_CODE"
-          exit 1
-        fi
-
-        echo "✅ Callout check complete"
+  callout:
+    needs: determine-window
+    uses: ./.github/workflows/_cron-curl.yml
+    with:
+      label: Headcount callout (window=${{ needs.determine-window.outputs.window }})
+      url: https://wolf-goat-pig.onrender.com/callouts/run?window=${{ needs.determine-window.outputs.window }}
+      headers: 'Content-Type: application/json'
+      max-time: 60
