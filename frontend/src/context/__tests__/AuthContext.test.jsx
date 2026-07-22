@@ -38,4 +38,19 @@ describe('AuthProvider Auth0 configuration', () => {
       expect(capturedProps.authorizationParams.scope).toContain('offline_access');
     }
   });
+
+  test('enables the refresh-token fallback so a missing refresh token recovers via silent auth', () => {
+    render(
+      <AuthProvider>
+        <div>child</div>
+      </AuthProvider>,
+    );
+
+    expect(capturedProps).not.toBeNull();
+    // Without this, an expired/absent refresh token throws "Missing Refresh
+    // Token" with no recovery path instead of falling back to a silent iframe.
+    if (capturedProps.useRefreshTokens) {
+      expect(capturedProps.useRefreshTokensFallback).toBe(true);
+    }
+  });
 });

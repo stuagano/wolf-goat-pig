@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { LoginButton, AuthHealthCheck } from '../components/auth';
 import StaleGameBanner from '../components/game/StaleGameBanner';
+import PostRoundForm from '../components/rounds/PostRoundForm';
 
 function HomePage() {
   const navigate = useNavigate();
@@ -203,6 +204,64 @@ function HomePage() {
           )}
         </div>
         
+        {/* Submit a Score - key capability, available right on the home page */}
+        {isAuthenticated && (
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.98)',
+            borderRadius: '16px',
+            padding: '32px',
+            marginBottom: '30px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+            backdropFilter: 'blur(10px)',
+            border: '2px solid rgba(4, 120, 87, 0.3)'
+          }}>
+            <h3 style={{
+              fontSize: '2rem',
+              fontWeight: 'bold',
+              color: '#1F2937',
+              marginBottom: '8px',
+              textAlign: 'center'
+            }}>
+              📝 Submit a Score
+            </h3>
+            <p style={{
+              color: '#6B7280',
+              fontSize: '1.1rem',
+              textAlign: 'center',
+              marginBottom: '20px'
+            }}>
+              Post today's Wolf-Goat-Pig quarters right here — no extra navigation.
+            </p>
+            <PostRoundForm compact />
+            <div style={{ textAlign: 'center', marginTop: '16px' }}>
+              <button
+                onClick={() => navigate('/rounds/post')}
+                style={{
+                  padding: '10px 24px',
+                  background: 'transparent',
+                  color: '#047857',
+                  border: '1px solid #047857',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = '#047857';
+                  e.target.style.color = 'white';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = 'transparent';
+                  e.target.style.color = '#047857';
+                }}
+              >
+                View my rounds &amp; attestation queue
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Player Sign-Up & Availability - Primary CTA */}
         <div style={{
           background: 'rgba(255, 255, 255, 0.98)',
