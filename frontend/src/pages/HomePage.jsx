@@ -81,12 +81,12 @@ function HomePage() {
           <button
             type="button"
             className="wgp-home__pillar"
-            onClick={() => navigate('/signup?tab=wgp-signup')}
+            onClick={() => navigate('/signup?tab=calendar')}
           >
             <span className="wgp-home__pillar-kicker">This week</span>
             <h2 className="wgp-home__pillar-title">Sign up to play</h2>
             <p className="wgp-home__pillar-copy">
-              Claim an upcoming day and see who else is already on the sheet.
+              Day-by-day sheet — claim a date and see who else is already in.
             </p>
           </button>
 
@@ -180,7 +180,7 @@ function HomePage() {
             <button
               type="button"
               className="wgp-home__btn wgp-home__btn--ghost"
-              onClick={() => navigate('/signup?tab=wgp-signup')}
+              onClick={() => navigate('/signup?tab=calendar')}
             >
               Open this week&apos;s sign-up
             </button>
