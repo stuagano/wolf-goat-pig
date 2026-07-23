@@ -45,6 +45,9 @@ export const AuthProvider = ({ children }) => {
         }}
         cacheLocation="localstorage"
         useRefreshTokens={true}
+        // Fall back to a silent /authorize iframe when the cached refresh token
+        // is missing or expired, instead of throwing "Missing Refresh Token".
+        useRefreshTokensFallback={true}
       >
         <AuthContext.Provider value={value}>
           {children}

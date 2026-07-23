@@ -1,20 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useAuth0 } from "@auth0/auth0-react";
-import LegacyNameSelector from "../components/auth/LegacyNameSelector";
-import { useLegacyPlayers } from "../hooks/useLegacyPlayers";
-import { usePlayerProfile } from "../hooks/usePlayerProfile";
+import React, { useCallback, useEffect, useState } from "react";
+import PostRoundForm from "../components/rounds/PostRoundForm";
+import { useAccessToken } from "../hooks/useAccessToken";
 import {
   attestRound,
   fetchMyRounds,
   fetchPendingAttestations,
-  postMyRound,
 } from "../services/rounds";
-
-const todayLocalDate = () => {
-  const now = new Date();
-  const offsetMs = now.getTimezoneOffset() * 60000;
-  return new Date(now.getTime() - offsetMs).toISOString().slice(0, 10);
-};
 
 const statusLabel = (status) => (status === "attested" ? "Attested" : "Pending");
 
@@ -119,82 +110,15 @@ const AttestationQueue = ({ rounds, loading, error, attestingId, onAttest, onRef
   );
 };
 
-const FoursomePicker = ({ players, currentName, selectedNames, onChange }) => {
-  const availablePlayers = useMemo(
-    () => players.filter((name) => name && name !== currentName),
-    [players, currentName],
-  );
-
-  const togglePlayer = (name) => {
-    if (selectedNames.includes(name)) {
-      onChange(selectedNames.filter((selectedName) => selectedName !== name));
-      return;
-    }
-
-    if (selectedNames.length < 3) {
-      onChange([...selectedNames, name]);
-    }
-  };
-
-  return (
-    <div className="foursome-picker">
-      <div className="selected-foursome">
-        {selectedNames.length ? selectedNames.map((name) => (
-          <button type="button" key={name} onClick={() => togglePlayer(name)}>
-            {name} ×
-          </button>
-        )) : <span className="muted">Select 1-3 other members who played with you.</span>}
-      </div>
-      <div className="player-grid" role="group" aria-label="Foursome members">
-        {availablePlayers.map((name) => {
-          const selected = selectedNames.includes(name);
-          return (
-            <button
-              type="button"
-              key={name}
-              className={selected ? "selected" : ""}
-              onClick={() => togglePlayer(name)}
-              disabled={!selected && selectedNames.length >= 3}
-            >
-              {name}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
 const PostRoundPage = () => {
-  const { getAccessTokenSilently } = useAuth0();
-  const {
-    profile,
-    loading: profileLoading,
-    error: profileError,
-    updateLegacyName,
-  } = usePlayerProfile();
-  const { players, loading: rosterLoading, error: rosterError } = useLegacyPlayers();
+  const { getToken } = useAccessToken();
 
-  const [form, setForm] = useState({
-    date: todayLocalDate(),
-    score: "",
-    location: "",
-    group: "",
-    duration: "",
-    foursome: [],
-  });
-  const [submitState, setSubmitState] = useState({ loading: false, error: "", success: "" });
-  const [showLinkFlow, setShowLinkFlow] = useState(false);
   const [myRounds, setMyRounds] = useState([]);
   const [myRoundsState, setMyRoundsState] = useState({ loading: true, error: "" });
   const [pendingRounds, setPendingRounds] = useState([]);
   const [pendingState, setPendingState] = useState({ loading: true, error: "" });
   const [attestingId, setAttestingId] = useState(null);
   const [attestState, setAttestState] = useState({ error: "", success: "" });
-
-  const legacyName = profile?.legacy_name || "";
-
-  const getToken = useCallback(() => getAccessTokenSilently(), [getAccessTokenSilently]);
 
   const loadMyRounds = useCallback(async () => {
     setMyRoundsState({ loading: true, error: "" });
@@ -222,52 +146,6 @@ const PostRoundPage = () => {
     loadMyRounds();
     loadPendingRounds();
   }, [loadMyRounds, loadPendingRounds]);
-
-  const updateForm = (field, value) => {
-    setForm((current) => ({ ...current, [field]: value }));
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setSubmitState({ loading: true, error: "", success: "" });
-    setShowLinkFlow(false);
-
-    if (form.foursome.length < 1 || form.foursome.length > 3) {
-      setSubmitState({ loading: false, error: "Select 1-3 other foursome members.", success: "" });
-      return;
-    }
-
-    if (!form.score.trim() || Number.isNaN(Number(form.score))) {
-      setSubmitState({ loading: false, error: "Enter WGP quarters won/lost as a number.", success: "" });
-      return;
-    }
-
-    try {
-      await postMyRound(getToken, {
-        date: form.date,
-        score: Number(form.score),
-        location: form.location.trim() || undefined,
-        group: form.group.trim() || undefined,
-        duration: form.duration.trim() || undefined,
-        foursome: form.foursome,
-      });
-      setSubmitState({ loading: false, error: "", success: "Round posted for attestation." });
-      setForm((current) => ({ ...current, score: "", location: "", group: "", duration: "", foursome: [] }));
-      loadMyRounds();
-    } catch (error) {
-      const message = error.status === 409 ? "already posted for that date" : error.message;
-      if (error.status === 400) {
-        setShowLinkFlow(true);
-      }
-      setSubmitState({ loading: false, error: message, success: "" });
-    }
-  };
-
-  const handleLegacySelect = async (name) => {
-    await updateLegacyName(name);
-    setShowLinkFlow(false);
-    setSubmitState({ loading: false, error: "", success: "Roster name linked. You can post your round now." });
-  };
 
   const handleAttest = async (roundId) => {
     setAttestingId(roundId);
@@ -298,99 +176,7 @@ const PostRoundPage = () => {
       <section className="round-layout">
         <div className="round-card">
           <h2>Round Result</h2>
-          {profileLoading && <p className="muted">Loading profile...</p>}
-          {profileError && <div className="round-alert error">{profileError}</div>}
-          {legacyName && <p className="linked-name">Posting as <strong>{legacyName}</strong></p>}
-          {!legacyName && !profileLoading && (
-            <div className="round-alert warning">Link your roster name before posting a round.</div>
-          )}
-          <form onSubmit={handleSubmit} className="round-form">
-            <label>
-              Date
-              <input
-                type="date"
-                value={form.date}
-                onChange={(event) => updateForm("date", event.target.value)}
-                required
-              />
-            </label>
-
-            <label>
-              WGP quarters won/lost
-              <input
-                type="number"
-                step="1"
-                inputMode="numeric"
-                value={form.score}
-                onChange={(event) => updateForm("score", event.target.value)}
-                placeholder="Example: -3 or 8"
-                required
-              />
-            </label>
-
-            <label>
-              Location <span>(optional)</span>
-              <input
-                type="text"
-                value={form.location}
-                onChange={(event) => updateForm("location", event.target.value)}
-                placeholder="Wing Point"
-              />
-            </label>
-
-            <label>
-              Group <span>(optional)</span>
-              <input
-                type="text"
-                value={form.group}
-                onChange={(event) => updateForm("group", event.target.value)}
-                placeholder="Morning game"
-              />
-            </label>
-
-            <label>
-              Duration <span>(optional)</span>
-              <input
-                type="text"
-                value={form.duration}
-                onChange={(event) => updateForm("duration", event.target.value)}
-                placeholder="18 holes"
-              />
-            </label>
-
-            <div>
-              <label className="standalone-label">Foursome members</label>
-              {rosterLoading ? (
-                <p className="muted">Loading roster...</p>
-              ) : rosterError ? (
-                <div className="round-alert error">{rosterError}</div>
-              ) : (
-                <FoursomePicker
-                  players={players}
-                  currentName={legacyName}
-                  selectedNames={form.foursome}
-                  onChange={(foursome) => updateForm("foursome", foursome)}
-                />
-              )}
-            </div>
-
-            {submitState.error && <div className="round-alert error">{submitState.error}</div>}
-            {submitState.success && <div className="round-alert success">{submitState.success}</div>}
-
-            <button type="submit" disabled={submitState.loading || rosterLoading}>
-              {submitState.loading ? "Posting..." : "Post Round"}
-            </button>
-          </form>
-
-          {(showLinkFlow || (!legacyName && !profileLoading)) && (
-            <div className="link-flow">
-              <LegacyNameSelector
-                currentName={legacyName}
-                onSelect={handleLegacySelect}
-                onSkip={() => setShowLinkFlow(false)}
-              />
-            </div>
-          )}
+          <PostRoundForm onPosted={loadMyRounds} />
         </div>
 
         <div className="round-card">
@@ -477,60 +263,6 @@ const PostRoundPage = () => {
           margin-top: 24px;
         }
 
-        .round-form {
-          display: grid;
-          gap: 16px;
-          margin-top: 18px;
-        }
-
-        .round-form label,
-        .standalone-label {
-          display: grid;
-          gap: 6px;
-          font-weight: 700;
-          color: #374151;
-        }
-
-        .round-form label span {
-          font-weight: 500;
-          color: #6b7280;
-        }
-
-        .round-form input {
-          border: 1px solid #d1d5db;
-          border-radius: 10px;
-          padding: 11px 12px;
-          font-size: 16px;
-        }
-
-        .round-form input:focus {
-          outline: 2px solid #9acd7e;
-          border-color: #2d5a27;
-        }
-
-        .round-form > button,
-        .attestation-card button,
-        .round-alert button {
-          background: #2d5a27;
-          color: #ffffff;
-          border: none;
-          border-radius: 10px;
-          padding: 11px 16px;
-          font-weight: 700;
-          cursor: pointer;
-        }
-
-        .round-form > button:disabled,
-        .attestation-card button:disabled,
-        .player-grid button:disabled {
-          opacity: 0.55;
-          cursor: not-allowed;
-        }
-
-        .linked-name {
-          color: #4b5563;
-        }
-
         .muted {
           color: #6b7280;
         }
@@ -541,58 +273,26 @@ const PostRoundPage = () => {
           margin: 12px 0;
         }
 
+        .round-alert button {
+          background: #2d5a27;
+          color: #ffffff;
+          border: none;
+          border-radius: 10px;
+          padding: 11px 16px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
         .round-alert.error {
           background: #fee2e2;
           color: #991b1b;
           border: 1px solid #fecaca;
         }
 
-        .round-alert.warning {
-          background: #fef3c7;
-          color: #92400e;
-          border: 1px solid #fde68a;
-        }
-
         .round-alert.success {
           background: #dcfce7;
           color: #166534;
           border: 1px solid #bbf7d0;
-        }
-
-        .selected-foursome {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          min-height: 42px;
-          align-items: center;
-          margin: 8px 0 12px;
-        }
-
-        .selected-foursome button,
-        .player-grid button {
-          border: 1px solid #d1d5db;
-          border-radius: 999px;
-          background: #f9fafb;
-          color: #374151;
-          padding: 8px 12px;
-          cursor: pointer;
-        }
-
-        .selected-foursome button,
-        .player-grid button.selected {
-          background: #e7f5e4;
-          border-color: #2d5a27;
-          color: #1f3b1b;
-          font-weight: 700;
-        }
-
-        .player-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-          gap: 8px;
-          max-height: 260px;
-          overflow: auto;
-          padding: 2px;
         }
 
         .attestation-list {
@@ -610,6 +310,21 @@ const PostRoundPage = () => {
           border-radius: 12px;
           padding: 16px;
           background: #f9fafb;
+        }
+
+        .attestation-card button {
+          background: #2d5a27;
+          color: #ffffff;
+          border: none;
+          border-radius: 10px;
+          padding: 11px 16px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .attestation-card button:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
         }
 
         .attestation-card p {
@@ -667,12 +382,6 @@ const PostRoundPage = () => {
         .round-status-badge.attested {
           background: #dcfce7;
           color: #166534;
-        }
-
-        .link-flow {
-          margin-top: 20px;
-          border-top: 1px solid #e5e7eb;
-          padding-top: 20px;
         }
 
         @media (max-width: 900px) {
