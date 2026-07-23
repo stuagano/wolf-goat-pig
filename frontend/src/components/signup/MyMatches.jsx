@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth0 } from '@auth0/auth0-react';
+import { useAccessToken } from '../../hooks/useAccessToken';
 import useTeeTimes from '../../hooks/useTeeTimes';
 import BookingModal from '../foretees/BookingModal';
 import { apiConfig } from '../../config/api.config';
@@ -41,7 +41,7 @@ const formatDateDisplay = (dateStr) => {
 
 const MyMatches = () => {
   const navigate = useNavigate();
-  const { getAccessTokenSilently } = useAuth0();
+  const { getToken } = useAccessToken();
   const { fetchTeeTimes, bookTeeTime, bookingLoading, bookingError, clearBookingError } = useTeeTimes();
 
   const [matches, setMatches] = useState([]);
@@ -56,7 +56,7 @@ const MyMatches = () => {
   const [bookingResult, setBookingResult] = useState(null);
 
   const authFetch = useCallback(async (url, options = {}) => {
-    const token = await getAccessTokenSilently();
+    const token = await getToken();
     const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
     return fetch(fullUrl, {
       ...options,
@@ -66,7 +66,7 @@ const MyMatches = () => {
         'Content-Type': 'application/json',
       },
     });
-  }, [getAccessTokenSilently]);
+  }, [getToken]);
 
   const fetchMatches = useCallback(async (overrideStatus) => {
     setLoading(true);

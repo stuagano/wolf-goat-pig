@@ -45,6 +45,7 @@ const renderPage = (playerId = '21') =>
 beforeEach(() => {
   mockUseAuth0.mockReturnValue({
     getAccessTokenSilently: vi.fn().mockResolvedValue('mock-token'),
+    loginWithRedirect: vi.fn(),
   });
   global.fetch = vi.fn(async (url) => {
     if (String(url).includes('/public-profile')) {

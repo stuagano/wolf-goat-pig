@@ -6,11 +6,15 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { apiConfig } from '../../config/api.config';
+import { acquireAccessToken } from '../../services/authToken';
 import { Message } from './MessageParts';
 
 const API_URL = apiConfig.baseUrl;
 const POLL_MS = 30000;
 const AUTH0_AUDIENCE = import.meta.env.VITE_AUTH0_AUDIENCE;
+const tokenOptions = AUTH0_AUDIENCE
+  ? { authorizationParams: { audience: AUTH0_AUDIENCE } }
+  : undefined;
 
 const GroupMeChat = () => {
   const { isAuthenticated, getAccessTokenSilently, loginWithRedirect } = useAuth0();
@@ -58,9 +62,7 @@ const GroupMeChat = () => {
     setSending(true);
     setSendError(null);
     try {
-      const token = await getAccessTokenSilently(
-        AUTH0_AUDIENCE ? { authorizationParams: { audience: AUTH0_AUDIENCE } } : undefined,
-      );
+      const token = await acquireAccessToken(getAccessTokenSilently, tokenOptions);
       const res = await fetch(`${API_URL}/groupme/messages`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },

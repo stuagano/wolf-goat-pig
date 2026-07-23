@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { apiConfig } from '../../config/api.config';
+import { acquireAccessToken } from '../../services/authToken';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -9,6 +10,10 @@ const dayNamesFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'S
 const PlayerAvailability = () => {
   const { getAccessTokenSilently, isAuthenticated } = useAuth0();
   const AUTH0_AUDIENCE = import.meta.env.VITE_AUTH0_AUDIENCE;
+  const tokenOptions = useMemo(
+    () => (AUTH0_AUDIENCE ? { authorizationParams: { audience: AUTH0_AUDIENCE } } : undefined),
+    [AUTH0_AUDIENCE],
+  );
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -45,7 +50,7 @@ const PlayerAvailability = () => {
       setLoading(true);
       let token;
       try {
-        token = await getAccessTokenSilently(AUTH0_AUDIENCE ? { authorizationParams: { audience: AUTH0_AUDIENCE } } : undefined);
+        token = await acquireAccessToken(getAccessTokenSilently, tokenOptions);
       } catch (e) {
         token = localStorage.getItem('auth_token');
       }
@@ -79,7 +84,7 @@ const PlayerAvailability = () => {
     } finally {
       setLoading(false);
     }
-  }, [getAccessTokenSilently, initializeAvailability, isAuthenticated]);
+  }, [getAccessTokenSilently, initializeAvailability, isAuthenticated, tokenOptions]);
 
   useEffect(() => {
     loadAvailability();
@@ -108,7 +113,7 @@ const PlayerAvailability = () => {
       setMatchResult(null);
       let token;
       try {
-        token = await getAccessTokenSilently(AUTH0_AUDIENCE ? { authorizationParams: { audience: AUTH0_AUDIENCE } } : undefined);
+        token = await acquireAccessToken(getAccessTokenSilently, tokenOptions);
       } catch (e) {
         token = localStorage.getItem('auth_token');
       }

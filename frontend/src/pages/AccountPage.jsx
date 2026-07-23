@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
+import { useAccessToken } from '../hooks/useAccessToken';
 import { apiConfig } from '../config/api.config';
 import { useTheme } from '../theme/Provider';
 import useTeeTimes from '../hooks/useTeeTimes';
@@ -110,7 +111,8 @@ const gatherStats = () => {
 };
 
 function AccountPage() {
-  const { user, isAuthenticated, logout, getAccessTokenSilently } = useAuth0();
+  const { user, isAuthenticated, logout } = useAuth0();
+  const { getToken } = useAccessToken();
   const theme = useTheme();
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -137,7 +139,7 @@ function AccountPage() {
     setStats(gatherStats());
 
     if (isAuthenticated) {
-      getAccessTokenSilently()
+      getToken()
         .then(token => fetch(`${apiConfig.baseUrl}/players/me`, {
           headers: { Authorization: `Bearer ${token}` },
         }))
@@ -157,13 +159,13 @@ function AccountPage() {
           setDescriptionSyncError('load');
         });
     }
-  }, [user, isAuthenticated, getAccessTokenSilently]);
+  }, [user, isAuthenticated, getToken]);
 
   const handleSave = useCallback(async () => {
     saveSettings(settings);
     // Persist description to backend
     try {
-      const token = await getAccessTokenSilently();
+      const token = await getToken();
       const resp = await fetch(`${apiConfig.baseUrl}/players/me/description`, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -178,7 +180,7 @@ function AccountPage() {
     setEditing(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
-  }, [settings, getAccessTokenSilently]);
+  }, [settings, getToken]);
 
   const handleChange = (field, value) => {
     setSettings(prev => ({ ...prev, [field]: value }));
