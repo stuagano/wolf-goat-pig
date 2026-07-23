@@ -46,20 +46,20 @@ const Navigation = () => {
   const bottomTabItems = [
     { path: '/', label: 'Home', icon: '🏠' },
     { path: '/signup', label: 'Sign Up', icon: '📅' },
-    { path: '/game', label: 'Game', icon: '⚔️' },
+    { path: '/leaderboard', label: 'Standings', icon: '📊' },
     { path: '/account', label: 'Account', icon: '👤' },
   ];
 
   // "More" sheet items
   const moreItems = [
+    { path: '/rounds/post', label: 'Post / Attest Round', icon: '📝' },
+    { path: '/game', label: 'Live Game', icon: '⚔️' },
     { path: '/players', label: 'Players', icon: '👥' },
     { path: '/scorecard-scan', label: 'Scan Scorecard', icon: '📷' },
     { path: '/join', label: 'Join with Code', icon: '🔗' },
     { path: '/games/active', label: 'Active Games', icon: '🎮' },
     { path: '/games/completed', label: 'Game History', icon: '🏆' },
-    { path: '/rounds/post', label: 'Post a Round', icon: '📝' },
     { path: '/badges', label: 'Badges', icon: '🏅' },
-    { path: '/leaderboard', label: 'WGP Leaderboard', icon: '📊' },
     { path: '/livsow', label: 'LivSow', icon: '⛳' },
     { path: '/chat', label: 'League Chat', icon: '💬' },
     { path: '/tutorial', label: 'Tutorial', icon: '🎓' },
@@ -76,15 +76,15 @@ const Navigation = () => {
   const allNavLinks = [
     { path: '/', label: '🏠 Home', primary: true },
     { path: '/signup', label: '📅 Sign Up', primary: true },
-    { path: '/game', label: '⚔️ Game', primary: true },
-    { path: '/games/active', label: '🎮 Active', primary: true },
+    { path: '/leaderboard', label: '📊 Standings', primary: true },
+    { path: '/rounds/post', label: '📝 Scores', primary: true },
+    { path: '/game', label: '⚔️ Live Game', primary: false },
+    { path: '/games/active', label: '🎮 Active', primary: false },
     { path: '/players', label: '👥 Players', primary: false },
     { path: '/scorecard-scan', label: '📷 Scan Scorecard', primary: false },
     { path: '/join', label: '🔗 Join with Code', primary: false },
     { path: '/games/completed', label: '🏆 History', primary: false },
-    { path: '/rounds/post', label: '📝 Post Round', primary: false },
     { path: '/badges', label: '🏅 Badges', primary: false },
-    { path: '/leaderboard', label: '📊 WGP Leaderboard', primary: false },
     { path: '/livsow', label: '⛳ LivSow', primary: false },
     { path: '/chat', label: '💬 Chat', primary: false },
     { path: '/tutorial', label: '🎓 Tutorial', primary: false },
