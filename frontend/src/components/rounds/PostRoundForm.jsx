@@ -133,7 +133,7 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
     }
 
     try {
-      await postMyRound(getToken, {
+      const posted = await postMyRound(getToken, {
         date: form.date,
         score: Number(form.score),
         location: form.location.trim() || undefined,
@@ -141,10 +141,13 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
         duration: form.duration.trim() || undefined,
         foursome: form.foursome,
       });
+      const roundCode = posted?.round_code || (posted?.id != null ? `WGP-${posted.id}` : null);
       setSubmitState({
         loading: false,
         error: "",
-        success: "Round posted for attestation.",
+        success: roundCode
+          ? `Round ${roundCode} posted for attestation. Your partners will get a notification to confirm.`
+          : "Round posted for attestation. Your partners will get a notification to confirm.",
         canRetry: false,
         needsReauth: false,
       });

@@ -27,6 +27,7 @@ from ..models import LegacyRound, PlayerProfile
 from ..services.auth_service import get_current_user
 from ..services.email_service import get_email_service
 from ..services.legacy_player_service import get_canonical_name
+from ..services.notification_service import get_notification_service
 from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
@@ -52,6 +53,7 @@ def _serialize(r: LegacyRound) -> dict[str, Any]:
     """Render a round in the pinned response shape."""
     return {
         "id": r.id,
+        "round_code": f"WGP-{r.id}",
         "date": r.date,
         "score": r.score,
         "member": r.member,
@@ -63,24 +65,56 @@ def _serialize(r: LegacyRound) -> dict[str, Any]:
 
 
 def _notify_foursome(db: Session, round_row: LegacyRound, poster: PlayerProfile) -> None:
-    """Email each foursome member that has a PlayerProfile+email an attestation
-    request. Best-effort: any email failure must NOT fail the request."""
+    """Email + in-app notify each foursome member that can attest.
+
+    Best-effort: any notify failure must NOT fail the request.
+    """
     try:
         email_service = get_email_service()
     except Exception as e:  # pragma: no cover - defensive
         logger.warning("Could not get email service for attestation request: %s", e)
-        return
+        email_service = None
+
+    try:
+        notification_service = get_notification_service()
+    except Exception as e:  # pragma: no cover - defensive
+        logger.warning("Could not get notification service for attestation: %s", e)
+        notification_service = None
+
+    poster_name = poster.legacy_name or poster.name or "A member"
+    round_code = f"WGP-{round_row.id}"
 
     for name in round_row.foursome or []:
         try:
             profile = db.query(PlayerProfile).filter(func.lower(PlayerProfile.legacy_name) == name.lower()).first()
-            if profile and profile.email:
+            if not profile:
+                continue
+
+            if email_service and profile.email:
                 email_service.send_attestation_request(
                     to_email=profile.email,
                     attester_name=profile.name or name,
-                    poster_name=poster.legacy_name or poster.name or "A member",
+                    poster_name=poster_name,
                     round_date=round_row.date,
                     score=round_row.score,
+                )
+
+            if notification_service:
+                notification_service.send_notification(
+                    player_id=profile.id,
+                    notification_type="round_attestation",
+                    message=(
+                        f"{poster_name} posted round {round_code} for {round_row.date} "
+                        f"({round_row.score:+d} quarters). Tap to attest."
+                    ),
+                    db=db,
+                    data={
+                        "round_id": round_row.id,
+                        "round_code": round_code,
+                        "date": round_row.date,
+                        "poster": poster_name,
+                        "score": round_row.score,
+                    },
                 )
         except Exception as e:
             logger.warning("Failed to send attestation request to '%s': %s", name, e)

@@ -114,6 +114,7 @@ class NotificationService:
                 "match_accepted",
                 "match_declined",
                 "match_confirmed",
+                "round_attestation",
             ]
 
             if notification_type not in valid_types:

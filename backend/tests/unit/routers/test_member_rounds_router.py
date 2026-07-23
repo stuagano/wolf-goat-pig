@@ -74,13 +74,18 @@ def client(db_session, monkeypatch):
     app.dependency_overrides[get_db] = _override_get_db
     app.dependency_overrides[require_admin] = lambda: None
 
-    # No real emails.
+    # No real emails / in-app notifications.
     fake_email = MagicMock()
     fake_email.send_attestation_request.return_value = True
     monkeypatch.setattr(member_rounds_module, "get_email_service", lambda: fake_email)
 
+    fake_notify = MagicMock()
+    fake_notify.send_notification.return_value = {"id": 1}
+    monkeypatch.setattr(member_rounds_module, "get_notification_service", lambda: fake_notify)
+
     test_client = TestClient(app)
     test_client.fake_email = fake_email  # type: ignore[attr-defined]
+    test_client.fake_notify = fake_notify  # type: ignore[attr-defined]
     yield test_client
 
     app.dependency_overrides.pop(get_db, None)
@@ -119,7 +124,9 @@ def test_post_creates_pending_round(client):
     assert data["foursome"] == ["Jeff Smith", "Bob Jones"]
     assert data["attested_by"] is None
     assert data["attested_at"] is None
+    assert data["round_code"] == f"WGP-{data['id']}"
     client.fake_email.send_attestation_request.assert_called()
+    assert client.fake_notify.send_notification.call_count == 2
 
 
 def test_post_without_legacy_name_returns_400(client):
