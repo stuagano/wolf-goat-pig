@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
+import { useAccessToken } from '../../hooks/useAccessToken';
 import { apiConfig } from '../../config/api.config';
 
 const API_URL = apiConfig.baseUrl;
@@ -21,7 +22,8 @@ const relativeTime = (isoStr) => {
 
 const NotificationBell = () => {
   const navigate = useNavigate();
-  const { getAccessTokenSilently, isAuthenticated } = useAuth0();
+  const { isAuthenticated } = useAuth0();
+  const { getToken } = useAccessToken();
   const [notifications, setNotifications] = useState([]);
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -29,7 +31,7 @@ const NotificationBell = () => {
   const fetchNotifications = useCallback(async () => {
     if (!isAuthenticated) return;
     try {
-      const token = await getAccessTokenSilently();
+      const token = await getToken();
       const res = await fetch(`${API_URL}/notifications?unread_only=true&limit=10`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -40,7 +42,7 @@ const NotificationBell = () => {
     } catch {
       // silent — bell is non-critical
     }
-  }, [isAuthenticated, getAccessTokenSilently]);
+  }, [isAuthenticated, getToken]);
 
   useEffect(() => {
     fetchNotifications();
@@ -62,7 +64,7 @@ const NotificationBell = () => {
 
   const markAllRead = useCallback(async () => {
     try {
-      const token = await getAccessTokenSilently();
+      const token = await getToken();
       await fetch(`${API_URL}/notifications/read-all`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
@@ -71,11 +73,11 @@ const NotificationBell = () => {
     } catch {
       // silent
     }
-  }, [getAccessTokenSilently]);
+  }, [getToken]);
 
   const handleNotificationClick = useCallback(async (n) => {
     try {
-      const token = await getAccessTokenSilently();
+      const token = await getToken();
       await fetch(`${API_URL}/notifications/${n.id}/read`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
@@ -86,7 +88,7 @@ const NotificationBell = () => {
     setNotifications(prev => prev.filter(x => x.id !== n.id));
     setOpen(false);
     navigate('/account');
-  }, [getAccessTokenSilently, navigate]);
+  }, [getToken, navigate]);
 
   if (!isAuthenticated || notifications.length === 0) return null;
 

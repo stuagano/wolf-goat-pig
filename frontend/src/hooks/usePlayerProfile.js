@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { apiConfig } from "../config/api.config";
+import { acquireAccessToken } from "../services/authToken";
 
 const API_URL = apiConfig.baseUrl;
 
@@ -24,7 +25,7 @@ export const usePlayerProfile = () => {
 
     try {
       setLoading(true);
-      const token = await getAccessTokenSilently();
+      const token = await acquireAccessToken(getAccessTokenSilently);
 
       const response = await fetch(`${API_URL}/players/me`, {
         headers: {
@@ -61,7 +62,7 @@ export const usePlayerProfile = () => {
       }
 
       try {
-        const token = await getAccessTokenSilently();
+        const token = await acquireAccessToken(getAccessTokenSilently);
 
         const response = await fetch(`${API_URL}/players/me/legacy-name`, {
           method: "PUT",

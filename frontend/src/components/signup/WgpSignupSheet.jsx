@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../../theme/Provider';
 import { useAuth0 } from '@auth0/auth0-react';
 import { apiConfig } from '../../config/api.config';
+import { acquireAccessToken } from '../../services/authToken';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -86,7 +87,7 @@ export default function WgpSignupSheet() {
     if (!isAuthenticated) return;
     (async () => {
       try {
-        const token = await getAccessTokenSilently();
+        const token = await acquireAccessToken(getAccessTokenSilently);
         const resp = await fetch(`${API_URL}/players/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });

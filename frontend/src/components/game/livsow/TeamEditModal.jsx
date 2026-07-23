@@ -7,8 +7,12 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useAuth0 } from '@auth0/auth0-react';
 import { apiConfig } from '../../../config/api.config';
+import { acquireAccessToken } from '../../../services/authToken';
 
 const AUTH0_AUDIENCE = import.meta.env.VITE_AUTH0_AUDIENCE;
+const tokenOptions = AUTH0_AUDIENCE
+  ? { authorizationParams: { audience: AUTH0_AUDIENCE } }
+  : undefined;
 
 const fieldLabel = { fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' };
 const fieldBox = {
@@ -29,9 +33,7 @@ const TeamEditModal = ({ slug, teamName, accent, initial, onClose, onSaved }) =>
     setSaving(true);
     setError(null);
     try {
-      const token = await getAccessTokenSilently(
-        AUTH0_AUDIENCE ? { authorizationParams: { audience: AUTH0_AUDIENCE } } : undefined,
-      );
+      const token = await acquireAccessToken(getAccessTokenSilently, tokenOptions);
       const res = await fetch(`${apiConfig.baseUrl}/data/livsow/teams/${slug}/content`, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },

@@ -16,7 +16,7 @@ export const useAccessToken = () => {
   const { getAccessTokenSilently, loginWithRedirect } = useAuth0();
 
   const getToken = useCallback(
-    () => acquireAccessToken(getAccessTokenSilently),
+    (options) => acquireAccessToken(getAccessTokenSilently, options),
     [getAccessTokenSilently],
   );
 

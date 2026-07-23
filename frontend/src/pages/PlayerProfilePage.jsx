@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth0 } from '@auth0/auth0-react';
 import { apiConfig } from '../config/api.config';
+import { useAccessToken } from '../hooks/useAccessToken';
 import { usePlayerProfile } from '../hooks/usePlayerProfile';
 import '../styles/clubhouse-theme.css';
 import './PlayerProfilePage.css';
@@ -31,7 +31,7 @@ const formatScore = (q) => `${q >= 0 ? '+' : ''}${q}`;
 const PlayerProfilePage = () => {
   const { playerId } = useParams();
   const navigate = useNavigate();
-  const { getAccessTokenSilently } = useAuth0();
+  const { getToken } = useAccessToken();
   const { profile: myProfile } = usePlayerProfile();
   const fileInputRef = useRef(null);
 
@@ -87,7 +87,7 @@ const PlayerProfilePage = () => {
     setUploading(true);
     setUploadError(null);
     try {
-      const token = await getAccessTokenSilently();
+      const token = await getToken();
       const formData = new FormData();
       formData.append('file', file);
       const res = await fetch(`${API_URL}/players/me/avatar`, {
@@ -112,7 +112,7 @@ const PlayerProfilePage = () => {
     setTogglingBadgeId(badgeEarnedId);
     setShowcaseError(null);
     try {
-      const token = await getAccessTokenSilently();
+      const token = await getToken();
       const res = await fetch(`${API_URL}/api/badges/me/${badgeEarnedId}/showcase`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },

@@ -48,22 +48,28 @@ export const isRecoverableAuthError = (error) => {
  * `/authorize` iframe.
  *
  * @param {(opts?: object) => Promise<string>} getAccessTokenSilently - Auth0 SDK fn
+ * @param {object} [options] - forwarded to getAccessTokenSilently (e.g. audience)
  * @returns {Promise<string>} access token
  */
-export const acquireAccessToken = async (getAccessTokenSilently) => {
+export const acquireAccessToken = async (getAccessTokenSilently, options = undefined) => {
   if (typeof getAccessTokenSilently !== "function") {
     throw new Error("getAccessTokenSilently is not available");
   }
 
   try {
-    return await getAccessTokenSilently();
+    return options === undefined
+      ? await getAccessTokenSilently()
+      : await getAccessTokenSilently(options);
   } catch (error) {
     if (!isRecoverableAuthError(error)) {
       throw error;
     }
     // Bypass the cache so the SDK re-mints a token via the refresh-token
     // fallback rather than reusing the missing/expired one.
-    return await getAccessTokenSilently({ cacheMode: "off" });
+    const retryOptions = options === undefined
+      ? { cacheMode: "off" }
+      : { ...options, cacheMode: "off" };
+    return await getAccessTokenSilently(retryOptions);
   }
 };
 

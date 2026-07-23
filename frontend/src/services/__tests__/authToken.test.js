@@ -69,4 +69,16 @@ describe("acquireAccessToken", () => {
       "getAccessTokenSilently is not available",
     );
   });
+
+  test("forwards Auth0 options and preserves them on cache-off retry", async () => {
+    const options = { authorizationParams: { audience: "https://example.com" } };
+    const getToken = vi
+      .fn()
+      .mockRejectedValueOnce({ error: "missing_refresh_token" })
+      .mockResolvedValueOnce("fresh-token");
+
+    await expect(acquireAccessToken(getToken, options)).resolves.toBe("fresh-token");
+    expect(getToken).toHaveBeenNthCalledWith(1, options);
+    expect(getToken).toHaveBeenNthCalledWith(2, { ...options, cacheMode: "off" });
+  });
 });

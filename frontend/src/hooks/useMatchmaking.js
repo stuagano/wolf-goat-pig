@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
+import { acquireAccessToken } from '../services/authToken';
 import { apiConfig } from '../config/api.config';
 
 const API_URL = apiConfig.baseUrl;
@@ -20,7 +21,7 @@ const useMatchmaking = (playerProfileId) => {
   const wsRef = useRef(null);
 
   const authFetch = useCallback(async (url, options = {}) => {
-    const token = await getAccessTokenSilently();
+    const token = await acquireAccessToken(getAccessTokenSilently);
     const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
     return fetch(fullUrl, {
       ...options,
