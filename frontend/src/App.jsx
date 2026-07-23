@@ -427,7 +427,7 @@ function App() {
               <Route path="/badges" element={<BadgesPage />} />
               <Route path="/scorecard-scan" element={<ScorecardScanPage />} />
               <Route path="/ask" element={<AskPage />} />
-              <Route path="/tee-sheet" element={<Navigate to="/signup?tab=wgp-signup" />} />
+              <Route path="/tee-sheet" element={<Navigate to="/signup?tab=calendar" />} />
               <Route path="/find-a-game" element={<FindAGamePage />} />
               <Route path="/players" element={<PlayersRosterPage />} />
               <Route path="/players/:playerId" element={<PlayerProfilePage />} />

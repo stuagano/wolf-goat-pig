@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useSearchParams } from 'react-router-dom';
 import ForeTeesTeeSheet from '../components/foretees/ForeTeesTeeSheet';
+import DailySignupView from '../components/signup/DailySignupView';
 import WgpSignupSheet from '../components/signup/WgpSignupSheet';
 import '../styles/mobile-touch.css';
 
@@ -9,8 +10,8 @@ const SignupPage = () => {
   const { user, isAuthenticated, loginWithRedirect } = useAuth0();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Default to 'calendar' (day view) - this is the primary view
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'wgp-signup');
+  // Day-by-day weekly sheet is the familiar primary view.
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'calendar');
   const isUserNavigation = useRef(false);
 
   // Handle tab click: update state and URL together to avoid effect loops
@@ -34,10 +35,10 @@ const SignupPage = () => {
     }
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Tab configuration - Day view is first and default
   const tabs = [
-    { id: 'wgp-signup', label: '⛳ WGP Sign Up', icon: '⛳' },
-    { id: 'calendar', label: '📅 Book Tee Time', icon: '📅' },
+    { id: 'calendar', label: '📅 Daily Sign-ups', icon: '📅' },
+    { id: 'wgp-signup', label: '⛳ WGP Tee Sheet', icon: '⛳' },
+    { id: 'tee-times', label: '🏌️ Book Tee Time', icon: '🏌️' },
   ];
 
   if (!isAuthenticated) {
@@ -62,7 +63,7 @@ const SignupPage = () => {
             ⛳ Sign Up to Play
           </h2>
           <p style={{ color: '#6c757d', marginBottom: '30px', lineHeight: 1.5 }}>
-            Sign up for a day's game or book a tee time.
+            Sign up for a day's game and see who else is playing.
           </p>
           <button
             onClick={() => loginWithRedirect()}
@@ -98,7 +99,7 @@ const SignupPage = () => {
           fontSize: '24px',
           fontWeight: '700'
         }}>
-          WGP Tee Sheet
+          Sign Up to Play
         </h1>
         {user && (
           <div style={{
@@ -139,11 +140,15 @@ const SignupPage = () => {
 
       {/* Tab Content */}
       <div style={{ minHeight: '500px' }}>
+        {activeTab === 'calendar' && (
+          <DailySignupView />
+        )}
+
         {activeTab === 'wgp-signup' && (
           <WgpSignupSheet />
         )}
 
-        {activeTab === 'calendar' && (
+        {activeTab === 'tee-times' && (
           <ForeTeesTeeSheet />
         )}
       </div>
