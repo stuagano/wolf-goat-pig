@@ -683,17 +683,17 @@
     "waiver": null
   },
   "signup-server-owns-identity": {
-    "at": "2026-07-24T18:08:08.087801+00:00",
+    "at": "2026-07-24T22:49:28.995955+00:00",
     "detail": null,
-    "duration": 14.488,
+    "duration": 3.548,
     "files": {
       "backend/app/routers/signups.py": "sha256:0238442f5e9448c3f0e728b0026d51b06d5f946b349062d2e11fc3ef22d4bff9",
       "backend/app/schemas/signups.py": "sha256:8739430ac0cd39928715d3e900b001a16abcaabc3d428ddb5ff16a5130957f58",
-      "backend/tests/unit/routers/test_signups_router.py": "sha256:3f6ae4d5af4887ad0dec4482c8a9bfdbd60e82383d7610f2e829973e33176c43",
+      "backend/tests/unit/routers/test_signups_router.py": "sha256:6ff07a0d68cb9bd176c512e654ce0370789bf470889ba415afd9908a5bd22238",
       "frontend/src/components/signup/DailySignupView.jsx": "sha256:7b8ae10d7e7b81534ba9990122e6a48124a2f8f02307a9a34b4768df3aacc0a2",
       "frontend/src/components/signup/__tests__/DailySignupView.test.jsx": "sha256:9f82a095be516ecbf0b3e5e4816744eaaed0f0794a12bdf8c0b6a735303ed85c"
     },
-    "fingerprint": "sha256:fc4e9d89a39f72705fb8f0ce7fd43a89213b47f18f94cfcd939059a266321e04",
+    "fingerprint": "sha256:f7f03980ef8636673dd0a6a0ecac6a0085a698680700f5cd6e67d29f396a9c6f",
     "result": "pass",
     "tier": "cheap",
     "waiver": null

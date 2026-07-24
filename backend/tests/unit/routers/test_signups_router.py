@@ -33,6 +33,12 @@ def _unique_signup_date():
     return f"{year:04d}-{month:02d}-{day:02d}"
 
 
+def _signups_for_week(week_start):
+    resp = client.get("/signups/weekly", params={"week_start": week_start})
+    assert resp.status_code == 200
+    return {signup["id"]: signup for day in resp.json()["daily_summaries"] for signup in day["signups"]}
+
+
 # ── GET /legacy-players ──────────────────────────────────────────────────────
 
 
@@ -130,19 +136,29 @@ class TestCreateSignup:
         assert resp.status_code == 200
         assert "id" in resp.json()
 
-    def test_create_signup_ignores_client_identity(self, authenticated_signup_player):
+    def test_create_signup_persists_authenticated_identity(self, authenticated_signup_player):
+        signup_date = _unique_signup_date()
         resp = client.post(
             "/signups",
             json={
-                "date": _unique_signup_date(),
+                "date": signup_date,
                 "player_profile_id": 1,
                 "player_name": "Spoofed Player",
+                "notes": "read-after-write verification",
             },
         )
         assert resp.status_code == 200
-        data = resp.json()
-        assert data["player_profile_id"] == authenticated_signup_player.id
-        assert data["player_name"] == authenticated_signup_player.legacy_name
+        signup_id = resp.json()["id"]
+
+        persisted = _signups_for_week(signup_date)[signup_id]
+        assert persisted["player_profile_id"] == authenticated_signup_player.id
+        assert persisted["player_name"] == authenticated_signup_player.legacy_name
+        assert persisted["player_name"] != "Spoofed Player"
+        assert persisted["notes"] == "read-after-write verification"
+
+        cancel_resp = client.delete(f"/signups/{signup_id}")
+        assert cancel_resp.status_code == 200
+        assert signup_id not in _signups_for_week(signup_date)
 
     def test_create_signup_duplicate_returns_400(self):
         payload = {"date": _unique_signup_date()}
