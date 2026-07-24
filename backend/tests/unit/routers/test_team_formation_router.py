@@ -1,10 +1,12 @@
 """Unit tests for team_formation router — random teams, balanced teams, rotations, Sunday pairings, players list."""
 
 import uuid
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services.auth_service import get_current_user
 
 client = TestClient(app)
 
@@ -25,14 +27,17 @@ def _create_profile(name=None, handicap=15.0):
 
 def _create_signup(date, profile_id, player_name, preferred_start_time=None):
     """Create a daily signup and return the JSON response."""
-    payload = {
-        "date": date,
-        "player_profile_id": profile_id,
-        "player_name": player_name,
-    }
+    payload = {"date": date}
     if preferred_start_time:
         payload["preferred_start_time"] = preferred_start_time
-    resp = client.post("/signups", json=payload)
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+        id=profile_id,
+        legacy_name=player_name,
+    )
+    try:
+        resp = client.post("/signups", json=payload)
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
     assert resp.status_code == 200, f"Failed to create signup: {resp.text}"
     return resp.json()
 

@@ -7,10 +7,11 @@ Legacy player lookup and daily sign-up management.
 import logging
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 
 from .. import database, models, schemas
+from ..services.auth_service import get_current_user
 from ..services.legacy_player_service import (
     add_legacy_player,
     dismiss_pending_player,
@@ -205,17 +206,26 @@ def get_signups(limit: int = Query(50, description="Maximum number of signups to
 
 
 @router.post("/signups", response_model=schemas.DailySignupResponse)
-def create_signup(signup: schemas.DailySignupCreate):  # type: ignore
-    """Create a daily sign-up for a player."""
+def create_signup(
+    signup: schemas.DailySignupCreate,
+    current_user: models.PlayerProfile = Depends(get_current_user),
+):  # type: ignore
+    """Create a daily sign-up for the authenticated player."""
     try:
         db = database.SessionLocal()
+        player_name = current_user.legacy_name
+        if not player_name:
+            raise HTTPException(
+                status_code=409,
+                detail="Link your club player name in Account before signing up",
+            )
 
         # Check if player already signed up for this date
         existing = (
             db.query(models.DailySignup)
             .filter(
                 models.DailySignup.date == signup.date,
-                models.DailySignup.player_profile_id == signup.player_profile_id,
+                models.DailySignup.player_profile_id == current_user.id,
                 models.DailySignup.status != "cancelled",
             )
             .first()
@@ -227,8 +237,8 @@ def create_signup(signup: schemas.DailySignupCreate):  # type: ignore
         # Create new signup
         db_signup = models.DailySignup(
             date=signup.date,
-            player_profile_id=signup.player_profile_id,
-            player_name=signup.player_name,
+            player_profile_id=current_user.id,
+            player_name=player_name,
             signup_time=utc_now().isoformat(),
             preferred_start_time=signup.preferred_start_time,
             notes=signup.notes,
@@ -241,7 +251,7 @@ def create_signup(signup: schemas.DailySignupCreate):  # type: ignore
         db.commit()
         db.refresh(db_signup)
 
-        logger.info(f"Created signup for player {signup.player_name} on {signup.date}")
+        logger.info(f"Created signup for player {player_name} on {signup.date}")
 
         # Mirror the signup to the legacy CGI sheet when configured.
         try:

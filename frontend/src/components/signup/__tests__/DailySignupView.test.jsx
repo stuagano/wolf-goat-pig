@@ -22,8 +22,6 @@ const playerProfile = {
 
 const expectedSignupBody = {
   date: selectedDate,
-  player_profile_id: playerProfile.id,
-  player_name: playerProfile.legacy_name,
   preferred_start_time: null,
   notes: null,
 };
@@ -53,6 +51,7 @@ describe('DailySignupView', () => {
     mockUseAuth0.mockReturnValue({
       user: { name: 'Auth0 Display Name', email: 'stuart@example.com' },
       isAuthenticated: true,
+      getAccessTokenSilently: vi.fn().mockResolvedValue('signup-token'),
     });
     mockUsePlayerProfile.mockReturnValue({
       profile: playerProfile,
@@ -77,6 +76,8 @@ describe('DailySignupView', () => {
         createdSignup = {
           id: 101,
           ...body,
+          player_profile_id: playerProfile.id,
+          player_name: playerProfile.legacy_name,
           status: 'signed_up',
           signup_time: '2099-01-01T00:00:00Z',
           created_at: '2099-01-01T00:00:00Z',
@@ -95,6 +96,7 @@ describe('DailySignupView', () => {
     });
     const emptyStateActions = firstSignupButton.parentElement;
     fireEvent.click(firstSignupButton);
+    expect(within(emptyStateActions).getByText('Signing up as: Stuart')).toBeInTheDocument();
     fireEvent.click(within(emptyStateActions).getByRole('button', { name: 'Confirm Sign Up' }));
 
     await waitFor(() => {
@@ -103,10 +105,36 @@ describe('DailySignupView', () => {
       );
 
       expect(JSON.parse(signupRequest[1].body)).toEqual(expectedSignupBody);
+      expect(signupRequest[1].headers).toEqual({
+        Authorization: 'Bearer signup-token',
+        'Content-Type': 'application/json',
+      });
     });
 
     expect(await screen.findByText('Stuart')).toBeInTheDocument();
     expect(screen.getByText('(you)')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancel My Signup' })).toBeInTheDocument();
+  });
+
+  test('requires a linked club player before signup', async () => {
+    mockUsePlayerProfile.mockReturnValue({
+      profile: { ...playerProfile, legacy_name: null },
+      loading: false,
+    });
+    fetch.mockImplementation((url) => {
+      if (url.includes('/pairings/')) return jsonResponse({ exists: false });
+      if (url.includes('/signups/weekly-with-messages')) {
+        return jsonResponse(weeklyResponse());
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    render(<DailySignupView selectedDate={selectedDate} />);
+
+    const buttons = await screen.findAllByRole('button', {
+      name: 'Link club player in Account',
+    });
+    expect(buttons).not.toHaveLength(0);
+    buttons.forEach((button) => expect(button).toBeDisabled());
   });
 });

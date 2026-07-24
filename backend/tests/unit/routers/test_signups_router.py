@@ -1,27 +1,36 @@
 """Unit tests for signups router — legacy players, daily signup CRUD."""
 
 import uuid
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services.auth_service import get_current_user
 
 client = TestClient(app)
 
 
-def _unique_id():
-    return uuid.uuid4().hex[:8]
+@pytest.fixture(autouse=True)
+def authenticated_signup_player():
+    player = SimpleNamespace(
+        id=987654,
+        legacy_name="Authenticated Test Player",
+    )
+    app.dependency_overrides[get_current_user] = lambda: player
+    try:
+        yield player
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
 
 
-def _create_player():
-    """Create a player and return the id + name."""
-    name = f"SignupTest-{_unique_id()}"
-    email = f"signup-{_unique_id()}@test.com"
-    resp = client.post("/players", json={"name": name, "email": email, "handicap": 12.0})
-    if resp.status_code in (200, 201):
-        return resp.json()["id"], name
-    return None, name
+def _unique_signup_date():
+    value = uuid.uuid4().int
+    year = 1000 + value % 8000
+    month = value % 12 + 1
+    day = value % 28 + 1
+    return f"{year:04d}-{month:02d}-{day:02d}"
 
 
 # ── GET /legacy-players ──────────────────────────────────────────────────────
@@ -104,68 +113,60 @@ class TestGetSignups:
 
 
 class TestCreateSignup:
+    def test_create_signup_requires_authentication(self, authenticated_signup_player):
+        app.dependency_overrides.pop(get_current_user, None)
+        try:
+            resp = client.post("/signups", json={"date": "2099-01-01"})
+        finally:
+            app.dependency_overrides[get_current_user] = lambda: authenticated_signup_player
+        assert resp.status_code == 401
+
     def test_create_signup_returns_200(self):
-        player_id, player_name = _create_player()
-        if player_id is None:
-            pytest.skip("Could not create player for signup test")
-        date = f"2099-01-{_unique_id()[:2].replace('a', '1').replace('b', '2').replace('c', '3').replace('d', '4').replace('e', '5').replace('f', '6')}"
-        # Use a fixed unique date to avoid collisions
-        date = f"2099-{uuid.uuid4().int % 12 + 1:02d}-{uuid.uuid4().int % 28 + 1:02d}"
-        resp = client.post(
-            "/signups",
-            json={
-                "date": date,
-                "player_profile_id": player_id,
-                "player_name": player_name,
-            },
-        )
+        resp = client.post("/signups", json={"date": _unique_signup_date()})
         assert resp.status_code == 200
 
     def test_create_signup_response_has_id(self):
-        player_id, player_name = _create_player()
-        if player_id is None:
-            pytest.skip("Could not create player for signup test")
-        date = f"2099-{uuid.uuid4().int % 12 + 1:02d}-{uuid.uuid4().int % 28 + 1:02d}"
+        resp = client.post("/signups", json={"date": _unique_signup_date()})
+        assert resp.status_code == 200
+        assert "id" in resp.json()
+
+    def test_create_signup_ignores_client_identity(self, authenticated_signup_player):
         resp = client.post(
             "/signups",
             json={
-                "date": date,
-                "player_profile_id": player_id,
-                "player_name": player_name,
+                "date": _unique_signup_date(),
+                "player_profile_id": 1,
+                "player_name": "Spoofed Player",
             },
         )
-        if resp.status_code == 200:
-            data = resp.json()
-            assert "id" in data
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["player_profile_id"] == authenticated_signup_player.id
+        assert data["player_name"] == authenticated_signup_player.legacy_name
 
     def test_create_signup_duplicate_returns_400(self):
-        player_id, player_name = _create_player()
-        if player_id is None:
-            pytest.skip("Could not create player for signup test")
-        date = f"2099-{uuid.uuid4().int % 12 + 1:02d}-{uuid.uuid4().int % 28 + 1:02d}"
-        payload = {
-            "date": date,
-            "player_profile_id": player_id,
-            "player_name": player_name,
-        }
+        payload = {"date": _unique_signup_date()}
         client.post("/signups", json=payload)
         resp = client.post("/signups", json=payload)
         assert resp.status_code == 400
 
     def test_create_signup_invalid_date_returns_422(self):
-        resp = client.post(
-            "/signups",
-            json={
-                "date": "not-a-date",
-                "player_profile_id": 1,
-                "player_name": "Test",
-            },
-        )
+        resp = client.post("/signups", json={"date": "not-a-date"})
         assert resp.status_code == 422
 
     def test_create_signup_missing_fields_returns_422(self):
-        resp = client.post("/signups", json={"date": "2099-01-01"})
+        resp = client.post("/signups", json={})
         assert resp.status_code == 422
+
+    def test_create_signup_requires_linked_club_player(self):
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+            id=987655,
+            name="Unlinked Test Player",
+            legacy_name=None,
+        )
+        resp = client.post("/signups", json={"date": "2099-01-01"})
+        assert resp.status_code == 409
+        assert "Link your club player name" in resp.json()["detail"]
 
 
 # ── PUT /signups/{signup_id} ─────────────────────────────────────────────────
@@ -173,18 +174,7 @@ class TestCreateSignup:
 
 class TestUpdateSignup:
     def _create_signup(self):
-        player_id, player_name = _create_player()
-        if player_id is None:
-            return None
-        date = f"2099-{uuid.uuid4().int % 12 + 1:02d}-{uuid.uuid4().int % 28 + 1:02d}"
-        resp = client.post(
-            "/signups",
-            json={
-                "date": date,
-                "player_profile_id": player_id,
-                "player_name": player_name,
-            },
-        )
+        resp = client.post("/signups", json={"date": _unique_signup_date()})
         if resp.status_code == 200:
             return resp.json()["id"]
         return None
@@ -217,18 +207,7 @@ class TestCancelSignup:
         assert resp.status_code == 404
 
     def test_cancel_signup_returns_success(self):
-        player_id, player_name = _create_player()
-        if player_id is None:
-            pytest.skip("Could not create player")
-        date = f"2099-{uuid.uuid4().int % 12 + 1:02d}-{uuid.uuid4().int % 28 + 1:02d}"
-        create_resp = client.post(
-            "/signups",
-            json={
-                "date": date,
-                "player_profile_id": player_id,
-                "player_name": player_name,
-            },
-        )
+        create_resp = client.post("/signups", json={"date": _unique_signup_date()})
         if create_resp.status_code != 200:
             pytest.skip("Could not create signup")
         signup_id = create_resp.json()["id"]
