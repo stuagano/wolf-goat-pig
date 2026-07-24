@@ -661,3 +661,88 @@ capabilities:
     check:
       shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_scorecard_preprocess.py
         -q -p no:cacheprovider
+  - id: email-scheduler-sheet-dedup
+    description: email scheduler sheet-dedup classifies pending sync jobs as new/update/duplicate
+      by player set and scores
+    given: a PendingSheetSync job and optional LegacyRound rows for the same date/group
+    when: EmailScheduler._dedup_action runs
+    then: it returns new, update, or duplicate according to player-set and score comparison
+    tier: cheap
+    deps:
+    - backend/app/services/email_scheduler.py
+    - backend/tests/unit/services/test_email_scheduler.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_email_scheduler.py
+        -q -p no:cacheprovider
+  - id: hole-completion-points-zero-sum
+    description: hole completion scoring is zero-sum, rejects Big Dick off hole 18,
+      and doubles points on 17-18
+    given: a valid partners CompleteHoleRequest and game state
+    when: process_complete_hole / validate_big_dick / apply_multipliers run
+    then: points_delta sums to zero, history advances, invalid Big Dick is 400, and
+      late holes double
+    tier: cheap
+    deps:
+    - backend/app/services/hole_completion_service.py
+    - backend/tests/unit/services/test_hole_completion_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_hole_completion_service.py
+        -q -p no:cacheprovider
+  - id: league-media-harvest-upserts
+    description: league media harvest upserts GroupMe videos/images and refreshes likes
+      without duplicates
+    given: mocked GroupMe messages containing video and image media
+    when: harvest_media then list_media run
+    then: rows insert once, likes refresh on re-harvest, and unconfigured harvests skip
+    tier: cheap
+    deps:
+    - backend/app/services/league_media_service.py
+    - backend/tests/unit/services/test_league_media_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_league_media_service.py
+        -q -p no:cacheprovider
+  - id: livsow-sheet-parse-contract
+    description: LivSow sheet parsers build weekly totals and ranked teams, and empty
+      fetches do not poison cache
+    given: fixture CSV grids for stats and roster tabs
+    when: _parse_stats / _parse_roster / get_livsow_leaderboard run
+    then: player totals and team ranks are correct and empty fetches leave prior cache
+      intact
+    tier: cheap
+    deps:
+    - backend/app/services/livsow_service.py
+    - backend/tests/unit/services/test_livsow_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_livsow_service.py
+        -q -p no:cacheprovider
+  - id: post-hole-analysis-service-shape
+    description: post-hole analysis service returns the narrative analysis shape and
+      rejects unknown holes
+    given: a HoleState with partners or Duncan solo betting
+    when: get_post_hole_analysis runs
+    then: required analysis keys are present, special rules/risk are marked, and missing
+      holes raise ValueError
+    tier: cheap
+    deps:
+    - backend/app/services/post_hole_analysis_service.py
+    - backend/tests/unit/services/test_post_hole_analysis_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_post_hole_analysis_service.py
+        -q -p no:cacheprovider
+  - id: game-lifecycle-status-transitions
+    description: game lifecycle start/pause/resume persist status transitions and reject
+      illegal starts
+    given: a cached game record in setup/in_progress/paused states
+    when: start_game, pause_game, and resume_game run
+    then: DB and state statuses advance correctly and restarting an in-progress game
+      is 400
+    tier: cheap
+    deps:
+    - backend/app/services/game_lifecycle_service.py
+    - backend/tests/unit/engine/test_game_lifecycle_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/engine/test_game_lifecycle_service.py::TestStartGame::test_start_game_success
+        tests/unit/engine/test_game_lifecycle_service.py::TestPauseGame::test_pause_game_success
+        tests/unit/engine/test_game_lifecycle_service.py::TestResumeGame::test_resume_game_success
+        tests/unit/engine/test_game_lifecycle_service.py::TestStartGame::test_start_game_already_in_progress
+        -q -p no:cacheprovider

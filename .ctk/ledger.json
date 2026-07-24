@@ -192,6 +192,19 @@
     "tier": "cheap",
     "waiver": null
   },
+  "email-scheduler-sheet-dedup": {
+    "at": "2026-07-24T17:26:41.751837+00:00",
+    "detail": null,
+    "duration": 1.406,
+    "files": {
+      "backend/app/services/email_scheduler.py": "sha256:bb7a6b264ceecba16e0b6d3bc00bec96d273eb9306ca16b902657b0bca5bb164",
+      "backend/tests/unit/services/test_email_scheduler.py": "sha256:2aa186fcde481860f28aadd1dda101dbd875a66c1e288c41eb993528d11e48ba"
+    },
+    "fingerprint": "sha256:d4ed50d124199a723add2875b264daba8e3927bcd2ee6ea31559df02fd56a4ff",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
   "encryption-roundtrip": {
     "at": "2026-07-24T14:05:53.847958+00:00",
     "detail": null,
@@ -237,6 +250,19 @@
     "fingerprint": null,
     "result": "pass",
     "tier": "live",
+    "waiver": null
+  },
+  "game-lifecycle-status-transitions": {
+    "at": "2026-07-24T17:26:41.751837+00:00",
+    "detail": null,
+    "duration": 0.682,
+    "files": {
+      "backend/app/services/game_lifecycle_service.py": "sha256:c35a94dff6313459ed150e80fec2fd7fd603c0df0527e803c7616e316b44aa9a",
+      "backend/tests/unit/engine/test_game_lifecycle_service.py": "sha256:81b24017c0015c11692311f8a3eb11fb1924c41506c517d813cecff7b90d069e"
+    },
+    "fingerprint": "sha256:7932d07e4a9e469df7f13c8e408937c093cf7230f7e21bda485e5e9f5601352e",
+    "result": "pass",
+    "tier": "cheap",
     "waiver": null
   },
   "game-state-db-authoritative": {
@@ -322,6 +348,19 @@
     "tier": "cheap",
     "waiver": null
   },
+  "hole-completion-points-zero-sum": {
+    "at": "2026-07-24T17:26:41.751837+00:00",
+    "detail": null,
+    "duration": 0.655,
+    "files": {
+      "backend/app/services/hole_completion_service.py": "sha256:7cf910c485bc1cd4e956759036dd570cfba2215bc8aee7b8892563d26902a021",
+      "backend/tests/unit/services/test_hole_completion_service.py": "sha256:e4e81b85ac5f17136415a143e438570938f68d75c82f757217a8a703b2e94a17"
+    },
+    "fingerprint": "sha256:89ce699ddf63819f2e8f84d059f96f982e07fd62b90c5f30f362d7da223e06c8",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
   "leaderboard-from-db": {
     "at": "2026-07-24T05:56:14.424205+00:00",
     "detail": null,
@@ -331,6 +370,19 @@
       "backend/app/services/leaderboard_service.py": "sha256:f38c94ae88bc3b6e9cfa9b6bd12eac320ae772191140a50057491bf45fb9a6bb"
     },
     "fingerprint": "sha256:79b30232e40a716a3a0cef8290043c1df519754b239d104d0357f267da8a05fe",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "league-media-harvest-upserts": {
+    "at": "2026-07-24T17:26:41.751837+00:00",
+    "detail": null,
+    "duration": 0.977,
+    "files": {
+      "backend/app/services/league_media_service.py": "sha256:46588a7608bcad0cfca8d93092ff0c5a41545d28203e8e247dec4916015a59bd",
+      "backend/tests/unit/services/test_league_media_service.py": "sha256:32bc8cc29ef1ce1a1034008e445e5f13fc4746c7048ade92ef77ff6b1e4bcd5a"
+    },
+    "fingerprint": "sha256:e05a117106992c9ffb1252eff16a64544073bdaa8015ff1cc0ae221815806b6c",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -353,6 +405,19 @@
       "backend/app/services/legacy_signup_service.py": "sha256:59fab1b8fb0a0738e2004cd67bc35ac8336522737ee3fd39f023ad5746415ebb"
     },
     "fingerprint": "sha256:4d56052f1176b8cd1422d35945c40bb36f265d16794c3ace2f88a02e9c757aaa",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "livsow-sheet-parse-contract": {
+    "at": "2026-07-24T17:26:41.751837+00:00",
+    "detail": null,
+    "duration": 0.621,
+    "files": {
+      "backend/app/services/livsow_service.py": "sha256:49caf6f38c6c19d85b8a67cf0eae60365933c8657eac4e71c12b069f48b27cd8",
+      "backend/tests/unit/services/test_livsow_service.py": "sha256:6c977ebfec275af4ae17adddd6efb007b60340646fdfd9ab84e5aa4591d38269"
+    },
+    "fingerprint": "sha256:0858cd8b9c5d766e0f26ae3943a921768a6ef289013e4ab8f8a4dc42f01feebe",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -505,6 +570,19 @@
       "backend/app/routers/games_players.py": "sha256:ec1bd7ed014d62fe6c71f623134f107e43ca74d4ad911791a202eb248b521be1"
     },
     "fingerprint": "sha256:2af87265ff3585961ea778fa89fca403b6896ebf878235ed0802d36dd22cc5e9",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "post-hole-analysis-service-shape": {
+    "at": "2026-07-24T17:26:41.751837+00:00",
+    "detail": null,
+    "duration": 0.649,
+    "files": {
+      "backend/app/services/post_hole_analysis_service.py": "sha256:a731e669eb702a453564101f30aaeaa5d75aa50d3aaa42de35e8db7e299e595b",
+      "backend/tests/unit/services/test_post_hole_analysis_service.py": "sha256:d79f5dfcfc75d8f747a2e4bbd111e661b90b0d3563d47a5109f9610d527f4b4f"
+    },
+    "fingerprint": "sha256:2c60258ee7c80fbbbcaa5eb5a58116246503b1f894e8c63d903b6f182aa8f190",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
