@@ -20,6 +20,7 @@
 | D3 | **Frontend hosting:** Firebase Hosting, with an `/api/**` rewrite to Cloud Run for same-origin (no CORS). "Serve from Cloud Run" documented as the simpler alternative ([§6](#6-component-by-component-mapping)). | ✅ Decided |
 | D4 | **Auth:** **Auth0 stays.** The Firebase Auth switch is decoupled from this migration and deferred indefinitely — not on the critical path ([§7](#7-authentication-migration)). | ✅ Decided |
 | D5 | **DB-on-Render:** acceptable as the Phase-1 *interim* state; not the steady-state target (cross-cloud latency/egress) ([§4](#4-the-central-decision-database)). | ✅ Decided |
+| D6 | **DB compute cost:** accept Cloud SQL's always-on floor (small instance, ~$10/mo). Scale-to-zero alternatives (AlloyDB — pricier; Neon — +vendor, compounding cold starts) rejected ([§10](#10-cost-considerations)). | ✅ Decided |
 
 ---
 
@@ -347,8 +348,17 @@ above — never bundled into the platform move.
   an always-on Render instance at low traffic, but cold starts matter for a large
   OpenCV container (mitigate with min-instances=1 if latency-sensitive).
 - **Cloud SQL:** the main fixed cost — an always-on instance (no scale-to-zero for
-  the standard tiers). Size to current Postgres usage; this is the line item to
-  watch.
+  the standard tiers). **Decided (D6): accept the always-on floor** — a small
+  shared-core instance runs in the single-digit-to-low-double-digit $/mo range,
+  which is negligible at this app's scale and buys predictable sub-ms in-region
+  latency with no DB cold start. Size to current Postgres usage.
+  - *Scale-to-zero alternatives considered and rejected:* **AlloyDB** is a
+    premium/high-performance tier (autoscales read pools, primary always on) — it
+    *raises* the floor, so it's out for a cost-driven choice. **Neon** (serverless
+    Postgres) genuinely scales to zero and is Postgres-compatible, but adds a
+    second vendor (vs. the consolidation goal) and a DB cold-start that would
+    *compound* with Cloud Run's own cold start on the first idle request. Not
+    worth it for a single small production DB.
 - **Firebase Auth:** free up to a generous MAU tier; Identity Platform bills
   beyond that.
 - **Firestore (if adopted):** pay per read/write/delete + storage. Denormalized
@@ -374,8 +384,9 @@ A proper cost model needs current traffic/MAU/DB-size numbers before committing.
 4. **WebSockets vs Firestore** — keep Cloud Run WebSockets, or invest in Firestore
    listeners to also replace the offline sync layer?
 5. **Region / data residency** — which GCP region? Any residency constraints?
-6. **Budget ceiling** — what's the acceptable monthly floor given Cloud SQL is
-   always-on?
+6. ~~**Budget ceiling** — acceptable always-on floor?~~ **✅ Resolved: accept the
+   Cloud SQL always-on floor** (D6, [§10](#10-cost-considerations)) — a small
+   instance's ~$10/mo is negligible; scale-to-zero DBs rejected.
 7. **Timeline & ownership** — who owns each phase, and is there a hard cutover
    deadline?
 
