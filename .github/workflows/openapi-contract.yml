@@ -1,0 +1,78 @@
+name: OpenAPI Contract
+
+# Keeps the committed API contract honest:
+#   backend/openapi.json      — regenerated from the FastAPI app (source of truth)
+#   frontend/src/api/schema.d.ts — regenerated from that spec (typed client)
+# If either drifts from the code, this fails so the contract can't silently rot.
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/**'
+      - 'frontend/src/api/**'
+      - 'frontend/package.json'
+      - '.github/workflows/openapi-contract.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'backend/**'
+      - 'frontend/src/api/**'
+      - 'frontend/package.json'
+      - '.github/workflows/openapi-contract.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract-in-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Check backend/openapi.json is in sync with the app
+        run: |
+          cd backend
+          python scripts/export_openapi.py --check
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm install --legacy-peer-deps --no-audit
+
+      - name: Check generated API types are in sync with the spec
+        run: |
+          cd frontend
+          npm run gen:api
+          if ! git diff --quiet -- src/api/schema.d.ts; then
+            echo "❌ src/api/schema.d.ts is out of date with backend/openapi.json."
+            echo "   Regenerate it with: cd frontend && npm run gen:api"
+            git --no-pager diff -- src/api/schema.d.ts
+            exit 1
+          fi
+          echo "✅ Generated API types are in sync with the spec."
