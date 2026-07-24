@@ -4301,7 +4301,7 @@ export interface paths {
         put?: never;
         /**
          * Create Signup
-         * @description Create a daily sign-up for a player.
+         * @description Create a daily sign-up for the authenticated player.
          */
         post: operations["create_signup_signups_post"];
         delete?: never;
@@ -5011,9 +5011,9 @@ export interface components {
             /** Notes */
             notes?: string | null;
             /** Player Name */
-            player_name: string;
+            player_name?: string | null;
             /** Player Profile Id */
-            player_profile_id: number;
+            player_profile_id?: number | null;
             /** Preferred Start Time */
             preferred_start_time?: string | null;
         };
