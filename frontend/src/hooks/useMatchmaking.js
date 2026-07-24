@@ -1,18 +1,27 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { acquireAccessToken } from '../services/authToken';
-import { apiConfig } from '../config/api.config';
-
-const API_URL = apiConfig.baseUrl;
+import { api } from '../api/client';
 
 // How often to refresh matches in the background. Matchmaking is not
 // latency-critical, so a short poll over plain HTTP replaces the previous
 // (unwired) WebSocket channel — no long-lived connection to manage.
 const POLL_INTERVAL_MS = 15000;
 
+// FastAPI errors come back as `{ detail: string | ValidationError[] }`.
+// Pull out a human-readable message, falling back for the array/500 cases.
+const errorDetail = (error) => {
+  const detail = error && typeof error === 'object' ? error.detail : undefined;
+  return typeof detail === 'string' ? detail : undefined;
+};
+
 /**
  * Hook for the matchmaking flow: fetching matches, accepting/declining,
  * and keeping the list fresh via background polling.
+ *
+ * All requests go through the generated, typed API client (`src/api/client`),
+ * so paths, params, bodies, and responses are checked against the backend
+ * OpenAPI contract.
  */
 const useMatchmaking = (playerProfileId) => {
   const { getAccessTokenSilently } = useAuth0();
@@ -21,17 +30,11 @@ const useMatchmaking = (playerProfileId) => {
   const [error, setError] = useState(null);
   const [respondingTo, setRespondingTo] = useState(null); // match_id being responded to
 
-  const authFetch = useCallback(async (url, options = {}) => {
+  // Per-request auth header — token acquired via Auth0, with transparent
+  // recovery from a missing/expired refresh token (see acquireAccessToken).
+  const authHeaders = useCallback(async () => {
     const token = await acquireAccessToken(getAccessTokenSilently);
-    const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
-    return fetch(fullUrl, {
-      ...options,
-      headers: {
-        ...options.headers,
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    return { Authorization: `Bearer ${token}` };
   }, [getAccessTokenSilently]);
 
   // ========================================================================
@@ -43,21 +46,21 @@ const useMatchmaking = (playerProfileId) => {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const params = status ? `?status=${status}` : '';
-      const resp = await authFetch(`/matchmaking/my-matches${params}`);
-      if (resp.ok) {
-        const data = await resp.json();
+      const { data, error: apiError } = await api.GET('/matchmaking/my-matches', {
+        params: { query: status ? { status } : {} },
+        headers: await authHeaders(),
+      });
+      if (data) {
         setMyMatches(data);
       } else {
-        const err = await resp.json();
-        setError(err.detail || 'Failed to fetch matches');
+        setError(errorDetail(apiError) || 'Failed to fetch matches');
       }
     } catch (err) {
       setError(err.message);
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [authFetch]);
+  }, [authHeaders]);
 
   // ========================================================================
   // Accept / Decline a match
@@ -67,13 +70,13 @@ const useMatchmaking = (playerProfileId) => {
     setRespondingTo(matchId);
     setError(null);
     try {
-      const resp = await authFetch(`/matchmaking/matches/${matchId}/respond`, {
-        method: 'POST',
-        body: JSON.stringify({ response }),
+      const { data, error: apiError } = await api.POST('/matchmaking/matches/{match_id}/respond', {
+        params: { path: { match_id: matchId } },
+        body: { response },
+        headers: await authHeaders(),
       });
-      const data = await resp.json();
-      if (!resp.ok) {
-        setError(data.detail || `Failed to ${response} match`);
+      if (!data) {
+        setError(errorDetail(apiError) || `Failed to ${response} match`);
         return null;
       }
       // Refresh matches list after responding
@@ -85,7 +88,7 @@ const useMatchmaking = (playerProfileId) => {
     } finally {
       setRespondingTo(null);
     }
-  }, [authFetch, fetchMyMatches]);
+  }, [authHeaders, fetchMyMatches]);
 
   const acceptMatch = useCallback((matchId) => respondToMatch(matchId, 'accepted'), [respondToMatch]);
   const declineMatch = useCallback((matchId) => respondToMatch(matchId, 'declined'), [respondToMatch]);
@@ -96,15 +99,15 @@ const useMatchmaking = (playerProfileId) => {
 
   const getMatchDetails = useCallback(async (matchId) => {
     try {
-      const resp = await authFetch(`/matchmaking/matches/${matchId}`);
-      if (resp.ok) {
-        return await resp.json();
-      }
-      return null;
+      const { data } = await api.GET('/matchmaking/matches/{match_id}', {
+        params: { path: { match_id: matchId } },
+        headers: await authHeaders(),
+      });
+      return data ?? null;
     } catch {
       return null;
     }
-  }, [authFetch]);
+  }, [authHeaders]);
 
   // ========================================================================
   // Background polling — keeps the matches list fresh over plain HTTP
