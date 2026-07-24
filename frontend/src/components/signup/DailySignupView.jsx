@@ -20,8 +20,6 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   const [pairingsLoading, setPairingsLoading] = useState(false);
   const [pairingsError, setPairingsError] = useState(null);
   const [confirmingSignup, setConfirmingSignup] = useState(false);
-  const [legacyReplicating, setLegacyReplicating] = useState(false);
-  const [legacyResult, setLegacyResult] = useState(null);
   const [signingUp, setSigningUp] = useState(false);
 
   // Compute the Sunday that starts the week containing a given date
@@ -99,7 +97,6 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
       loadGeneratedPairings(selectedDate);
     }
     setConfirmingSignup(false);
-    setLegacyResult(null);
   }, [selectedDate, loadGeneratedPairings]);
 
   // Get data for the currently selected day
@@ -209,32 +206,10 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     }
   };
 
-  // Replicate signup to legacy page
-  const handleLegacyReplicate = async () => {
-    if (!isAuthenticated || !user || !userSignup) {
-      setError('You must be signed up first to replicate to legacy');
-      return;
-    }
-    try {
-      setLegacyReplicating(true);
-      setLegacyResult(null);
-      const response = await fetch(`${API_URL}/signups/${userSignup.id}/replicate-legacy`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setLegacyResult({ success: true, message: data.message || 'Replicated to legacy signup page' });
-      } else {
-        setLegacyResult({ success: false, message: data.detail || 'Failed to replicate' });
-      }
-    } catch (err) {
-      console.error('Legacy replicate error:', err);
-      setLegacyResult({ success: false, message: 'Failed to replicate to legacy signup page' });
-    } finally {
-      setLegacyReplicating(false);
-    }
-  };
+  // The "Replicate to Legacy Signup Page" action was removed while the legacy
+  // thousand-cranes.com tee sheet connection is disabled. The /signups/{id}/
+  // replicate-legacy endpoint and the env-gated sync bridge behind it are kept
+  // server-side; re-add a button that POSTs to it to restore the control.
 
   // Handle cancel signup
   const handleCancelSignup = async (signupId) => {
@@ -408,27 +383,6 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
         </div>
       )}
 
-      {legacyResult && (
-        <div style={{
-          background: legacyResult.success ? '#f0fdf4' : '#fef2f2',
-          color: legacyResult.success ? '#166534' : '#dc2626',
-          padding: '10px 16px',
-          fontSize: '14px',
-          borderBottom: `1px solid ${legacyResult.success ? '#bbf7d0' : '#fecaca'}`,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          {legacyResult.message}
-          <button
-            onClick={() => setLegacyResult(null)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: legacyResult.success ? '#166534' : '#dc2626' }}
-          >
-            x
-          </button>
-        </div>
-      )}
-
       {/* Day Content */}
       <div style={{ padding: '16px' }}>
         {/* Day Header with Sign Up button */}
@@ -512,23 +466,6 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                 }}
               >
                 Cancel My Signup
-              </button>
-              <button
-                onClick={handleLegacyReplicate}
-                disabled={legacyReplicating}
-                style={{
-                  background: legacyReplicating ? '#9ca3af' : '#1d4ed8',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '10px 16px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: legacyReplicating ? 'not-allowed' : 'pointer',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {legacyReplicating ? 'Replicating...' : 'Replicate to Legacy Signup Page'}
               </button>
             </div>
           )}
