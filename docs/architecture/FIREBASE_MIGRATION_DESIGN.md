@@ -11,6 +11,16 @@
 > open questions in [§11](#11-open-questions) need answers before any migration
 > ticket is cut.
 
+### Decisions Log
+
+| # | Decision | Status |
+|---|----------|--------|
+| D1 | **Database:** Cloud SQL for PostgreSQL — relational schema moves unchanged; Firestore-as-source-of-truth is out of scope ([§4](#4-the-central-decision-database)). | ✅ Decided |
+| D2 | **Backend compute:** FastAPI container on Cloud Run (not Cloud Functions) ([§5](#5-target-architecture-recommended)). | ✅ Decided |
+| D3 | **Frontend hosting:** Firebase Hosting, with an `/api/**` rewrite to Cloud Run for same-origin (no CORS). "Serve from Cloud Run" documented as the simpler alternative ([§6](#6-component-by-component-mapping)). | ✅ Decided |
+| D4 | **Auth:** **Auth0 stays.** The Firebase Auth switch is decoupled from this migration and deferred indefinitely — not on the critical path ([§7](#7-authentication-migration)). | ✅ Decided |
+| D5 | **DB-on-Render:** acceptable as the Phase-1 *interim* state; not the steady-state target (cross-cloud latency/egress) ([§4](#4-the-central-decision-database)). | ✅ Decided |
+
 ---
 
 ## Table of Contents
@@ -34,9 +44,11 @@
 **Why consider Firebase / Google Cloud?**
 
 - **Consolidate the deployment surface.** Today the app spans three vendors:
-  Vercel (frontend), Render (backend + Postgres), and Auth0 (identity). A single
-  Google Cloud project would unify hosting, compute, database, auth, secrets,
-  logging, and scheduling under one bill and one IAM model.
+  Vercel (frontend), Render (backend + Postgres), and Auth0 (identity). Moving
+  hosting, compute, database, secrets, logging, and scheduling into a single
+  Google Cloud project collapses that to essentially one platform. (**Auth0
+  stays** — see D4/§7 — so identity remains a separate provider by choice, kept
+  off the critical path.)
 - **First-class real-time & offline.** The app already has WebSocket game
   broadcasts and a service-worker offline layer. Firestore's realtime listeners
   and offline persistence are a native fit for both.
@@ -152,6 +164,16 @@ later, opportunistically, where realtime/offline UX benefits justify it.
 **Option B (full Firestore) is explicitly out of scope** unless a later, separate
 decision revisits it.
 
+### Interim: keeping Postgres on Render (accepted for Phase 1)
+During the migration, the FastAPI app runs on Cloud Run while still pointing at
+the **existing Render Postgres** (just `DATABASE_URL`). This is a deliberate,
+reversible stepping stone — it lets compute be validated before the data moves,
+and rollback is a one-line env flip. It is **not** the steady state: Cloud Run →
+Render is a cross-cloud hop that adds per-query latency (~10–50 ms vs. sub-ms
+in-region), incurs GCP egress billing, requires exposing Postgres publicly, and
+leaves Render's `pool_size=5` cap in place. Render Postgres is a fine *stepping
+stone*, a poor *destination* — Phase 2 moves the data to Cloud SQL.
+
 ---
 
 ## 5. Target Architecture (Recommended)
@@ -191,8 +213,8 @@ decision revisits it.
 
 | Current | Target | Migration effort |
 |---------|--------|------------------|
-| Vercel static hosting | Firebase Hosting | **Low** — `vite build` → `firebase deploy`. Rewrite `vercel.json` routing as `firebase.json` rewrites. |
-| Auth0 (`@auth0/auth0-react`) | Firebase Auth (`firebase/auth`) | **Medium** — see [§7](#7-authentication-migration). |
+| Vercel static hosting | Firebase Hosting | **Low** — `vite build` → `firebase deploy`. Translate `vercel.json` routing into `firebase.json` rewrites. |
+| Auth0 (`@auth0/auth0-react`) | **Unchanged — Auth0 stays** | **None** for this migration — see [§7](#7-authentication-migration). |
 | FastAPI on Render | FastAPI on Cloud Run | **Low–Medium** — reuse `backend/Dockerfile`; swap Render env wiring for Cloud Run + Secret Manager; add Cloud SQL connector. |
 | PostgreSQL on Render | Cloud SQL Postgres | **Low** — `pg_dump`/restore; change `DATABASE_URL`. Code path in `database.py` already branches on `postgresql://`. |
 | WebSocket game broadcasts | Cloud Run WebSockets (Option A) **or** Firestore listeners (Option C) | **Low** (A) / **Medium** (C). |
@@ -202,12 +224,52 @@ decision revisits it.
 | GHIN / GroupMe / ForeTees / Sheets | Unchanged (outbound HTTP) | **None** — verify egress + Secret Manager wiring. |
 | Sentry | Unchanged; add Cloud Logging | **None**. |
 
+### Frontend hosting: Firebase Hosting vs. serve-from-Cloud-Run
+Firebase Hosting is chosen (D3) because static SPA assets don't need compute and
+shouldn't pay for it:
+- **CDN + no cold start.** Assets are edge-cached globally with free SSL. Serving
+  the SPA from the Cloud Run container instead would wake a *heavy* image
+  (`opencv-python-headless`, `numpy`, `Pillow`) just to hand out `index.html` —
+  cold-start latency on first paint, or `min-instances=1` paid 24/7 to avoid it.
+- **Same-origin without CORS.** A Firebase Hosting **rewrite** sends `/api/**` to
+  the Cloud Run service, so the browser sees one origin (static from the edge,
+  API proxied to Cloud Run) — no CORS config at all.
+- **Decoupled deploys.** A `vite build` deploy doesn't rebuild the backend container.
+
+**Documented alternative — serve static from the Cloud Run FastAPI service.**
+`main.py` already imports `StaticFiles`, so the built SPA could mount on the same
+service: one service, one origin, no CORS. The trade is cold-start latency on the
+heavy image and paying compute to serve static bytes. For a low-traffic app that
+may be an acceptable simplicity win — it's a simplicity-vs-performance call, not a
+right/wrong one.
+
+> **Not in scope: a frontend *framework* change.** The app is on Vite + React 19,
+> which is modern and correct for a dynamic, authenticated, real-time SPA.
+> Build-time static generators (e.g. Gatsby) solve a content-site problem this app
+> doesn't have and would be a downgrade-plus-rewrite for no benefit. Hosting is a
+> deploy-target choice; the framework stays put.
+
 ---
 
 ## 7. Authentication Migration
 
-Auth0 → Firebase Auth is the highest-touch edge change because it affects both
-clients and every protected endpoint.
+> **✅ Decided (D4): Auth0 stays. This migration does not touch auth.** Auth is the
+> most decoupled part of the stack — the backend simply verifies a JWT per request
+> (`auth_service.py`); it does not care whether compute runs on Render or Cloud
+> Run. Auth0 works unchanged in front of a GCP-hosted app, so moving auth is an
+> **independent, deferred** decision, deliberately kept off the critical path. The
+> rest of this section is the *if/when* plan, not committed work.
+
+**Why we're deferring it (the annoying part):** Auth0 generally does **not** export
+password hashes except on enterprise plans / via a support request. Without the
+hashes, Firebase can't recreate password logins silently, so email+password users
+would face a forced password reset — a real, user-visible disruption. Social
+logins (Google, etc.) re-link transparently by verified email, so the actual cost
+depends entirely on the user mix. Revisit only if there's a concrete driver (cost
+at scale, single-bill consolidation) *and* after measuring how many users are
+password-based.
+
+### If/when auth is migrated later — the plan
 
 **Backend** (`auth_service.py` today verifies Auth0 RS256 JWTs against
 `AUTH0_DOMAIN`/`AUTH0_API_AUDIENCE`):
@@ -263,15 +325,19 @@ Each phase is independently shippable and reversible.
   still pointing at Render Postgres. Validate WebSockets, OCR, schedulers behind
   a canary URL.
 - **Phase 2 — Database.** Migrate Postgres → Cloud SQL (§8). Flip `DATABASE_URL`.
-- **Phase 3 — Hosting.** Move the React SPA to Firebase Hosting; repoint API base
-  URL to Cloud Run.
-- **Phase 4 — Auth.** Migrate Auth0 → Firebase Auth (§7). Highest risk — do it
-  last, with a user-import dry run and comms.
-- **Phase 5 — Scheduling.** Replace in-process `schedule` jobs with Cloud
+- **Phase 3 — Hosting.** Move the React SPA to Firebase Hosting; add the `/api/**`
+  rewrite to Cloud Run (same-origin). Decommission the Vercel project.
+- **Phase 4 — Scheduling.** Replace in-process `schedule` jobs with Cloud
   Scheduler → Cloud Run jobs.
-- **Phase 6 (optional) — Firestore realtime.** Adopt Firestore listeners for live
+- **Phase 5 (optional) — Firestore realtime.** Adopt Firestore listeners for live
   game state / notifications where it improves UX (Option C).
-- **Phase 7 — Decommission** Render + Vercel + Auth0 after a soak period.
+- **Phase 6 — Decommission** Render (compute + DB) after a soak period. **Auth0
+  stays.**
+
+**Deferred / out of core scope — Auth migration (§7).** Auth0 → Firebase Auth is
+*not* part of this rollout (D4). If it is ever revisited, it becomes its own
+project with a user-import dry run and comms plan, sequenced after everything
+above — never bundled into the platform move.
 
 ---
 
@@ -300,10 +366,11 @@ A proper cost model needs current traffic/MAU/DB-size numbers before committing.
 1. ~~**Database target** — Cloud SQL-first vs. Firestore rewrite?~~ **✅ Resolved:
    Cloud SQL for PostgreSQL** (see [§4](#4-the-central-decision-database)). The
    relational schema moves unchanged; Firestore is out of scope as system of record.
-2. **Frontend hosting** — is moving off Vercel worth it, or keep Vercel and only
-   migrate backend + auth + DB? (Vercel + Cloud Run is a valid end state.)
-3. **Auth cutover UX** — acceptable to require a password reset for password-based
-   Auth0 users, or must migration be fully transparent?
+2. ~~**Frontend hosting** — move off Vercel?~~ **✅ Resolved: Firebase Hosting**
+   with an `/api/**` rewrite to Cloud Run ([§6](#6-component-by-component-mapping)).
+3. ~~**Auth cutover UX** — password-reset vs. transparent?~~ **✅ Resolved: Auth0
+   stays; auth migration deferred** off the critical path ([§7](#7-authentication-migration)).
+   The password-hash question only matters if/when auth is revisited later.
 4. **WebSockets vs Firestore** — keep Cloud Run WebSockets, or invest in Firestore
    listeners to also replace the offline sync layer?
 5. **Region / data residency** — which GCP region? Any residency constraints?
@@ -317,9 +384,11 @@ A proper cost model needs current traffic/MAU/DB-size numbers before committing.
 ## 12. Risks & Non-Goals
 
 **Risks**
-- **Auth migration** is the highest-risk phase — user lockout is user-visible and
-  hard to undo. Dry-run and stage it.
-- **Cold starts** on a heavy OpenCV container could hurt scorecard-scan latency.
+- **Cold starts** on a heavy OpenCV container could hurt scorecard-scan latency
+  (mitigate with `min-instances=1` if needed).
+- **Auth migration** *would be* the highest-risk change (user lockout is
+  user-visible and hard to undo) — which is exactly why it's **deferred and kept
+  out of this migration** (D4). Not a risk we're taking on here.
 - **Scheduler semantics** — moving from an in-process `schedule` loop to Cloud
   Scheduler changes at-least-once/at-most-once guarantees; audit idempotency.
 - **Scope creep into Firestore** — the temptation to "do it properly in Firestore"
