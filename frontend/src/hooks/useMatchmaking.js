@@ -1,14 +1,18 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { acquireAccessToken } from '../services/authToken';
 import { apiConfig } from '../config/api.config';
 
 const API_URL = apiConfig.baseUrl;
-const WS_URL = (API_URL || window.location.origin).replace(/^http/, 'ws');
+
+// How often to refresh matches in the background. Matchmaking is not
+// latency-critical, so a short poll over plain HTTP replaces the previous
+// (unwired) WebSocket channel — no long-lived connection to manage.
+const POLL_INTERVAL_MS = 15000;
 
 /**
  * Hook for the matchmaking flow: fetching matches, accepting/declining,
- * and receiving real-time WebSocket notifications.
+ * and keeping the list fresh via background polling.
  */
 const useMatchmaking = (playerProfileId) => {
   const { getAccessTokenSilently } = useAuth0();
@@ -16,9 +20,6 @@ const useMatchmaking = (playerProfileId) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [respondingTo, setRespondingTo] = useState(null); // match_id being responded to
-  const [wsConnected, setWsConnected] = useState(false);
-  const [realtimeEvent, setRealtimeEvent] = useState(null);
-  const wsRef = useRef(null);
 
   const authFetch = useCallback(async (url, options = {}) => {
     const token = await acquireAccessToken(getAccessTokenSilently);
@@ -37,8 +38,9 @@ const useMatchmaking = (playerProfileId) => {
   // Fetch my matches
   // ========================================================================
 
-  const fetchMyMatches = useCallback(async (status) => {
-    setLoading(true);
+  // `silent` skips the loading flag so background polls don't flicker the UI.
+  const fetchMyMatches = useCallback(async (status, { silent = false } = {}) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const params = status ? `?status=${status}` : '';
@@ -53,7 +55,7 @@ const useMatchmaking = (playerProfileId) => {
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [authFetch]);
 
@@ -105,87 +107,24 @@ const useMatchmaking = (playerProfileId) => {
   }, [authFetch]);
 
   // ========================================================================
-  // WebSocket for real-time notifications
+  // Background polling — keeps the matches list fresh over plain HTTP
   // ========================================================================
 
   useEffect(() => {
-    if (!playerProfileId) return;
+    if (!playerProfileId) return undefined;
 
-    let ws;
-    let reconnectTimeout;
+    const interval = setInterval(() => {
+      fetchMyMatches(undefined, { silent: true });
+    }, POLL_INTERVAL_MS);
 
-    const connect = () => {
-      try {
-        ws = new WebSocket(`${WS_URL}/ws/user/${playerProfileId}`);
-        wsRef.current = ws;
-
-        ws.onopen = () => {
-          setWsConnected(true);
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            if (data.type && data.type !== 'pong') {
-              setRealtimeEvent(data);
-              // Auto-refresh matches on relevant events
-              if ([
-                'match_found',
-                'match_accepted',
-                'match_declined',
-                'match_confirmed',
-                'match_player_accepted',
-              ].includes(data.type)) {
-                fetchMyMatches();
-              }
-            }
-          } catch {
-            // ignore non-JSON messages
-          }
-        };
-
-        ws.onclose = () => {
-          setWsConnected(false);
-          wsRef.current = null;
-          // Reconnect after 5 seconds
-          reconnectTimeout = setTimeout(connect, 5000);
-        };
-
-        ws.onerror = () => {
-          ws.close();
-        };
-      } catch {
-        // WebSocket not available
-        reconnectTimeout = setTimeout(connect, 10000);
-      }
-    };
-
-    connect();
-
-    return () => {
-      clearTimeout(reconnectTimeout);
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-    };
+    return () => clearInterval(interval);
   }, [playerProfileId, fetchMyMatches]);
-
-  // Clear realtime event after 5 seconds
-  useEffect(() => {
-    if (realtimeEvent) {
-      const t = setTimeout(() => setRealtimeEvent(null), 5000);
-      return () => clearTimeout(t);
-    }
-  }, [realtimeEvent]);
 
   return {
     myMatches,
     loading,
     error,
     respondingTo,
-    wsConnected,
-    realtimeEvent,
     fetchMyMatches,
     acceptMatch,
     declineMatch,

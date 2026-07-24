@@ -28,34 +28,17 @@ class TestCriticalImports:
                 RuleManager,
                 RuleViolationError,
                 ScoringManager,
-                WebSocketManager,
                 get_scoring_manager,
-                manager,
             )
 
             assert RuleManager is not None
             assert RuleViolationError is not None
             assert ScoringManager is not None
             assert get_scoring_manager is not None
-            assert WebSocketManager is not None
-            assert manager is not None
         except ModuleNotFoundError as e:
             pytest.fail(f"Failed to import from managers package: {e}")
         except ImportError as e:
             pytest.fail(f"Import error in managers package: {e}")
-
-    def test_import_websocket_manager_directly(self):
-        """Test that websocket_manager can be imported directly."""
-        try:
-            from app.managers.websocket_manager import WebSocketManager, manager
-
-            assert WebSocketManager is not None
-            assert manager is not None
-            assert isinstance(manager, WebSocketManager)
-        except ModuleNotFoundError as e:
-            pytest.fail(f"Failed to import websocket_manager: {e}")
-        except ImportError as e:
-            pytest.fail(f"Import error in websocket_manager: {e}")
 
     def test_import_rule_manager(self):
         """Test that rule_manager can be imported directly."""
@@ -145,11 +128,7 @@ class TestApplicationStartup:
     def test_managers_initialized(self):
         """Test that managers are properly initialized."""
         try:
-            from app.managers import manager as websocket_manager
             from app.managers.rule_manager import RuleManager
-
-            # Verify managers can be instantiated/accessed
-            assert websocket_manager is not None
 
             # RuleManager is a singleton, verify it can be accessed
             rule_manager = RuleManager()
@@ -171,10 +150,3 @@ class TestPackageExports:
         # Verify all listed exports are actually available
         for export_name in managers.__all__:
             assert hasattr(managers, export_name), f"managers package should export {export_name}"
-
-    def test_managers_websocket_in_all(self):
-        """Test that websocket_manager exports are in __all__."""
-        from app import managers
-
-        assert "WebSocketManager" in managers.__all__, "WebSocketManager should be in managers.__all__"
-        assert "manager" in managers.__all__, "manager should be in managers.__all__"

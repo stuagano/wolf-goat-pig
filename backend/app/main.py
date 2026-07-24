@@ -319,7 +319,6 @@ from .routers import (
     messages,
     signups,
     team_formation,
-    websocket_routes,
 )
 
 app.include_router(messages.router)
@@ -334,7 +333,6 @@ app.include_router(games_holes.router)
 app.include_router(games_players.router)
 app.include_router(legacy_scoring.router)
 app.include_router(groupme.router)
-app.include_router(websocket_routes.router)
 
 logger.info("✅ All routers registered")
 
