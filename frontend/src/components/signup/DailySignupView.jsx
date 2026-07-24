@@ -3,11 +3,13 @@ import { useAuth0 } from '@auth0/auth0-react';
 import '../../styles/mobile-touch.css';
 import { apiConfig } from '../../config/api.config';
 import { calculateCourseHandicap } from '../../utils';
+import { usePlayerProfile } from '../../hooks/usePlayerProfile';
 
 const API_URL = apiConfig.baseUrl;
 
 const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   const { user, isAuthenticated } = useAuth0();
+  const { profile, loading: profileLoading } = usePlayerProfile();
   const [currentWeekStart, setCurrentWeekStart] = useState('');
   const [selectedDate, setSelectedDate] = useState(initialDate || '');
   const [weekData, setWeekData] = useState({ daily_summaries: [] });
@@ -20,6 +22,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   const [confirmingSignup, setConfirmingSignup] = useState(false);
   const [legacyReplicating, setLegacyReplicating] = useState(false);
   const [legacyResult, setLegacyResult] = useState(null);
+  const [signingUp, setSigningUp] = useState(false);
 
   // Compute the Sunday that starts the week containing a given date
   const getSundayOfWeek = useCallback((dateStr) => {
@@ -170,21 +173,27 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
       setError('Please log in to sign up');
       return;
     }
+    if (!profile?.id) {
+      setError(profileLoading ? 'Loading your profile…' : 'Could not load your player profile. Please try again.');
+      setConfirmingSignup(false);
+      return;
+    }
     try {
-      const playerName = user.name || user.email;
+      setSigningUp(true);
+      const playerName = profile.legacy_name || profile.name || user.name || user.email;
       const response = await fetch(`${API_URL}/signups`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           date: selectedDate,
-          player_profile_id: 1,
+          player_profile_id: profile.id,
           player_name: playerName,
           preferred_start_time: null,
           notes: null
         })
       });
       if (response.ok) {
-        loadWeeklyData(currentWeekStart);
+        await loadWeeklyData(currentWeekStart);
         setError(null);
         setConfirmingSignup(false);
       } else {
@@ -195,6 +204,8 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
       console.error('Signup error:', err);
       setError(err.message || 'Failed to sign up. Please try again.');
       setConfirmingSignup(false);
+    } finally {
+      setSigningUp(false);
     }
   };
 
@@ -244,12 +255,12 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   const dayData = getDayData();
   const weekDays = getWeekDays();
   const players = dayData?.signups || [];
-  const userIsSignedUp = isAuthenticated && players.some(p =>
-    p.player_name === (user?.name || user?.email) && p.status !== 'cancelled'
-  );
-  const userSignup = isAuthenticated ? players.find(p =>
-    p.player_name === (user?.name || user?.email) && p.status !== 'cancelled'
-  ) : null;
+  const isPlayerMine = (p) =>
+    profile?.id != null &&
+    p.player_profile_id === profile.id &&
+    p.status !== 'cancelled';
+  const userIsSignedUp = isAuthenticated && players.some(isPlayerMine);
+  const userSignup = isAuthenticated ? players.find(isPlayerMine) : null;
 
   if (loading && !weekData.daily_summaries.length) {
     return (
@@ -442,6 +453,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <button
                 onClick={handleSignupClick}
+                disabled={signingUp || profileLoading || !profile?.id}
                 style={{
                   background: confirmingSignup ? '#b45309' : '#2d5016',
                   color: 'white',
@@ -450,11 +462,18 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                   padding: '10px 24px',
                   fontSize: '15px',
                   fontWeight: '700',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap'
+                  cursor: signingUp || profileLoading || !profile?.id ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap',
+                  opacity: signingUp || profileLoading || !profile?.id ? 0.7 : 1
                 }}
               >
-                {confirmingSignup ? 'Confirm Sign Up' : 'Sign Up'}
+                {signingUp
+                  ? 'Signing up…'
+                  : profileLoading
+                    ? 'Loading profile…'
+                    : confirmingSignup
+                      ? 'Confirm Sign Up'
+                      : 'Sign Up'}
               </button>
               {confirmingSignup && (
                 <button
@@ -547,7 +566,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                 </thead>
                 <tbody>
                   {players.map((player, index) => {
-                    const isCurrentUser = user && player.player_name === (user.name || user.email);
+                    const isCurrentUser = isPlayerMine(player);
                     return (
                       <tr
                         key={player.id || index}
@@ -606,6 +625,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                   <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
                     <button
                       onClick={handleSignupClick}
+                      disabled={signingUp || profileLoading || !profile?.id}
                       style={{
                         marginTop: '12px',
                         background: confirmingSignup ? '#b45309' : '#2d5016',
@@ -615,10 +635,17 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                         padding: '12px 28px',
                         fontSize: '15px',
                         fontWeight: '700',
-                        cursor: 'pointer'
+                        cursor: signingUp || profileLoading || !profile?.id ? 'not-allowed' : 'pointer',
+                        opacity: signingUp || profileLoading || !profile?.id ? 0.7 : 1
                       }}
                     >
-                      {confirmingSignup ? 'Confirm Sign Up' : 'Be the first to sign up!'}
+                      {signingUp
+                        ? 'Signing up…'
+                        : profileLoading
+                          ? 'Loading profile…'
+                          : confirmingSignup
+                            ? 'Confirm Sign Up'
+                            : 'Be the first to sign up!'}
                     </button>
                     {confirmingSignup && (
                       <button
