@@ -107,6 +107,18 @@ storage, messaging) + Cloud Run for the FastAPI core**.
 
 Everything else is comparatively mechanical. The database is the fork in the road.
 
+> **✅ Decided: Cloud SQL for PostgreSQL (Option A).** The schema is deliberately
+> relational — ~40 normalized tables, foreign-key integrity, and leaderboard/stat
+> queries built on joins and `GROUP BY`. That is a *good* design for this app; it
+> is simply not a document design. Firestore has no joins and no cross-collection
+> aggregation, so making it the system of record would mean denormalizing
+> everything, hand-maintaining rollup counters, and enforcing integrity in
+> application code — a large rewrite with real regression risk and no product
+> upside. Cloud SQL *is* Postgres, so the schema, `models.py`, the ORM queries,
+> and the rules engine all move **unchanged**. Firestore may still be adopted
+> later as a *derived* realtime read model (Option C), never as the source of
+> truth for relational data.
+
 ### Option A — Cloud SQL for PostgreSQL (lift-and-shift) ✅ Recommended
 Keep SQLAlchemy, keep the schema, keep every aggregation query. Point
 `DATABASE_URL` at a Cloud SQL instance via the Cloud SQL Auth Proxy / connector.
@@ -133,11 +145,12 @@ scores, stats). Firestore is added **selectively** for what it's genuinely best
 at: live game state fan-out and notification feeds, written by the backend and
 read directly by clients via realtime listeners.
 
-### Recommendation
-Start with **Option A** for the cutover (de-risk the platform move), then adopt
-**Option C** opportunistically where realtime/offline UX benefits justify it.
-Treat **Option B (full Firestore)** as explicitly out of scope unless a later,
-separate decision revisits it.
+### Decision
+**Option A (Cloud SQL) is the chosen path for the cutover** — it de-risks the
+platform move and keeps the relational schema intact. **Option C** may be adopted
+later, opportunistically, where realtime/offline UX benefits justify it.
+**Option B (full Firestore) is explicitly out of scope** unless a later, separate
+decision revisits it.
 
 ---
 
@@ -284,8 +297,9 @@ A proper cost model needs current traffic/MAU/DB-size numbers before committing.
 
 ## 11. Open Questions
 
-1. **Database target** — accept the recommended Cloud SQL-first path, or is there
-   an appetite for a Firestore rewrite despite the aggregation risk?
+1. ~~**Database target** — Cloud SQL-first vs. Firestore rewrite?~~ **✅ Resolved:
+   Cloud SQL for PostgreSQL** (see [§4](#4-the-central-decision-database)). The
+   relational schema moves unchanged; Firestore is out of scope as system of record.
 2. **Frontend hosting** — is moving off Vercel worth it, or keep Vercel and only
    migrate backend + auth + DB? (Vercel + Cloud Run is a valid end state.)
 3. **Auth cutover UX** — acceptable to require a password reset for password-based
