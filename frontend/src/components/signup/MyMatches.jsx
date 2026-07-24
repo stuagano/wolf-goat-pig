@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAccessToken } from '../../hooks/useAccessToken';
 import useTeeTimes from '../../hooks/useTeeTimes';
 import BookingModal from '../foretees/BookingModal';
-import { apiConfig } from '../../config/api.config';
-
-const API_URL = apiConfig.baseUrl;
+import { api } from '../../api/client';
+import { errorDetail } from '../../api/http';
 
 const dayNamesFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -55,17 +54,9 @@ const MyMatches = () => {
   const [bookingSlot, setBookingSlot] = useState(null);
   const [bookingResult, setBookingResult] = useState(null);
 
-  const authFetch = useCallback(async (url, options = {}) => {
+  const authHeaders = useCallback(async () => {
     const token = await getToken();
-    const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
-    return fetch(fullUrl, {
-      ...options,
-      headers: {
-        ...options.headers,
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    return { Authorization: `Bearer ${token}` };
   }, [getToken]);
 
   const fetchMatches = useCallback(async (overrideStatus) => {
@@ -73,20 +64,21 @@ const MyMatches = () => {
     setError(null);
     try {
       const filter = overrideStatus !== undefined ? overrideStatus : statusFilter;
-      const params = filter ? `?status=${filter}` : '';
-      const resp = await authFetch(`/matchmaking/my-matches${params}`);
-      if (resp.ok) {
-        setMatches(await resp.json());
+      const { data, error: apiError } = await api.GET('/matchmaking/my-matches', {
+        params: { query: filter ? { status: filter } : {} },
+        headers: await authHeaders(),
+      });
+      if (data) {
+        setMatches(data);
       } else {
-        const err = await resp.json();
-        setError(err.detail || 'Failed to load matches');
+        setError(errorDetail(apiError) || 'Failed to load matches');
       }
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [authFetch, statusFilter]);
+  }, [authHeaders, statusFilter]);
 
   useEffect(() => { fetchMatches(); }, [fetchMatches]);
 
@@ -100,13 +92,13 @@ const MyMatches = () => {
   const handleRespond = async (matchId, response) => {
     setRespondingTo(matchId);
     try {
-      const resp = await authFetch(`/matchmaking/matches/${matchId}/respond`, {
-        method: 'POST',
-        body: JSON.stringify({ response }),
+      const { data, error: apiError } = await api.POST('/matchmaking/matches/{match_id}/respond', {
+        params: { path: { match_id: matchId } },
+        body: { response },
+        headers: await authHeaders(),
       });
-      const data = await resp.json();
-      if (!resp.ok) {
-        setError(data.detail || `Failed to ${response}`);
+      if (!data) {
+        setError(errorDetail(apiError) || `Failed to ${response}`);
       } else if (data.all_accepted) {
         // All players accepted — switch to "accepted" filter so the user
         // can see the "Book Tee Time" button that just became available.
