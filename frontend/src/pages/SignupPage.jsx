@@ -3,7 +3,9 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { useSearchParams } from 'react-router-dom';
 import ForeTeesTeeSheet from '../components/foretees/ForeTeesTeeSheet';
 import DailySignupView from '../components/signup/DailySignupView';
-import WgpSignupSheet from '../components/signup/WgpSignupSheet';
+// WgpSignupSheet is temporarily disconnected — it read/wrote the legacy
+// thousand-cranes.com tee sheet, which is disabled for now. Re-add the import,
+// the tab entry, and its render block below to bring it back.
 import '../styles/mobile-touch.css';
 
 const SignupPage = () => {
@@ -37,7 +39,6 @@ const SignupPage = () => {
 
   const tabs = [
     { id: 'calendar', label: '📅 Daily Sign-ups', icon: '📅' },
-    { id: 'wgp-signup', label: '⛳ WGP Tee Sheet', icon: '⛳' },
     { id: 'tee-times', label: '🏌️ Book Tee Time', icon: '🏌️' },
   ];
 
@@ -140,16 +141,10 @@ const SignupPage = () => {
 
       {/* Tab Content */}
       <div style={{ minHeight: '500px' }}>
-        {activeTab === 'calendar' && (
-          <DailySignupView />
-        )}
-
-        {activeTab === 'wgp-signup' && (
-          <WgpSignupSheet />
-        )}
-
-        {activeTab === 'tee-times' && (
+        {activeTab === 'tee-times' ? (
           <ForeTeesTeeSheet />
+        ) : (
+          <DailySignupView />
         )}
       </div>
 
