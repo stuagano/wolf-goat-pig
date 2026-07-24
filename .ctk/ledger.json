@@ -143,6 +143,18 @@
     "tier": "cheap",
     "waiver": null
   },
+  "completed-game-persists-results": {
+    "at": "2026-07-24T14:05:53.847958+00:00",
+    "detail": null,
+    "duration": 0.984,
+    "files": {
+      "backend/app/services/completed_game_service.py": "sha256:197c31ece9b4f181128830125c07d8f9f2c3bbe388e294a6848f2fbe61ccbd09"
+    },
+    "fingerprint": "sha256:1bb49b874449b56db345789733e5a7b10bde498f658f3db1227ac7dca81c56dd",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
   "course-update-preserves-holes": {
     "at": "2026-07-24T05:56:14.424205+00:00",
     "detail": null,
@@ -176,6 +188,18 @@
       "frontend/src/services/cacheManager.jsx": "sha256:1f3fa386ef7f8b90d4c7bff485c0311099a657b8d3d86eb9e8dc328f5114c4bf"
     },
     "fingerprint": "sha256:83b4a5c379625a93df41ec9754205b4f60d09f1eb9c8ffb8e8e294980cf03608",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "encryption-roundtrip": {
+    "at": "2026-07-24T14:05:53.847958+00:00",
+    "detail": null,
+    "duration": 0.922,
+    "files": {
+      "backend/app/services/encryption_service.py": "sha256:2e005b0f09ad3edc9c7a0081e29a3c83d2a10eb1c2b2c889fb2eb714a25b25fd"
+    },
+    "fingerprint": "sha256:bf00f0e810cb5d1f13af50a25b8150d075b2e112cda118ac2ff2b0b04894a271",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -321,6 +345,18 @@
     "tier": "cheap",
     "waiver": null
   },
+  "legacy-signup-syncs-payload": {
+    "at": "2026-07-24T14:05:53.847958+00:00",
+    "detail": null,
+    "duration": 1.085,
+    "files": {
+      "backend/app/services/legacy_signup_service.py": "sha256:59fab1b8fb0a0738e2004cd67bc35ac8336522737ee3fd39f023ad5746415ebb"
+    },
+    "fingerprint": "sha256:4d56052f1176b8cd1422d35945c40bb36f265d16794c3ace2f88a02e9c757aaa",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
   "livsow-transactions": {
     "at": "2026-07-24T05:56:14.424205+00:00",
     "detail": null,
@@ -415,12 +451,36 @@
     "tier": "cheap",
     "waiver": null
   },
+  "notifications-persist-and-readback": {
+    "at": "2026-07-24T14:05:53.847958+00:00",
+    "detail": null,
+    "duration": 2.798,
+    "files": {
+      "backend/app/services/notification_service.py": "sha256:08fad31a2f5a46dfa4f70521bf2ace6c9b89eab6cc5b6be2505e42a99e2317d1"
+    },
+    "fingerprint": "sha256:52a32b9f7e8b8dee0a5e732b531b8388c7d4b141742ac2b5f671229762fa85e0",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
   "notifications-router": {
     "at": "2026-06-17T02:37:27.715015+00:00",
     "detail": null,
     "duration": null,
     "files": null,
     "fingerprint": "sha256:d37313c6c8341863a8df9266b6427d7d72d7f8b8b278271704b01747b9c0140b",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "pairing-scheduler-builds-from-signups": {
+    "at": "2026-07-24T14:05:53.847958+00:00",
+    "detail": null,
+    "duration": 1.824,
+    "files": {
+      "backend/app/services/pairing_scheduler_service.py": "sha256:18003dae82c540e75f4d2aac60a97421c4a42fc8c07d76b5a752034c7b706717"
+    },
+    "fingerprint": "sha256:633b72414d1465b593826d204248352348137552e6e9e98feeb2cb5bebced025",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -498,6 +558,18 @@
     "tier": "cheap",
     "waiver": null
   },
+  "scorecard-preprocess-pipeline": {
+    "at": "2026-07-24T14:05:43.566921+00:00",
+    "detail": null,
+    "duration": 2.635,
+    "files": {
+      "backend/app/services/scorecard_preprocess.py": "sha256:998a2be72f39ca4745b7e538aa69463cc7f6b615fe0a6d12b6cda05b1044ec07"
+    },
+    "fingerprint": "sha256:3d3f2b8832f1ce44c4843b7c65fe1ba032027a25352a44538e7beadba592a37a",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
   "scorecard-router": {
     "at": "2026-06-17T02:37:27.715015+00:00",
     "detail": null,
@@ -516,6 +588,18 @@
       "backend/app/services/scorecard_scan_service.py": "sha256:f963a26bdcfbca18666b601e80f81c157fe6fca4790244f1f95eddb0863ac607"
     },
     "fingerprint": "sha256:da40dde5cf0fbc9c3fa7afa331482108950c61a451fb0ebd7efc364d513dca18",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "sheet-sync-tolerates-bad-rows": {
+    "at": "2026-07-24T14:05:53.847958+00:00",
+    "detail": null,
+    "duration": 1.093,
+    "files": {
+      "backend/app/services/sheet_integration_service.py": "sha256:a9d0d13e4b7f7889d7f75eec711188e548b131e8cdbbbcdf3060bc9404426780"
+    },
+    "fingerprint": "sha256:e197ab3d90bd47ceec6b37c4a29015c13af40bd1c1d4c7549daa2977e375f54e",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -563,6 +647,18 @@
       "backend/app/services/statistics_service.py": "sha256:19dc14fbe4acb8fdfe6356077ef0a6535ccc5c626477f8c01f0ec949474e4dfc"
     },
     "fingerprint": "sha256:69a2fd5a28b104f2aaf89cf612f96546debe147bed57b32f401f8dafeb27876b",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "sunday-game-pairings-seeded": {
+    "at": "2026-07-24T14:05:53.847958+00:00",
+    "detail": null,
+    "duration": 0.869,
+    "files": {
+      "backend/app/services/sunday_game_service.py": "sha256:00dc3cb51dcad8c5cb20d1907572631c4c5043141d53959c87bd0ccbb99c51fd"
+    },
+    "fingerprint": "sha256:5b879a51cd7c95825a9daeccaa23c504c16321e42c7bdb39eb2fcfc5e41393a4",
     "result": "pass",
     "tier": "cheap",
     "waiver": null

@@ -561,3 +561,103 @@ capabilities:
         || exit 3; code=${resp##*|}; body=${resp%|*}; [ "$code" = 200 ] || exit 1; printf
         "%s" "$body" | grep -q "Wolf Goat Pig" || exit 1; printf "%s" "$body" | grep
         -q "id=.root." || exit 1; exit 0
+  - id: legacy-signup-syncs-payload
+    description: legacy signup sync builds the expected CGI/JSON payload (or short-circuits
+      when disabled)
+    given: legacy signup config and a DailySignup row
+    when: LegacySignupService.sync_signup_created runs
+    then: the outbound payload matches the configured form/json contract and disabled
+      sync is a no-op
+    tier: cheap
+    deps:
+    - backend/app/services/legacy_signup_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_legacy_signup_service.py
+        -q -p no:cacheprovider
+  - id: pairing-scheduler-builds-from-signups
+    description: pairing scheduler loads active signups, builds player lists with handicaps,
+      and generates Sunday pairings
+    given: daily signups and player profiles for a date
+    when: PairingSchedulerService generate/build helpers run
+    then: active signups drive the player list and pairings generate when enough players
+      exist
+    tier: cheap
+    deps:
+    - backend/app/services/pairing_scheduler_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_pairing_scheduler_service.py
+        -q -p no:cacheprovider
+  - id: notifications-persist-and-readback
+    description: notification service creates, reads, marks, and deletes notifications
+      with unread counts
+    given: a player and notification writes
+    when: NotificationService send/get/mark/delete run
+    then: notifications persist and unread/read state round-trips
+    tier: cheap
+    deps:
+    - backend/app/services/notification_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_notification_service.py
+        -q -p no:cacheprovider
+  - id: sunday-game-pairings-seeded
+    description: Sunday game pairings are deterministic with an explicit/env seed and
+      handle insufficient players
+    given: a Sunday roster and a seed
+    when: sunday_game_service generates pairings
+    then: the same seed yields the same teams and thin rosters return a clear insufficient-players
+      result
+    tier: cheap
+    deps:
+    - backend/app/services/sunday_game_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_sunday_game_service.py
+        -q -p no:cacheprovider
+  - id: completed-game-persists-results
+    description: completed game service maps hole history to player ids and persists
+      the completed-game record with results
+    given: finished hole states and standings
+    when: persist_completed_game runs
+    then: a completed-game row and per-player results are written
+    tier: cheap
+    deps:
+    - backend/app/services/completed_game_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_completed_game_service.py
+        -q -p no:cacheprovider
+  - id: encryption-roundtrip
+    description: encryption service round-trips plaintext under configured keys and
+      rejects cross-key ciphertexts
+    given: a plaintext string and encryption key env
+    when: encrypt then decrypt run
+    then: original plaintext is restored and different keys are incompatible
+    tier: cheap
+    deps:
+    - backend/app/services/encryption_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_encryption_service.py
+        -q -p no:cacheprovider
+  - id: sheet-sync-tolerates-bad-rows
+    description: sheet integration sync continues when one row is bad instead of aborting
+      the whole sync
+    given: a sheet sync with mixed good and bad rows
+    when: sheet integration sync runs
+    then: good rows still apply and a single bad row does not abort the sync
+    tier: cheap
+    deps:
+    - backend/app/services/sheet_integration_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_sheet_integration_service.py
+        -q -p no:cacheprovider
+  - id: scorecard-preprocess-pipeline
+    description: scorecard preprocess deskews/annotates images and falls back to the
+      original bytes on failure
+    given: scorecard image bytes including bad/empty inputs
+    when: preprocess/deskew/annotate helpers run
+    then: valid cards yield processed bytes/diagnostics and failures return the original
+      image
+    tier: cheap
+    deps:
+    - backend/app/services/scorecard_preprocess.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_scorecard_preprocess.py
+        -q -p no:cacheprovider
