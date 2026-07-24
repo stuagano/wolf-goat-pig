@@ -285,6 +285,19 @@ capabilities:
     check:
       shell: cd backend && venv/bin/python -m pytest tests/unit/routers/test_signups_router.py::TestCreateSignup
         -q -p no:cacheprovider
+  - id: daily-signup-uses-current-player
+    description: the daily signup view submits the authenticated player's profile id
+      and shows that player on the selected day after refreshing the week
+    given: an authenticated user whose player profile id is not the default id
+    when: the user confirms a daily signup
+    then: POST /signups uses that profile id and the refreshed day marks the player
+      as the current user
+    tier: cheap
+    deps:
+    - frontend/src/components/signup/DailySignupView.jsx
+    - frontend/src/components/signup/__tests__/DailySignupView.test.jsx
+    check:
+      shell: cd frontend && npx vitest run src/components/signup/__tests__/DailySignupView.test.jsx
   - id: team-formation-partitions-roster
     description: random team formation partitions the roster correctly (4->1 team, 8->2
       teams, leftover counted)
