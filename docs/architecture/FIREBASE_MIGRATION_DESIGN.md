@@ -21,6 +21,7 @@
 | D4 | **Auth:** **Auth0 stays.** The Firebase Auth switch is decoupled from this migration and deferred indefinitely — not on the critical path ([§7](#7-authentication-migration)). | ✅ Decided |
 | D5 | **DB-on-Render:** acceptable as the Phase-1 *interim* state; not the steady-state target (cross-cloud latency/egress) ([§4](#4-the-central-decision-database)). | ✅ Decided |
 | D6 | **DB compute cost:** accept Cloud SQL's always-on floor (small instance, ~$10/mo). Scale-to-zero alternatives (AlloyDB — pricier; Neon — +vendor, compounding cold starts) rejected ([§10](#10-cost-considerations)). | ✅ Decided |
+| D7 | **Real-time:** **drop WebSockets entirely**, move to stateless HTTP request/response (client polling). Removes the Cloud Run single-process/multi-instance concern; the sockets are unwired scaffolding today ([§6](#6-component-by-component-mapping)). | ✅ Decided |
 
 ---
 
@@ -77,7 +78,7 @@ migration is about *platform*, not *product*.
 | Auth | Auth0 (RS256 JWT) | Verified in `backend/app/services/auth_service.py`; linked to `PlayerProfile`. |
 | Backend | FastAPI monolith | **33 routers**, **~40 services**. Deployed on Render via `render.yaml`. |
 | Database | PostgreSQL (SQLAlchemy 2.0) | **~40 tables** (`backend/app/models.py`, 825 lines). Relational: joins, aggregations for stats/leaderboards. |
-| Real-time | WebSockets | `ws/{game_id}` game broadcasts + `ws/user/{player_id}` notifications (`websocket_routes.py`). |
+| Real-time | WebSockets (**scaffolding — being removed, D7**) | `ws/{game_id}` is an echo endpoint (no backend game-state push); `ws/user/{player_id}` has one consumer (`useMatchmaking.js`) that already falls back to HTTP fetch. The server-push methods (`send_to_user`, `notify_match_*`) have **no callers**; real notifications are DB-backed (`notification_service.send_notification`) and fetched. |
 | Background jobs | In-process schedulers | Email, pairing, matchmaking, callouts, sheet-sync (`services/*_scheduler.py`, `schedule` lib). |
 | Heavy compute | OpenCV + Pillow | Scorecard photo scan/OCR preprocessing (`scorecard_scan_service.py`). |
 | External integrations | GHIN, GroupMe, ForeTees, Resend (email), Google Sheets, Sentry | Multiple `services/*_service.py`. |
@@ -180,33 +181,47 @@ stone*, a poor *destination* — Phase 2 moves the data to Cloud SQL.
 ## 5. Target Architecture (Recommended)
 
 ```
+                    Auth0 (unchanged, D4) ──── issues JWT
+                          │
+                          ▼  ID token on each request
 ┌─────────────────────────────────────────────────────────────┐
 │                     Google Cloud Project                     │
 │                                                              │
 │  Firebase Hosting ──► React SPA (built by Vite)             │
-│        │                                                     │
-│        │  Firebase Auth (ID token)                           │
+│        │              (stateless HTTP request/response,      │
+│        │               client polling — no WebSockets, D7)   │
+│        │  /api/** rewrite (same-origin, no CORS)             │
 │        ▼                                                     │
 │  Cloud Run  ◄────────  FastAPI monolith (container as-is)    │
-│     │  │  │            - verifies Firebase ID tokens         │
-│     │  │  │            - rules engine, routers, services     │
-│     │  │  │            - OpenCV scorecard pipeline           │
-│     │  │  └──► Cloud SQL (PostgreSQL)  ◄── system of record  │
-│     │  └─────► Cloud Storage (scorecard images, media)       │
-│     └────────► Firestore (live game state, notif feeds) [C]  │
+│     │  │               - verifies Auth0 JWTs                 │
+│     │  │               - rules engine, routers, services     │
+│     │  │               - OpenCV scorecard pipeline           │
+│     │  └──► Cloud SQL (PostgreSQL)  ◄── system of record     │
+│     └─────► Cloud Storage (scorecard images, media)          │
 │                                                              │
 │  Cloud Scheduler ──► Cloud Run jobs (email, pairing, sync)   │
 │  Secret Manager ──► DATABASE_URL, API keys, GHIN creds       │
 │  Cloud Logging / Monitoring  +  Sentry (unchanged)           │
+│                                                              │
+│  [Optional/future] Firestore — realtime read model (C);      │
+│                    BigQuery — analytics OLAP sink            │
 └─────────────────────────────────────────────────────────────┘
 ```
 
+Because the app is now **stateless request/response** (no long-lived connections,
+no in-process background loops after D7 + the scheduling phase), Cloud Run
+instances are fully interchangeable and can scale freely — the single-process
+assumptions that in-memory WebSockets/schedulers relied on are designed out.
+
 **Why Cloud Run for the backend (not Cloud Functions):**
-- The FastAPI app is a large stateful-ish monolith with WebSocket endpoints and
-  heavy native deps (`opencv-python-headless`, `numpy`, `Pillow`). It already
-  ships a `Dockerfile` — Cloud Run runs that container unchanged.
-- Cloud Functions caps request duration, package size, and lacks first-class
-  WebSocket support. Cloud Run supports WebSockets and long-lived connections.
+- The FastAPI app is a large monolith with heavy native deps
+  (`opencv-python-headless`, `numpy`, `Pillow`) and a slow scorecard-OCR path. It
+  already ships a `Dockerfile` — Cloud Run runs that container unchanged.
+- Cloud Functions caps request duration and package size, which the OCR path and
+  the OpenCV/numpy image would fight. Cloud Run has generous request timeouts and
+  no practical package-size limit.
+- (WebSocket support is no longer a deciding factor — see D7, sockets are being
+  dropped — but Cloud Run supports them anyway if ever needed.)
 
 ---
 
@@ -218,7 +233,7 @@ stone*, a poor *destination* — Phase 2 moves the data to Cloud SQL.
 | Auth0 (`@auth0/auth0-react`) | **Unchanged — Auth0 stays** | **None** for this migration — see [§7](#7-authentication-migration). |
 | FastAPI on Render | FastAPI on Cloud Run | **Low–Medium** — reuse `backend/Dockerfile`; swap Render env wiring for Cloud Run + Secret Manager; add Cloud SQL connector. |
 | PostgreSQL on Render | Cloud SQL Postgres | **Low** — `pg_dump`/restore; change `DATABASE_URL`. Code path in `database.py` already branches on `postgresql://`. |
-| WebSocket game broadcasts | Cloud Run WebSockets (Option A) **or** Firestore listeners (Option C) | **Low** (A) / **Medium** (C). |
+| WebSockets (`websocket_routes.py`, `WebSocketManager`) | **Removed (D7)** → stateless HTTP; matchmaking hook switches to client polling | **Low** — delete the echo `/ws/{game_id}` endpoint and dead push methods; replace `useMatchmaking.js`'s socket effect with interval polling (it already fetches over HTTP). |
 | In-process `schedule` jobs | Cloud Scheduler → Cloud Run endpoints/jobs | **Medium** — extract scheduler triggers into HTTP-invoked jobs so they don't rely on a long-lived process. |
 | Scorecard OCR (OpenCV) | Cloud Run (same container) | **Low** — stays in the monolith; store images in Cloud Storage. |
 | Resend email | Unchanged (or FCM/Cloud Tasks for queueing) | **None** initially. |
@@ -245,10 +260,45 @@ may be an acceptable simplicity win — it's a simplicity-vs-performance call, n
 right/wrong one.
 
 > **Not in scope: a frontend *framework* change.** The app is on Vite + React 19,
-> which is modern and correct for a dynamic, authenticated, real-time SPA.
-> Build-time static generators (e.g. Gatsby) solve a content-site problem this app
-> doesn't have and would be a downgrade-plus-rewrite for no benefit. Hosting is a
-> deploy-target choice; the framework stays put.
+> which is modern and correct for a dynamic, authenticated SPA. Build-time static
+> generators (e.g. Gatsby) solve a content-site problem this app doesn't have and
+> would be a downgrade-plus-rewrite for no benefit. Hosting is a deploy-target
+> choice; the framework stays put.
+
+### Dropping WebSockets → stateless HTTP (D7)
+
+An audit of the current WebSocket layer found it is **unwired scaffolding**, not a
+load-bearing real-time system:
+- `/ws/{game_id}` is an **echo** endpoint — it rebroadcasts client messages and
+  connect/disconnect notices; no backend code pushes real game state through it.
+- The manager's server-push methods (`send_to_user`, `notify_match_found`,
+  `notify_match_update`) have **no callers** anywhere in the backend.
+- Real notifications are **DB-backed** (`notification_service.send_notification`
+  writes rows) and read by fetching — not pushed over a socket.
+- The only frontend consumer, `useMatchmaking.js`, already fetches matches over
+  HTTP and treats the socket as an optional accelerator with graceful fallback.
+
+**Decision (D7): remove WebSockets entirely and standardize on stateless HTTP
+request/response.** Concretely:
+- **Backend:** delete `websocket_routes.py` and `managers/websocket_manager.py`,
+  drop the router registration in `main.py`, and remove the dead push methods.
+- **Frontend:** replace the WebSocket effect in `useMatchmaking.js` with interval
+  **polling** of the existing matches endpoint (it already calls `fetchMyMatches`).
+
+**Why this is the right call for the migration:** it removes the single-process
+assumption (in-memory connection registry) that would otherwise break under Cloud
+Run autoscaling, so Cloud Run instances become freely scalable with no
+`max-instances=1` workaround. Polling is stateless, works on any instance, and is
+more than adequate for matchmaking cadence.
+
+**If true server-push is ever wanted later:** add **Firestore listeners** as a
+derived realtime read model (Option C) — client-side realtime with no long-lived
+server connection to manage. That stays a *future, optional* enhancement, not part
+of this migration.
+
+> This is a code change to the app itself (not just infra). It can land as its own
+> small PR **before** the platform move, so the migration starts from an
+> already-stateless app.
 
 ---
 
@@ -322,9 +372,12 @@ Each phase is independently shippable and reversible.
 
 - **Phase 0 — Foundation.** Create GCP project, enable APIs, wire Secret Manager,
   set up CI to build the backend container. No user-facing change.
+- **Phase 0.5 — De-socket (app code, D7).** Remove the WebSocket endpoints/manager
+  and switch `useMatchmaking.js` to polling, so the app is stateless *before* it
+  lands on Cloud Run. Ships as its own small PR against the current stack.
 - **Phase 1 — Compute.** Deploy the existing FastAPI container to Cloud Run,
-  still pointing at Render Postgres. Validate WebSockets, OCR, schedulers behind
-  a canary URL.
+  still pointing at Render Postgres. Validate OCR and (interim) schedulers behind
+  a canary URL. No `max-instances=1` workaround needed once Phase 0.5 has landed.
 - **Phase 2 — Database.** Migrate Postgres → Cloud SQL (§8). Flip `DATABASE_URL`.
 - **Phase 3 — Hosting.** Move the React SPA to Firebase Hosting; add the `/api/**`
   rewrite to Cloud Run (same-origin). Decommission the Vercel project.
@@ -381,8 +434,10 @@ A proper cost model needs current traffic/MAU/DB-size numbers before committing.
 3. ~~**Auth cutover UX** — password-reset vs. transparent?~~ **✅ Resolved: Auth0
    stays; auth migration deferred** off the critical path ([§7](#7-authentication-migration)).
    The password-hash question only matters if/when auth is revisited later.
-4. **WebSockets vs Firestore** — keep Cloud Run WebSockets, or invest in Firestore
-   listeners to also replace the offline sync layer?
+4. ~~**WebSockets vs Firestore** — keep sockets or invest in Firestore listeners?~~
+   **✅ Resolved: drop WebSockets, use stateless HTTP polling** (D7,
+   [§6](#6-component-by-component-mapping)). Firestore listeners remain a future,
+   optional enhancement only if true server-push is ever wanted.
 5. **Region / data residency** — which GCP region? Any residency constraints?
 6. ~~**Budget ceiling** — acceptable always-on floor?~~ **✅ Resolved: accept the
    Cloud SQL always-on floor** (D6, [§10](#10-cost-considerations)) — a small
