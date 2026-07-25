@@ -8,6 +8,19 @@ from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 logger = logging.getLogger(__name__)
 
+
+def _int_env(name: str, default: int) -> int:
+    """Read an int env var, falling back to ``default`` on unset/invalid values."""
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        logger.warning("Invalid int for %s=%r; using default %d", name, raw, default)
+        return default
+
+
 # Database configuration with environment-specific settings
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -20,17 +33,22 @@ if is_postgresql and DATABASE_URL:
         # Fix for newer SQLAlchemy versions
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+    # Pool sizing is env-tunable. Defaults match the Render free tier; Cloud SQL
+    # (Phase 2) can afford a larger pool — bump DB_POOL_SIZE/DB_MAX_OVERFLOW via
+    # env without a code change. The Cloud SQL Auth Proxy / Unix-socket form
+    # (postgresql://user:pass@/db?host=/cloudsql/CONN) works unchanged here:
+    # it stays on the postgresql:// branch and psycopg2 reads host from the query.
     engine = create_engine(
         DATABASE_URL,
         pool_pre_ping=True,  # Verify connections before use
-        pool_recycle=300,  # Recycle connections every 5 minutes
-        pool_size=5,  # Maximum pool size (Render free tier limit)
-        max_overflow=10,  # Allow up to 10 additional connections
-        pool_timeout=30,  # Wait up to 30s for a connection
+        pool_recycle=_int_env("DB_POOL_RECYCLE", 300),  # Recycle connections every 5 minutes
+        pool_size=_int_env("DB_POOL_SIZE", 5),  # Maximum pool size (Render free tier default)
+        max_overflow=_int_env("DB_MAX_OVERFLOW", 10),  # Allow additional overflow connections
+        pool_timeout=_int_env("DB_POOL_TIMEOUT", 30),  # Wait up to 30s for a connection
         pool_reset_on_return="rollback",  # Always rollback on connection return to reset transaction state
         connect_args={
-            "connect_timeout": 10,  # Connection timeout in seconds
-            "options": "-c statement_timeout=30000",  # Query timeout (30s)
+            "connect_timeout": _int_env("DB_CONNECT_TIMEOUT", 10),  # Connection timeout in seconds
+            "options": f"-c statement_timeout={_int_env('DB_STATEMENT_TIMEOUT_MS', 30000)}",  # Query timeout
         },
         echo=os.getenv("ENVIRONMENT") == "development",
     )

@@ -3,6 +3,12 @@
 Follows design doc §8. **Option A: lift-and-shift** — same schema, same ORM, same
 queries. Nothing in `backend/` changes except the `DATABASE_URL` secret.
 
+> **Pool sizing.** `app/database.py` reads `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` /
+> `DB_POOL_RECYCLE` / `DB_POOL_TIMEOUT` / `DB_CONNECT_TIMEOUT` /
+> `DB_STATEMENT_TIMEOUT_MS` from the environment (defaults match the Render free
+> tier). Cloud SQL can afford a larger pool — bump `DB_POOL_SIZE`/`DB_MAX_OVERFLOW`
+> in `env.production.yaml` (commented stubs are there) rather than editing code.
+
 > Do a full **dry run** against a staging instance first (steps 1–5 below into a
 > throwaway DB) and run the backend test suite against it before touching prod.
 
