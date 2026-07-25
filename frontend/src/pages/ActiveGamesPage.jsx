@@ -5,9 +5,8 @@ import { Card } from '../components/ui';
 import { useTheme } from '../theme/Provider';
 import CommissionerChat from '../components/game/CommissionerChat';
 import AppFooter from '../components/ui/AppFooter';
-import { apiConfig } from '../config/api.config';
-
-const API_URL = apiConfig.baseUrl;
+import { api } from '../api/client';
+import { errorDetail } from '../api/http';
 
 /**
  * ActiveGamesPage - List all in-progress games
@@ -32,22 +31,20 @@ const ActiveGamesPage = () => {
     setError(null);
 
     try {
-      const params = new URLSearchParams({
-        limit: LIMIT,
-        offset: currentPage * LIMIT
+      const { data, response } = await api.GET('/games', {
+        params: {
+          query: {
+            limit: LIMIT,
+            offset: currentPage * LIMIT,
+            ...(filter !== 'all' ? { status: filter } : {}),
+          },
+        },
       });
-
-      if (filter !== 'all') {
-        params.append('status', filter);
-      }
-
-      const response = await fetch(`${API_URL}/games?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error(`Failed to load games: ${response.statusText}`);
       }
 
-      const data = await response.json();
       setGames(data.games || []);
       setTotalCount(data.total_count || 0);
       setHasMore(data.has_more || false);
@@ -90,21 +87,14 @@ const ActiveGamesPage = () => {
     setError(null);
 
     try {
-      const deleteUrl = `${API_URL}/games/${gameId}`;
-      const response = await fetch(deleteUrl, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+      const { error: apiError, response } = await api.DELETE('/games/{game_id}', {
+        params: { path: { game_id: gameId } },
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
-        console.error('❌ Delete failed:', errorData);
-        throw new Error(errorData.detail || `Failed to delete game (${response.status})`);
+        console.error('❌ Delete failed:', apiError);
+        throw new Error(errorDetail(apiError) || `Failed to delete game (${response.status})`);
       }
-
-      await response.json();
 
       // Show success message briefly
       setError(null);

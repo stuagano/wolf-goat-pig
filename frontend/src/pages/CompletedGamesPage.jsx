@@ -4,9 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui';
 import { useTheme } from '../theme/Provider';
 import CommissionerChat from '../components/game/CommissionerChat';
-import { apiConfig } from '../config/api.config';
-
-const API_URL = apiConfig.baseUrl;
+import { api } from '../api/client';
 
 /**
  * CompletedGamesPage - List all completed games with results
@@ -28,19 +26,20 @@ const CompletedGamesPage = () => {
     setError(null);
 
     try {
-      const params = new URLSearchParams({
-        status: 'completed',
-        limit: LIMIT,
-        offset: currentPage * LIMIT
+      const { data, response } = await api.GET('/games', {
+        params: {
+          query: {
+            status: 'completed',
+            limit: LIMIT,
+            offset: currentPage * LIMIT,
+          },
+        },
       });
-
-      const response = await fetch(`${API_URL}/games?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error(`Failed to load games: ${response.statusText}`);
       }
 
-      const data = await response.json();
       setGames(data.games || []);
       setTotalCount(data.total_count || 0);
       setHasMore(data.has_more || false);
@@ -73,8 +72,8 @@ const CompletedGamesPage = () => {
     if (!confirmed) return;
 
     try {
-      const response = await fetch(`${API_URL}/games/${gameId}`, {
-        method: 'DELETE'
+      const { response } = await api.DELETE('/games/{game_id}', {
+        params: { path: { game_id: gameId } },
       });
 
       if (!response.ok) {
