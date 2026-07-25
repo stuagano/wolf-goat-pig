@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { isAdminEmail, getStoredUserEmail } from '../utils/adminAuth';
+import { usePlayerProfile } from '../hooks/usePlayerProfile';
 import { Card } from '../components/ui';
 import SheetIntegrationDashboard from '../components/integration/SheetIntegrationDashboard';
 import WGPAnalyticsDashboard from '../components/analytics/WGPAnalyticsDashboard';
@@ -14,7 +15,8 @@ const API_URL = apiConfig.baseUrl;
 
 const AdminPage = () => {
   const navigate = useNavigate();
-  const { user, isLoading: authLoading } = useAuth0();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth0();
+  const { isAdmin: serverIsAdmin, loading: profileLoading } = usePlayerProfile();
   const [activeTab, setActiveTab] = useState('email');
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -54,6 +56,9 @@ const AdminPage = () => {
   // Check admin access
   useEffect(() => {
     if (authLoading) return;
+    // Wait for the profile fetch before deciding admin status, unless the user
+    // isn't authenticated (no profile will ever load).
+    if (isAuthenticated && profileLoading) return;
     checkAdminAccess();
     if (activeTab === 'email') {
       if (emailMethod === 'smtp') {
@@ -64,13 +69,20 @@ const AdminPage = () => {
     } else if (activeTab === 'banners') {
       fetchBannerConfig();
     }
-  }, [activeTab, emailMethod, authLoading, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, emailMethod, authLoading, user, isAuthenticated, serverIsAdmin, profileLoading]);
 
   const checkAdminAccess = () => {
-    // Auth0 identity is authoritative; stored email is a fallback for page
-    // reloads mid-session. No hardcoded default — unknown users are not admins.
-    const userEmail = user?.email || getStoredUserEmail();
-    setIsAdmin(isAdminEmail(userEmail));
+    // The server's is_admin (from /players/me) is authoritative and mirrors the
+    // backend ADMIN_EMAILS allowlist, so the two never drift. The hardcoded
+    // email list is only a fallback while the profile hasn't loaded. No
+    // hardcoded default grants access — unknown users are not admins.
+    if (serverIsAdmin !== null && serverIsAdmin !== undefined) {
+      setIsAdmin(serverIsAdmin);
+    } else {
+      const userEmail = user?.email || getStoredUserEmail();
+      setIsAdmin(isAdminEmail(userEmail));
+    }
     setLoading(false);
   };
 
@@ -425,7 +437,17 @@ const AdminPage = () => {
         <div className="max-w-4xl mx-auto px-4">
           <Card className="p-8 text-center">
             <h2 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h2>
-            <p className="text-gray-600 mb-6">You don't have permission to access this page.</p>
+            {!isAuthenticated ? (
+              <p className="text-gray-600 mb-6" data-testid="denied-signed-out">
+                You're not signed in. Please sign in with an admin account to access the dashboard.
+              </p>
+            ) : (
+              <p className="text-gray-600 mb-6" data-testid="denied-not-admin">
+                You're signed in{user?.email ? <> as <strong>{user.email}</strong></> : null}, but this
+                account isn't an admin. Admin access is granted server-side via the{' '}
+                <code>ADMIN_EMAILS</code> allowlist — contact the commissioner to be added.
+              </p>
+            )}
             <button
               onClick={() => navigate('/')}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"

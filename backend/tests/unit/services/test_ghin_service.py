@@ -187,6 +187,38 @@ class TestSyncPlayerHandicap:
             # Should call the fetch method
             mock_fetch.assert_called_once()
 
+        # A successful sync persists the authoritative value AND marks its source
+        # as "ghin" so the UI stops showing it as an unknown/default. See #320.
+        db.refresh(player)
+        assert player.handicap == 14.2
+        assert player.handicap_source == "ghin"
+
+    @pytest.mark.asyncio
+    async def test_sync_handicap_missing_index_does_not_clobber(self, db):
+        """A partial GHIN response (no handicap_index) must not overwrite the
+        last known good handicap with the placeholder. See issue #320."""
+        service = GHINService(db)
+        service.initialized = True
+        service.jwt_token = "test_token"
+
+        player = PlayerProfile(
+            name="Keep My Handicap",
+            email="keep@example.com",
+            handicap=9.9,
+            handicap_source="ghin",
+            ghin_id="7654321",
+            created_at=datetime.now().isoformat(),
+        )
+        db.add(player)
+        db.commit()
+
+        with patch.object(service, "_fetch_handicap_from_ghin", new_callable=AsyncMock) as mock_fetch:
+            mock_fetch.return_value = {"handicap_index": None, "last_updated": datetime.now().isoformat()}
+            await service.sync_player_handicap(player_id=player.id)
+
+        db.refresh(player)
+        assert player.handicap == 9.9  # unchanged
+
 
 class TestGHINConfiguration:
     """Test GHIN configuration"""

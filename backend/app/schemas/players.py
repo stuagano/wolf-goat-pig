@@ -75,10 +75,22 @@ class PlayerProfileResponse(PlayerProfileBase):
     is_active: bool = True
     is_ai: bool = False
     ghin_id: str | None = None
+    ghin_last_updated: str | None = None  # when the GHIN handicap was last synced (#320)
+    # Provenance of `handicap`: "default" (18.0 placeholder / unknown), "ghin"
+    # (authoritative), or "manual". Lets the UI distinguish unknown from a real
+    # 18.0. See issue #320.
+    handicap_source: str | None = None
     venmo_handle: str | None = None
     playing_style: str | None = None
     description: str | None = None
     has_avatar_image: bool = False
+    # Computed, not stored. Populated by GET /players/me only.
+    # A non-authoritative fuzzy legacy-name suggestion to confirm in onboarding;
+    # never auto-persisted to legacy_name. See issue #322.
+    legacy_name_suggestion: str | None = None
+    # Whether this account is an admin (server-side ADMIN_EMAILS allowlist), so
+    # the client doesn't rely on a hardcoded list that can drift. See issue #316.
+    is_admin: bool = False
 
 
 # Player Statistics Schemas

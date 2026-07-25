@@ -54,13 +54,37 @@ def _notify_admins_of_new_player(name: str, email: str | None) -> None:
     threading.Thread(target=_send, daemon=True, name="new-player-notify").start()
 
 
-def _deliver_welcome_email(name: str, email: str | None) -> None:
+def _mark_welcome_email_sent(player_id: int) -> None:
+    """Persist that the welcome email was accepted by the provider.
+
+    Opens its own short-lived session because this runs on a detached daemon
+    thread, after the request's session is already closed. The timestamp both
+    proves delivery (observability, #318) and guards against re-sending on a
+    later login.
+    """
+    db = SessionLocal()
+    try:
+        player = db.query(PlayerProfile).filter(PlayerProfile.id == player_id).first()
+        if player is not None:
+            player.welcome_email_sent_at = utc_now().isoformat()
+            db.commit()
+    except Exception as exc:  # never surface to the login path
+        logger.warning(f"Failed to record welcome_email_sent_at for player {player_id}: {exc}")
+        db.rollback()
+    finally:
+        db.close()
+
+
+def _deliver_welcome_email(name: str, email: str | None, player_id: int) -> None:
     """Synchronously deliver the first-login welcome email. Best-effort.
 
-    Any failure (provider outage, misconfig) is swallowed so it can never break
-    the login path, but it is reported to Sentry — matching the
-    swallowed-outages-are-captured convention used at the Resend/GHIN/Sheets/
-    ForeTees swallow sites — so an outage is observable, not silent.
+    Inspects the provider outcome so a *soft* failure (provider returns False
+    without raising — e.g. a non-2xx from Resend, or an unconfigured provider)
+    is observable, not just an unraised exception. Records the recipient and a
+    provider outcome for every send (traceable delivery evidence, #318), and
+    persists welcome_email_sent_at only on success so a failed send stays
+    retryable. Any exception is swallowed so it can never break the login path
+    but is reported to Sentry.
     """
     if not email:
         return
@@ -69,14 +93,23 @@ def _deliver_welcome_email(name: str, email: str | None) -> None:
 
         svc = get_email_service()
         if not svc.is_configured():
+            logger.warning("Welcome email skipped for player %s <%s>: email provider not configured", player_id, email)
+            sentry_sdk.capture_message(f"Welcome email skipped: provider not configured (player_id={player_id})")
             return
-        svc.send_welcome_email(email, name)
+        accepted = svc.send_welcome_email(email, name)
+        if accepted:
+            _mark_welcome_email_sent(player_id)
+            logger.info("Welcome email accepted by provider for player %s <%s>", player_id, email)
+        else:
+            # Soft failure: provider returned False without raising.
+            logger.error("Welcome email rejected by provider for player %s <%s>", player_id, email)
+            sentry_sdk.capture_message(f"Welcome email rejected by provider (player_id={player_id}, email={email})")
     except Exception as exc:  # never surface to the login path
         logger.warning(f"Failed to send welcome email to '{email}': {exc}")
         sentry_sdk.capture_exception(exc)
 
 
-def _send_welcome_email(name: str, email: str | None) -> None:
+def _send_welcome_email(name: str, email: str | None, player_id: int) -> None:
     """Best-effort, non-blocking welcome email on first-login profile creation.
 
     Runs the (external, potentially slow) send on a daemon thread so it can
@@ -84,7 +117,7 @@ def _send_welcome_email(name: str, email: str | None) -> None:
     """
     threading.Thread(
         target=_deliver_welcome_email,
-        args=(name, email),
+        args=(name, email, player_id),
         daemon=True,
         name="welcome-email",
     ).start()
@@ -162,15 +195,26 @@ class AuthService:
         player = db.query(PlayerProfile).filter(PlayerProfile.email == email).first()
 
         if not player:
-            # Try to match name to legacy tee sheet system (same session as the
+            # Match name to the legacy tee sheet system (same session as the
             # profile write so the whole flow is transactionally consistent).
+            #
+            # Only an EXACT canonical match auto-links: case-folding a name to
+            # its roster spelling is deterministic and safe. A *fuzzy* match is a
+            # guess — writing it to legacy_name would faithfully sign the golfer
+            # up as the wrong person (issue #322). So we never persist a fuzzy
+            # hit here; we leave legacy_name unset and surface the suggestion in
+            # onboarding (GET /players/me) for the authenticated user to confirm.
             legacy_name = get_canonical_name(name, db)
+            fuzzy_suggestion: str | None = None
             if not legacy_name:
-                # Try fuzzy matching
                 suggestions = find_similar_players(name, max_results=1, db=db)
                 if suggestions:
-                    legacy_name = suggestions[0]
-                    logger.info(f"Fuzzy matched '{name}' to legacy name '{legacy_name}'")
+                    fuzzy_suggestion = suggestions[0]
+                    logger.info(
+                        "Fuzzy legacy suggestion for '%s': '%s' (NOT auto-linked; awaiting confirmation)",
+                        name,
+                        fuzzy_suggestion,
+                    )
 
             # Create new player profile
             player = PlayerProfile(
@@ -180,7 +224,8 @@ class AuthService:
                 avatar_url=picture,
                 created_at=utc_now().isoformat(),
                 updated_at=utc_now().isoformat(),
-                handicap=18.0,  # Default handicap
+                handicap=18.0,  # Placeholder until GHIN sync — marked below
+                handicap_source="default",  # unknown/pending, not a real 18.0 (#320)
                 preferences={
                     "auth0_id": auth0_id,
                     "ai_difficulty": "medium",
@@ -209,16 +254,18 @@ class AuthService:
             # returning login. Best-effort and wrapped so even dispatching it can
             # never add latency to or break first login; failures go to Sentry.
             try:
-                _send_welcome_email(name, email)
+                _send_welcome_email(name, email, player.id)
             except Exception as exc:
                 logger.warning(f"Failed to dispatch welcome email for '{name}': {exc}")
                 sentry_sdk.capture_exception(exc)
 
-            # No canonical legacy match → capture into the pending queue and
-            # alert admins so the golfer can be added to Jeff's tee-sheet
-            # dropdown (a manual step on the legacy side). Best-effort: never
-            # block account creation if capture/notify fails.
-            if not legacy_name:
+            # No legacy link → decide between "confirm a suggestion" and "brand
+            # new golfer". If there's a plausible fuzzy suggestion, onboarding
+            # will surface it for the user to accept/reject, so we don't add them
+            # to the pending roster yet. Only a truly unknown golfer (no exact
+            # match, no suggestion) is captured into the pending queue with an
+            # admin alert. Best-effort: never block account creation.
+            if not legacy_name and not fuzzy_suggestion:
                 try:
                     result = capture_pending_player(name, email=email, player_profile_id=player.id, db=db)
                     if result.get("captured"):

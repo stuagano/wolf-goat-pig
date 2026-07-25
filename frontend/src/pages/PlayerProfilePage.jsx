@@ -28,6 +28,17 @@ const formatGameDate = (dateStr) => {
 
 const formatScore = (q) => `${q >= 0 ? '+' : ''}${q}`;
 
+// A handicap_source of "default" means the 18.0 placeholder — i.e. unknown /
+// pending a GHIN sync — so we must not present it as a real handicap.
+const isPendingHandicap = (source) => !source || source === 'default';
+
+const formatGhinFreshness = (iso) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
 const PlayerProfilePage = () => {
   const { playerId } = useParams();
   const navigate = useNavigate();
@@ -153,7 +164,9 @@ const PlayerProfilePage = () => {
     );
   }
 
-  const { name, handicap, description, avatar_url, has_avatar_image, last_played, created_at, available_days, game_history, badges, total_badges, stats } = profile;
+  const { name, handicap, handicap_source, ghin_last_updated, description, avatar_url, has_avatar_image, last_played, created_at, available_days, game_history, badges, total_badges, stats } = profile;
+  const handicapPending = isPendingHandicap(handicap_source) || handicap == null;
+  const ghinFreshness = handicap_source === 'ghin' ? formatGhinFreshness(ghin_last_updated) : null;
   const avatarSrc = has_avatar_image
     ? `${API_URL}/players/${playerId}/avatar${avatarVersion ? `?v=${avatarVersion}` : ''}`
     : avatar_url;
@@ -205,7 +218,19 @@ const PlayerProfilePage = () => {
             <div style={{ flex: 1, minWidth: 0 }}>
               <h1 className="wgp-profile__name">{name}</h1>
               <div className="wgp-profile__meta-row">
-                <span>Handicap <strong>{handicap != null ? handicap : '—'}</strong></span>
+                {handicapPending ? (
+                  <span title="GHIN sync pending">
+                    Handicap <strong>Pending</strong>
+                    <span style={{ marginLeft: 4, fontSize: 12, opacity: 0.7 }}>(GHIN sync pending)</span>
+                  </span>
+                ) : (
+                  <span>
+                    Handicap <strong>{handicap}</strong>
+                    {ghinFreshness && (
+                      <span style={{ marginLeft: 4, fontSize: 12, opacity: 0.7 }}>(GHIN · {ghinFreshness})</span>
+                    )}
+                  </span>
+                )}
                 {livsowTeam && (
                   <span className="wgp-profile__livsow-pill">
                     ⛳ {livsowTeam.team} · {livsowTeam.role}
