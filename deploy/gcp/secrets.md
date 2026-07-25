@@ -16,6 +16,7 @@ them in with `--set-secrets`.
 | `FORETEES_PASSWORD` | `FORETEES_PASSWORD` | |
 | `FORETEES_ENCRYPTION_KEY` | `FORETEES_ENCRYPTION_KEY` | Fernet key for per-user ForeTees creds — **losing/rotating it breaks stored creds**. |
 | `MONITOR_KEY` | `MONITOR_KEY` | Guards `GET /health/external`. |
+| `INTERNAL_JOB_TOKEN` | — (new) | Phase 4: shared secret guarding `POST /internal/jobs/*`. Cloud Scheduler sends it as the `X-Internal-Job-Token` header. Endpoints are **disabled** (503) when unset. |
 | `CLOUD_SQL_PASSWORD` | — (new) | Phase 2 only: the Cloud SQL `wgp` user password. Not injected into the app; used by provisioning + to build `DATABASE_URL`. |
 
 ## What is **not** a secret (stays in `env.production.yaml`)

@@ -136,8 +136,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as e:
         logger.error(f"Legacy roster seeding failed: {e}")
 
+    # In-process schedulers assume a single long-lived process. On Cloud Run
+    # (autoscaled, many instances) set RUN_INPROCESS_SCHEDULERS=false and let
+    # Cloud Scheduler drive /internal/jobs/* instead (Phase 4). Default true keeps
+    # Render behavior unchanged.
+    run_inprocess_schedulers = os.getenv("RUN_INPROCESS_SCHEDULERS", "true").lower() == "true"
+
     # Initialize email scheduler if enabled
-    if os.getenv("ENABLE_EMAIL_NOTIFICATIONS", "true").lower() == "true":
+    if not run_inprocess_schedulers:
+        logger.info(
+            "⏭️ In-process schedulers disabled (RUN_INPROCESS_SCHEDULERS=false) — Cloud Scheduler drives /internal/jobs/*"
+        )
+    elif os.getenv("ENABLE_EMAIL_NOTIFICATIONS", "true").lower() == "true":
         try:
             logger.info("📧 Initializing email scheduler...")
             result = await initialize_email_scheduler()
@@ -150,17 +160,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     else:
         logger.info("📧 Email notifications disabled")
 
-    # Kick off an immediate legacy rounds sync on startup (non-blocking)
-    try:
-        import threading
+    # Kick off an immediate legacy rounds sync on startup (non-blocking). Skipped
+    # when in-process schedulers are off, so autoscaled instances don't each fire
+    # a sync on boot (Cloud Scheduler's legacy-rounds-sync job covers it).
+    if run_inprocess_schedulers:
+        try:
+            import threading
 
-        from .services.email_scheduler import email_scheduler as _sched
+            from .services.email_scheduler import email_scheduler as _sched
 
-        t = threading.Thread(target=_sched._sync_legacy_rounds, daemon=True)
-        t.start()
-        logger.info("📊 Legacy rounds sync started in background")
-    except Exception as e:
-        logger.warning(f"Legacy rounds startup sync failed to launch: {e}")
+            t = threading.Thread(target=_sched._sync_legacy_rounds, daemon=True)
+            t.start()
+            logger.info("📊 Legacy rounds sync started in background")
+        except Exception as e:
+            logger.warning(f"Legacy rounds startup sync failed to launch: {e}")
 
     logger.info("🚀 Wolf Goat Pig API startup completed successfully!")
 
@@ -333,6 +346,12 @@ app.include_router(games_holes.router)
 app.include_router(games_players.router)
 app.include_router(legacy_scoring.router)
 app.include_router(groupme.router)
+
+# Cloud Scheduler → /internal/jobs/* (Phase 4). Guarded by INTERNAL_JOB_TOKEN and
+# fail-closed when unset, so this is inert on Render (in-process thread runs there).
+from .routers import internal_jobs
+
+app.include_router(internal_jobs.router)
 
 logger.info("✅ All routers registered")
 

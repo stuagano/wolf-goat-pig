@@ -25,6 +25,21 @@ logger = logging.getLogger(__name__)
 class EmailScheduler:
     """Service for scheduling and sending automated emails"""
 
+    # Public job registry: maps a stable Cloud Scheduler job key to the bound
+    # method that runs exactly ONE cycle. Each target method opens/closes its own
+    # DB session and catches its own errors, so it is safe to invoke one-shot from
+    # the /internal/jobs/* HTTP endpoints (Phase 4 — Cloud Scheduler drives these
+    # instead of the in-process `schedule` thread). Keep keys in sync with
+    # deploy/gcp/phase4-scheduling/10-create-scheduler-jobs.sh.
+    JOB_METHODS: dict[str, str] = {
+        "daily-reminders": "_send_daily_reminders_all",
+        "weekly-summaries": "_send_weekly_summaries",
+        "saturday-pairings": "_run_saturday_pairings",
+        "legacy-rounds-sync": "_sync_legacy_rounds",
+        "pending-sheet-syncs": "_process_pending_sheet_syncs",
+        "ghin-sync": "_sync_ghin_handicaps",
+    }
+
     def __init__(self):
         self.is_running = False
         self.scheduler_thread = None
@@ -260,6 +275,22 @@ class EmailScheduler:
             if self.scheduler_thread:
                 self.scheduler_thread.join(timeout=5)
             logger.info("Email scheduler stopped")
+
+    def run_job(self, job_name: str) -> dict:
+        """Run a single scheduled job once, by its registry key.
+
+        Used by the /internal/jobs/* endpoints so Cloud Scheduler can drive the
+        periodic work instead of the in-process thread. Raises KeyError for an
+        unknown job. The underlying method handles its own DB session and errors;
+        because Cloud Scheduler is at-least-once, each target must stay idempotent
+        (design doc §12).
+        """
+        method_name = self.JOB_METHODS.get(job_name)
+        if method_name is None:
+            raise KeyError(job_name)
+        logger.info("Running scheduled job '%s' one-shot via run_job()", job_name)
+        getattr(self, method_name)()
+        return {"job": job_name, "status": "completed"}
 
     def send_signup_confirmation_now(self, player_email: str, player_name: str, signup_date: str) -> bool:
         """Send an immediate signup confirmation email"""

@@ -6,19 +6,39 @@ via the `schedule` library (`app/services/email_scheduler.py`,
 assumes one long-lived process — which is exactly the assumption Cloud Run
 autoscaling breaks (every instance would run its own copy of every loop).
 
-**Target:** move each loop to a private HTTP endpoint that **Cloud Scheduler**
-POSTs to on a cron, authenticated with an OIDC token for the `wgp-scheduler`
-service account.
+**Target:** move each loop to an HTTP endpoint that **Cloud Scheduler** POSTs to
+on a cron. Because the Cloud Run service is `--allow-unauthenticated`, the
+endpoints are guarded at the app layer by the `INTERNAL_JOB_TOKEN` shared secret
+(sent as the `X-Internal-Job-Token` header); an OIDC token for `wgp-scheduler` is
+also attached for when the service is later locked down.
 
-## Two-part change
+## Status — app code has landed
 
-1. **App code (out of scope for this infra PR).** Extract each in-process loop
-   into an idempotent endpoint under `/internal/jobs/*` and stop starting the
-   `schedule` thread when running on Cloud Run. This is the real work and needs
-   its own PR.
-2. **Infra (this script).** `10-create-scheduler-jobs.sh` creates the Cloud
-   Scheduler jobs and grants the scheduler SA `run.invoker`. Run it **after** the
-   endpoints exist; comment out any job whose endpoint isn't implemented yet.
+Both halves are now in place:
+
+1. **App code (done).** `app/routers/internal_jobs.py` exposes
+   `POST /internal/jobs/{job}` for each key in `EmailScheduler.JOB_METHODS`, each
+   running one cycle of the matching in-process job. The endpoints are
+   **fail-closed**: disabled (503) unless `INTERNAL_JOB_TOKEN` is set. Setting
+   `RUN_INPROCESS_SCHEDULERS=false` (already in `env.production.yaml`) stops the
+   in-process `schedule` thread so Cloud Scheduler owns the cadence.
+2. **Infra (this script).** `10-create-scheduler-jobs.sh` creates one Cloud
+   Scheduler job per endpoint (cadences mirror the in-process schedule), attaches
+   the token header, and grants the scheduler SA `run.invoker`.
+
+### Jobs / endpoints
+
+| Scheduler job | Cron (UTC) | Endpoint |
+|---|---|---|
+| `wgp-daily-reminders` | `0 9 * * *` | `/internal/jobs/daily-reminders` |
+| `wgp-weekly-summaries` | `0 9 * * 0` | `/internal/jobs/weekly-summaries` |
+| `wgp-saturday-pairings` | `0 14 * * 6` | `/internal/jobs/saturday-pairings` |
+| `wgp-legacy-rounds-sync` | `0 */2 * * *` | `/internal/jobs/legacy-rounds-sync` |
+| `wgp-pending-sheet-syncs` | `0 0 * * *` | `/internal/jobs/pending-sheet-syncs` |
+| `wgp-ghin-sync` | `0 6 * * *` | `/internal/jobs/ghin-sync` |
+
+Export `INTERNAL_JOB_TOKEN` (same value as the secret) before running the script;
+set `SCHEDULER_TIME_ZONE` if the schedules were meant for club-local time.
 
 ## Idempotency (doc §12)
 

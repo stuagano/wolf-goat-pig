@@ -29,6 +29,7 @@ SECRETS=(
   FORETEES_PASSWORD
   FORETEES_ENCRYPTION_KEY  # Fernet key for per-user ForeTees creds — do not lose
   MONITOR_KEY              # guards GET /health/external
+  INTERNAL_JOB_TOKEN       # Phase 4: guards POST /internal/jobs/* (Cloud Scheduler)
 )
 
 for name in "${SECRETS[@]}"; do
