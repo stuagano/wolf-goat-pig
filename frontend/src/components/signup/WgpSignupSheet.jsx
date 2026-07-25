@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../../theme/Provider';
 import { useAuth0 } from '@auth0/auth0-react';
-import { apiConfig } from '../../config/api.config';
 import { acquireAccessToken } from '../../services/authToken';
-
-const API_URL = apiConfig.baseUrl;
+import { api } from '../../api/client';
+import { errorDetail } from '../../api/http';
+import { apiConfig } from '../../config/api.config';
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -42,8 +42,10 @@ export default function WgpSignupSheet() {
     (async () => {
       setLoadingUpcoming(true);
       try {
-        const resp = await fetch(`${API_URL}/tee-sheet/upcoming?start=${todayIso()}&days=14`);
-        if (resp.ok) setUpcomingDays(await resp.json());
+        const { data, response } = await api.GET('/tee-sheet/upcoming', {
+          params: { query: { start: todayIso(), days: 14 } },
+        });
+        if (response.ok) setUpcomingDays(data);
       } catch { /* non-fatal */ } finally {
         setLoadingUpcoming(false);
       }
@@ -52,9 +54,10 @@ export default function WgpSignupSheet() {
 
   const refreshUpcomingCount = useCallback(async (targetDate) => {
     try {
-      const resp = await fetch(`${API_URL}/tee-sheet?date=${targetDate}`);
-      if (!resp.ok) return;
-      const data = await resp.json();
+      const { data, response } = await api.GET('/tee-sheet', {
+        params: { query: { date: targetDate } },
+      });
+      if (!response.ok) return;
       setUpcomingDays(prev =>
         prev.map(d => d.date === targetDate ? { ...d, signed_up_count: data.signed_up_count } : d)
       );
@@ -65,9 +68,10 @@ export default function WgpSignupSheet() {
     setLoadingSheet(true);
     setSheetError('');
     try {
-      const resp = await fetch(`${API_URL}/tee-sheet?date=${date}`);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data = await resp.json();
+      const { data, response } = await api.GET('/tee-sheet', {
+        params: { query: { date } },
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       setSlots(data.slots || []);
       setUpcomingDays(prev =>
         prev.map(d => d.date === date ? { ...d, signed_up_count: data.signed_up_count } : d)
@@ -90,10 +94,10 @@ export default function WgpSignupSheet() {
     (async () => {
       try {
         const token = await acquireAccessToken(getAccessTokenSilently);
-        const resp = await fetch(`${API_URL}/players/me`, {
+        const { data, response } = await api.GET('/players/me', {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (resp.ok) setPlayerProfile(await resp.json());
+        if (response.ok) setPlayerProfile(data);
       } catch { /* non-fatal */ }
     })();
   }, [isAuthenticated, getAccessTokenSilently]);
@@ -121,16 +125,13 @@ export default function WgpSignupSheet() {
     setSigningUp(true);
     setSignupMessage(null);
     try {
-      const resp = await fetch(`${API_URL}/tee-sheet/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, name: myName, dry_run: !isLive }),
+      const { data, error: apiError, response } = await api.POST('/tee-sheet/signup', {
+        body: { date, name: myName, dry_run: !isLive },
       });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.detail || 'Signup failed');
+      if (!response.ok) throw new Error(errorDetail(apiError) || 'Signup failed');
       setConfirming(false);
       // A dry-run / non-live write did NOT touch the club tee sheet.
-      if (data.live_write === false || data.dry_run) {
+      if (data?.live_write === false || data?.dry_run) {
         setSignupMessage({
           type: 'preview',
           text: `Preview only — the LIVE tee sheet was not changed. In production this would sign up ${myName} for ${formatDate(date)}.`,

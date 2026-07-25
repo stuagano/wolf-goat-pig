@@ -3479,6 +3479,12 @@ export interface paths {
         /**
          * Get My Profile
          * @description Get current authenticated user's profile.
+         *
+         *     Adds two computed fields not stored on the row:
+         *     - ``legacy_name_suggestion``: when the account has no confirmed legacy link,
+         *       a fuzzy roster match to *suggest* (never auto-persist) in onboarding (#322).
+         *     - ``is_admin``: server-side ADMIN_EMAILS membership so the client doesn't
+         *       depend on a hardcoded allowlist that can drift (#316).
          */
         get: operations["get_my_profile_players_me_get"];
         put?: never;
@@ -4526,6 +4532,11 @@ export interface paths {
         /**
          * Signup For Tee Sheet
          * @description Sign up a player for a given date on the thousand-cranes.com tee sheet.
+         *
+         *     This writes to the LIVE, shared club tee sheet. A dry-run request — or any
+         *     non-production deployment without an explicit opt-in — returns a preview of
+         *     exactly what would be written (name + date) and performs no live mutation,
+         *     so preview/testing can never silently change the real sheet. See issue #323.
          */
         post: operations["signup_for_tee_sheet_tee_sheet_signup_post"];
         delete?: never;
@@ -5711,11 +5722,15 @@ export interface components {
             email?: string | null;
             /** Ghin Id */
             ghin_id?: string | null;
+            /** Ghin Last Updated */
+            ghin_last_updated?: string | null;
             /**
              * Handicap
              * @default 18
              */
             handicap: number;
+            /** Handicap Source */
+            handicap_source?: string | null;
             /**
              * Has Avatar Image
              * @default false
@@ -5729,6 +5744,11 @@ export interface components {
              */
             is_active: boolean;
             /**
+             * Is Admin
+             * @default false
+             */
+            is_admin: boolean;
+            /**
              * Is Ai
              * @default false
              */
@@ -5737,6 +5757,8 @@ export interface components {
             last_played?: string | null;
             /** Legacy Name */
             legacy_name?: string | null;
+            /** Legacy Name Suggestion */
+            legacy_name_suggestion?: string | null;
             /** Name */
             name: string;
             /** Playing Style */
@@ -6163,6 +6185,11 @@ export interface components {
         SignupRequest: {
             /** Date */
             date: string;
+            /**
+             * Dry Run
+             * @default false
+             */
+            dry_run: boolean;
             /** Name */
             name: string;
         };

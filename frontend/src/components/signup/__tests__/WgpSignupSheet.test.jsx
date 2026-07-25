@@ -32,32 +32,40 @@ vi.mock("../../../config/api.config", () => ({
 
 const MY_NAME = "Stuart Gano";
 
-const okJson = (body) =>
-  Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
+// Real Response so the typed client (openapi-fetch) can parse it.
+const jsonResponse = (data) =>
+  Promise.resolve(
+    new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }),
+  );
 
 /**
+ * The typed client calls fetch with a single Request object.
  * @param {object} opts
  * @param {object} opts.signupResponse  body returned by POST /tee-sheet/signup
  * @param {function} [opts.onSignupPost] called with the parsed POST body
  */
 function installFetch({ signupResponse, onSignupPost } = {}) {
-  global.fetch.mockImplementation((url, opts = {}) => {
-    if (url.includes("/tee-sheet/signup") && opts.method === "POST") {
-      if (onSignupPost) onSignupPost(JSON.parse(opts.body));
-      return okJson(
+  global.fetch.mockImplementation(async (request) => {
+    const url = request.url;
+    if (url.includes("/tee-sheet/signup") && request.method === "POST") {
+      if (onSignupPost) onSignupPost(JSON.parse(await request.clone().text()));
+      return jsonResponse(
         signupResponse || { success: true, live_write: true, dry_run: false },
       );
     }
     if (url.includes("/tee-sheet/upcoming")) {
-      return okJson([]);
+      return jsonResponse([]);
     }
-    if (url.includes("/tee-sheet?date=")) {
-      return okJson({ slots: [], signed_up_count: 0 });
+    if (url.includes("/tee-sheet")) {
+      return jsonResponse({ slots: [], signed_up_count: 0 });
     }
     if (url.endsWith("/players/me")) {
-      return okJson({ id: 7, name: "Auth0 Name", legacy_name: MY_NAME });
+      return jsonResponse({ id: 7, name: "Auth0 Name", legacy_name: MY_NAME });
     }
-    return okJson({});
+    return jsonResponse({});
   });
 }
 
