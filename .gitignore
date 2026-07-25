@@ -239,3 +239,8 @@ hive-mind-prompt-*.txt
 
 # Git worktrees
 .worktrees/
+
+# GCP deploy — local config (holds project-specific but non-secret values)
+deploy/gcp/config.env
+.firebaserc
+/firebase.json
