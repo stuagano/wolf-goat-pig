@@ -26,12 +26,14 @@ const expectedSignupBody = {
   notes: null,
 };
 
+// Real Response so the typed client (openapi-fetch) can parse it.
 const jsonResponse = (data) =>
-  Promise.resolve({
-    ok: true,
-    status: 200,
-    json: () => Promise.resolve(data),
-  });
+  Promise.resolve(
+    new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }),
+  );
 
 const weeklyResponse = (signups = []) => ({
   week_start: selectedDate,
@@ -62,7 +64,9 @@ describe('DailySignupView', () => {
   test('signs up the logged-in profile and shows that player in the week view', async () => {
     let createdSignup = null;
 
-    fetch.mockImplementation((url, options = {}) => {
+    // The typed client calls fetch with a single Request object.
+    fetch.mockImplementation(async (request) => {
+      const url = request.url;
       if (url.includes('/pairings/')) {
         return jsonResponse({ exists: false });
       }
@@ -71,8 +75,8 @@ describe('DailySignupView', () => {
         return jsonResponse(weeklyResponse(createdSignup ? [createdSignup] : []));
       }
 
-      if (url.endsWith('/signups') && options.method === 'POST') {
-        const body = JSON.parse(options.body);
+      if (url.endsWith('/signups') && request.method === 'POST') {
+        const body = JSON.parse(await request.clone().text());
         createdSignup = {
           id: 101,
           ...body,
@@ -100,16 +104,17 @@ describe('DailySignupView', () => {
     fireEvent.click(within(emptyStateActions).getByRole('button', { name: 'Confirm Sign Up' }));
 
     await waitFor(() => {
-      const signupRequest = fetch.mock.calls.find(
-        ([url, options]) => url.endsWith('/signups') && options?.method === 'POST',
-      );
-
-      expect(JSON.parse(signupRequest[1].body)).toEqual(expectedSignupBody);
-      expect(signupRequest[1].headers).toEqual({
-        Authorization: 'Bearer signup-token',
-        'Content-Type': 'application/json',
-      });
+      expect(
+        fetch.mock.calls.some(([req]) => req.url.endsWith('/signups') && req.method === 'POST'),
+      ).toBe(true);
     });
+
+    const signupRequest = fetch.mock.calls.find(
+      ([req]) => req.url.endsWith('/signups') && req.method === 'POST',
+    )[0];
+    expect(JSON.parse(await signupRequest.clone().text())).toEqual(expectedSignupBody);
+    expect(signupRequest.headers.get('Authorization')).toBe('Bearer signup-token');
+    expect(signupRequest.headers.get('Content-Type')).toContain('application/json');
 
     expect(await screen.findByText('Stuart')).toBeInTheDocument();
     expect(screen.getByText('(you)')).toBeInTheDocument();
@@ -121,7 +126,8 @@ describe('DailySignupView', () => {
       profile: { ...playerProfile, legacy_name: null },
       loading: false,
     });
-    fetch.mockImplementation((url) => {
+    fetch.mockImplementation((request) => {
+      const url = request.url;
       if (url.includes('/pairings/')) return jsonResponse({ exists: false });
       if (url.includes('/signups/weekly-with-messages')) {
         return jsonResponse(weeklyResponse());

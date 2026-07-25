@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import '../../styles/mobile-touch.css';
-import { apiConfig } from '../../config/api.config';
 import { calculateCourseHandicap } from '../../utils';
 import { usePlayerProfile } from '../../hooks/usePlayerProfile';
 import { acquireAccessToken } from '../../services/authToken';
-
-const API_URL = apiConfig.baseUrl;
+import { api } from '../../api/client';
+import { errorDetail } from '../../api/http';
 
 function getSignupButtonLabel({
   confirmingSignup,
@@ -64,9 +63,10 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     if (!weekStart) return;
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/signups/weekly-with-messages?week_start=${weekStart}`);
-      if (response.ok) {
-        const data = await response.json();
+      const { data } = await api.GET('/signups/weekly-with-messages', {
+        params: { query: { week_start: weekStart } },
+      });
+      if (data) {
         setWeekData(data);
       } else {
         setWeekData({ daily_summaries: [] });
@@ -93,9 +93,10 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     try {
       setPairingsLoading(true);
       setPairingsError(null);
-      const response = await fetch(`${API_URL}/pairings/${date}`);
-      if (response.ok) {
-        const data = await response.json();
+      const { data, response } = await api.GET('/pairings/{date}', {
+        params: { path: { date } },
+      });
+      if (data) {
         setGeneratedPairings(data.exists ? data : null);
       } else {
         // 404 means no pairings generated yet — anything else is an error
@@ -203,25 +204,20 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     try {
       setSigningUp(true);
       const token = await acquireAccessToken(getAccessTokenSilently);
-      const response = await fetch(`${API_URL}/signups`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      const { data, error: apiError } = await api.POST('/signups', {
+        headers: { Authorization: `Bearer ${token}` },
+        body: {
           date: selectedDate,
           preferred_start_time: null,
-          notes: null
-        })
+          notes: null,
+        },
       });
-      if (response.ok) {
+      if (data) {
         await loadWeeklyData(currentWeekStart);
         setError(null);
         setConfirmingSignup(false);
       } else {
-        const errData = await response.json();
-        throw new Error(errData.detail || 'Failed to sign up');
+        throw new Error(errorDetail(apiError) || 'Failed to sign up');
       }
     } catch (err) {
       console.error('Signup error:', err);
@@ -241,15 +237,13 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     try {
       setLegacyReplicating(true);
       setLegacyResult(null);
-      const response = await fetch(`${API_URL}/signups/${userSignup.id}/replicate-legacy`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+      const { data, error: apiError } = await api.POST('/signups/{signup_id}/replicate-legacy', {
+        params: { path: { signup_id: userSignup.id } },
       });
-      const data = await response.json();
-      if (response.ok) {
+      if (data) {
         setLegacyResult({ success: true, message: data.message || 'Replicated to legacy signup page' });
       } else {
-        setLegacyResult({ success: false, message: data.detail || 'Failed to replicate' });
+        setLegacyResult({ success: false, message: errorDetail(apiError) || 'Failed to replicate' });
       }
     } catch (err) {
       console.error('Legacy replicate error:', err);
@@ -262,7 +256,9 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   // Handle cancel signup
   const handleCancelSignup = async (signupId) => {
     try {
-      const response = await fetch(`${API_URL}/signups/${signupId}`, { method: 'DELETE' });
+      const { response } = await api.DELETE('/signups/{signup_id}', {
+        params: { path: { signup_id: signupId } },
+      });
       if (response.ok) {
         loadWeeklyData(currentWeekStart);
         setError(null);
