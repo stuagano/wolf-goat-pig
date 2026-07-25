@@ -9,6 +9,7 @@ require_cmd gcloud
 
 APIS=(
   run.googleapis.com                # Cloud Run (Phase 1)
+  cloudbuild.googleapis.com         # Cloud Build pipeline (Phase 1)
   artifactregistry.googleapis.com   # container images (Phase 1)
   secretmanager.googleapis.com      # secrets (Phase 0)
   sqladmin.googleapis.com           # Cloud SQL (Phase 2)

@@ -42,6 +42,7 @@ grant "serviceAccount:${RUNTIME_SA}" "roles/logging.logWriter"             # str
 log "Granting deployer SA roles…"
 grant "serviceAccount:${DEPLOYER_SA}" "roles/run.admin"                    # deploy Cloud Run
 grant "serviceAccount:${DEPLOYER_SA}" "roles/artifactregistry.writer"      # push images
+grant "serviceAccount:${DEPLOYER_SA}" "roles/cloudbuild.builds.editor"     # submit Cloud Build
 # deployer must be able to run the service *as* the runtime SA:
 grant "serviceAccount:${DEPLOYER_SA}" "roles/iam.serviceAccountUser"
 
