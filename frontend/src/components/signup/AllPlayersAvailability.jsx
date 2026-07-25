@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiConfig } from '../../config/api.config';
-
-const API_URL = apiConfig.baseUrl;
+import { api } from '../../api/client';
 
 const AllPlayersAvailability = () => {
   const navigate = useNavigate();
@@ -17,10 +15,9 @@ const AllPlayersAvailability = () => {
   const loadAllAvailability = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/players/availability/all`);
+      const { data } = await api.GET('/players/availability/all');
 
-      if (response.ok) {
-        const data = await response.json();
+      if (data) {
         setPlayersAvailability(data);
       } else {
         throw new Error('Failed to load availability data');
