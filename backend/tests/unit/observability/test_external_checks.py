@@ -295,15 +295,25 @@ async def test_google_down_when_no_data(monkeypatch):
 
 
 # --------------------------------------------------------------------------
-# tee_sheet (no not_configured case — always configured)
+# tee_sheet (gated behind LEGACY_TEE_SHEET_ENABLED; disabled by default)
 # --------------------------------------------------------------------------
 # The probe reads the real .cgi endpoint (the bare base path 301-redirects).
 TEE_SHEET_URL = "https://thousand-cranes.com/WolfGoatPig/wgp_tee_sheet.cgi"
 
 
 @pytest.mark.asyncio
+async def test_tee_sheet_disabled_by_default(monkeypatch):
+    # Off by default → not_configured (never alerts) and no outbound request.
+    monkeypatch.delenv("LEGACY_TEE_SHEET_ENABLED", raising=False)
+    s = await ec.check_tee_sheet()
+    assert s.status == "not_configured"
+    assert s.detail == "disabled"
+
+
+@pytest.mark.asyncio
 @respx.mock
-async def test_tee_sheet_ok():
+async def test_tee_sheet_ok(monkeypatch):
+    monkeypatch.setenv("LEGACY_TEE_SHEET_ENABLED", "true")
     respx.get(TEE_SHEET_URL).mock(return_value=httpx.Response(200, text="<html>ok</html>"))
     s = await ec.check_tee_sheet()
     assert s.status == "ok"
@@ -311,7 +321,8 @@ async def test_tee_sheet_ok():
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_tee_sheet_down_on_500():
+async def test_tee_sheet_down_on_500(monkeypatch):
+    monkeypatch.setenv("LEGACY_TEE_SHEET_ENABLED", "true")
     respx.get(TEE_SHEET_URL).mock(return_value=httpx.Response(500))
     s = await ec.check_tee_sheet()
     assert s.status == "down"
@@ -319,7 +330,8 @@ async def test_tee_sheet_down_on_500():
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_tee_sheet_down_on_connect_error():
+async def test_tee_sheet_down_on_connect_error(monkeypatch):
+    monkeypatch.setenv("LEGACY_TEE_SHEET_ENABLED", "true")
     respx.get(TEE_SHEET_URL).mock(side_effect=httpx.ConnectError("no route to host"))
     s = await ec.check_tee_sheet()
     assert s.status == "down"
@@ -345,9 +357,10 @@ async def test_check_all_returns_all_eight(monkeypatch):
         "LIVE_TEST_SHEET_ID",
     ):
         monkeypatch.delenv(n, raising=False)
-    # tee_sheet has no creds gate, so it always fires a real GET — mock it so the
-    # suite makes no live network call. The other seven short-circuit to
-    # not_configured and make no HTTP request.
+    # tee_sheet is gated behind LEGACY_TEE_SHEET_ENABLED — enable it so it fires a
+    # real GET (mocked, so no live network call) and reports "ok". The other seven
+    # short-circuit to not_configured and make no HTTP request.
+    monkeypatch.setenv("LEGACY_TEE_SHEET_ENABLED", "true")
     respx.get(TEE_SHEET_URL).mock(return_value=httpx.Response(200, text="<html>ok</html>"))
 
     results = await ec.check_all()
