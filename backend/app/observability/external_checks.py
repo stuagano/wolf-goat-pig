@@ -100,7 +100,14 @@ async def check_resend() -> ServiceStatus:
 
 
 async def check_tee_sheet() -> ServiceStatus:
-    # Public page, no creds required — always "configured".
+    # The legacy thousand-cranes.com connection is disabled by default. When off,
+    # report "not_configured" (never alerts) and make no outbound request, so the
+    # app no longer depends on the legacy CGI being reachable.
+    from app.routers.tee_sheet import legacy_tee_sheet_enabled
+
+    if not legacy_tee_sheet_enabled():
+        return ServiceStatus("tee_sheet", "not_configured", detail="disabled")
+
     async def probe() -> str:
         # Probe the exact endpoint the app reads (the bare base path 301-redirects),
         # following redirects, with the same Referer the real request sends.

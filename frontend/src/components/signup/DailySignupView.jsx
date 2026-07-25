@@ -34,8 +34,6 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   const [pairingsLoading, setPairingsLoading] = useState(false);
   const [pairingsError, setPairingsError] = useState(null);
   const [confirmingSignup, setConfirmingSignup] = useState(false);
-  const [legacyReplicating, setLegacyReplicating] = useState(false);
-  const [legacyResult, setLegacyResult] = useState(null);
   const [signingUp, setSigningUp] = useState(false);
   const signupName = profile?.legacy_name || '';
   const signupProfileReady = Boolean(profile?.id && signupName);
@@ -118,7 +116,6 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
       loadGeneratedPairings(selectedDate);
     }
     setConfirmingSignup(false);
-    setLegacyResult(null);
   }, [selectedDate, loadGeneratedPairings]);
 
   // Get data for the currently selected day
@@ -427,27 +424,6 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
         </div>
       )}
 
-      {legacyResult && (
-        <div style={{
-          background: legacyResult.success ? '#f0fdf4' : '#fef2f2',
-          color: legacyResult.success ? '#166534' : '#dc2626',
-          padding: '10px 16px',
-          fontSize: '14px',
-          borderBottom: `1px solid ${legacyResult.success ? '#bbf7d0' : '#fecaca'}`,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          {legacyResult.message}
-          <button
-            onClick={() => setLegacyResult(null)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: legacyResult.success ? '#166534' : '#dc2626' }}
-          >
-            x
-          </button>
-        </div>
-      )}
-
       {/* Day Content */}
       <div style={{ padding: '16px' }}>
         {/* Day Header with Sign Up button */}
@@ -536,23 +512,6 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                 }}
               >
                 Cancel My Signup
-              </button>
-              <button
-                onClick={handleLegacyReplicate}
-                disabled={legacyReplicating}
-                style={{
-                  background: legacyReplicating ? '#9ca3af' : '#1d4ed8',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '10px 16px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: legacyReplicating ? 'not-allowed' : 'pointer',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {legacyReplicating ? 'Replicating...' : 'Replicate to Legacy Signup Page'}
               </button>
             </div>
           )}

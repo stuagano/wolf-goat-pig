@@ -7,20 +7,42 @@ CGI endpoints: wgp_tee_sheet.cgi (read), wgp_add_tee_sheet_ajax.cgi (write)
 
 import asyncio
 import logging
+import os
 import re
 from datetime import date as date_type
 from datetime import timedelta
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from ._validators import NonBlankStr
 
 logger = logging.getLogger("app.routers.tee_sheet")
 
-router = APIRouter(prefix="/tee-sheet", tags=["tee-sheet"])
+
+def legacy_tee_sheet_enabled() -> bool:
+    """Whether the app may connect to the legacy thousand-cranes.com tee sheet.
+
+    The connection is disabled by default — the app no longer reads from or
+    writes to the legacy CGI. Set ``LEGACY_TEE_SHEET_ENABLED=true`` to reconnect
+    without any code changes.
+    """
+    return os.getenv("LEGACY_TEE_SHEET_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _require_legacy_tee_sheet() -> None:
+    """Router guard: refuse to reach the legacy CGI while the connection is off."""
+    if not legacy_tee_sheet_enabled():
+        raise HTTPException(status_code=503, detail="Legacy tee sheet integration is disabled")
+
+
+router = APIRouter(
+    prefix="/tee-sheet",
+    tags=["tee-sheet"],
+    dependencies=[Depends(_require_legacy_tee_sheet)],
+)
 
 TEE_SHEET_BASE = "https://thousand-cranes.com/WolfGoatPig"
 TEE_SHEET_READ_URL = f"{TEE_SHEET_BASE}/wgp_tee_sheet.cgi"

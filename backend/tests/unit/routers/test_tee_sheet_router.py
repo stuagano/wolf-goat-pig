@@ -1,6 +1,7 @@
 """Unit tests for tee_sheet router — request-shape validation + DB mirror."""
 
 import httpx
+import pytest
 import respx
 from fastapi.testclient import TestClient
 
@@ -9,6 +10,21 @@ from app.database import SessionLocal
 from app.main import app
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _enable_legacy_tee_sheet(monkeypatch):
+    """The legacy CGI connection is off by default; these tests exercise the
+    connected behavior, so enable it. The disabled path is covered separately."""
+    monkeypatch.setenv("LEGACY_TEE_SHEET_ENABLED", "true")
+
+
+class TestTeeSheetDisabled:
+    def test_endpoints_return_503_when_disabled(self, monkeypatch):
+        # No respx mock: the guard must short-circuit before any outbound call.
+        monkeypatch.setenv("LEGACY_TEE_SHEET_ENABLED", "false")
+        assert client.get("/tee-sheet?date=2026-06-20").status_code == 503
+        assert client.post("/tee-sheet/signup", json={"date": "2026-06-20", "name": "Someone"}).status_code == 503
 
 
 class TestTeeSheetSignupValidation:

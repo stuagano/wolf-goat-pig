@@ -3,15 +3,22 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { useSearchParams } from 'react-router-dom';
 import ForeTeesTeeSheet from '../components/foretees/ForeTeesTeeSheet';
 import DailySignupView from '../components/signup/DailySignupView';
-import WgpSignupSheet from '../components/signup/WgpSignupSheet';
+// WgpSignupSheet is temporarily disconnected — it read/wrote the legacy
+// thousand-cranes.com tee sheet, which is disabled for now. Re-add the import,
+// the tab entry, and its render block below to bring it back.
 import '../styles/mobile-touch.css';
+
+// Supported tab IDs. Anything else in the URL (e.g. the retired `wgp-signup`
+// tab) is normalized to the calendar view.
+const VALID_TABS = ['calendar', 'tee-times'];
+const normalizeTab = (tab) => (VALID_TABS.includes(tab) ? tab : 'calendar');
 
 const SignupPage = () => {
   const { user, isAuthenticated, loginWithRedirect } = useAuth0();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Day-by-day weekly sheet is the familiar primary view.
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'calendar');
+  const [activeTab, setActiveTab] = useState(() => normalizeTab(searchParams.get('tab')));
   const isUserNavigation = useRef(false);
 
   // Handle tab click: update state and URL together to avoid effect loops
@@ -29,15 +36,22 @@ const SignupPage = () => {
       isUserNavigation.current = false;
       return;
     }
-    const tabFromUrl = searchParams.get('tab');
-    if (tabFromUrl && tabFromUrl !== activeTab) {
-      setActiveTab(tabFromUrl);
+    const rawTab = searchParams.get('tab');
+    const normalized = normalizeTab(rawTab);
+    if (normalized !== activeTab) {
+      setActiveTab(normalized);
+    }
+    // Retire unsupported tab IDs (e.g. the old wgp-signup) from the URL so the
+    // highlighted tab and the address bar stay in sync.
+    if (rawTab && rawTab !== normalized) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set('tab', normalized);
+      setSearchParams(newParams, { replace: true });
     }
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const tabs = [
     { id: 'calendar', label: '📅 Daily Sign-ups', icon: '📅' },
-    { id: 'wgp-signup', label: '⛳ WGP Tee Sheet', icon: '⛳' },
     { id: 'tee-times', label: '🏌️ Book Tee Time', icon: '🏌️' },
   ];
 
@@ -140,16 +154,10 @@ const SignupPage = () => {
 
       {/* Tab Content */}
       <div style={{ minHeight: '500px' }}>
-        {activeTab === 'calendar' && (
-          <DailySignupView />
-        )}
-
-        {activeTab === 'wgp-signup' && (
-          <WgpSignupSheet />
-        )}
-
-        {activeTab === 'tee-times' && (
+        {activeTab === 'tee-times' ? (
           <ForeTeesTeeSheet />
+        ) : (
+          <DailySignupView />
         )}
       </div>
 
