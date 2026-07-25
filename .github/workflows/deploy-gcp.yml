@@ -1,0 +1,136 @@
+name: Deploy to GCP
+
+# Manual-only (workflow_dispatch): this deploys to the stuartgano-n8n Google
+# Cloud project and must never fire automatically on push. It authenticates
+# keylessly via Workload Identity Federation — no service-account JSON key.
+#
+# Prerequisites (one-time, see deploy/gcp/README.md):
+#   - Run deploy/gcp/phase0-foundation/*.sh
+#   - Set repo Actions *Variables*: GCP_PROJECT_ID, GCP_REGION,
+#     GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_DEPLOYER_SA
+#     (optional, Phase 3) FIREBASE_SITE, VITE_API_URL
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_backend:
+        description: "Build + deploy the FastAPI backend to Cloud Run (Phase 1)"
+        type: boolean
+        default: true
+      deploy_frontend:
+        description: "Build + deploy the React SPA to Firebase Hosting (Phase 3)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write   # required for Workload Identity Federation
+
+env:
+  AR_REPO: wolf-goat-pig
+  RUN_SERVICE: wolf-goat-pig-api
+  RUNTIME_SA_NAME: wgp-run
+
+jobs:
+  deploy-backend:
+    if: ${{ inputs.deploy_backend }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        name: Authenticate to GCP (keyless, WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
+
+      - name: Build & push backend image
+        run: |
+          set -euo pipefail
+          IMAGE="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${AR_REPO}/${RUN_SERVICE}"
+          docker build -f backend/Dockerfile -t "${IMAGE}:${GITHUB_SHA}" -t "${IMAGE}:latest" backend
+          docker push "${IMAGE}:${GITHUB_SHA}"
+          docker push "${IMAGE}:latest"
+          echo "IMAGE=${IMAGE}" >> "${GITHUB_ENV}"
+
+      - name: Deploy to Cloud Run
+        run: |
+          set -euo pipefail
+          RUNTIME_SA="${RUNTIME_SA_NAME}@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          gcloud run deploy "${RUN_SERVICE}" \
+            --project="${{ vars.GCP_PROJECT_ID }}" \
+            --region="${{ vars.GCP_REGION }}" \
+            --image="${IMAGE}:${GITHUB_SHA}" \
+            --service-account="${RUNTIME_SA}" \
+            --allow-unauthenticated \
+            --min-instances=0 \
+            --max-instances=4 \
+            --cpu=1 \
+            --memory=1Gi \
+            --timeout=300 \
+            --env-vars-file=deploy/gcp/phase1-cloud-run/env.production.yaml \
+            --set-secrets="DATABASE_URL=DATABASE_URL:latest,GHIN_API_USER=GHIN_API_USER:latest,GHIN_API_PASS=GHIN_API_PASS:latest,RESEND_API_KEY=RESEND_API_KEY:latest,BOOKING_SERVICE_SECRET=BOOKING_SERVICE_SECRET:latest,FORETEES_USERNAME=FORETEES_USERNAME:latest,FORETEES_PASSWORD=FORETEES_PASSWORD:latest,FORETEES_ENCRYPTION_KEY=FORETEES_ENCRYPTION_KEY:latest,MONITOR_KEY=MONITOR_KEY:latest"
+
+      - name: Smoke test /ready
+        run: |
+          set -euo pipefail
+          URL="$(gcloud run services describe "${RUN_SERVICE}" \
+            --project="${{ vars.GCP_PROJECT_ID }}" --region="${{ vars.GCP_REGION }}" \
+            --format='value(status.url)')"
+          echo "Service URL: ${URL}"
+          code="$(curl -s -o /dev/null -w '%{http_code}' "${URL}/ready")"
+          echo "GET /ready -> ${code}"
+          test "${code}" = "200"
+
+  deploy-frontend:
+    if: ${{ inputs.deploy_frontend }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build SPA
+        working-directory: frontend
+        env:
+          # Cross-origin to Cloud Run (backend CORS honors FRONTEND_URL), mirroring
+          # today's Vercel→Render setup. See phase3-hosting/README.md for the
+          # same-origin /api rewrite alternative.
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_AUTH0_DOMAIN: "dev-jm88n088hpt7oe48.us.auth0.com"
+          VITE_AUTH0_CLIENT_ID: "qAZuRv5E9mPQ9uTGg7NWpkpfVj8bCeoB"
+          VITE_AUTH0_AUDIENCE: "https://wolf-goat-pig.onrender.com"
+          VITE_DEPLOY_PLATFORM: "firebase"
+          VITE_SENTRY_DSN: "https://aabb92ca227138a3deafbab2b4375bb3@o4511570300502016.ingest.us.sentry.io/4511570438586368"
+          CI: "false"
+        run: |
+          npm ci --legacy-peer-deps --no-audit
+          npm run build
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+
+      - name: Deploy to Firebase Hosting
+        run: |
+          set -euo pipefail
+          # firebase.json resolves hosting.public relative to its own directory,
+          # so run from repo root with the scaffolded config copied here.
+          cp deploy/gcp/phase3-hosting/firebase.json ./firebase.json
+          npm i -g firebase-tools
+          firebase deploy --only hosting \
+            --project "${{ vars.GCP_PROJECT_ID }}" \
+            --non-interactive
