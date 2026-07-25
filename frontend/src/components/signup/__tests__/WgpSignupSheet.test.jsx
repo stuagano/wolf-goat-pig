@@ -76,6 +76,15 @@ const renderSheet = () =>
     </ThemeProvider>,
   );
 
+// The "Sign Me Up" button renders disabled until the profile fetch populates
+// the player name. Wait for it to be enabled before clicking, otherwise the
+// click is a no-op (racy in CI) and the confirmation never opens.
+async function clickSignMeUp() {
+  const button = await screen.findByRole("button", { name: "Sign Me Up" });
+  await waitFor(() => expect(button).toBeEnabled());
+  fireEvent.click(button);
+}
+
 beforeEach(() => {
   mockIsProduction = true;
   mockUseAuth0.mockReturnValue({
@@ -95,7 +104,7 @@ describe("WgpSignupSheet — LIVE (production)", () => {
     expect(badge).toHaveTextContent(/LIVE/i);
 
     // Click "Sign Me Up" — this must NOT post yet, only reveal a confirmation.
-    fireEvent.click(await screen.findByRole("button", { name: "Sign Me Up" }));
+    await clickSignMeUp();
 
     const confirmBox = await screen.findByTestId("signup-confirm");
     expect(confirmBox).toHaveTextContent(MY_NAME);
@@ -110,7 +119,7 @@ describe("WgpSignupSheet — LIVE (production)", () => {
     installFetch({ onSignupPost: (b) => posts.push(b) });
     renderSheet();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Sign Me Up" }));
+    await clickSignMeUp();
     fireEvent.click(
       await screen.findByRole("button", {
         name: /Yes, sign me up on the LIVE sheet/i,
@@ -134,7 +143,7 @@ describe("WgpSignupSheet — LIVE (production)", () => {
     installFetch({ onSignupPost: (b) => posts.push(b) });
     renderSheet();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Sign Me Up" }));
+    await clickSignMeUp();
     await screen.findByTestId("signup-confirm");
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
@@ -168,7 +177,7 @@ describe("WgpSignupSheet — PREVIEW (non-production)", () => {
     const badge = await screen.findByTestId("signup-env-badge");
     expect(badge).toHaveTextContent(/Preview/i);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Sign Me Up" }));
+    await clickSignMeUp();
     const confirmBox = await screen.findByTestId("signup-confirm");
     expect(confirmBox).toHaveTextContent(/Preview mode/i);
 
