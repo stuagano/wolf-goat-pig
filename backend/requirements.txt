@@ -1,5 +1,10 @@
 # Core FastAPI and server dependencies
-fastapi>=0.110.0,<1.0
+# fastapi is PINNED (exact) because it generates the OpenAPI schema committed at
+# backend/openapi.json — different FastAPI versions emit subtly different schemas
+# (e.g. Optional fields as `anyOf: [T, null]`), which would drift the committed
+# contract and fail the openapi-contract CI check. Bump deliberately and run
+# `python scripts/export_openapi.py` + `npm run gen:api` in the same change.
+fastapi==0.140.0
 uvicorn[standard]>=0.29.0
 python-multipart>=0.0.9
 
@@ -13,7 +18,11 @@ python-dotenv>=1.0.1
 requests>=2.31.0
 
 # Data validation and serialization
-pydantic>=2.6.0,<3.0
+# pydantic is PINNED (exact) for the same reason as fastapi — it drives JSON
+# Schema serialization for the committed OpenAPI contract. Bump deliberately and
+# regenerate the spec + frontend types in the same change. (pydantic pins its own
+# compatible pydantic-core, so that stays deterministic too.)
+pydantic==2.13.4
 
 # SQL parsing — Commissioner read-only SQL validator (_validate_sql) uses
 # sqlglot's AST to enumerate table refs, closing regex-based bypasses.
