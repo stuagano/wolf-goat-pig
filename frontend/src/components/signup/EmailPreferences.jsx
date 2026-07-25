@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
-import { apiConfig } from '../../config/api.config';
-
-const API_URL = apiConfig.baseUrl;
+import { api } from '../../api/client';
+import { errorDetail } from '../../api/http';
 
 const EmailPreferences = () => {
   const { user } = useAuth0();
@@ -36,12 +35,11 @@ const EmailPreferences = () => {
   const loadPreferences = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/players/me/email-preferences`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+      const { data } = await api.GET('/players/me/email-preferences', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      if (data) {
         setPreferences(data);
       }
       setError(null);
@@ -67,21 +65,15 @@ const EmailPreferences = () => {
       setSaving(true);
       setError(null);
 
-      const response = await fetch(`${API_URL}/players/me/email-preferences`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        },
-        body: JSON.stringify(preferences)
+      const { data: updatedPreferences, error: apiError } = await api.PUT('/players/me/email-preferences', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+        body: preferences,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to save');
+      if (!updatedPreferences) {
+        throw new Error(errorDetail(apiError) || 'Failed to save');
       }
 
-      const updatedPreferences = await response.json();
       setPreferences(updatedPreferences);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);

@@ -9,8 +9,10 @@ from .players import PlayerProfileResponse
 # Daily Sign-up System Schemas
 class DailySignupCreate(BaseModel):
     date: str  # YYYY-MM-DD format
-    player_profile_id: int
-    player_name: str
+    # Retained temporarily for rolling-deploy compatibility with older clients.
+    # The authenticated server profile is authoritative; these values are ignored.
+    player_profile_id: int | None = None
+    player_name: str | None = None
     preferred_start_time: str | None = None
     notes: str | None = None
 

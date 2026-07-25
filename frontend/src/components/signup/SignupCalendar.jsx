@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import '../../styles/mobile-touch.css';
-import { apiConfig } from '../../config/api.config';
-
-const API_URL = apiConfig.baseUrl;
+import { api } from '../../api/client';
+import { errorDetail } from '../../api/http';
 
 const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
   const { user, isAuthenticated } = useAuth0();
@@ -48,13 +47,14 @@ const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
   const loadWeeklyData = async (weekStart) => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/signups/weekly-with-messages?week_start=${weekStart}`);
+      const { data, response } = await api.GET('/signups/weekly-with-messages', {
+        params: { query: { week_start: weekStart } },
+      });
 
       if (!response.ok) {
         throw new Error(`Failed to load data: ${response.status}`);
       }
 
-      const data = await response.json();
       setWeekData(data);
       setError(null);
     } catch (err) {
@@ -88,21 +88,18 @@ const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/signups`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { data, error: apiError } = await api.POST('/signups', {
+        body: {
           date,
           player_profile_id: 1,
           player_name: user.name || user.email,
           preferred_start_time: null,
-          notes: null
-        })
+          notes: null,
+        },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to sign up');
+      if (!data) {
+        throw new Error(errorDetail(apiError) || 'Failed to sign up');
       }
 
       loadWeeklyData(currentWeekStart);
@@ -114,7 +111,9 @@ const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
 
   const handleCancelSignup = async (signupId) => {
     try {
-      const response = await fetch(`${API_URL}/signups/${signupId}`, { method: 'DELETE' });
+      const { response } = await api.DELETE('/signups/{signup_id}', {
+        params: { path: { signup_id: signupId } },
+      });
       if (!response.ok) throw new Error('Failed to cancel signup');
       loadWeeklyData(currentWeekStart);
       onSignupChange?.();
@@ -127,15 +126,13 @@ const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
     if (!messageInput.trim()) return;
 
     try {
-      const response = await fetch(`${API_URL}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { response } = await api.POST('/messages', {
+        body: {
           date,
           message: messageInput.trim(),
           player_profile_id: 1,
-          player_name: user.name || user.email
-        })
+          player_name: user.name || user.email,
+        },
       });
 
       if (!response.ok) throw new Error('Failed to post message');
@@ -148,7 +145,9 @@ const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
 
   const handleDeleteMessage = async (messageId) => {
     try {
-      await fetch(`${API_URL}/messages/${messageId}`, { method: 'DELETE' });
+      await api.DELETE('/messages/{message_id}', {
+        params: { path: { message_id: messageId } },
+      });
       loadWeeklyData(currentWeekStart);
     } catch (err) {
       setError(err.message);

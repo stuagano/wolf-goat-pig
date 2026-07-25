@@ -1,14 +1,28 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import '../../styles/mobile-touch.css';
-import { apiConfig } from '../../config/api.config';
 import { calculateCourseHandicap } from '../../utils';
 import { usePlayerProfile } from '../../hooks/usePlayerProfile';
+import { acquireAccessToken } from '../../services/authToken';
+import { api } from '../../api/client';
+import { errorDetail } from '../../api/http';
 
-const API_URL = apiConfig.baseUrl;
+function getSignupButtonLabel({
+  confirmingSignup,
+  defaultLabel,
+  profileLoading,
+  signingUp,
+  signupProfileReady
+}) {
+  if (signingUp) return 'Signing up…';
+  if (profileLoading) return 'Loading profile…';
+  if (!signupProfileReady) return 'Link club player in Account';
+  if (confirmingSignup) return 'Confirm Sign Up';
+  return defaultLabel;
+}
 
 const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
-  const { user, isAuthenticated } = useAuth0();
+  const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
   const { profile, loading: profileLoading } = usePlayerProfile();
   const [currentWeekStart, setCurrentWeekStart] = useState('');
   const [selectedDate, setSelectedDate] = useState(initialDate || '');
@@ -21,6 +35,9 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   const [pairingsError, setPairingsError] = useState(null);
   const [confirmingSignup, setConfirmingSignup] = useState(false);
   const [signingUp, setSigningUp] = useState(false);
+  const signupName = profile?.legacy_name || '';
+  const signupProfileReady = Boolean(profile?.id && signupName);
+  const signupDisabled = signingUp || profileLoading || !signupProfileReady;
 
   // Compute the Sunday that starts the week containing a given date
   const getSundayOfWeek = useCallback((dateStr) => {
@@ -44,9 +61,10 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     if (!weekStart) return;
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/signups/weekly-with-messages?week_start=${weekStart}`);
-      if (response.ok) {
-        const data = await response.json();
+      const { data } = await api.GET('/signups/weekly-with-messages', {
+        params: { query: { week_start: weekStart } },
+      });
+      if (data) {
         setWeekData(data);
       } else {
         setWeekData({ daily_summaries: [] });
@@ -73,9 +91,10 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     try {
       setPairingsLoading(true);
       setPairingsError(null);
-      const response = await fetch(`${API_URL}/pairings/${date}`);
-      if (response.ok) {
-        const data = await response.json();
+      const { data, response } = await api.GET('/pairings/{date}', {
+        params: { path: { date } },
+      });
+      if (data) {
         setGeneratedPairings(data.exists ? data : null);
       } else {
         // 404 means no pairings generated yet — anything else is an error
@@ -170,32 +189,32 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
       setError('Please log in to sign up');
       return;
     }
-    if (!profile?.id) {
-      setError(profileLoading ? 'Loading your profile…' : 'Could not load your player profile. Please try again.');
+    if (!signupProfileReady) {
+      setError(
+        profileLoading
+          ? 'Loading your profile…'
+          : 'Link your club player name in Account before signing up.'
+      );
       setConfirmingSignup(false);
       return;
     }
     try {
       setSigningUp(true);
-      const playerName = profile.legacy_name || profile.name || user.name || user.email;
-      const response = await fetch(`${API_URL}/signups`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const token = await acquireAccessToken(getAccessTokenSilently);
+      const { data, error: apiError } = await api.POST('/signups', {
+        headers: { Authorization: `Bearer ${token}` },
+        body: {
           date: selectedDate,
-          player_profile_id: profile.id,
-          player_name: playerName,
           preferred_start_time: null,
-          notes: null
-        })
+          notes: null,
+        },
       });
-      if (response.ok) {
+      if (data) {
         await loadWeeklyData(currentWeekStart);
         setError(null);
         setConfirmingSignup(false);
       } else {
-        const errData = await response.json();
-        throw new Error(errData.detail || 'Failed to sign up');
+        throw new Error(errorDetail(apiError) || 'Failed to sign up');
       }
     } catch (err) {
       console.error('Signup error:', err);
@@ -206,15 +225,37 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     }
   };
 
-  // The "Replicate to Legacy Signup Page" action was removed while the legacy
-  // thousand-cranes.com tee sheet connection is disabled. The /signups/{id}/
-  // replicate-legacy endpoint and the env-gated sync bridge behind it are kept
-  // server-side; re-add a button that POSTs to it to restore the control.
+  // Replicate signup to legacy page
+  const handleLegacyReplicate = async () => {
+    if (!isAuthenticated || !user || !userSignup) {
+      setError('You must be signed up first to replicate to legacy');
+      return;
+    }
+    try {
+      setLegacyReplicating(true);
+      setLegacyResult(null);
+      const { data, error: apiError } = await api.POST('/signups/{signup_id}/replicate-legacy', {
+        params: { path: { signup_id: userSignup.id } },
+      });
+      if (data) {
+        setLegacyResult({ success: true, message: data.message || 'Replicated to legacy signup page' });
+      } else {
+        setLegacyResult({ success: false, message: errorDetail(apiError) || 'Failed to replicate' });
+      }
+    } catch (err) {
+      console.error('Legacy replicate error:', err);
+      setLegacyResult({ success: false, message: 'Failed to replicate to legacy signup page' });
+    } finally {
+      setLegacyReplicating(false);
+    }
+  };
 
   // Handle cancel signup
   const handleCancelSignup = async (signupId) => {
     try {
-      const response = await fetch(`${API_URL}/signups/${signupId}`, { method: 'DELETE' });
+      const { response } = await api.DELETE('/signups/{signup_id}', {
+        params: { path: { signup_id: signupId } },
+      });
       if (response.ok) {
         loadWeeklyData(currentWeekStart);
         setError(null);
@@ -407,7 +448,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <button
                 onClick={handleSignupClick}
-                disabled={signingUp || profileLoading || !profile?.id}
+                disabled={signupDisabled}
                 style={{
                   background: confirmingSignup ? '#b45309' : '#2d5016',
                   color: 'white',
@@ -416,36 +457,41 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                   padding: '10px 24px',
                   fontSize: '15px',
                   fontWeight: '700',
-                  cursor: signingUp || profileLoading || !profile?.id ? 'not-allowed' : 'pointer',
+                  cursor: signupDisabled ? 'not-allowed' : 'pointer',
                   whiteSpace: 'nowrap',
-                  opacity: signingUp || profileLoading || !profile?.id ? 0.7 : 1
+                  opacity: signupDisabled ? 0.7 : 1
                 }}
               >
-                {signingUp
-                  ? 'Signing up…'
-                  : profileLoading
-                    ? 'Loading profile…'
-                    : confirmingSignup
-                      ? 'Confirm Sign Up'
-                      : 'Sign Up'}
+                {getSignupButtonLabel({
+                  confirmingSignup,
+                  defaultLabel: 'Sign Up',
+                  profileLoading,
+                  signingUp,
+                  signupProfileReady
+                })}
               </button>
               {confirmingSignup && (
-                <button
-                  onClick={() => setConfirmingSignup(false)}
-                  style={{
-                    background: '#6b7280',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    padding: '10px 16px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  Cancel
-                </button>
+                <>
+                  <span style={{ color: '#374151', fontSize: '14px', fontWeight: '600' }}>
+                    Signing up as: {signupName}
+                  </span>
+                  <button
+                    onClick={() => setConfirmingSignup(false)}
+                    style={{
+                      background: '#6b7280',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '10px 16px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </>
               )}
             </div>
           )}
@@ -562,7 +608,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                   <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
                     <button
                       onClick={handleSignupClick}
-                      disabled={signingUp || profileLoading || !profile?.id}
+                      disabled={signupDisabled}
                       style={{
                         marginTop: '12px',
                         background: confirmingSignup ? '#b45309' : '#2d5016',
@@ -572,35 +618,40 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                         padding: '12px 28px',
                         fontSize: '15px',
                         fontWeight: '700',
-                        cursor: signingUp || profileLoading || !profile?.id ? 'not-allowed' : 'pointer',
-                        opacity: signingUp || profileLoading || !profile?.id ? 0.7 : 1
+                        cursor: signupDisabled ? 'not-allowed' : 'pointer',
+                        opacity: signupDisabled ? 0.7 : 1
                       }}
                     >
-                      {signingUp
-                        ? 'Signing up…'
-                        : profileLoading
-                          ? 'Loading profile…'
-                          : confirmingSignup
-                            ? 'Confirm Sign Up'
-                            : 'Be the first to sign up!'}
+                      {getSignupButtonLabel({
+                        confirmingSignup,
+                        defaultLabel: 'Be the first to sign up!',
+                        profileLoading,
+                        signingUp,
+                        signupProfileReady
+                      })}
                     </button>
                     {confirmingSignup && (
-                      <button
-                        onClick={() => setConfirmingSignup(false)}
-                        style={{
-                          marginTop: '12px',
-                          background: '#6b7280',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '6px',
-                          padding: '12px 16px',
-                          fontSize: '14px',
-                          fontWeight: '600',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Cancel
-                      </button>
+                      <>
+                        <span style={{ marginTop: '12px', color: '#374151', fontSize: '14px', fontWeight: '600' }}>
+                          Signing up as: {signupName}
+                        </span>
+                        <button
+                          onClick={() => setConfirmingSignup(false)}
+                          style={{
+                            marginTop: '12px',
+                            background: '#6b7280',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '12px 16px',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </>
                     )}
                   </div>
                 )}

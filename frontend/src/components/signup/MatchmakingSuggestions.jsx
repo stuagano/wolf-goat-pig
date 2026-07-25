@@ -2,9 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useTeeTimes from '../../hooks/useTeeTimes';
 import BookingModal from '../foretees/BookingModal';
-import { apiConfig } from '../../config/api.config';
-
-const API_URL = apiConfig.baseUrl;
+import { api } from '../../api/client';
 
 // Get the next occurrence of a day-of-week (0=Mon, 6=Sun)
 const getNextDateForDay = (dayOfWeek) => {
@@ -64,15 +62,15 @@ const MatchmakingSuggestions = () => {
   const loadMatches = useCallback(async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
-      params.append('min_overlap_hours', minOverlapHours);
-      if (selectedDays.length > 0) {
-        params.append('preferred_days', selectedDays.join(','));
-      }
-
-      const response = await fetch(`${API_URL}/matchmaking/suggestions?${params}`);
-      if (response.ok) {
-        const data = await response.json();
+      const { data } = await api.GET('/matchmaking/suggestions', {
+        params: {
+          query: {
+            min_overlap_hours: minOverlapHours,
+            ...(selectedDays.length > 0 ? { preferred_days: selectedDays.join(',') } : {}),
+          },
+        },
+      });
+      if (data) {
         setMatches(data.matches || []);
       } else {
         throw new Error('Failed to load match suggestions');
@@ -100,13 +98,9 @@ const MatchmakingSuggestions = () => {
   const sendAllNotifications = async () => {
     try {
       setSendingNotifications(true);
-      const response = await fetch(`${API_URL}/matchmaking/create-and-notify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
+      const { data: result } = await api.POST('/matchmaking/create-and-notify', {});
 
-      if (response.ok) {
-        const result = await response.json();
+      if (result) {
         alert(`Sent ${result.notifications_sent} notifications for ${result.matches_created} matches!`);
         loadMatches();
       } else {

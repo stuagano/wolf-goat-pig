@@ -746,3 +746,21 @@ capabilities:
         tests/unit/engine/test_game_lifecycle_service.py::TestResumeGame::test_resume_game_success
         tests/unit/engine/test_game_lifecycle_service.py::TestStartGame::test_start_game_already_in_progress
         -q -p no:cacheprovider
+  - id: signup-server-owns-identity
+    description: daily signup requires authentication and derives player id/name from
+      the server-side profile, ignoring spoofed client identity
+    given: an authenticated player profile and a signup body containing a different
+      player id/name
+    when: POST /signups runs
+    then: the persisted signup uses the authenticated profile id and linked club name;
+      unlinked or unauthenticated requests fail
+    tier: cheap
+    deps:
+    - backend/app/routers/signups.py
+    - backend/app/schemas/signups.py
+    - backend/tests/unit/routers/test_signups_router.py
+    - frontend/src/components/signup/DailySignupView.jsx
+    - frontend/src/components/signup/__tests__/DailySignupView.test.jsx
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/routers/test_signups_router.py::TestCreateSignup
+        -q -p no:cacheprovider && cd ../frontend && npx vitest run src/components/signup/__tests__/DailySignupView.test.jsx
