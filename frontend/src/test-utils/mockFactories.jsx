@@ -538,15 +538,15 @@ export const createMockEvent = (type = 'click', properties = {}) => ({
  * @returns {Promise} Mock fetch response
  */
 export const createMockFetchResponse = (data, options = {}) => {
-  return Promise.resolve({
-    ok: true,
-    status: 200,
-    statusText: 'OK',
-    json: async () => data,
-    text: async () => JSON.stringify(data),
-    headers: new Headers(options.headers || {}),
-    ...options
-  });
+  const { status = 200, headers = {} } = options;
+  // Return a real Response so both plain `fetch(...).json()` callers and the
+  // typed client (openapi-fetch, which inspects headers/clones the body) work.
+  return Promise.resolve(
+    new Response(JSON.stringify(data), {
+      status,
+      headers: { 'Content-Type': 'application/json', ...headers },
+    })
+  );
 };
 
 /**

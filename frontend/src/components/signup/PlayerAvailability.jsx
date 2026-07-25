@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
-import { apiConfig } from '../../config/api.config';
 import { acquireAccessToken } from '../../services/authToken';
-
-const API_URL = apiConfig.baseUrl;
+import { api } from '../../api/client';
+import { errorDetail } from '../../api/http';
 
 const dayNamesFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -40,6 +39,18 @@ const PlayerAvailability = () => {
     }));
   }, []);
 
+  // Auth header for /players/me requests: Auth0 token, falling back to a
+  // stored token if the silent acquisition fails.
+  const getAuthHeader = useCallback(async () => {
+    let token;
+    try {
+      token = await acquireAccessToken(getAccessTokenSilently, tokenOptions);
+    } catch {
+      token = localStorage.getItem('auth_token');
+    }
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }, [getAccessTokenSilently, tokenOptions]);
+
   const loadAvailability = useCallback(async () => {
     if (!isAuthenticated) {
       setLoading(false);
@@ -48,18 +59,11 @@ const PlayerAvailability = () => {
 
     try {
       setLoading(true);
-      let token;
-      try {
-        token = await acquireAccessToken(getAccessTokenSilently, tokenOptions);
-      } catch (e) {
-        token = localStorage.getItem('auth_token');
-      }
+      const { data } = await api.GET('/players/me/availability', {
+        headers: await getAuthHeader(),
+      });
 
-      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-      const response = await fetch(`${API_URL}/players/me/availability`, { headers });
-
-      if (response.ok) {
-        const data = await response.json();
+      if (data) {
         const completeAvailability = initializeAvailability();
         data.forEach(item => {
           if (item.day_of_week >= 0 && item.day_of_week <= 6) {
@@ -84,7 +88,7 @@ const PlayerAvailability = () => {
     } finally {
       setLoading(false);
     }
-  }, [getAccessTokenSilently, initializeAvailability, isAuthenticated, tokenOptions]);
+  }, [getAuthHeader, initializeAvailability, isAuthenticated]);
 
   useEffect(() => {
     loadAvailability();
@@ -111,35 +115,21 @@ const PlayerAvailability = () => {
     try {
       setSaving(true);
       setMatchResult(null);
-      let token;
-      try {
-        token = await acquireAccessToken(getAccessTokenSilently, tokenOptions);
-      } catch (e) {
-        token = localStorage.getItem('auth_token');
-      }
-
-      const headers = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const response = await fetch(`${API_URL}/players/me/availability`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
+      const { data: result, error: apiError } = await api.POST('/players/me/availability', {
+        headers: await getAuthHeader(),
+        body: {
           player_profile_id: 0,
           day_of_week: dayData.day_of_week,
           is_available: dayData.is_available,
           available_from_time: dayData.available_from_time || null,
           available_to_time: dayData.available_to_time || null,
-          notes: dayData.notes || null
-        })
+          notes: dayData.notes || null,
+        },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to save');
+      if (!result) {
+        throw new Error(errorDetail(apiError) || 'Failed to save');
       }
-
-      const result = await response.json();
 
       // The response now includes availability + match results
       const updatedAvail = result.availability || result;

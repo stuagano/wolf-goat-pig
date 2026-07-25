@@ -14,6 +14,12 @@ import { apiConfig } from '../config/api.config';
  * with a token acquired via Auth0 (`acquireAccessToken`). Keeping auth out of the
  * client leaves it stateless and trivially testable.
  */
-export const api = createClient<paths>({ baseUrl: apiConfig.baseUrl });
+export const api = createClient<paths>({
+  baseUrl: apiConfig.baseUrl,
+  // Resolve `fetch` per request rather than capturing globalThis.fetch at client
+  // creation. This keeps prod behavior identical while letting tests that swap
+  // `global.fetch` (after this module is imported) intercept the client's calls.
+  fetch: (input: Request) => globalThis.fetch(input),
+});
 
 export default api;

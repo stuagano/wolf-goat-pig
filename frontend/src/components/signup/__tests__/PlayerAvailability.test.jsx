@@ -145,19 +145,14 @@ describe('PlayerAvailability', () => {
     const saveButton = screen.getAllByText('Save')[0];
     fireEvent.click(saveButton);
 
-    await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/players/me/availability'),
-        expect.objectContaining({
-          method: 'POST',
-          headers: expect.objectContaining({
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer mock-token'
-          }),
-          body: expect.stringContaining('Updated note')
-        })
-      );
-    });
+    // The typed client calls fetch with a single Request object.
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    const request = fetch.mock.calls.at(-1)[0];
+    expect(request.url).toContain('/players/me/availability');
+    expect(request.method).toBe('POST');
+    expect(request.headers.get('Authorization')).toBe('Bearer mock-token');
+    expect(request.headers.get('Content-Type')).toContain('application/json');
+    expect(await request.clone().text()).toContain('Updated note');
   });
 
   test('handles save errors', async () => {
