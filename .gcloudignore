@@ -1,0 +1,25 @@
+# Keep `gcloud builds submit` source uploads small. The Cloud Build pipeline
+# (deploy/gcp/cloudbuild.yaml) only needs backend/** and deploy/gcp/**; the
+# Docker build context is backend/. Everything below is irrelevant to the build.
+#
+# NOTE: if no .gcloudignore existed, gcloud would import .gitignore. This file
+# takes over that role, so it must not exclude backend/ or deploy/.
+.git/
+.github/
+.worktrees/
+
+# Frontend (built and deployed separately via Firebase Hosting)
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+
+# Python / Node build & cache artifacts
+**/__pycache__/
+*.pyc
+backend/venv/
+backend/.venv/
+**/node_modules/
+
+# Local env / logs
+**/*.log
+deploy/gcp/config.env

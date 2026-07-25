@@ -7,9 +7,32 @@ moves in Phase 2.
 
 ## How it deploys
 
-Normally via GitHub Actions: **Actions → Deploy to GCP → Run workflow** with
-`deploy_backend = true`. The workflow builds the image, pushes it to Artifact
-Registry, and runs `gcloud run deploy` with `env.production.yaml` + Secret Manager.
+The build/push/deploy is a **Cloud Build pipeline** (`deploy/gcp/cloudbuild.yaml`):
+it builds `backend/Dockerfile`, pushes to Artifact Registry, and runs
+`gcloud run deploy` with `env.production.yaml` + Secret Manager. Three ways to run it:
+
+1. **GitHub Actions (recommended):** **Actions → Deploy to GCP → Run workflow**
+   with `deploy_backend = true`. The job authenticates keylessly via WIF and
+   calls `gcloud builds submit --config deploy/gcp/cloudbuild.yaml` — the heavy
+   image build runs on Cloud Build, not the runner.
+2. **Auto-deploy on merge (opt-in):** set the repo Actions Variable
+   `GCP_AUTO_DEPLOY=true`. Then a push to `main` touching `backend/**` or
+   `deploy/gcp/**` deploys the backend automatically. Leave it unset for
+   manual-only (a push still triggers the workflow but the deploy job is skipped).
+3. **Native Cloud Build trigger (alternative):**
+   `create-cloud-build-trigger.sh` wires Cloud Build to watch GitHub directly
+   (needs a one-time console repo connection). Use this OR the Actions path.
+
+IAM for the Cloud Build service account is granted by
+`deploy/gcp/phase0-foundation/25-cloud-build-iam.sh`.
+
+### Manual submit (no CI)
+
+```bash
+gcloud builds submit --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
+  --config=deploy/gcp/cloudbuild.yaml \
+  --substitutions="SHORT_SHA=manual,_REGION=$GCP_REGION" .
+```
 
 ## Why it works unchanged on Cloud Run
 

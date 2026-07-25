@@ -1,13 +1,22 @@
 name: Deploy to GCP
 
-# Manual-only (workflow_dispatch): this deploys to the stuartgano-n8n Google
-# Cloud project and must never fire automatically on push. It authenticates
-# keylessly via Workload Identity Federation — no service-account JSON key.
+# Deploys the FastAPI backend to Cloud Run via the Cloud Build pipeline
+# (deploy/gcp/cloudbuild.yaml), authenticating keylessly through Workload
+# Identity Federation — no service-account JSON key.
+#
+# Triggers:
+#   - workflow_dispatch — always available (manual button), never surprises.
+#   - push to main      — ONLY deploys the backend when the repo variable
+#                         GCP_AUTO_DEPLOY == "true". Unset (the default) = the
+#                         push run starts but the deploy job is skipped, so a
+#                         merge can never surprise-deploy until you opt in.
+# The frontend (Firebase Hosting) is manual-only regardless.
 #
 # Prerequisites (one-time, see deploy/gcp/README.md):
-#   - Run deploy/gcp/phase0-foundation/*.sh
+#   - Run deploy/gcp/phase0-foundation/*.sh  (incl. 25-cloud-build-iam.sh)
 #   - Set repo Actions *Variables*: GCP_PROJECT_ID, GCP_REGION,
 #     GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_DEPLOYER_SA
+#     (opt-in auto-deploy) GCP_AUTO_DEPLOY=true
 #     (optional, Phase 3) FIREBASE_SITE, VITE_API_URL
 
 on:
@@ -21,19 +30,26 @@ on:
         description: "Build + deploy the React SPA to Firebase Hosting (Phase 3)"
         type: boolean
         default: false
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "deploy/gcp/**"
+      - ".github/workflows/deploy-gcp.yml"
 
 permissions:
   contents: read
   id-token: write   # required for Workload Identity Federation
 
 env:
-  AR_REPO: wolf-goat-pig
   RUN_SERVICE: wolf-goat-pig-api
-  RUNTIME_SA_NAME: wgp-run
 
 jobs:
   deploy-backend:
-    if: ${{ inputs.deploy_backend }}
+    # workflow_dispatch: honor the checkbox. push: only if opted in via the var.
+    if: >-
+      ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_backend) ||
+          (github.event_name == 'push' && vars.GCP_AUTO_DEPLOY == 'true') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -49,35 +65,15 @@ jobs:
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
-
-      - name: Build & push backend image
+      - name: Build & deploy via Cloud Build
         run: |
           set -euo pipefail
-          IMAGE="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${AR_REPO}/${RUN_SERVICE}"
-          docker build -f backend/Dockerfile -t "${IMAGE}:${GITHUB_SHA}" -t "${IMAGE}:latest" backend
-          docker push "${IMAGE}:${GITHUB_SHA}"
-          docker push "${IMAGE}:latest"
-          echo "IMAGE=${IMAGE}" >> "${GITHUB_ENV}"
-
-      - name: Deploy to Cloud Run
-        run: |
-          set -euo pipefail
-          RUNTIME_SA="${RUNTIME_SA_NAME}@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
-          gcloud run deploy "${RUN_SERVICE}" \
+          gcloud builds submit \
             --project="${{ vars.GCP_PROJECT_ID }}" \
             --region="${{ vars.GCP_REGION }}" \
-            --image="${IMAGE}:${GITHUB_SHA}" \
-            --service-account="${RUNTIME_SA}" \
-            --allow-unauthenticated \
-            --min-instances=0 \
-            --max-instances=4 \
-            --cpu=1 \
-            --memory=1Gi \
-            --timeout=300 \
-            --env-vars-file=deploy/gcp/phase1-cloud-run/env.production.yaml \
-            --set-secrets="DATABASE_URL=DATABASE_URL:latest,GHIN_API_USER=GHIN_API_USER:latest,GHIN_API_PASS=GHIN_API_PASS:latest,RESEND_API_KEY=RESEND_API_KEY:latest,BOOKING_SERVICE_SECRET=BOOKING_SERVICE_SECRET:latest,FORETEES_USERNAME=FORETEES_USERNAME:latest,FORETEES_PASSWORD=FORETEES_PASSWORD:latest,FORETEES_ENCRYPTION_KEY=FORETEES_ENCRYPTION_KEY:latest,MONITOR_KEY=MONITOR_KEY:latest"
+            --config=deploy/gcp/cloudbuild.yaml \
+            --substitutions="SHORT_SHA=${GITHUB_SHA::12},_REGION=${{ vars.GCP_REGION }}" \
+            .
 
       - name: Smoke test /ready
         run: |
@@ -91,7 +87,8 @@ jobs:
           test "${code}" = "200"
 
   deploy-frontend:
-    if: ${{ inputs.deploy_frontend }}
+    # Manual-only — never runs on push, even with GCP_AUTO_DEPLOY set.
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_frontend }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
