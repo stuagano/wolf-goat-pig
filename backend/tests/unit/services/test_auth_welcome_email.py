@@ -13,7 +13,7 @@ import sentry_sdk
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.models import Base
+from app.models import Base, PlayerProfile
 from app.services import auth_service as auth_module
 from app.services import legacy_player_service as svc
 from app.services.auth_service import AuthService
@@ -63,7 +63,9 @@ def test_welcome_email_sent_once_for_new_profile(db, welcome_spy):
     player = AuthService.get_or_create_player_profile(db, auth0_user)
 
     assert player.id is not None
-    welcome_spy.assert_called_once_with("Brand New Golfer", "brandnew@example.com")
+    # Dispatched with (name, email, player_id) so the delivery thread can record
+    # the outcome against the profile. See issue #318.
+    welcome_spy.assert_called_once_with("Brand New Golfer", "brandnew@example.com", player.id)
 
 
 def test_welcome_email_not_sent_for_returning_player(db, welcome_spy):
@@ -114,3 +116,47 @@ def test_welcome_email_failure_is_captured_and_login_survives(db, monkeypatch):
     boom_svc.send_welcome_email.assert_called_once()
     assert len(captured) == 1
     assert isinstance(captured[0], RuntimeError)
+
+
+def _brandnew_user() -> dict:
+    return {"sub": "auth0|brandnew", "email": "brandnew@example.com", "name": "Brand New Golfer", "picture": None}
+
+
+def test_welcome_email_success_records_sent_timestamp(db, monkeypatch):
+    """On provider acceptance we persist welcome_email_sent_at (traceable, #318)."""
+    svc.add_legacy_player("Brand New Golfer", db=db)
+    # Run delivery synchronously against the test DB so we can assert on the row.
+    monkeypatch.setattr(auth_module, "SessionLocal", TestingSessionLocal)
+    monkeypatch.setattr(auth_module, "_send_welcome_email", auth_module._deliver_welcome_email)
+
+    ok_svc = Mock()
+    ok_svc.is_configured.return_value = True
+    ok_svc.send_welcome_email.return_value = True
+    monkeypatch.setattr("app.services.email_service.get_email_service", lambda: ok_svc)
+
+    player = AuthService.get_or_create_player_profile(db, _brandnew_user())
+
+    refreshed = TestingSessionLocal().query(PlayerProfile).filter(PlayerProfile.id == player.id).first()
+    assert refreshed.welcome_email_sent_at is not None
+
+
+def test_welcome_email_soft_failure_is_observable_and_not_marked(db, monkeypatch):
+    """A provider that returns False (no raise) is reported and left retryable (#318)."""
+    svc.add_legacy_player("Brand New Golfer", db=db)
+    monkeypatch.setattr(auth_module, "SessionLocal", TestingSessionLocal)
+    monkeypatch.setattr(auth_module, "_send_welcome_email", auth_module._deliver_welcome_email)
+
+    soft_svc = Mock()
+    soft_svc.is_configured.return_value = True
+    soft_svc.send_welcome_email.return_value = False
+    monkeypatch.setattr("app.services.email_service.get_email_service", lambda: soft_svc)
+
+    messages: list[str] = []
+    monkeypatch.setattr(sentry_sdk, "capture_message", lambda m, *a, **k: messages.append(m))
+
+    player = AuthService.get_or_create_player_profile(db, _brandnew_user())
+
+    refreshed = TestingSessionLocal().query(PlayerProfile).filter(PlayerProfile.id == player.id).first()
+    # Not marked sent → a retry remains possible.
+    assert refreshed.welcome_email_sent_at is None
+    assert any("rejected" in m for m in messages)

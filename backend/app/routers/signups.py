@@ -5,8 +5,10 @@ Legacy player lookup and daily sign-up management.
 """
 
 import logging
+import threading
 from datetime import datetime, timedelta
 
+import sentry_sdk
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 
@@ -27,6 +29,70 @@ from ..utils.time import utc_now
 logger = logging.getLogger("app.routers.signups")
 
 router = APIRouter(tags=["signups"])
+
+
+def _deliver_signup_confirmation(signup_id: int, to_email: str, player_name: str, signup_date: str) -> None:
+    """Send one signup confirmation email and record the outcome. Best-effort.
+
+    Runs on a daemon thread (own DB session) so the external send never adds
+    latency to or breaks POST /signups. Idempotent: re-checks
+    ``confirmation_email_sent_at`` under a fresh read and stamps it only after
+    the provider accepts, so retried/duplicate signups never double-send (#317).
+    Honors the recipient's ``signup_confirmations_enabled`` preference. A soft
+    failure (provider returns False) is logged and reported to Sentry rather
+    than silently reported as delivered.
+    """
+    if not to_email:
+        return
+    db = database.SessionLocal()
+    try:
+        signup = db.query(models.DailySignup).filter(models.DailySignup.id == signup_id).first()
+        if signup is None or signup.confirmation_email_sent_at:
+            return  # already sent, or the row vanished — never double-send
+
+        prefs = (
+            db.query(models.EmailPreferences)
+            .filter(models.EmailPreferences.player_profile_id == signup.player_profile_id)
+            .first()
+        )
+        if prefs is not None and not prefs.signup_confirmations_enabled:
+            logger.info("Signup confirmation suppressed by preference for player %s", signup.player_profile_id)
+            return
+
+        from ..services.email_service import get_email_service
+
+        svc = get_email_service()
+        if not svc.is_configured():
+            logger.warning("Signup confirmation skipped for <%s>: email provider not configured", to_email)
+            sentry_sdk.capture_message(f"Signup confirmation skipped: provider not configured (signup_id={signup_id})")
+            return
+
+        accepted = svc.send_signup_confirmation(to_email, player_name, signup_date)
+        if accepted:
+            signup.confirmation_email_sent_at = utc_now().isoformat()
+            db.commit()
+            logger.info("Signup confirmation accepted by provider for signup %s <%s>", signup_id, to_email)
+        else:
+            logger.error("Signup confirmation rejected by provider for signup %s <%s>", signup_id, to_email)
+            sentry_sdk.capture_message(f"Signup confirmation rejected by provider (signup_id={signup_id})")
+    except Exception as exc:  # never surface to the signup path
+        logger.warning("Failed to send signup confirmation for signup %s: %s", signup_id, exc)
+        sentry_sdk.capture_exception(exc)
+        db.rollback()
+    finally:
+        db.close()
+
+
+def _send_signup_confirmation(signup_id: int, to_email: str | None, player_name: str, signup_date: str) -> None:
+    """Dispatch the signup confirmation on a daemon thread (non-blocking)."""
+    if not to_email:
+        return
+    threading.Thread(
+        target=_deliver_signup_confirmation,
+        args=(signup_id, to_email, player_name, signup_date),
+        daemon=True,
+        name="signup-confirmation",
+    ).start()
 
 
 @router.get("/legacy-players")
@@ -259,6 +325,10 @@ def create_signup(
             legacy_service.sync_signup_created(db_signup)
         except Exception:
             logger.exception("Legacy signup sync failed for create id=%s", db_signup.id)
+
+        # Send a confirmation email to the AUTHENTICATED player's address (never
+        # client-supplied). Non-blocking and idempotent; see _send_signup_confirmation.
+        _send_signup_confirmation(db_signup.id, getattr(current_user, "email", None), player_name, signup.date)
 
         return schemas.DailySignupResponse.from_orm(db_signup)
 

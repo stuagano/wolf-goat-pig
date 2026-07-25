@@ -82,6 +82,47 @@ def test_matched_returning_player_is_not_captured(db, notify_spy):
     notify_spy.assert_not_called()
 
 
+def test_fuzzy_match_is_not_auto_linked(db, notify_spy):
+    """A near-but-not-exact name is a GUESS: it must never be written to
+    legacy_name automatically (issue #322). It is surfaced as a suggestion in
+    onboarding instead, so we also don't add them to the pending roster yet."""
+    svc.add_legacy_player("Jonathan Smith", db=db)
+
+    auth0_user = {
+        "sub": "auth0|fuzzy",
+        "email": "jonathon@example.com",
+        "name": "Jonathon Smith",  # one letter off — fuzzy match at cutoff 0.6
+        "picture": None,
+    }
+    player = AuthService.get_or_create_player_profile(db, auth0_user)
+
+    # NOT auto-linked to the near-duplicate roster name.
+    assert player.legacy_name is None
+    # A plausible suggestion exists → don't capture as a brand-new pending
+    # player; onboarding will surface it for the user to accept/reject.
+    assert db.query(PendingLegacyPlayer).count() == 0
+    notify_spy.assert_not_called()
+
+
+def test_unrelated_name_is_not_linked_and_is_captured(db, notify_spy):
+    """An unrelated name never links to an existing golfer, and (no suggestion)
+    is captured as a brand-new pending player (issues #322/#321)."""
+    svc.add_legacy_player("Jonathan Smith", db=db)
+
+    auth0_user = {
+        "sub": "auth0|unrelated",
+        "email": "zzz@example.com",
+        "name": "Zebediah Xylophone",  # nothing like any roster name
+        "picture": None,
+    }
+    player = AuthService.get_or_create_player_profile(db, auth0_user)
+
+    assert player.legacy_name is None
+    pending = db.query(PendingLegacyPlayer).filter(PendingLegacyPlayer.name == "Zebediah Xylophone").first()
+    assert pending is not None
+    notify_spy.assert_called_once()
+
+
 def test_existing_account_relogin_does_not_recapture(db, notify_spy):
     svc.add_legacy_player("Anchor Player", db=db)
     auth0_user = {

@@ -2510,10 +2510,32 @@
             ],
             "title": "Ghin Id"
           },
+          "ghin_last_updated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ghin Last Updated"
+          },
           "handicap": {
             "default": 18.0,
             "title": "Handicap",
             "type": "number"
+          },
+          "handicap_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handicap Source"
           },
           "has_avatar_image": {
             "default": false,
@@ -2527,6 +2549,11 @@
           "is_active": {
             "default": true,
             "title": "Is Active",
+            "type": "boolean"
+          },
+          "is_admin": {
+            "default": false,
+            "title": "Is Admin",
             "type": "boolean"
           },
           "is_ai": {
@@ -2555,6 +2582,17 @@
               }
             ],
             "title": "Legacy Name"
+          },
+          "legacy_name_suggestion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legacy Name Suggestion"
           },
           "name": {
             "title": "Name",
@@ -3442,6 +3480,11 @@
           "date": {
             "title": "Date",
             "type": "string"
+          },
+          "dry_run": {
+            "default": false,
+            "title": "Dry Run",
+            "type": "boolean"
           },
           "name": {
             "title": "Name",
@@ -12081,7 +12124,7 @@
     },
     "/players/me": {
       "get": {
-        "description": "Get current authenticated user's profile.",
+        "description": "Get current authenticated user's profile.\n\nAdds two computed fields not stored on the row:\n- ``legacy_name_suggestion``: when the account has no confirmed legacy link,\n  a fuzzy roster match to *suggest* (never auto-persist) in onboarding (#322).\n- ``is_admin``: server-side ADMIN_EMAILS membership so the client doesn't\n  depend on a hardcoded allowlist that can drift (#316).",
         "operationId": "get_my_profile_players_me_get",
         "responses": {
           "200": {
@@ -14772,7 +14815,7 @@
     },
     "/tee-sheet/signup": {
       "post": {
-        "description": "Sign up a player for a given date on the thousand-cranes.com tee sheet.",
+        "description": "Sign up a player for a given date on the thousand-cranes.com tee sheet.\n\nThis writes to the LIVE, shared club tee sheet. A dry-run request — or any\nnon-production deployment without an explicit opt-in — returns a preview of\nexactly what would be written (name + date) and performs no live mutation,\nso preview/testing can never silently change the real sheet. See issue #323.",
         "operationId": "signup_for_tee_sheet_tee_sheet_signup_post",
         "requestBody": {
           "content": {

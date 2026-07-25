@@ -49,6 +49,19 @@ TEE_SHEET_READ_URL = f"{TEE_SHEET_BASE}/wgp_tee_sheet.cgi"
 TEE_SHEET_SIGNUP_URL = f"{TEE_SHEET_BASE}/wgp_add_tee_sheet_ajax.cgi"
 
 
+def live_tee_sheet_writes_enabled() -> bool:
+    """Whether this deployment may mutate the LIVE thousand-cranes.com tee sheet.
+
+    POST /tee-sheet/signup writes straight to the real, shared tee sheet that
+    Jeff and the club see. A preview/local/dev deployment must NOT silently do
+    that (issue #323): allowed only in production, or when an operator has
+    explicitly opted a non-prod environment in via TEE_SHEET_ALLOW_LIVE_WRITES.
+    """
+    if os.getenv("ENVIRONMENT") == "production":
+        return True
+    return os.getenv("TEE_SHEET_ALLOW_LIVE_WRITES", "").lower() in {"1", "true", "yes"}
+
+
 def _parse_slots(html: str) -> list[dict]:
     rows = re.findall(r'<tr><td align="center">(\d+)</td>(.*?)</tr>', html, re.DOTALL)
     slots = []
@@ -148,6 +161,10 @@ async def get_upcoming_counts(
 class SignupRequest(BaseModel):
     date: str
     name: NonBlankStr
+    # When true, validate and report what WOULD happen without touching the live
+    # tee sheet. Also implied whenever live writes are disabled for this
+    # environment. See issue #323.
+    dry_run: bool = False
 
 
 def _mirror_signup_to_db(name: str, date: str) -> None:
@@ -225,8 +242,26 @@ def _mirror_signup_to_db(name: str, date: str) -> None:
 
 @router.post("/signup")
 async def signup_for_tee_sheet(request: SignupRequest) -> dict[str, Any]:
-    """Sign up a player for a given date on the thousand-cranes.com tee sheet."""
+    """Sign up a player for a given date on the thousand-cranes.com tee sheet.
+
+    This writes to the LIVE, shared club tee sheet. A dry-run request — or any
+    non-production deployment without an explicit opt-in — returns a preview of
+    exactly what would be written (name + date) and performs no live mutation,
+    so preview/testing can never silently change the real sheet. See issue #323.
+    """
     name = request.name
+    live_allowed = live_tee_sheet_writes_enabled()
+
+    if request.dry_run or not live_allowed:
+        reason = "dry_run requested" if request.dry_run else "live tee-sheet writes disabled for this environment"
+        logger.info("Tee-sheet signup PREVIEW (%s): would sign up %s for %s", reason, name, request.date)
+        return {
+            "success": True,
+            "live_write": False,
+            "dry_run": True,
+            "reason": reason,
+            "would_sign_up": {"name": name, "date": request.date},
+        }
 
     async with httpx.AsyncClient(timeout=10.0) as client:
         try:
@@ -248,4 +283,4 @@ async def signup_for_tee_sheet(request: SignupRequest) -> dict[str, Any]:
         await asyncio.to_thread(_mirror_signup_to_db, name, request.date)
     except Exception:
         logger.exception("Post-signup mirror failed for %s on %s", name, request.date)
-    return {"success": True, "name": name, "date": request.date}
+    return {"success": True, "live_write": True, "dry_run": False, "name": name, "date": request.date}

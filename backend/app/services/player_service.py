@@ -46,10 +46,13 @@ class PlayerService:
             if existing_player:
                 raise ValueError(f"Player with name '{profile_data.name}' already exists")
 
-            # Create player profile
+            # Create player profile. This path is admin/manual creation, so the
+            # supplied handicap is treated as manually set (not the 18.0
+            # unknown/pending placeholder). See issue #320.
             player_profile = PlayerProfile(
                 name=profile_data.name,
                 handicap=profile_data.handicap,
+                handicap_source="manual",
                 avatar_url=profile_data.avatar_url,
                 created_at=utc_now().isoformat(),
                 preferences=profile_data.preferences

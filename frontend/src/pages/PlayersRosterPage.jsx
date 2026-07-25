@@ -6,6 +6,10 @@ import './PlayersRosterPage.css';
 
 const API_URL = apiConfig.baseUrl;
 
+// A handicap_source of "default" is the 18.0 placeholder (unknown / pending a
+// GHIN sync), so we show it as pending rather than a real handicap value.
+const isPendingHandicap = (source) => !source || source === 'default';
+
 const PlayersRosterPage = () => {
   const navigate = useNavigate();
   const [players, setPlayers] = useState([]);
@@ -79,7 +83,11 @@ const PlayersRosterPage = () => {
               )}
               <div className="wgp-roster__name">{p.name}</div>
               <div className="wgp-roster__handicap">
-                Handicap {p.handicap != null ? p.handicap : '—'}
+                {isPendingHandicap(p.handicap_source) || p.handicap == null ? (
+                  <span title="GHIN sync pending">Handicap Pending</span>
+                ) : (
+                  <>Handicap {p.handicap}</>
+                )}
               </div>
             </button>
           ))}

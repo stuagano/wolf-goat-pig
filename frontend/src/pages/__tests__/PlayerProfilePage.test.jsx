@@ -186,6 +186,57 @@ describe('PlayerProfilePage badges', () => {
   });
 });
 
+describe('PlayerProfilePage handicap display (issue #320)', () => {
+  test('shows "Pending" with a GHIN hint when handicap_source is "default"', async () => {
+    mockUsePlayerProfile.mockReturnValue({ profile: { id: 999 } });
+    global.fetch = vi.fn(async (url) => {
+      if (String(url).includes('/public-profile')) {
+        return { ok: true, json: async () => ({ ...baseProfile, handicap: 18.0, handicap_source: 'default' }) };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+    renderPage();
+
+    expect(await screen.findByText('Pending')).toBeInTheDocument();
+    expect(screen.getByText(/GHIN sync pending/)).toBeInTheDocument();
+    // The 18.0 placeholder must NOT be shown as a real handicap.
+    expect(screen.queryByText('18')).toBeNull();
+    expect(screen.queryByText('18.0')).toBeNull();
+  });
+
+  test('shows "Pending" when handicap_source is missing', async () => {
+    mockUsePlayerProfile.mockReturnValue({ profile: { id: 999 } });
+    // baseProfile has no handicap_source at all.
+    renderPage();
+
+    expect(await screen.findByText('Pending')).toBeInTheDocument();
+    expect(screen.getByText(/GHIN sync pending/)).toBeInTheDocument();
+  });
+
+  test('shows the GHIN handicap value with a freshness note when source is "ghin"', async () => {
+    mockUsePlayerProfile.mockReturnValue({ profile: { id: 999 } });
+    global.fetch = vi.fn(async (url) => {
+      if (String(url).includes('/public-profile')) {
+        return {
+          ok: true,
+          json: async () => ({
+            ...baseProfile,
+            handicap: 7.6,
+            handicap_source: 'ghin',
+            ghin_last_updated: '2026-07-01T12:00:00Z',
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+    renderPage();
+
+    expect(await screen.findByText('7.6')).toBeInTheDocument();
+    expect(screen.getByText(/GHIN ·/)).toBeInTheDocument();
+    expect(screen.queryByText('Pending')).toBeNull();
+  });
+});
+
 describe('PlayerProfilePage avatar upload', () => {
   test('does not show an upload control on someone else\'s profile', async () => {
     mockUsePlayerProfile.mockReturnValue({ profile: { id: 999 } });

@@ -7,6 +7,7 @@ import {
   getStoredUserEmail,
   adminHeaders,
 } from "../../utils/adminAuth";
+import { usePlayerProfile } from "../../hooks/usePlayerProfile";
 import { apiConfig } from "../../config/api.config";
 
 const API_URL = apiConfig.baseUrl;
@@ -26,7 +27,11 @@ const API_URL = apiConfig.baseUrl;
  */
 const RosterManager = () => {
   const navigate = useNavigate();
-  const { user, isLoading: authLoading } = useAuth0();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth0();
+  const {
+    isAdmin: serverIsAdmin,
+    loading: profileLoading,
+  } = usePlayerProfile();
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
@@ -40,14 +45,24 @@ const RosterManager = () => {
   const [adding, setAdding] = useState(false);
   const [actingId, setActingId] = useState(null);
 
-  // Auth0 identity is authoritative; stored email is a fallback on reload.
-  // No hardcoded default — unknown users are never admins.
+  // The server's is_admin (from /players/me) is authoritative — it mirrors the
+  // backend ADMIN_EMAILS allowlist so the two never drift. The hardcoded email
+  // list is only a fallback while the profile is still loading. No hardcoded
+  // default grants access — unknown users are never admins.
   useEffect(() => {
     if (authLoading) return;
-    const email = user?.email || getStoredUserEmail();
-    setIsAdmin(isAdminEmail(email));
+    // Wait for the profile fetch to resolve before deciding, unless the user
+    // isn't authenticated (no profile will ever load).
+    if (isAuthenticated && profileLoading) return;
+
+    if (serverIsAdmin !== null && serverIsAdmin !== undefined) {
+      setIsAdmin(serverIsAdmin);
+    } else {
+      const email = user?.email || getStoredUserEmail();
+      setIsAdmin(isAdminEmail(email));
+    }
     setCheckingAdmin(false);
-  }, [authLoading, user]);
+  }, [authLoading, user, isAuthenticated, serverIsAdmin, profileLoading]);
 
   const fetchPending = useCallback(async () => {
     setLoading(true);
@@ -177,9 +192,25 @@ const RosterManager = () => {
             <h2 className="text-2xl font-bold text-red-600 mb-4">
               Access Denied
             </h2>
-            <p className="text-gray-600 mb-6">
-              You don't have permission to access this page.
-            </p>
+            {!isAuthenticated ? (
+              <p className="text-gray-600 mb-6" data-testid="denied-signed-out">
+                You're not signed in. Please sign in with an admin account to
+                manage the roster.
+              </p>
+            ) : (
+              <p className="text-gray-600 mb-6" data-testid="denied-not-admin">
+                You're signed in
+                {user?.email ? (
+                  <>
+                    {" "}
+                    as <strong>{user.email}</strong>
+                  </>
+                ) : null}
+                , but this account isn't an admin. Admin access is granted
+                server-side via the <code>ADMIN_EMAILS</code> allowlist — contact
+                the commissioner to be added.
+              </p>
+            )}
             <button
               onClick={() => navigate("/")}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"

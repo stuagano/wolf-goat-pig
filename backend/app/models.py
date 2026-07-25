@@ -217,6 +217,13 @@ class PlayerProfile(Base):
     handicap = Column(Float, default=18.0)
     ghin_id = Column(String, nullable=True, unique=True, index=True)  # GHIN ID for handicap lookup
     ghin_last_updated = Column(String, nullable=True)  # When GHIN data was last synced
+    # Provenance of `handicap`: None/"default" = the 18.0 placeholder (unknown/
+    # pending), "ghin" = authoritative GHIN-synced value, "manual" = user/admin
+    # entered. Lets the UI show "pending" instead of a fake 18.0. See issue #320.
+    handicap_source = Column(String, nullable=True)
+    # ISO timestamp when the first-login welcome email was accepted by the
+    # provider. Null = never (successfully) sent, so a retry is safe. See #318.
+    welcome_email_sent_at = Column(String, nullable=True)
     avatar_url = Column(String, nullable=True)
     avatar_image = Column(Text, nullable=True)  # uploaded avatar, downscaled JPEG as base64
     created_at = Column(String)
@@ -440,6 +447,10 @@ class DailySignup(Base):
     status = Column(String, default="signed_up")  # signed_up, cancelled, played
     created_at = Column(String)
     updated_at = Column(String)
+    # ISO timestamp when the signup confirmation email was accepted by the
+    # provider. Null = not yet sent; used to avoid duplicate confirmations on
+    # retried/duplicate signup requests. See issue #317.
+    confirmation_email_sent_at = Column(String, nullable=True)
 
 
 class PlayerAvailability(Base):

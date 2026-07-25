@@ -15,6 +15,7 @@ export const usePlayerProfile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [needsLegacyName, setNeedsLegacyName] = useState(false);
+  const [legacyNameSuggestion, setLegacyNameSuggestion] = useState(null);
 
   // Fetch current user's profile
   const fetchProfile = useCallback(async () => {
@@ -44,6 +45,10 @@ export const usePlayerProfile = () => {
       // They need it if: no legacy_name set AND they haven't explicitly skipped
       const skipped = localStorage.getItem("legacy_name_skipped");
       setNeedsLegacyName(!data.legacy_name && !skipped);
+
+      // Fuzzy legacy-name match to SUGGEST during onboarding. This is NOT an
+      // auto-link — the account stays unlinked until the user confirms it.
+      setLegacyNameSuggestion(data.legacy_name_suggestion || null);
 
       setError(null);
     } catch (err) {
@@ -116,6 +121,9 @@ export const usePlayerProfile = () => {
     loading,
     error,
     needsLegacyName,
+    legacyNameSuggestion,
+    // Server-side admin allowlist membership (from /players/me). Null until loaded.
+    isAdmin: profile ? !!profile.is_admin : null,
     updateLegacyName,
     skipLegacyName,
     resetSkip,

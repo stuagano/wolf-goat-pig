@@ -17,7 +17,9 @@ const LegacyNameSelector = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedName, setSelectedName] = useState(suggestedName || '');
+  // A fuzzy suggestion is SHOWN via the "Did you mean?" banner but is NOT
+  // pre-selected — the account stays unlinked until the user confirms a choice.
+  const [selectedName, setSelectedName] = useState('');
   const [isOpen, setIsOpen] = useState(false);
 
   // Fetch legacy players list

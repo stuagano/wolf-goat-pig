@@ -4,6 +4,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { acquireAccessToken } from '../../services/authToken';
 import { api } from '../../api/client';
 import { errorDetail } from '../../api/http';
+import { apiConfig } from '../../config/api.config';
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -33,6 +34,7 @@ export default function WgpSignupSheet() {
   const [playerProfile, setPlayerProfile] = useState(null);
   const [signingUp, setSigningUp] = useState(false);
   const [signupMessage, setSignupMessage] = useState(null);
+  const [confirming, setConfirming] = useState(false);
   const [upcomingDays, setUpcomingDays] = useState([]);
   const [loadingUpcoming, setLoadingUpcoming] = useState(true);
 
@@ -84,6 +86,7 @@ export default function WgpSignupSheet() {
   useEffect(() => {
     fetchSignups();
     setSignupMessage(null);
+    setConfirming(false);
   }, [fetchSignups]);
 
   useEffect(() => {
@@ -105,16 +108,37 @@ export default function WgpSignupSheet() {
     s => s.name?.toLowerCase() === myName.toLowerCase()
   );
 
+  // Non-production surfaces (local/preview) never write the LIVE club tee
+  // sheet — they send dry_run so the backend returns live_write:false.
+  const isLive = apiConfig.isProduction;
+
+  const requestSignup = () => {
+    if (!myName) return;
+    setSignupMessage(null);
+    setConfirming(true);
+  };
+
+  const cancelSignup = () => setConfirming(false);
+
   const handleSignup = async () => {
     if (!myName) return;
     setSigningUp(true);
     setSignupMessage(null);
     try {
-      const { error: apiError, response } = await api.POST('/tee-sheet/signup', {
-        body: { date, name: myName },
+      const { data, error: apiError, response } = await api.POST('/tee-sheet/signup', {
+        body: { date, name: myName, dry_run: !isLive },
       });
       if (!response.ok) throw new Error(errorDetail(apiError) || 'Signup failed');
-      setSignupMessage({ type: 'success', text: `You're signed up as ${myName}!` });
+      setConfirming(false);
+      // A dry-run / non-live write did NOT touch the club tee sheet.
+      if (data?.live_write === false || data?.dry_run) {
+        setSignupMessage({
+          type: 'preview',
+          text: `Preview only — the LIVE tee sheet was not changed. In production this would sign up ${myName} for ${formatDate(date)}.`,
+        });
+      } else {
+        setSignupMessage({ type: 'success', text: `You're signed up as ${myName}!` });
+      }
       await fetchSignups();
       await refreshUpcomingCount(date);
     } catch (err) {
@@ -232,8 +256,22 @@ export default function WgpSignupSheet() {
 
       {/* Sign me up */}
       <div style={{ padding: 16, background: '#f0f7ff', borderRadius: 10, border: `1px solid ${theme.colors.primary}22` }}>
-        <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: theme.colors.textSecondary, marginBottom: 10 }}>
-          Sign Up
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: theme.colors.textSecondary }}>
+            Sign Up
+          </div>
+          <span
+            data-testid="signup-env-badge"
+            style={{
+              fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase',
+              padding: '2px 8px', borderRadius: 999,
+              background: isLive ? '#fdecea' : '#e8f0fe',
+              color: isLive ? '#c62828' : '#1565c0',
+              border: `1px solid ${isLive ? '#f5c6cb' : '#b3d1ff'}`,
+            }}
+          >
+            {isLive ? '● LIVE tee sheet' : '● Preview (no live changes)'}
+          </span>
         </div>
         {!isAuthenticated ? (
           <p style={{ color: theme.colors.textSecondary, fontSize: 14, margin: 0 }}>Log in to sign yourself up.</p>
@@ -251,27 +289,77 @@ export default function WgpSignupSheet() {
             ) : (
               <p style={{ margin: '0 0 12px 0', color: theme.colors.textSecondary, fontSize: 14 }}>Loading your profile...</p>
             )}
-            <button
-              onClick={handleSignup}
-              disabled={signingUp || !myName}
-              style={{
-                ...theme.buttonStyle,
-                fontSize: 15, padding: '12px 24px', width: '100%',
-                background: (!myName || signingUp) ? theme.colors.textSecondary : theme.colors.primary,
-                cursor: (!myName || signingUp) ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {signingUp ? 'Signing you up...' : 'Sign Me Up'}
-            </button>
+            {!confirming ? (
+              <button
+                onClick={requestSignup}
+                disabled={signingUp || !myName}
+                style={{
+                  ...theme.buttonStyle,
+                  fontSize: 15, padding: '12px 24px', width: '100%',
+                  background: (!myName || signingUp) ? theme.colors.textSecondary : theme.colors.primary,
+                  cursor: (!myName || signingUp) ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Sign Me Up
+              </button>
+            ) : (
+              <div
+                data-testid="signup-confirm"
+                style={{
+                  padding: 14, borderRadius: 8,
+                  background: isLive ? '#fff8e1' : '#e8f0fe',
+                  border: `1px solid ${isLive ? '#ffe082' : '#b3d1ff'}`,
+                }}
+              >
+                <p style={{ margin: '0 0 12px 0', fontSize: 14, color: theme.colors.textPrimary }}>
+                  {isLive ? (
+                    <>
+                      This will sign up <strong>{myName}</strong> on the{' '}
+                      <strong>LIVE</strong> club tee sheet for <strong>{formatDate(date)}</strong>. Continue?
+                    </>
+                  ) : (
+                    <>
+                      Preview mode — this will <strong>not</strong> change the live tee sheet. It will
+                      preview signing up <strong>{myName}</strong> for <strong>{formatDate(date)}</strong>. Continue?
+                    </>
+                  )}
+                </p>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={handleSignup}
+                    disabled={signingUp}
+                    style={{
+                      ...theme.buttonStyle,
+                      fontSize: 14, padding: '10px 18px', flex: 1,
+                      background: signingUp ? theme.colors.textSecondary : (isLive ? (theme.colors.error || '#c62828') : theme.colors.primary),
+                      cursor: signingUp ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {signingUp ? 'Working...' : (isLive ? 'Yes, sign me up on the LIVE sheet' : 'Yes, preview it')}
+                  </button>
+                  <button
+                    onClick={cancelSignup}
+                    disabled={signingUp}
+                    style={{
+                      fontSize: 14, padding: '10px 18px', borderRadius: 8,
+                      background: 'white', color: theme.colors.textSecondary,
+                      border: '1px solid #ddd', cursor: signingUp ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         )}
         {signupMessage && (
           <div style={{
             marginTop: 12, padding: 10, borderRadius: 6, fontSize: 14, fontWeight: 500,
-            background: signupMessage.type === 'success' ? '#e8f5e9' : '#ffebee',
-            color: signupMessage.type === 'success' ? '#2e7d32' : theme.colors.error,
+            background: signupMessage.type === 'success' ? '#e8f5e9' : signupMessage.type === 'preview' ? '#e8f0fe' : '#ffebee',
+            color: signupMessage.type === 'success' ? '#2e7d32' : signupMessage.type === 'preview' ? '#1565c0' : theme.colors.error,
           }}>
-            {signupMessage.type === 'success' ? '✓ ' : '✗ '}{signupMessage.text}
+            {signupMessage.type === 'success' ? '✓ ' : signupMessage.type === 'preview' ? 'ⓘ ' : '✗ '}{signupMessage.text}
           </div>
         )}
       </div>

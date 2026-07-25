@@ -33,6 +33,45 @@ class TestTeeSheetSignupValidation:
         assert resp.status_code == 422
 
 
+class TestTeeSheetSignupSafety:
+    """Live tee-sheet writes must be gated so preview/testing can't silently
+    mutate the real, shared club sheet (issue #323)."""
+
+    @respx.mock
+    def test_non_production_returns_preview_without_live_write(self, monkeypatch):
+        monkeypatch.delenv("ENVIRONMENT", raising=False)
+        monkeypatch.delenv("TEE_SHEET_ALLOW_LIVE_WRITES", raising=False)
+        route = respx.post(url__startswith="https://thousand-cranes.com").mock(
+            return_value=httpx.Response(200, text="OK")
+        )
+
+        resp = client.post("/tee-sheet/signup", json={"date": "2026-06-20", "name": "Preview Golfer"})
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["live_write"] is False
+        assert body["dry_run"] is True
+        assert body["would_sign_up"] == {"name": "Preview Golfer", "date": "2026-06-20"}
+        # The live CGI was never called.
+        assert not route.called
+
+    @respx.mock
+    def test_explicit_dry_run_never_writes_even_when_live_enabled(self, monkeypatch):
+        monkeypatch.setenv("TEE_SHEET_ALLOW_LIVE_WRITES", "true")
+        route = respx.post(url__startswith="https://thousand-cranes.com").mock(
+            return_value=httpx.Response(200, text="OK")
+        )
+
+        resp = client.post(
+            "/tee-sheet/signup",
+            json={"date": "2026-06-20", "name": "Preview Golfer", "dry_run": True},
+        )
+
+        assert resp.status_code == 200
+        assert resp.json()["live_write"] is False
+        assert not route.called
+
+
 class TestTeeSheetSignupMirror:
     """A successful CGI signup mirrors into daily_signups and emails the player.
 
@@ -42,6 +81,8 @@ class TestTeeSheetSignupMirror:
 
     @respx.mock
     def test_signup_mirrors_to_db_and_sends_confirmation(self, monkeypatch):
+        # Live tee-sheet writes are gated (issue #323); opt this env in explicitly.
+        monkeypatch.setenv("TEE_SHEET_ALLOW_LIVE_WRITES", "true")
         respx.post(url__startswith="https://thousand-cranes.com").mock(return_value=httpx.Response(200, text="OK"))
 
         legacy_name = "Mirrortest Player"

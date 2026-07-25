@@ -164,3 +164,65 @@ describe("RosterManager", () => {
     ).toBeFalsy();
   });
 });
+
+// Server-driven admin gating (issue #316): /players/me is_admin is authoritative
+// and overrides the hardcoded ADMIN_EMAILS fallback in both directions.
+function installServerAdminFetch({ isAdmin, pending = PENDING } = {}) {
+  global.fetch.mockImplementation((url, opts = {}) => {
+    if (url.endsWith("/players/me")) {
+      return okJson({ id: 1, name: "Someone", is_admin: isAdmin });
+    }
+    if (url.includes("/legacy-players/pending")) {
+      return okJson({ count: pending.length, status: "pending", players: pending });
+    }
+    if (url.endsWith("/legacy-players") && opts.method === "POST") {
+      return okJson({ added: true, canonical_name: "Jane Smith" });
+    }
+    return okJson({});
+  });
+}
+
+describe("RosterManager server-driven admin", () => {
+  test("server is_admin:true grants access even when the email is NOT in the hardcoded list", async () => {
+    mockAuth = {
+      user: { email: "random@nobody.com" },
+      isAuthenticated: true,
+      isLoading: false,
+      getAccessTokenSilently: vi.fn().mockResolvedValue("token"),
+    };
+    localStorage.setItem("userEmail", "random@nobody.com");
+    installServerAdminFetch({ isAdmin: true });
+
+    render(<RosterManager />);
+    // Roster content loads because the server says this account is an admin.
+    expect(await screen.findByTestId("pending-row-11")).toBeInTheDocument();
+    expect(screen.queryByText("Access Denied")).not.toBeInTheDocument();
+  });
+
+  test("server is_admin:false denies access even when the email IS in the hardcoded list", async () => {
+    mockAuth = {
+      user: { email: ADMIN_EMAIL },
+      isAuthenticated: true,
+      isLoading: false,
+      getAccessTokenSilently: vi.fn().mockResolvedValue("token"),
+    };
+    localStorage.setItem("userEmail", ADMIN_EMAIL);
+    installServerAdminFetch({ isAdmin: false });
+
+    render(<RosterManager />);
+    expect(await screen.findByText("Access Denied")).toBeInTheDocument();
+    // "signed in but not an admin" copy, mentioning the ADMIN_EMALS allowlist.
+    expect(screen.getByTestId("denied-not-admin")).toHaveTextContent(/ADMIN_EMAILS/);
+    expect(screen.queryByTestId("denied-signed-out")).not.toBeInTheDocument();
+  });
+
+  test("signed-out visitors get the 'not signed in' denial copy", async () => {
+    mockAuth = { user: null, isAuthenticated: false, isLoading: false };
+    localStorage.setItem("userEmail", "");
+
+    render(<RosterManager />);
+    expect(await screen.findByText("Access Denied")).toBeInTheDocument();
+    expect(screen.getByTestId("denied-signed-out")).toBeInTheDocument();
+    expect(screen.queryByTestId("denied-not-admin")).not.toBeInTheDocument();
+  });
+});

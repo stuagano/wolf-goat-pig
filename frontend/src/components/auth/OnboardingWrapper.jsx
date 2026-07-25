@@ -12,9 +12,9 @@ import usePlayerProfile from '../../hooks/usePlayerProfile';
 const OnboardingWrapper = ({ children }) => {
   const { isAuthenticated, isLoading: authLoading } = useAuth0();
   const {
-    profile,
     loading: profileLoading,
     needsLegacyName,
+    legacyNameSuggestion,
     updateLegacyName,
     skipLegacyName
   } = usePlayerProfile();
@@ -29,9 +29,10 @@ const OnboardingWrapper = ({ children }) => {
     return children;
   }
 
-  // Calculate suggested name based on fuzzy match (if any)
-  // The backend already attempted this, so check if profile has a suggestion
-  const suggestedName = profile?.legacy_name || null;
+  // Fuzzy legacy-name match to SUGGEST (not auto-linked). The backend returns
+  // this as legacy_name_suggestion; the account's legacy_name stays null until
+  // the user explicitly confirms in the modal.
+  const suggestedName = legacyNameSuggestion || null;
 
   return (
     <>

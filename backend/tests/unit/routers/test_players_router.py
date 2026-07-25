@@ -4,10 +4,87 @@ import uuid
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
+from app.database import get_db
 from app.main import app
+from app.models import Base, PlayerProfile
+from app.services import legacy_player_service as legacy_svc
+from app.services.auth_service import get_current_user
 
 client = TestClient(app)
+
+_me_engine = create_engine("sqlite:///./test_players_me.db", connect_args={"check_same_thread": False})
+_MeSession = sessionmaker(autocommit=False, autoflush=False, bind=_me_engine)
+
+
+def _make_user(**kwargs) -> PlayerProfile:
+    """A minimally-valid (unsaved) profile for GET /players/me overrides."""
+    defaults = {
+        "id": 1,
+        "name": "Test Golfer",
+        "email": "golfer@example.com",
+        "legacy_name": "Test Golfer",
+        "handicap": 18.0,
+        "handicap_source": "default",
+        "is_active": 1,
+        "is_ai": 0,
+        "created_at": "2026-01-01T00:00:00",
+    }
+    defaults.update(kwargs)
+    return PlayerProfile(**defaults)
+
+
+class TestMyProfileComputedFields:
+    """GET /players/me adds computed is_admin (#316) and legacy_name_suggestion (#322)."""
+
+    def setup_method(self):
+        Base.metadata.create_all(bind=_me_engine)
+
+        def _get_db():
+            session = _MeSession()
+            try:
+                yield session
+            finally:
+                session.close()
+
+        app.dependency_overrides[get_db] = _get_db
+
+    def teardown_method(self):
+        app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(get_db, None)
+        Base.metadata.drop_all(bind=_me_engine)
+
+    def test_is_admin_true_for_allowlisted_email(self, monkeypatch):
+        monkeypatch.setenv("ADMIN_EMAILS", "boss@example.com")
+        app.dependency_overrides[get_current_user] = lambda: _make_user(email="boss@example.com")
+        resp = client.get("/players/me")
+        assert resp.status_code == 200
+        assert resp.json()["is_admin"] is True
+
+    def test_is_admin_false_for_non_allowlisted_email(self, monkeypatch):
+        monkeypatch.setenv("ADMIN_EMAILS", "boss@example.com")
+        app.dependency_overrides[get_current_user] = lambda: _make_user(email="nobody@example.com")
+        resp = client.get("/players/me")
+        assert resp.status_code == 200
+        assert resp.json()["is_admin"] is False
+
+    def test_fuzzy_suggestion_surfaced_when_unlinked(self):
+        seed = _MeSession()
+        try:
+            legacy_svc.add_legacy_player("Jonathan Smith", db=seed)
+        finally:
+            seed.close()
+
+        app.dependency_overrides[get_current_user] = lambda: _make_user(
+            name="Jonathon Smith", legacy_name=None, email="jon@example.com"
+        )
+        resp = client.get("/players/me")
+        data = resp.json()
+        assert data["legacy_name"] is None
+        # A fuzzy match is surfaced as a suggestion, never auto-linked.
+        assert data["legacy_name_suggestion"] == "Jonathan Smith"
 
 
 def unique_name(prefix="Player"):

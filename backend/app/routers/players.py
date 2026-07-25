@@ -158,9 +158,27 @@ def get_all_players_availability(db: Session = Depends(get_db)) -> list[dict[str
 @handle_api_errors(operation_name="get my profile")
 async def get_my_profile(
     current_user: models.PlayerProfile = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> schemas.PlayerProfileResponse:
-    """Get current authenticated user's profile."""
-    return schemas.PlayerProfileResponse.model_validate(current_user)
+    """Get current authenticated user's profile.
+
+    Adds two computed fields not stored on the row:
+    - ``legacy_name_suggestion``: when the account has no confirmed legacy link,
+      a fuzzy roster match to *suggest* (never auto-persist) in onboarding (#322).
+    - ``is_admin``: server-side ADMIN_EMAILS membership so the client doesn't
+      depend on a hardcoded allowlist that can drift (#316).
+    """
+    from ..services.legacy_player_service import find_similar_players
+    from ..utils.admin_auth import get_admin_emails
+
+    profile = schemas.PlayerProfileResponse.model_validate(current_user)
+
+    if not current_user.legacy_name:
+        suggestions = find_similar_players(current_user.name, max_results=1, db=db)
+        profile.legacy_name_suggestion = suggestions[0] if suggestions else None
+
+    profile.is_admin = bool(current_user.email and current_user.email in get_admin_emails())
+    return profile
 
 
 @router.put("/me/legacy-name", response_model=schemas.PlayerProfileResponse)

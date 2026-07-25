@@ -119,8 +119,13 @@ class GHINService:
             handicap_data = await self._fetch_handicap_from_ghin(ghin_id_str)
 
             if handicap_data:
-                # Update player profile with latest handicap - use setattr to avoid Column type errors
-                player.handicap = handicap_data.get("handicap_index", player.handicap)
+                # Only overwrite the stored handicap when GHIN actually returned
+                # a value; otherwise keep the last known good one (never clobber
+                # it with the 18.0 placeholder on a partial/failed lookup). #320
+                new_index = handicap_data.get("handicap_index")
+                if new_index is not None:
+                    player.handicap = new_index
+                    player.handicap_source = "ghin"  # authoritative, not the default placeholder
                 player.ghin_last_updated = utc_now().isoformat()
 
                 # Store handicap history
