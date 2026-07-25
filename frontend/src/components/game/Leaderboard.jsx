@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '../ui';
 import { useSheetSync } from '../../context';
-import { apiConfig } from '../../config/api.config';
+import { api } from '../../api/client';
 
 const Leaderboard = () => {
   const { syncData: liveLeaderboardData, syncStatus, error: syncError, performLiveSync } = useSheetSync();
@@ -13,13 +13,11 @@ const Leaderboard = () => {
   useEffect(() => {
     // Both fetches are best-effort decorations (spreadsheet link, LivSow team
     // chips) — on failure the leaderboard renders fine without them.
-    fetch(`${apiConfig.baseUrl}/data/leaderboard-config`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.sheet_url) setSheetUrl(d.sheet_url); })
+    api.GET('/data/leaderboard-config')
+      .then(({ data }) => { if (data?.sheet_url) setSheetUrl(data.sheet_url); })
       .catch(() => {});
-    fetch(`${apiConfig.baseUrl}/data/livsow/team-map`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setTeamMap(d); })
+    api.GET('/data/livsow/team-map')
+      .then(({ data }) => { if (data) setTeamMap(data); })
       .catch(() => {});
   }, []);
 

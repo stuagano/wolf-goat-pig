@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { Link } from 'react-router-dom';
-import { apiConfig } from '../../config/api.config';
+import { api } from '../../api/client';
 import { RoleTag, WeekCell, slugify, teamColor } from './livsow/shared';
 import LivSowTransactions from './livsow/LivSowTransactions';
 import GroupMeFeed from '../chat/GroupMeFeed';
@@ -158,9 +158,8 @@ const LivSowLeaderboard = () => {
 
   useEffect(() => {
     // Best-effort: recent transactions feed — page works without it
-    fetch(`${apiConfig.baseUrl}/data/livsow/transactions?limit=10`)
-      .then(r => (r.ok ? r.json() : null))
-      .then(d => { if (d?.transactions) setRecentMoves(d.transactions); })
+    api.GET('/data/livsow/transactions', { params: { query: { limit: 10 } } })
+      .then(({ data }) => { if (data?.transactions) setRecentMoves(data.transactions); })
       .catch(() => {});
   }, []);
 
@@ -168,10 +167,10 @@ const LivSowLeaderboard = () => {
     try {
       setLoading(true);
       setError(null);
-      const url = `${apiConfig.baseUrl}/data/livsow/leaderboard${refresh ? '?refresh=true' : ''}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
+      const { data: json, response } = await api.GET('/data/livsow/leaderboard', {
+        params: { query: refresh ? { refresh: true } : {} },
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       setData(json);
       // Default: expand the top team
       if (json.teams?.length > 0 && expandedTeam === null) {
