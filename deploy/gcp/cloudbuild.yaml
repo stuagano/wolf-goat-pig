@@ -20,8 +20,8 @@ substitutions:
   # Comma-separated KEY=SECRET:latest pairs, mirrored from the Actions workflow.
   _SECRETS: "DATABASE_URL=DATABASE_URL:latest,GHIN_API_USER=GHIN_API_USER:latest,GHIN_API_PASS=GHIN_API_PASS:latest,RESEND_API_KEY=RESEND_API_KEY:latest,BOOKING_SERVICE_SECRET=BOOKING_SERVICE_SECRET:latest,FORETEES_ENCRYPTION_KEY=FORETEES_ENCRYPTION_KEY:latest,INTERNAL_JOB_TOKEN=INTERNAL_JOB_TOKEN:latest"
 
-# The image Cloud Build pushes on success ($SHORT_SHA is provided by triggers;
-# pass --substitutions=SHORT_SHA=... for manual submits).
+# Also push these tags after all steps succeed (redundant with the explicit push
+# step below, but keeps `gcloud builds submit --async` consumers happy).
 images:
   - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}:${SHORT_SHA}"
   - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}:latest"
@@ -40,19 +40,18 @@ steps:
       - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}:latest"
       - backend
 
-  # Push before deploy — the top-level `images:` block only pushes after all steps.
+  # ── Push before deploy — top-level `images:` only runs AFTER all steps, so
+  #    Cloud Run would otherwise fail with "Image not found".
   - id: push
     name: gcr.io/cloud-builders/docker
-    waitFor: [build]
     args:
       - push
       - --all-tags
-      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}:${SHORT_SHA}"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}"
 
-  # ── Deploy to Cloud Run (image must already exist in Artifact Registry) ──────
+  # ── Deploy to Cloud Run ────────────────────────────────────────────────────
   - id: deploy
     name: gcr.io/google.com/cloudsdktool/cloud-sdk
-    waitFor: [push]
     entrypoint: gcloud
     args:
       - run
