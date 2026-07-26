@@ -238,15 +238,22 @@ from .utils.admin_auth import require_admin
 #     )
 
 # CORS middleware
-# Configure origins based on environment
+# Configure origins based on environment. Always honor FRONTEND_URL so Firebase
+# Hosting (and any future SPA origin) works without another code change.
 allowed_origins = [
-    "https://wolf-goat-pig.vercel.app",  # Production frontend
-    "https://wolf-goat-pig-frontend.onrender.com",  # Alternative frontend URL
+    "https://wolf-goat-pig.vercel.app",  # Production frontend (until decommission)
+    "https://wolf-goat-pig-frontend.onrender.com",  # Legacy frontend URL
+    "https://seventh-country-232522.web.app",  # Firebase Hosting canary
+    "https://seventh-country-232522.firebaseapp.com",  # Firebase alternate domain
 ]
+
+_frontend_url = (os.getenv("FRONTEND_URL") or "").rstrip("/")
+if _frontend_url and _frontend_url not in allowed_origins:
+    allowed_origins.append(_frontend_url)
 
 # Add localhost for development and local testing
 # Note: localhost is safe for local Podman/Docker testing even with ENVIRONMENT=production
-if os.getenv("ENVIRONMENT") != "production" or os.getenv("FRONTEND_URL", "").startswith("http://localhost"):
+if os.getenv("ENVIRONMENT") != "production" or _frontend_url.startswith("http://localhost"):
     allowed_origins.extend(
         [
             "http://localhost:3000",  # Local development
