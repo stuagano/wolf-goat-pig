@@ -182,17 +182,77 @@ class AuthService:
             raise HTTPException(status_code=401, detail="Invalid token")
 
     @staticmethod
+    def _find_player_by_auth0_id(db: Session, auth0_id: str) -> PlayerProfile | None:
+        """Look up a profile by preferences.auth0_id (portable JSON path)."""
+        if not auth0_id:
+            return None
+        return (
+            db.query(PlayerProfile)
+            .filter(PlayerProfile.preferences["auth0_id"].as_string() == auth0_id)
+            .first()
+        )
+
+    @staticmethod
+    def enrich_user_from_userinfo(auth0_user: dict[str, Any], access_token: str) -> dict[str, Any]:
+        """Fill email/name/picture from Auth0 /userinfo when the access token omits them.
+
+        Auth0 access tokens for a custom API audience often only contain `sub`.
+        Email/profile claims live on the ID token unless an Action copies them.
+        /userinfo still returns them when the token was issued with those scopes.
+        """
+        if auth0_user.get("email") and auth0_user.get("name"):
+            return auth0_user
+        if not AUTH0_DOMAIN or not access_token:
+            return auth0_user
+
+        try:
+            resp = _httpx.get(
+                f"https://{AUTH0_DOMAIN}/userinfo",
+                headers={"Authorization": f"Bearer {access_token}"},
+                timeout=10.0,
+            )
+            if resp.status_code != 200:
+                logger.warning("Auth0 /userinfo returned %s", resp.status_code)
+                return auth0_user
+            info = resp.json()
+        except Exception as exc:
+            logger.warning("Auth0 /userinfo failed: %s", exc)
+            return auth0_user
+
+        enriched = dict(auth0_user)
+        for key in ("email", "name", "picture", "nickname"):
+            if not enriched.get(key) and info.get(key):
+                enriched[key] = info[key]
+        return enriched
+
+    @staticmethod
     def get_or_create_player_profile(db: Session, auth0_user: dict[str, Any]) -> PlayerProfile:
         """Get or create a PlayerProfile based on Auth0 user data"""
 
         # Extract user info from Auth0 payload
         auth0_id = auth0_user.get("sub")
-        email = auth0_user.get("email")
-        name = auth0_user.get("name", email.split("@")[0] if email else "Unknown Player")
+        email = (auth0_user.get("email") or "").strip() or None
+        name = auth0_user.get("name") or (email.split("@")[0] if email else None) or "Unknown Player"
         picture = auth0_user.get("picture")
 
-        # Try to find existing player by email
-        player = db.query(PlayerProfile).filter(PlayerProfile.email == email).first()
+        if not auth0_id:
+            raise HTTPException(status_code=401, detail="Token missing subject")
+
+        # Prefer stable Auth0 subject over email. Never query email IS NULL —
+        # that reclaim the first seed roster row with a null email (Dave, etc.).
+        player = AuthService._find_player_by_auth0_id(db, auth0_id)
+
+        if not player and email:
+            player = db.query(PlayerProfile).filter(PlayerProfile.email == email).first()
+
+        if not player and not email:
+            # Creating a brand-new profile with no email would also persist NULL
+            # and poison future logins. Fail closed until /userinfo (or Auth0
+            # Actions) supplies an email claim.
+            raise HTTPException(
+                status_code=401,
+                detail="Token missing email claim — re-login with email scope or add email to the API token",
+            )
 
         if not player:
             # Match name to the legacy tee sheet system (same session as the
@@ -276,15 +336,26 @@ class AuthService:
             # Update existing player with Auth0 info if needed
             update_needed = False
 
+            if email and not player.email:
+                player.email = email
+                update_needed = True
+
+            if (
+                name
+                and name != player.name
+                and player.name in (None, "", "Unknown Player")
+            ):
+                player.name = name
+                update_needed = True
+
             if not player.avatar_url and picture:
                 player.avatar_url = picture
                 update_needed = True
 
-            if player.preferences and "auth0_id" not in player.preferences:
-                # Create new dict to trigger SQLAlchemy change detection
-                updated_prefs = dict(player.preferences)
-                updated_prefs["auth0_id"] = auth0_id
-                player.preferences = updated_prefs
+            prefs = dict(player.preferences) if player.preferences else {}
+            if prefs.get("auth0_id") != auth0_id:
+                prefs["auth0_id"] = auth0_id
+                player.preferences = prefs
                 update_needed = True
 
             if update_needed:
@@ -337,6 +408,8 @@ def get_current_user(
 
     # Verify token and get Auth0 user info
     auth0_user = auth_service.verify_token(token)
+    # Access tokens often omit email/name — pull them from /userinfo when needed.
+    auth0_user = auth_service.enrich_user_from_userinfo(auth0_user, token.credentials)
 
     # Get or create player profile
     player = auth_service.get_or_create_player_profile(db, auth0_user)

@@ -223,6 +223,57 @@ class TestPlayerProfileManagement:
         # Original preferences should be preserved
         assert player.preferences.get("ai_difficulty") == "easy"
 
+    def test_null_email_does_not_reclaim_seed_profile(self, db):
+        """Missing email must not match seed rows with NULL email (Dave reclaim bug)."""
+        seed = PlayerProfile(
+            name="Dave",
+            email=None,
+            handicap=16.5,
+            created_at=datetime.now().isoformat(),
+            preferences={"ai_difficulty": "medium"},
+        )
+        db.add(seed)
+        db.commit()
+
+        service = AuthService()
+        auth0_user = {"sub": "google-oauth2|stuart"}  # no email claim
+
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException) as exc:
+            service.get_or_create_player_profile(db, auth0_user)
+        assert exc.value.status_code == 401
+
+        db.refresh(seed)
+        assert seed.preferences.get("auth0_id") is None
+        assert seed.name == "Dave"
+
+    def test_lookup_by_auth0_id_prefers_subject_over_email(self, db):
+        """Returning users are found by preferences.auth0_id even if email differs."""
+        linked = PlayerProfile(
+            name="Stuart Gano",
+            email="old@example.com",
+            legacy_name="Stuart Gano",
+            handicap=10.0,
+            created_at=datetime.now().isoformat(),
+            preferences={"auth0_id": "google-oauth2|stuart"},
+        )
+        db.add(linked)
+        db.commit()
+
+        service = AuthService()
+        player = service.get_or_create_player_profile(
+            db,
+            {
+                "sub": "google-oauth2|stuart",
+                "email": "new@example.com",
+                "name": "Stuart Gano",
+            },
+        )
+        assert player.id == linked.id
+        assert player.name == "Stuart Gano"
+        assert player.legacy_name == "Stuart Gano"
+
     def test_email_preferences_created(self, db, mock_auth0_user):
         """Test that email preferences are created for new players."""
         service = AuthService()
