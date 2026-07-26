@@ -10,14 +10,18 @@ Infrastructure-as-code for the migration designed in
 | Phase | Status |
 |---|---|
 | 0 Foundation | Done — APIs, Artifact Registry, SAs, WIF, Secret Manager |
-| 1 Cloud Run | Live — `wolf-goat-pig-api` (still on Render Postgres) |
-| 2 Cloud SQL | Pending / in progress |
-| 3 Firebase Hosting | Pending / in progress |
-| 4 Cloud Scheduler | Pending |
+| 1 Cloud Run | Live — `wolf-goat-pig-api` |
+| 2 Cloud SQL | Live — `wgp-postgres` (Enterprise `db-f1-micro`, Postgres 17) |
+| 3 Firebase Hosting | Canary live — https://seventh-country-232522.web.app |
+| 4 Cloud Scheduler | Live — 6 jobs → `/internal/jobs/*` |
+| 5 Decommission | Checklist ready — keep Vercel/Render until soak ([DECOMMISSION.md](DECOMMISSION.md)) |
 
-**Cloud Run URL:** https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app
+**Cloud Run URL:** https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app  
+**Firebase canary:** https://seventh-country-232522.web.app  
 
-Auth stays on **Auth0** throughout (design decision D4).
+Cloud SQL is intentionally **cheap**: Enterprise edition + `db-f1-micro` (not Enterprise Plus).
+
+Auth stays on **Auth0** throughout (design decision D4). Add Firebase URLs per [phase3-hosting/AUTH0_CUTOVER.md](phase3-hosting/AUTH0_CUTOVER.md).
 
 ## Target architecture
 
