@@ -40,9 +40,19 @@ steps:
       - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}:latest"
       - backend
 
-  # ── Deploy to Cloud Run (image is pushed by the `images:` block first) ──────
+  # Push before deploy — the top-level `images:` block only pushes after all steps.
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    waitFor: [build]
+    args:
+      - push
+      - --all-tags
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}:${SHORT_SHA}"
+
+  # ── Deploy to Cloud Run (image must already exist in Artifact Registry) ──────
   - id: deploy
     name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    waitFor: [push]
     entrypoint: gcloud
     args:
       - run
