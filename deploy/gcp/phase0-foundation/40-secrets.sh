@@ -25,10 +25,7 @@ SECRETS=(
   GHIN_API_PASS
   RESEND_API_KEY
   BOOKING_SERVICE_SECRET
-  FORETEES_USERNAME
-  FORETEES_PASSWORD
   FORETEES_ENCRYPTION_KEY  # Fernet key for per-user ForeTees creds — do not lose
-  MONITOR_KEY              # guards GET /health/external
   INTERNAL_JOB_TOKEN       # Phase 4: guards POST /internal/jobs/* (Cloud Scheduler)
 )
 

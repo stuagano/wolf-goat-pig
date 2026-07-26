@@ -12,12 +12,16 @@ them in with `--set-secrets`.
 | `GHIN_API_PASS` | `GHIN_API_PASS` | |
 | `RESEND_API_KEY` | `RESEND_API_KEY` | Email delivery (Resend). |
 | `BOOKING_SERVICE_SECRET` | `BOOKING_SERVICE_SECRET` | Shared secret with the ForeTees booking microservice. |
-| `FORETEES_USERNAME` | `FORETEES_USERNAME` | |
-| `FORETEES_PASSWORD` | `FORETEES_PASSWORD` | |
 | `FORETEES_ENCRYPTION_KEY` | `FORETEES_ENCRYPTION_KEY` | Fernet key for per-user ForeTees creds — **losing/rotating it breaks stored creds**. |
-| `MONITOR_KEY` | `MONITOR_KEY` | Guards `GET /health/external`. |
-| `INTERNAL_JOB_TOKEN` | — (new) | Phase 4: shared secret guarding `POST /internal/jobs/*`. Cloud Scheduler sends it as the `X-Internal-Job-Token` header. Endpoints are **disabled** (503) when unset. |
+| `INTERNAL_JOB_TOKEN` | — (new) | Phase 4: shared secret guarding `POST /internal/jobs/*`. Cloud Scheduler sends it as the `X-Internal-Job-Token` header. Endpoints are **disabled** (503) when unset. Generate with `openssl rand -hex 32`. |
 | `CLOUD_SQL_PASSWORD` | — (new) | Phase 2 only: the Cloud SQL `wgp` user password. Not injected into the app; used by provisioning + to build `DATABASE_URL`. |
+
+## Intentionally **not** wired on GCP
+
+| Secret | Why dropped |
+|---|---|
+| `MONITOR_KEY` | Uptime is Cloud Monitoring, not `/health/external` + UptimeRobot. Endpoint stays open/fail-open when unset (dev-safe). |
+| `FORETEES_USERNAME` / `FORETEES_PASSWORD` | Direct ForeTees login/health probe only. Booking still works via `BOOKING_SERVICE_*`. Without these, ForeTees health reports `not_configured`. |
 
 ## What is **not** a secret (stays in `env.production.yaml`)
 
@@ -30,7 +34,7 @@ the various `LEGACY_SIGNUP_*` / URL / tuning values. These mirror the plain
 
 ```bash
 printf '%s' 'THE-VALUE' | \
-  gcloud --project=stuartgano-n8n secrets versions add DATABASE_URL --data-file=-
+  gcloud --project=seventh-country-232522 secrets versions add DATABASE_URL --data-file=-
 ```
 
 Or seed everything at once from a local env (values already exported):
