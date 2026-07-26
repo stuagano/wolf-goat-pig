@@ -68,23 +68,54 @@ jobs:
       - name: Build & deploy via Cloud Build
         run: |
           set -euo pipefail
-          gcloud builds submit \
-            --project="${{ vars.GCP_PROJECT_ID }}" \
-            --region="${{ vars.GCP_REGION }}" \
-            --config=deploy/gcp/cloudbuild.yaml \
-            --substitutions="SHORT_SHA=${GITHUB_SHA::12},_REGION=${{ vars.GCP_REGION }}" \
-            .
+          PROJECT="${{ vars.GCP_PROJECT_ID }}"
+          REGION="${{ vars.GCP_REGION }}"
+          BUILD_ID="$(
+            gcloud builds submit \
+              --async \
+              --project="${PROJECT}" \
+              --region="${REGION}" \
+              --config=deploy/gcp/cloudbuild.yaml \
+              --substitutions="SHORT_SHA=${GITHUB_SHA::12},_REGION=${REGION}" \
+              --format='value(id)' \
+              .
+          )"
+          echo "Cloud Build id: ${BUILD_ID}"
+          # Async submit avoids the 60 polls/min quota on synchronous gcloud builds submit.
+          for attempt in $(seq 1 60); do
+            STATUS="$(
+              gcloud builds describe "${BUILD_ID}" \
+                --project="${PROJECT}" \
+                --region="${REGION}" \
+                --format='value(status)'
+            )"
+            echo "[$attempt] build status=${STATUS}"
+            case "${STATUS}" in
+              SUCCESS) exit 0 ;;
+              FAILURE|INTERNAL_ERROR|TIMEOUT|CANCELLED)
+                gcloud builds log "${BUILD_ID}" --project="${PROJECT}" --region="${REGION}" | tail -80
+                exit 1
+                ;;
+            esac
+            sleep 30
+          done
+          echo "Timed out waiting for Cloud Build ${BUILD_ID}"
+          exit 1
 
-      - name: Smoke test /ready
+      - name: Smoke test /ready and /players/me auth
         run: |
           set -euo pipefail
           URL="$(gcloud run services describe "${RUN_SERVICE}" \
             --project="${{ vars.GCP_PROJECT_ID }}" --region="${{ vars.GCP_REGION }}" \
             --format='value(status.url)')"
           echo "Service URL: ${URL}"
-          code="$(curl -s -o /dev/null -w '%{http_code}' "${URL}/ready")"
-          echo "GET /ready -> ${code}"
-          test "${code}" = "200"
+          ready_code="$(curl -s -o /dev/null -w '%{http_code}' "${URL}/ready")"
+          echo "GET /ready -> ${ready_code}"
+          test "${ready_code}" = "200"
+          auth_code="$(curl -s -o /dev/null -w '%{http_code}' \
+            -H 'Authorization: Bearer junk' "${URL}/players/me")"
+          echo "GET /players/me (junk token) -> ${auth_code}"
+          test "${auth_code}" = "401"
 
   deploy-frontend:
     # Manual-only — never runs on push, even with GCP_AUTO_DEPLOY set.

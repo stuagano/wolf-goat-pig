@@ -1,16 +1,25 @@
-# Wolf Goat Pig on Google Cloud — deployment scaffolding
+# Wolf Goat Pig on Google Cloud
 
 Infrastructure-as-code for the migration designed in
 [`docs/architecture/FIREBASE_MIGRATION_DESIGN.md`](../../docs/architecture/FIREBASE_MIGRATION_DESIGN.md).
-Target project: **`stuartgano-n8n`**, region **`us-central1`**.
 
-> **Scope & status.** This is *scaffolding*: reviewable scripts, a CI deploy
-> workflow, and runbooks. Nothing here has been applied to the live project.
-> Each phase is independently shippable and reversible, matching the design doc's
-> phased plan. Auth stays on **Auth0** throughout (design decision D4) — no auth
-> migration here.
+**Live project:** `seventh-country-232522` (`us-central1`)
 
-## Target architecture (recap)
+## Current status
+
+| Phase | Status |
+|---|---|
+| 0 Foundation | Done — APIs, Artifact Registry, SAs, WIF, Secret Manager |
+| 1 Cloud Run | Live — `wolf-goat-pig-api` (still on Render Postgres) |
+| 2 Cloud SQL | Pending / in progress |
+| 3 Firebase Hosting | Pending / in progress |
+| 4 Cloud Scheduler | Pending |
+
+**Cloud Run URL:** https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app
+
+Auth stays on **Auth0** throughout (design decision D4).
+
+## Target architecture
 
 ```
 Auth0 (unchanged) → JWT
@@ -25,83 +34,68 @@ Cloud Scheduler → Cloud Run jobs     └→ Cloud Storage (future: scorecard i
 |---|---|---|
 | `config.env.example` | — | Copy to `config.env` (gitignored); single source of config. |
 | `lib/common.sh` | — | Shared shell helpers (config load, derived names, logging). |
-| `phase0-foundation/` | 0 | Enable APIs, Artifact Registry, service accounts, Workload Identity Federation, Secret Manager, Cloud Build IAM. |
+| `phase0-foundation/` | 0 | Enable APIs, Artifact Registry, service accounts, WIF, Secret Manager. |
 | `cloudbuild.yaml` | 1 | Cloud Build pipeline: build → push → deploy to Cloud Run. |
-| `phase1-cloud-run/` | 1 | Cloud Run env file, deploy notes, native Cloud Build trigger script. |
+| `phase1-cloud-run/` | 1 | Cloud Run env file, deploy notes. |
 | `phase2-cloud-sql/` | 2 | Provision Cloud SQL + Postgres migration runbook. |
-| `phase3-hosting/` | 3 | Firebase Hosting config (`firebase.json`, `.firebaserc`). |
+| `phase3-hosting/` | 3 | Firebase Hosting config (`firebase.json`). |
 | `phase4-scheduling/` | 4 | Cloud Scheduler → Cloud Run jobs. |
 | `secrets.md` | — | Secret Manager ↔ render.yaml mapping. |
-| `../../.github/workflows/deploy-gcp.yml` | 1, 3 | GitHub Actions → Cloud Build (keyless WIF). Manual by default; opt-in auto-deploy on merge. |
-
-Phase **0.5** (remove WebSockets → stateless HTTP, design D7) already shipped in
-**PR #312**, so the app is already Cloud-Run-ready (interchangeable instances).
+| `DECOMMISSION.md` | 5 | Render/Vercel cutover checklist. |
+| `../../.github/workflows/deploy-gcp.yml` | 1, 3 | GitHub Actions → Cloud Build (keyless WIF). |
 
 ## Prerequisites
 
-- `gcloud` CLI, authenticated as a project owner/editor of `stuartgano-n8n`.
-- `docker` (for the manual backend build path; CI has its own).
-- `firebase-tools` (Phase 3 manual path; CI installs it).
-- Billing enabled on the project (Cloud Run, Cloud SQL, Artifact Registry bill).
+- `gcloud` CLI, authenticated as project owner on `seventh-country-232522`.
+- Billing enabled.
+- GitHub Actions variables set (see below).
 
 ```bash
 cp deploy/gcp/config.env.example deploy/gcp/config.env
-# review values, then:
 source deploy/gcp/config.env
 ```
 
 ## Order of operations
 
 ```bash
-# ── Phase 0 — foundation (one-time) ──────────────────────────────────────────
+# Phase 0 — foundation (one-time)
 ./deploy/gcp/phase0-foundation/00-enable-apis.sh
 ./deploy/gcp/phase0-foundation/10-artifact-registry.sh
 ./deploy/gcp/phase0-foundation/20-service-accounts.sh
-./deploy/gcp/phase0-foundation/25-cloud-build-iam.sh                # Cloud Build SA deploy roles
-./deploy/gcp/phase0-foundation/30-workload-identity-federation.sh   # prints repo vars to set
-./deploy/gcp/phase0-foundation/40-secrets.sh                        # then populate values (secrets.md)
+./deploy/gcp/phase0-foundation/25-cloud-build-iam.sh
+./deploy/gcp/phase0-foundation/30-workload-identity-federation.sh
+./deploy/gcp/phase0-foundation/40-secrets.sh
 
-# ── Phase 1 — compute (Cloud Build pipeline) ─────────────────────────────────
-# Set the printed GitHub Actions Variables, then run the workflow:
-#   Actions → "Deploy to GCP" → deploy_backend = true
-# It calls `gcloud builds submit --config deploy/gcp/cloudbuild.yaml`.
-# Opt-in auto-deploy on merge: set repo variable GCP_AUTO_DEPLOY=true.
-# (manual submit / native trigger: deploy/gcp/phase1-cloud-run/README.md)
+# Phase 1 — compute
+# Actions → Deploy to GCP → deploy_backend=true
+# Or: GCP_AUTO_DEPLOY=true for push-to-main
 
-# ── Phase 2 — database ───────────────────────────────────────────────────────
+# Phase 3 — hosting
+# Set VITE_API_URL, then Actions → deploy_frontend=true
+
+# Phase 2 — database
 ./deploy/gcp/phase2-cloud-sql/10-provision.sh
-# then follow deploy/gcp/phase2-cloud-sql/migration-runbook.md
+# follow deploy/gcp/phase2-cloud-sql/migration-runbook.md
 
-# ── Phase 3 — hosting ────────────────────────────────────────────────────────
-#   Actions → "Deploy to GCP" → deploy_frontend = true
-# (see deploy/gcp/phase3-hosting/README.md for API-connectivity options)
-
-# ── Phase 4 — scheduling (needs an app code change first) ────────────────────
+# Phase 4 — scheduling
+export INTERNAL_JOB_TOKEN="$(gcloud secrets versions access latest --secret=INTERNAL_JOB_TOKEN)"
 ./deploy/gcp/phase4-scheduling/10-create-scheduler-jobs.sh
 ```
 
-## What CI needs (set once, from `30-workload-identity-federation.sh` output)
+## GitHub Actions variables
 
-GitHub → Settings → Secrets and variables → Actions → **Variables**:
-
-| Variable | Example |
+| Variable | Value |
 |---|---|
-| `GCP_PROJECT_ID` | `stuartgano-n8n` |
+| `GCP_PROJECT_ID` | `seventh-country-232522` |
 | `GCP_REGION` | `us-central1` |
-| `GCP_WORKLOAD_IDENTITY_PROVIDER` | `projects/NNN/locations/global/workloadIdentityPools/github-pool/providers/github-provider` |
-| `GCP_DEPLOYER_SA` | `wgp-deployer@stuartgano-n8n.iam.gserviceaccount.com` |
-| `GCP_AUTO_DEPLOY` (optional) | `true` to auto-deploy the backend on merge to main; unset = manual-only |
-| `VITE_API_URL` (Phase 3) | the Cloud Run service URL |
-| `FIREBASE_SITE` (Phase 3, optional) | `stuartgano-n8n` |
-
-No service-account JSON key is ever created or stored — auth is keyless OIDC.
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | `projects/713531282314/locations/global/workloadIdentityPools/github-pool/providers/github-provider` |
+| `GCP_DEPLOYER_SA` | `wgp-deployer@seventh-country-232522.iam.gserviceaccount.com` |
+| `GCP_AUTO_DEPLOY` | `true` (optional) |
+| `VITE_API_URL` | Cloud Run service URL |
+| `FIREBASE_SITE` | `seventh-country-232522` (optional) |
 
 ## Safety notes
 
-- The deploy workflow is **manual only** (`workflow_dispatch`); it never fires on
-  push, so it can't surprise-deploy to the live GCP project.
-- Phase 1 keeps **Render authoritative** — Cloud Run points at Render Postgres and
-  the Cloud Run URL is additive. Rollback = keep using Render.
-- The legacy tee sheet stays **disconnected** by default (`LEGACY_TEE_SHEET_ENABLED`
-  unset, #313), so no live tee-sheet writes occur even under `ENVIRONMENT=production`.
+- Phase 1 keeps Render Postgres authoritative until Phase 2 cutover.
+- Legacy tee sheet stays disconnected by default (`LEGACY_TEE_SHEET_ENABLED` unset).
 - Every script is idempotent and re-runnable.
