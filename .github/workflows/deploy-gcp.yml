@@ -126,7 +126,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          # Stay on Node 20 LTS — Node 22 + npm 10 has flaked with
+          # "Exit handler never called!" during npm ci on this repo.
+          node-version: "20"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -144,8 +146,9 @@ jobs:
           VITE_SENTRY_DSN: "https://aabb92ca227138a3deafbab2b4375bb3@o4511570300502016.ingest.us.sentry.io/4511570438586368"
           CI: "false"
         run: |
-          # npm 10.x occasionally flakes on CI with "Exit handler never called" — retry once.
-          npm ci --legacy-peer-deps --no-audit || npm ci --legacy-peer-deps --no-audit
+          # Prefer install over ci here: npm ci has repeatedly hit an npm-internal
+          # "Exit handler never called" hang/fail on GitHub runners for this lockfile.
+          npm install --legacy-peer-deps --no-audit --no-fund
           npm run build
 
       - id: auth

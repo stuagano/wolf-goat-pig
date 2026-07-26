@@ -22,12 +22,17 @@ if gc sql instances describe "${SQL_INSTANCE}" >/dev/null 2>&1; then
   ok "Cloud SQL instance '${SQL_INSTANCE}' exists"
 else
   log "Creating Cloud SQL instance '${SQL_INSTANCE}' (this takes several minutes)…"
+  # Explicit --edition=enterprise keeps us on the cheap shared-core tiers
+  # (db-f1-micro). Without it, gcloud defaults to enterprise-plus and rejects
+  # db-f1-micro.
   gc sql instances create "${SQL_INSTANCE}" \
     --database-version="${SQL_VERSION}" \
+    --edition="${SQL_EDITION:-enterprise}" \
     --tier="${SQL_TIER}" \
     --region="${GCP_REGION}" \
     --storage-auto-increase \
-    --availability-type=zonal
+    --availability-type=zonal \
+    --storage-size=10GB
 fi
 
 # ── Password (from Secret Manager) ──────────────────────────────────────────
