@@ -127,6 +127,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Build SPA
         working-directory: frontend
@@ -142,7 +144,8 @@ jobs:
           VITE_SENTRY_DSN: "https://aabb92ca227138a3deafbab2b4375bb3@o4511570300502016.ingest.us.sentry.io/4511570438586368"
           CI: "false"
         run: |
-          npm ci --legacy-peer-deps --no-audit
+          # npm 10.x occasionally flakes on CI with "Exit handler never called" — retry once.
+          npm ci --legacy-peer-deps --no-audit || npm ci --legacy-peer-deps --no-audit
           npm run build
 
       - id: auth
