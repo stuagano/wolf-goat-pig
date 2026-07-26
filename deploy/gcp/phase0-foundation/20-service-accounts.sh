@@ -43,6 +43,9 @@ log "Granting deployer SA roles…"
 grant "serviceAccount:${DEPLOYER_SA}" "roles/run.admin"                    # deploy Cloud Run
 grant "serviceAccount:${DEPLOYER_SA}" "roles/artifactregistry.writer"      # push images
 grant "serviceAccount:${DEPLOYER_SA}" "roles/cloudbuild.builds.editor"     # submit Cloud Build
+grant "serviceAccount:${DEPLOYER_SA}" "roles/serviceusage.serviceUsageConsumer"  # gcloud builds submit
+grant "serviceAccount:${DEPLOYER_SA}" "roles/storage.admin"               # upload to *_cloudbuild bucket
+grant "serviceAccount:${DEPLOYER_SA}" "roles/secretmanager.viewer"         # validate --set-secrets refs
 # deployer must be able to run the service *as* the runtime SA:
 grant "serviceAccount:${DEPLOYER_SA}" "roles/iam.serviceAccountUser"
 
