@@ -61,10 +61,9 @@ steps:
       - --env-vars-file=deploy/gcp/phase1-cloud-run/env.production.yaml
       - --set-secrets=${_SECRETS}
 
-# Bigger machine — the image bundles opencv-python-headless, numpy, Pillow, and a
-# Playwright Chromium shell, which is heavy to build on the default machine.
+# Default machine type — E2_HIGHCPU_8 hit a regional quota on this project.
+# Bump to N1_HIGHCPU_8 later if the OpenCV/Playwright image build is too slow.
 options:
-  machineType: E2_HIGHCPU_8
   logging: CLOUD_LOGGING_ONLY   # log to Cloud Logging (no legacy GCS log bucket)
 
 timeout: 1800s   # 30 min — the Playwright/OpenCV image build is slow
