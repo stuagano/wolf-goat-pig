@@ -183,14 +183,49 @@ class AuthService:
 
     @staticmethod
     def _find_player_by_auth0_id(db: Session, auth0_id: str) -> PlayerProfile | None:
-        """Look up a profile by preferences.auth0_id (portable JSON path)."""
+        """Look up a profile by preferences.auth0_id.
+
+        If historical bugs left the same Auth0 subject on multiple seed rows,
+        prefer a profile that already has a club ``legacy_name``, then the
+        lowest id — never an arbitrary heap-ordered ``.first()``.
+        """
         if not auth0_id:
             return None
-        return (
+        matches = (
             db.query(PlayerProfile)
             .filter(PlayerProfile.preferences["auth0_id"].as_string() == auth0_id)
-            .first()
+            .order_by(PlayerProfile.id.asc())
+            .all()
         )
+        if not matches:
+            return None
+        if len(matches) == 1:
+            return matches[0]
+
+        # Deterministic pick among duplicates, then strip auth0_id from the rest
+        # so the next login cannot reclaim a seed roster row again.
+        ranked = sorted(
+            matches,
+            key=lambda p: (
+                0 if (p.legacy_name or "").strip() else 1,
+                0 if (p.email or "").strip() else 1,
+                p.id or 0,
+            ),
+        )
+        winner = ranked[0]
+        for loser in ranked[1:]:
+            prefs = dict(loser.preferences) if loser.preferences else {}
+            if prefs.pop("auth0_id", None) is not None:
+                loser.preferences = prefs
+                loser.updated_at = utc_now().isoformat()
+                logger.warning(
+                    "Cleared duplicate auth0_id from player_profiles.id=%s (%s); keeping id=%s",
+                    loser.id,
+                    loser.name,
+                    winner.id,
+                )
+        db.commit()
+        return winner
 
     @staticmethod
     def enrich_user_from_userinfo(auth0_user: dict[str, Any], access_token: str) -> dict[str, Any]:

@@ -274,6 +274,37 @@ class TestPlayerProfileManagement:
         assert player.name == "Stuart Gano"
         assert player.legacy_name == "Stuart Gano"
 
+    def test_duplicate_auth0_ids_prefer_legacy_linked_profile(self, db):
+        """When the same Auth0 sub is on multiple rows, keep the club-linked one."""
+        seed = PlayerProfile(
+            name="Chris Exarhos",
+            email=None,
+            legacy_name=None,
+            handicap=18.0,
+            created_at=datetime.now().isoformat(),
+            preferences={"auth0_id": "google-oauth2|stuart"},
+        )
+        real = PlayerProfile(
+            name="Stuart Gano",
+            email=None,
+            legacy_name="Stuart Gano",
+            handicap=10.0,
+            created_at=datetime.now().isoformat(),
+            preferences={"auth0_id": "google-oauth2|stuart"},
+        )
+        db.add_all([seed, real])
+        db.commit()
+
+        service = AuthService()
+        player = service.get_or_create_player_profile(
+            db,
+            {"sub": "google-oauth2|stuart", "email": "stuart@example.com", "name": "Stuart Gano"},
+        )
+        assert player.id == real.id
+        assert player.legacy_name == "Stuart Gano"
+        db.refresh(seed)
+        assert seed.preferences.get("auth0_id") is None
+
     def test_email_preferences_created(self, db, mock_auth0_user):
         """Test that email preferences are created for new players."""
         service = AuthService()
