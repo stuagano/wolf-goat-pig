@@ -58,16 +58,22 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
+          # Stay on Node 20 LTS — Node 22 + npm 10 has flaked with
+          # "Exit handler never called!" during npm install on this repo.
           node-version: '20'
 
       - name: Install frontend dependencies
+        working-directory: frontend
         run: |
-          cd frontend
-          npm install --legacy-peer-deps --no-audit
+          # npm 10 on GHA has repeatedly aborted mid-install ("Exit handler never
+          # called") leaving no openapi-typescript binary. Pin npm 9 and verify.
+          npm install -g npm@9.9.4
+          npm install --legacy-peer-deps --no-audit --no-fund
+          test -x node_modules/.bin/openapi-typescript
 
       - name: Check generated API types are in sync with the spec
+        working-directory: frontend
         run: |
-          cd frontend
           npm run gen:api
           if ! git diff --quiet -- src/api/schema.d.ts; then
             echo "❌ src/api/schema.d.ts is out of date with backend/openapi.json."
