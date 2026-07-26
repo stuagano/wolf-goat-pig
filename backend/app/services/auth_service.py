@@ -372,14 +372,34 @@ class AuthService:
             update_needed = False
 
             if email and not player.email:
-                player.email = email
-                update_needed = True
+                conflict = (
+                    db.query(PlayerProfile).filter(PlayerProfile.email == email, PlayerProfile.id != player.id).first()
+                )
+                if conflict:
+                    conflict_prefs = dict(conflict.preferences) if conflict.preferences else {}
+                    if not conflict_prefs.get("auth0_id"):
+                        # Ghost row from a prior buggy login — reclaim the email.
+                        logger.warning(
+                            "Reclaiming email %s from ghost profile id=%s for id=%s",
+                            email,
+                            conflict.id,
+                            player.id,
+                        )
+                        conflict.email = None
+                        player.email = email
+                        update_needed = True
+                    else:
+                        logger.warning(
+                            "Email %s already on profile id=%s; skipping backfill for id=%s",
+                            email,
+                            conflict.id,
+                            player.id,
+                        )
+                else:
+                    player.email = email
+                    update_needed = True
 
-            if (
-                name
-                and name != player.name
-                and player.name in (None, "", "Unknown Player")
-            ):
+            if name and name != player.name and player.name in (None, "", "Unknown Player"):
                 player.name = name
                 update_needed = True
 

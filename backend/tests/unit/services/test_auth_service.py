@@ -305,6 +305,67 @@ class TestPlayerProfileManagement:
         db.refresh(seed)
         assert seed.preferences.get("auth0_id") is None
 
+    def test_email_backfill_reclaims_from_ghost_profile(self, db):
+        """Backfilling email must not 500 when a ghost row already owns it."""
+        ghost = PlayerProfile(
+            name="Stuart Gano Ghost",
+            email="stuart@example.com",
+            legacy_name=None,
+            handicap=18.0,
+            created_at=datetime.now().isoformat(),
+            preferences={"ai_difficulty": "medium"},
+        )
+        real = PlayerProfile(
+            name="Stuart Gano",
+            email=None,
+            legacy_name="Stuart Gano",
+            handicap=10.0,
+            created_at=datetime.now().isoformat(),
+            preferences={"auth0_id": "google-oauth2|stuart"},
+        )
+        db.add_all([ghost, real])
+        db.commit()
+
+        service = AuthService()
+        player = service.get_or_create_player_profile(
+            db,
+            {"sub": "google-oauth2|stuart", "email": "stuart@example.com", "name": "Stuart Gano"},
+        )
+        assert player.id == real.id
+        assert player.email == "stuart@example.com"
+        db.refresh(ghost)
+        assert ghost.email is None
+
+    def test_email_backfill_skips_when_other_profile_is_linked(self, db):
+        """Do not steal email from another Auth0-linked profile."""
+        other = PlayerProfile(
+            name="Other User",
+            email="shared@example.com",
+            handicap=12.0,
+            created_at=datetime.now().isoformat(),
+            preferences={"auth0_id": "google-oauth2|other"},
+        )
+        linked = PlayerProfile(
+            name="Stuart Gano",
+            email=None,
+            legacy_name="Stuart Gano",
+            handicap=10.0,
+            created_at=datetime.now().isoformat(),
+            preferences={"auth0_id": "google-oauth2|stuart"},
+        )
+        db.add_all([other, linked])
+        db.commit()
+
+        service = AuthService()
+        player = service.get_or_create_player_profile(
+            db,
+            {"sub": "google-oauth2|stuart", "email": "shared@example.com", "name": "Stuart Gano"},
+        )
+        assert player.id == linked.id
+        assert player.email is None
+        db.refresh(other)
+        assert other.email == "shared@example.com"
+
     def test_email_preferences_created(self, db, mock_auth0_user):
         """Test that email preferences are created for new players."""
         service = AuthService()
