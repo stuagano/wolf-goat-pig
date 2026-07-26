@@ -68,6 +68,7 @@ steps:
       - --cpu=1
       - --memory=1Gi
       - --timeout=300
+      - --port=8000
       - --env-vars-file=deploy/gcp/phase1-cloud-run/env.production.yaml
       - --set-secrets=${_SECRETS}
 
