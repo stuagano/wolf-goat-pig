@@ -438,7 +438,7 @@ def test_history_aggregates_club_rounds(client, monkeypatch):
     data = resp.json()
     assert data["found"] is True
     assert data["rounds_played"] == 3
-    assert data["games_won"] == 2
+    assert "games_won" not in data
     assert data["total_quarters"] == -58 + 80 + 153
     assert data["average_per_round"] == round((-58 + 80 + 153) / 3, 1)
     assert data["best_round"] == 153

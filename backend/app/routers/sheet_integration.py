@@ -475,17 +475,12 @@ async def sync_wgp_sheet_data(
                 player_stats_record.games_played = rounds_played
                 player_stats_record.total_earnings = total_earnings
 
-                # Calculate win percentage based on average earnings per game
-                if rounds_played > 0 and avg_earnings > 0:
-                    # If average is positive, estimate wins based on that
-                    # Assuming positive average means winning more often
-                    estimated_win_rate = safe_float((avg_earnings + 50) / 100 * 50, 0.0, min_val=0.0, max_val=100.0)
-                    estimated_wins = safe_int(rounds_played * estimated_win_rate / 100, 0, min_val=0)
-                    player_stats_record.win_percentage = estimated_win_rate
-                    player_stats_record.games_won = estimated_wins
-                else:
-                    player_stats_record.win_percentage = 0.0
-                    player_stats_record.games_won = 0
+                # The sheet records quarters per round, not wins. Zero these
+                # rather than deriving them from earnings — a guessed win count
+                # is indistinguishable from a real one once it's in the table,
+                # and quarters are the club's only standing metric anyway.
+                player_stats_record.win_percentage = 0.0
+                player_stats_record.games_won = 0
 
                 # Store additional metrics
                 player_stats_record.avg_earnings_per_game = avg_earnings

@@ -34,7 +34,6 @@ const saveSettings = (settings) => {
 const gatherStats = () => {
   const stats = {
     gamesPlayed: 0,
-    gamesWon: 0,
     totalEarnings: 0,
     averageScore: 0,
     bestScore: null,
@@ -56,7 +55,6 @@ const gatherStats = () => {
         const data = JSON.parse(localStorage.getItem(key));
         if (data) {
           stats.gamesPlayed++;
-          if (data.won || data.position === 1) stats.gamesWon++;
           if (typeof data.earnings === 'number') stats.totalEarnings += data.earnings;
           if (typeof data.totalScore === 'number') {
             totalScores += data.totalScore;
@@ -122,7 +120,6 @@ export const mapClubHistoryToStats = (history) => {
 
   return {
     gamesPlayed: history.rounds_played,
-    gamesWon: history.games_won ?? 0,
     totalEarnings: history.total_quarters ?? 0,
     averageScore: history.average_per_round ?? 0,
     bestScore: history.best_round ?? null,
@@ -385,11 +382,7 @@ function AccountPage() {
             }}>
               <div style={statBoxStyle}>
                 <div style={statValueStyle}>{stats.gamesPlayed}</div>
-                <div style={statLabelStyle}>Games Played</div>
-              </div>
-              <div style={statBoxStyle}>
-                <div style={statValueStyle}>{stats.gamesWon}</div>
-                <div style={statLabelStyle}>Wins</div>
+                <div style={statLabelStyle}>Rounds Played</div>
               </div>
               <div style={statBoxStyle}>
                 <div style={{
@@ -428,14 +421,6 @@ function AccountPage() {
                     {stats.bestScore >= 0 ? '+' : ''}{stats.bestScore}
                   </div>
                   <div style={statLabelStyle}>Best Round</div>
-                </div>
-              )}
-              {stats.gamesPlayed > 0 && (
-                <div style={statBoxStyle}>
-                  <div style={statValueStyle}>
-                    {stats.gamesPlayed > 0 ? Math.round((stats.gamesWon / stats.gamesPlayed) * 100) : 0}%
-                  </div>
-                  <div style={statLabelStyle}>Win Rate</div>
                 </div>
               )}
             </div>

@@ -14,6 +14,14 @@ import { getStoredUserEmail } from '../../utils/adminAuth';
  * - Comparison reports
  * - Direct Google Sheets URL sync
  */
+
+// Quarters are signed wager deltas, so the sign carries the meaning and has to
+// stay visible even when the value is positive.
+const formatQuarters = (value, decimals = 0) => {
+    const n = Number(value) || 0;
+    return `${n >= 0 ? '+' : ''}${n.toFixed(decimals)}`;
+};
+
 const SheetIntegrationDashboard = () => {
     const API_URL = apiConfig.baseUrl;
 
@@ -303,13 +311,13 @@ const SheetIntegrationDashboard = () => {
                             Player
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Games Played
+                            Rounds Played
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Win Rate
+                            Quarters
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Total Earnings
+                            Avg Quarters
                         </th>
                     </tr>
                 </thead>
@@ -326,10 +334,13 @@ const SheetIntegrationDashboard = () => {
                                 {player.games_played || 0}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {player.win_rate ? `${(player.win_rate * 100).toFixed(1)}%` : '0%'}
+                                {formatQuarters(player.total_earnings)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                ${player.total_earnings ? player.total_earnings.toFixed(2) : '0.00'}
+                                {formatQuarters(
+                                    player.games_played ? (player.total_earnings || 0) / player.games_played : 0,
+                                    1,
+                                )}
                             </td>
                         </tr>
                     ))}
