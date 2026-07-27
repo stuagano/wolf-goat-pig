@@ -164,7 +164,7 @@ const PlayerProfilePage = () => {
     );
   }
 
-  const { name, handicap, handicap_source, ghin_last_updated, description, avatar_url, has_avatar_image, last_played, created_at, available_days, game_history, badges, total_badges, stats } = profile;
+  const { name, handicap, handicap_source, ghin_last_updated, description, avatar_url, has_avatar_image, last_played, created_at, available_days, game_history, badges, total_badges } = profile;
   const handicapPending = isPendingHandicap(handicap_source) || handicap == null;
   const ghinFreshness = handicap_source === 'ghin' ? formatGhinFreshness(ghin_last_updated) : null;
   const avatarSrc = has_avatar_image
@@ -179,6 +179,12 @@ const PlayerProfilePage = () => {
   const lockedSlots = Math.min(remainingBadges, LOCKED_PREVIEW_COUNT);
 
   const roundsWithoutDetail = game_history.filter(g => !g.holes || g.holes.length === 0).length;
+
+  // Quarters are the club's only standing metric, and `game_history` (sheet +
+  // attested + in-app) is the complete record — the player_statistics table
+  // only covers rounds scored live in the app.
+  const totalQuarters = game_history.reduce((sum, g) => sum + (g.score || 0), 0);
+  const avgQuarters = game_history.length ? totalQuarters / game_history.length : 0;
 
   return (
     <div className="wgp-clubhouse wgp-profile">
@@ -245,9 +251,9 @@ const PlayerProfilePage = () => {
 
           <div className="wgp-profile__scoreboard">
             {[
-              { label: 'Games', value: stats.games_played },
-              { label: 'Wins', value: stats.games_won },
-              { label: 'Earnings', value: `${stats.total_earnings >= 0 ? '+' : ''}${stats.total_earnings.toFixed(0)}¢` },
+              { label: 'Rounds', value: game_history.length },
+              { label: 'Quarters', value: formatScore(totalQuarters) },
+              { label: 'Avg Quarters', value: formatScore(Number(avgQuarters.toFixed(1))) },
             ].map(({ label, value }) => (
               <div key={label} className="wgp-profile__stat">
                 <div className="wgp-profile__stat-value">{value}</div>

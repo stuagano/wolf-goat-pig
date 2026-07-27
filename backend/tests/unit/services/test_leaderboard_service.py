@@ -142,7 +142,6 @@ class TestLeaderboardService:
 
         expected_types = [
             "total_earnings",
-            "win_rate",
             "games_played",
             "average_score",
             "partnerships_won",
@@ -173,17 +172,14 @@ class TestLeaderboardService:
         # Highest earner should be first
         assert leaderboard[0]["value"] >= leaderboard[1]["value"]
 
-    def test_get_win_rate_leaderboard(self, db, test_players):
-        """Test getting win rate leaderboard."""
+    def test_win_rate_is_not_a_supported_leaderboard(self, db):
+        """Quarters are the club's only standing metric — win rate was removed."""
         service = LeaderboardService(db)
 
-        leaderboard = service.get_leaderboard("win_rate", db, limit=5)
-
-        # Win rate leaderboard requires minimum games
-        for entry in leaderboard:
-            assert "value" in entry
-            assert entry["value"] >= 0
-            assert entry["value"] <= 100
+        assert "win_rate" not in service.LEADERBOARD_TYPES
+        with pytest.raises(HTTPException) as exc_info:
+            service.get_leaderboard("win_rate", db, limit=5)
+        assert exc_info.value.status_code == 400
 
     def test_get_games_played_leaderboard(self, db, test_players):
         """Test getting games played leaderboard."""
@@ -262,8 +258,8 @@ class TestLeaderboardService:
 
         assert isinstance(all_boards, dict)
         assert "total_earnings" in all_boards
-        assert "win_rate" in all_boards
         assert "games_played" in all_boards
+        assert "win_rate" not in all_boards
 
     def test_refresh_leaderboard_cache(self, db):
         """Test refreshing the leaderboard cache."""

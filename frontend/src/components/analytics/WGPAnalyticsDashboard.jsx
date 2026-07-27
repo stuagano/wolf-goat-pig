@@ -149,8 +149,6 @@ const WGPAnalyticsDashboard = () => {
         .map(player => ({
           player_name: player.player_name || player.name,
           games_played: player.games_played || 0,
-          games_won: player.games_won || 0,
-          win_rate: player.win_percentage ? player.win_percentage / 100 : 0,
           total_earnings: player.total_earnings || 0,
           avg_earnings_per_game: player.avg_earnings || 0,
           best_finish: player.best_finish || 99,

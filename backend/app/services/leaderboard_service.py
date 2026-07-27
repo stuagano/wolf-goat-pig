@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import Float, and_, case, cast, desc, func
+from sqlalchemy import and_, desc, func
 from sqlalchemy.orm import Session
 
 from ..models import GamePlayerResult, PlayerAchievement, PlayerBadgeEarned, PlayerProfile, PlayerStatistics
@@ -120,7 +120,6 @@ class LeaderboardService:
     # Supported leaderboard types
     LEADERBOARD_TYPES = [
         "total_earnings",
-        "win_rate",
         "games_played",
         "average_score",
         "partnerships_won",
@@ -145,7 +144,7 @@ class LeaderboardService:
         Get leaderboard by type.
 
         Args:
-            leaderboard_type: Type of leaderboard (total_earnings, win_rate, etc.)
+            leaderboard_type: Type of leaderboard (total_earnings, games_played, etc.)
             db: Database session
             limit: Maximum number of entries to return
             offset: Number of entries to skip (for pagination)
@@ -391,7 +390,6 @@ class LeaderboardService:
         # Map leaderboard type to query method
         query_methods = {
             "total_earnings": self._query_total_earnings,
-            "win_rate": self._query_win_rate,
             "games_played": self._query_games_played,
             "average_score": self._query_average_score,
             "partnerships_won": self._query_partnerships_won,
@@ -439,7 +437,6 @@ class LeaderboardService:
                 PlayerProfile.name.label("player_name"),
                 func.sum(GamePlayerResult.total_earnings).label("total_earnings"),
                 func.count(GamePlayerResult.id).label("games_played"),
-                func.sum(case((GamePlayerResult.final_position == 1, 1), else_=0)).label("wins"),
                 func.sum(GamePlayerResult.partnerships_won).label("partnerships_won"),
                 func.avg(GamePlayerResult.final_position).label("avg_position"),
             )
@@ -458,16 +455,6 @@ class LeaderboardService:
         # Apply ordering based on leaderboard type
         if leaderboard_type == "total_earnings":
             results_query = results_query.order_by(desc("total_earnings"))
-        elif leaderboard_type == "win_rate":
-            results_query = results_query.order_by(
-                desc(
-                    cast(
-                        func.sum(case((GamePlayerResult.final_position == 1, 1), else_=0)),
-                        Float,
-                    )
-                    / cast(func.count(GamePlayerResult.id), Float)
-                )
-            )
         elif leaderboard_type == "games_played":
             results_query = results_query.order_by(desc("games_played"))
         elif leaderboard_type == "partnerships_won":
@@ -484,14 +471,10 @@ class LeaderboardService:
         leaderboard = []
         for rank, result in enumerate(results, start=1):
             games_played = result.games_played or 1
-            wins = result.wins or 0
-            win_rate = (wins / games_played) * 100 if games_played > 0 else 0.0
 
             # Determine value based on leaderboard type
             if leaderboard_type == "total_earnings":
                 value = float(result.total_earnings or 0)
-            elif leaderboard_type == "win_rate":
-                value = round(win_rate, 1)
             elif leaderboard_type == "games_played":
                 value = int(games_played)
             elif leaderboard_type == "partnerships_won":
@@ -539,44 +522,6 @@ class LeaderboardService:
                     "player_id": result.id,
                     "player_name": result.name,
                     "value": round(float(result.total_earnings), 2),
-                }
-            )
-
-        return leaderboard
-
-    def _query_win_rate(self, db: Session, limit: int, offset: int) -> list[dict[str, Any]]:
-        """Query win rate leaderboard."""
-        query = (
-            db.query(
-                PlayerProfile.id,
-                PlayerProfile.name,
-                PlayerStatistics.games_played,
-                PlayerStatistics.games_won,
-            )
-            .join(PlayerStatistics, PlayerProfile.id == PlayerStatistics.player_id)
-            .filter(
-                and_(
-                    PlayerProfile.is_active == 1,
-                    PlayerProfile.is_ai == 0,
-                    PlayerStatistics.games_played >= 5,  # Minimum games for win rate
-                )
-            )
-            .order_by(desc(cast(PlayerStatistics.games_won, Float) / cast(PlayerStatistics.games_played, Float)))
-            .limit(limit)
-            .offset(offset)
-        )
-
-        results = query.all()
-
-        leaderboard = []
-        for rank, result in enumerate(results, start=offset + 1):
-            win_rate = (result.games_won / result.games_played) * 100
-            leaderboard.append(
-                {
-                    "rank": rank,
-                    "player_id": result.id,
-                    "player_name": result.name,
-                    "value": round(win_rate, 1),
                 }
             )
 

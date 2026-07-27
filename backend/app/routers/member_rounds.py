@@ -77,7 +77,6 @@ def _history_from_rounds(member: str, rounds: list[Any], *, recent_limit: int = 
             "found": False,
             "member": member,
             "rounds_played": 0,
-            "games_won": 0,
             "total_quarters": 0,
             "average_per_round": 0.0,
             "best_round": None,
@@ -87,7 +86,6 @@ def _history_from_rounds(member: str, rounds: list[Any], *, recent_limit: int = 
 
     total_quarters = sum(r.score for r in rounds)
     round_count = len(rounds)
-    games_won = sum(1 for r in rounds if r.score > 0)
     best = max(r.score for r in rounds)
     worst = min(r.score for r in rounds)
     recent = [
@@ -106,7 +104,6 @@ def _history_from_rounds(member: str, rounds: list[Any], *, recent_limit: int = 
         "found": True,
         "member": rounds[0].member,
         "rounds_played": round_count,
-        "games_won": games_won,
         "total_quarters": total_quarters,
         "average_per_round": round(total_quarters / round_count, 1) if round_count else 0.0,
         "best_round": best,

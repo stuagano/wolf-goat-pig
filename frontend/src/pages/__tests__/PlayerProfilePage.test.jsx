@@ -72,6 +72,18 @@ describe('PlayerProfilePage game history', () => {
     expect(screen.getByText('-2')).toBeInTheDocument();
   });
 
+  test('scoreboard totals quarters from the full round history, not in-app wins', async () => {
+    mockUsePlayerProfile.mockReturnValue({ profile: { id: 999 } });
+    renderPage();
+
+    expect(await screen.findByText('Quarters')).toBeInTheDocument();
+    expect(screen.getByText('Avg Quarters')).toBeInTheDocument();
+    expect(screen.queryByText('Wins')).toBeNull();
+
+    const scoreboard = [...document.querySelectorAll('.wgp-profile__stat')].map(el => el.textContent);
+    expect(scoreboard).toEqual(['2Rounds', '+2Quarters', '+1Avg Quarters']);
+  });
+
   test('shows empty state when no rounds recorded', async () => {
     mockUsePlayerProfile.mockReturnValue({ profile: { id: 999 } });
     global.fetch = vi.fn(async (url) => {
@@ -108,11 +120,12 @@ describe('PlayerProfilePage game history', () => {
     renderPage();
 
     expect(await screen.findByText('▾ hole-by-hole')).toBeInTheDocument();
-    expect(screen.queryByText('+2')).toBeNull(); // collapsed by default
+    const holeQuarters = () =>
+      [...document.querySelectorAll('.wgp-profile__hole-quarters')].map(el => el.textContent);
+    expect(holeQuarters()).toEqual([]); // collapsed by default
 
     fireEvent.click(screen.getByText('▾ hole-by-hole'));
-    expect(screen.getByText('+2')).toBeInTheDocument();
-    expect(screen.getByText('-1')).toBeInTheDocument();
+    expect(holeQuarters()).toEqual(['+2', '-1']);
 
     expect(screen.getByText(/Score live in the app or scan your scorecard/)).toBeInTheDocument();
     expect(screen.getByText(/1 of 2 rounds already have it/)).toBeInTheDocument();

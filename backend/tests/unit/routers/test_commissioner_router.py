@@ -260,6 +260,8 @@ class TestDataSchemaGuidance:
         assert "In-app WGP game aggregates ONLY" in DATA_SCHEMA
         assert "Never use them for the club" in DATA_SCHEMA
         assert "season leaderboard" in DATA_SCHEMA
+        assert "determined ONLY by total quarters" in DATA_SCHEMA
+        assert "Do not calculate, rank by, or narrate wins" in DATA_SCHEMA
 
     def test_data_chat_system_prompt_includes_season_context_and_guidance(self):
         """Leaderboard questions must see season standings + table-selection rules."""
@@ -292,3 +294,5 @@ class TestDataSchemaGuidance:
         assert "Steve Sutorius" in system
         assert "Default to `legacy_rounds_official`" in system
         assert "Who is leading / leaderboard / standings?" in system
+        assert "total quarters is the only ranking metric" in system
+        assert "win percentage" in system

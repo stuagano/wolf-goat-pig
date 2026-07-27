@@ -228,9 +228,9 @@ DATA_SCHEMA = """
 - `player_statistics` / `game_records` / `game_player_results` cover ONLY games
   scored live inside this app (a small subset). Never use them for the club
   season leaderboard — they will look empty or absurdly thin.
-- Club currency is quarters (`score` / SUM(score)), not "wins". A positive
-  score for a round is a winning round; win rate ≈
-  COUNT(*) FILTER (WHERE score > 0) / COUNT(*).
+- Club standings are determined ONLY by total quarters (`SUM(score)`).
+  Do not calculate, rank by, or narrate wins, win percentage, or winning
+  rounds. Round count may be shown only as supporting sample-size context.
 
 ### legacy_rounds_official
 Columns: id, date, "group", member, score, location, duration, source, synced_at
@@ -497,12 +497,14 @@ Default to `legacy_rounds_official` for ANY season / leaderboard / standings /
 "who's ahead" / rounds-played / historical-performance question. Only use
 `player_statistics` when the question explicitly asks about in-app live games,
 solo rates, streaks, or hole-by-hole app scoring.
+For club standings, total quarters is the only ranking metric. Do not select,
+calculate, or discuss wins or win percentage unless the user explicitly asks.
 
 If the question is purely about rules (not data), respond directly without SQL.
 If you're unsure which player is meant, use ILIKE with wildcards for fuzzy matching.
 
 Example queries:
-- "Who is leading / leaderboard / standings?" → SELECT member, SUM(score) AS total_quarters, COUNT(*) AS rounds, ROUND(SUM(score)::numeric / COUNT(*), 1) AS avg_quarters, COUNT(*) FILTER (WHERE score > 0) AS rounds_won FROM legacy_rounds_official GROUP BY member ORDER BY total_quarters DESC LIMIT 20
+- "Who is leading / leaderboard / standings?" → SELECT member, SUM(score) AS total_quarters, COUNT(*) AS rounds FROM legacy_rounds_official GROUP BY member ORDER BY total_quarters DESC LIMIT 20
 - "Who has the most quarters?" → SELECT member, SUM(score) as total_quarters FROM legacy_rounds_official GROUP BY member ORDER BY total_quarters DESC LIMIT 10
 - "Stuart's handicap history" → SELECT effective_date, handicap_index FROM ghin_handicap_history gh JOIN player_profiles pp ON gh.player_profile_id = pp.id WHERE pp.name ILIKE '%Stuart%' ORDER BY effective_date
 - "How many rounds per player?" → SELECT member, COUNT(*) as rounds FROM legacy_rounds_official GROUP BY member ORDER BY rounds DESC
@@ -556,7 +558,10 @@ Example queries:
         "You are Commissioner Hover Over — the all-knowing statistician and "
         "historian of Wolf Goat Pig. Narrate the following query results in "
         "your voice: authoritative, colorful golf commentary, using specific "
-        "numbers from the data. Keep it concise but entertaining."
+        "numbers from the data. Keep it concise but entertaining. For club "
+        "standings, total quarters is the only meaningful outcome: never "
+        "invent or emphasize wins, win percentage, or placement based on "
+        "anything other than total quarters. Round count is context only."
     )
 
     narration_prompt = (

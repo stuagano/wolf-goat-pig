@@ -16,7 +16,6 @@ describe('mapClubHistoryToStats', () => {
       mapClubHistoryToStats({
         found: true,
         rounds_played: 61,
-        games_won: 20,
         total_quarters: -3372,
         average_per_round: -55.3,
         best_round: 716,
@@ -31,7 +30,6 @@ describe('mapClubHistoryToStats', () => {
       }),
     ).toEqual({
       gamesPlayed: 61,
-      gamesWon: 20,
       totalEarnings: -3372,
       averageScore: -55.3,
       bestScore: 716,
@@ -59,7 +57,6 @@ describe('fetchClubHistory', () => {
       json: async () => ({
         found: true,
         rounds_played: 2,
-        games_won: 1,
         total_quarters: 10,
         average_per_round: 5,
         best_round: 12,
