@@ -3563,6 +3563,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/players/me/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get My History
+         * @description Club history for the signed-in member (sheet + attested + in-app rounds).
+         *
+         *     Powers the Account personal-stats panel. Prefer ``legacy_name`` when linked
+         *     so sheet rows match; fall back to display name for accounts that have only
+         *     played in-app games.
+         */
+        get: operations["get_my_history_players_me_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/players/me/legacy-name": {
         parameters: {
             query?: never;
@@ -5812,7 +5836,10 @@ export interface components {
         PlayerStatisticsResponse: {
             /** Avg Earnings Per Hole */
             avg_earnings_per_hole: number;
-            /** Best Hole Performance */
+            /**
+             * Best Hole Performance
+             * @default []
+             */
             best_hole_performance: {
                 [key: string]: unknown;
             }[];
@@ -5915,7 +5942,10 @@ export interface components {
             partnerships_formed: number;
             /** Partnerships Won */
             partnerships_won: number;
-            /** Performance Trends */
+            /**
+             * Performance Trends
+             * @default []
+             */
             performance_trends: {
                 [key: string]: unknown;
             }[];
@@ -5978,7 +6008,10 @@ export interface components {
              * @default 0
              */
             worse_than_double: number;
-            /** Worst Hole Performance */
+            /**
+             * Worst Hole Performance
+             * @default []
+             */
             worst_hole_performance: {
                 [key: string]: unknown;
             }[];
@@ -11953,6 +11986,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EmailPreferencesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_history_players_me_history_get: {
+        parameters: {
+            query?: {
+                recent_limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

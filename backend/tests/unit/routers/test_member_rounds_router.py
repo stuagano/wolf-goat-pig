@@ -415,3 +415,90 @@ def test_one_member_round_per_day_unique_index(db_session):
         ]
     )
     session.commit()  # no error
+
+
+# ── GET /players/me/history ──────────────────────────────────────────────────
+
+
+def test_history_aggregates_club_rounds(client, monkeypatch):
+    from app.services.unified_data_service import UnifiedRound
+
+    _login(STUART, "Stuart Gano")
+    rounds = [
+        UnifiedRound("24-Aug", "2026-08-24", "A", "Stuart Gano", -58, "Wing Point", source="primary_sheet"),
+        UnifiedRound("10-Aug", "2026-08-10", "C", "Stuart Gano", 80, "Wing Point", source="primary_sheet"),
+        UnifiedRound("27-Jul", "2026-07-27", "A", "Stuart Gano", 153, "Wing Point", source="primary_sheet"),
+    ]
+    fake = MagicMock()
+    fake.get_player_history.return_value = rounds
+    monkeypatch.setattr(member_rounds_module, "get_unified_data_service", lambda db=None: fake)
+
+    resp = client.get("/players/me/history")
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert data["found"] is True
+    assert data["rounds_played"] == 3
+    assert data["games_won"] == 2
+    assert data["total_quarters"] == -58 + 80 + 153
+    assert data["average_per_round"] == round((-58 + 80 + 153) / 3, 1)
+    assert data["best_round"] == 153
+    assert data["worst_round"] == -58
+    assert len(data["recent_rounds"]) == 3
+    assert data["recent_rounds"][0] == {
+        "date": "2026-08-24",
+        "date_display": "24-Aug",
+        "score": -58,
+        "location": "Wing Point",
+        "group": "A",
+        "source": "primary_sheet",
+    }
+    fake.get_player_history.assert_called_once_with("Stuart Gano")
+
+
+def test_history_honors_recent_limit(client, monkeypatch):
+    from app.services.unified_data_service import UnifiedRound
+
+    _login(STUART, "Stuart Gano")
+    rounds = [
+        UnifiedRound(f"{i}-Jan", f"2026-01-{i:02d}", "A", "Stuart Gano", i, "Wing Point") for i in range(10, 0, -1)
+    ]
+    fake = MagicMock()
+    fake.get_player_history.return_value = rounds
+    monkeypatch.setattr(member_rounds_module, "get_unified_data_service", lambda db=None: fake)
+
+    resp = client.get("/players/me/history?recent_limit=2")
+    assert resp.status_code == 200
+    assert len(resp.json()["recent_rounds"]) == 2
+
+
+def test_history_empty_when_no_rounds(client, monkeypatch):
+    _login(STUART, "Stuart Gano")
+    fake = MagicMock()
+    fake.get_player_history.return_value = []
+    monkeypatch.setattr(member_rounds_module, "get_unified_data_service", lambda db=None: fake)
+
+    resp = client.get("/players/me/history")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["found"] is False
+    assert data["rounds_played"] == 0
+    assert data["recent_rounds"] == []
+    assert data["best_round"] is None
+
+
+def test_history_falls_back_to_display_name(client, monkeypatch):
+    user = _login(STUART, None)
+    user.name = "Stuart Gano"
+    fake = MagicMock()
+    fake.get_player_history.return_value = []
+    monkeypatch.setattr(member_rounds_module, "get_unified_data_service", lambda db=None: fake)
+
+    resp = client.get("/players/me/history")
+    assert resp.status_code == 200
+    fake.get_player_history.assert_called_once_with("Stuart Gano")
+
+
+def test_history_rejects_invalid_recent_limit(client):
+    _login(STUART, "Stuart Gano")
+    assert client.get("/players/me/history?recent_limit=0").status_code == 400
+    assert client.get("/players/me/history?recent_limit=99").status_code == 400

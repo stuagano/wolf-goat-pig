@@ -110,6 +110,44 @@ const gatherStats = () => {
   return stats;
 };
 
+/**
+ * Club history lives on the server (sheet + attested + in-app rounds).
+ * localStorage only ever holds rounds played in this one browser, so it looks
+ * empty on a new device or after the app moves to a different domain.
+ *
+ * ``score`` / quarters on these rounds is won/lost wager units, not strokes.
+ */
+export const mapClubHistoryToStats = (history) => {
+  if (!history?.found || !history.rounds_played) return null;
+
+  return {
+    gamesPlayed: history.rounds_played,
+    gamesWon: history.games_won ?? 0,
+    totalEarnings: history.total_quarters ?? 0,
+    averageScore: history.average_per_round ?? 0,
+    bestScore: history.best_round ?? null,
+    recentGames: (history.recent_rounds || []).map((round) => ({
+      date: round.date || round.date_display,
+      score: round.score,
+      earnings: round.score,
+      course: round.location || 'Round',
+    })),
+  };
+};
+
+export const fetchClubHistory = async (token) => {
+  try {
+    const resp = await fetch(`${apiConfig.baseUrl}/players/me/history?recent_limit=5`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) return null;
+    return mapClubHistoryToStats(await resp.json());
+  } catch {
+    // Missing history must not surface as a profile-load failure.
+    return null;
+  }
+};
+
 function AccountPage() {
   const { user, isAuthenticated, logout } = useAuth0();
   const { getToken } = useAccessToken();
@@ -140,17 +178,21 @@ function AccountPage() {
 
     if (isAuthenticated) {
       getToken()
-        .then(token => fetch(`${apiConfig.baseUrl}/players/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }))
-        .then(r => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          return r.json();
-        })
-        .then(profile => {
+        .then(async (token) => {
+          const profileResp = await fetch(`${apiConfig.baseUrl}/players/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!profileResp.ok) throw new Error(`HTTP ${profileResp.status}`);
+          const profile = await profileResp.json();
+
           setDescriptionSyncError(null);
           if (profile?.description != null) {
             setSettings(prev => ({ ...prev, description: profile.description || '' }));
+          }
+
+          const clubStats = await fetchClubHistory(token);
+          if (clubStats) {
+            setStats(clubStats);
           }
         })
         .catch(() => {
@@ -356,7 +398,7 @@ function AccountPage() {
                 }}>
                   {stats.totalEarnings >= 0 ? '+' : ''}{stats.totalEarnings.toFixed(0)}
                 </div>
-                <div style={statLabelStyle}>Earnings</div>
+                <div style={statLabelStyle}>Quarters</div>
               </div>
             </div>
 
@@ -366,16 +408,26 @@ function AccountPage() {
               marginTop: '12px',
               flexWrap: 'wrap',
             }}>
-              {stats.averageScore > 0 && (
+              {stats.averageScore != null && stats.gamesPlayed > 0 && (
                 <div style={statBoxStyle}>
-                  <div style={statValueStyle}>{stats.averageScore}</div>
-                  <div style={statLabelStyle}>Avg Score</div>
+                  <div style={{
+                    ...statValueStyle,
+                    color: stats.averageScore >= 0 ? theme.colors.success : theme.colors.error,
+                  }}>
+                    {stats.averageScore >= 0 ? '+' : ''}{stats.averageScore}
+                  </div>
+                  <div style={statLabelStyle}>Avg Quarters</div>
                 </div>
               )}
               {stats.bestScore !== null && (
                 <div style={statBoxStyle}>
-                  <div style={statValueStyle}>{stats.bestScore}</div>
-                  <div style={statLabelStyle}>Best Score</div>
+                  <div style={{
+                    ...statValueStyle,
+                    color: stats.bestScore >= 0 ? theme.colors.success : theme.colors.error,
+                  }}>
+                    {stats.bestScore >= 0 ? '+' : ''}{stats.bestScore}
+                  </div>
+                  <div style={statLabelStyle}>Best Round</div>
                 </div>
               )}
               {stats.gamesPlayed > 0 && (
@@ -397,7 +449,7 @@ function AccountPage() {
                   color: theme.colors.textSecondary,
                   marginBottom: '10px',
                 }}>
-                  Recent Games
+                  Recent Rounds
                 </div>
                 {stats.recentGames.map((game, i) => (
                   <div key={i} style={{
@@ -419,18 +471,13 @@ function AccountPage() {
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      {game.score != null && (
-                        <div style={{ fontSize: '14px', fontWeight: 600, color: theme.colors.textPrimary }}>
-                          {game.score}
-                        </div>
-                      )}
                       {game.earnings != null && (
                         <div style={{
-                          fontSize: '12px',
+                          fontSize: '14px',
                           fontWeight: 600,
                           color: game.earnings >= 0 ? theme.colors.success : theme.colors.error,
                         }}>
-                          {game.earnings >= 0 ? '+' : ''}{game.earnings.toFixed(2)}
+                          {game.earnings >= 0 ? '+' : ''}{game.earnings}
                         </div>
                       )}
                     </div>

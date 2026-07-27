@@ -28,6 +28,7 @@ from ..services.auth_service import get_current_user
 from ..services.email_service import get_email_service
 from ..services.legacy_player_service import get_canonical_name
 from ..services.notification_service import get_notification_service
+from ..services.unified_data_service import get_unified_data_service
 from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
@@ -57,10 +58,60 @@ def _serialize(r: LegacyRound) -> dict[str, Any]:
         "date": r.date,
         "score": r.score,
         "member": r.member,
+        "location": r.location,
         "status": r.status,
         "foursome": r.foursome or [],
         "attested_by": r.attested_by_profile_id,
         "attested_at": r.attested_at.isoformat() if r.attested_at else None,
+    }
+
+
+def _history_from_rounds(member: str, rounds: list[Any], *, recent_limit: int = 5) -> dict[str, Any]:
+    """Aggregate club history for the Account personal-stats panel.
+
+    ``score`` on these rounds is quarters won/lost (not stroke play), matching
+    the Google Sheet / legacy_rounds convention.
+    """
+    if not rounds:
+        return {
+            "found": False,
+            "member": member,
+            "rounds_played": 0,
+            "games_won": 0,
+            "total_quarters": 0,
+            "average_per_round": 0.0,
+            "best_round": None,
+            "worst_round": None,
+            "recent_rounds": [],
+        }
+
+    total_quarters = sum(r.score for r in rounds)
+    round_count = len(rounds)
+    games_won = sum(1 for r in rounds if r.score > 0)
+    best = max(r.score for r in rounds)
+    worst = min(r.score for r in rounds)
+    recent = [
+        {
+            "date": r.date_sortable,
+            "date_display": r.date,
+            "score": r.score,
+            "location": r.location,
+            "group": r.group,
+            "source": r.source,
+        }
+        for r in rounds[:recent_limit]
+    ]
+
+    return {
+        "found": True,
+        "member": rounds[0].member,
+        "rounds_played": round_count,
+        "games_won": games_won,
+        "total_quarters": total_quarters,
+        "average_per_round": round(total_quarters / round_count, 1) if round_count else 0.0,
+        "best_round": best,
+        "worst_round": worst,
+        "recent_rounds": recent,
     }
 
 
@@ -226,6 +277,30 @@ def get_my_rounds(
         .all()
     )
     return [_serialize(r) for r in rows]
+
+
+@router.get("/players/me/history")
+def get_my_history(
+    recent_limit: int = 5,
+    current_user: PlayerProfile = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Club history for the signed-in member (sheet + attested + in-app rounds).
+
+    Powers the Account personal-stats panel. Prefer ``legacy_name`` when linked
+    so sheet rows match; fall back to display name for accounts that have only
+    played in-app games.
+    """
+    if recent_limit < 1 or recent_limit > 50:
+        raise HTTPException(status_code=400, detail="recent_limit must be between 1 and 50")
+
+    lookup_name = (current_user.legacy_name or current_user.name or "").strip()
+    if not lookup_name:
+        return _history_from_rounds("", [], recent_limit=recent_limit)
+
+    service = get_unified_data_service(db=db)
+    rounds = service.get_player_history(lookup_name)
+    return _history_from_rounds(lookup_name, rounds, recent_limit=recent_limit)
 
 
 @router.get("/rounds/pending-attestation")

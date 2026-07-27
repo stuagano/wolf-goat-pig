@@ -2799,6 +2799,7 @@
             "type": "number"
           },
           "best_hole_performance": {
+            "default": [],
             "items": {
               "additionalProperties": true,
               "type": "object"
@@ -2927,6 +2928,7 @@
             "type": "integer"
           },
           "performance_trends": {
+            "default": [],
             "items": {
               "additionalProperties": true,
               "type": "object"
@@ -3008,6 +3010,7 @@
             "type": "integer"
           },
           "worst_hole_performance": {
+            "default": [],
             "items": {
               "additionalProperties": true,
               "type": "object"
@@ -3040,9 +3043,6 @@
           "solo_wins",
           "favorite_game_mode",
           "preferred_player_count",
-          "best_hole_performance",
-          "worst_hole_performance",
-          "performance_trends",
           "last_updated"
         ],
         "title": "PlayerStatisticsResponse",
@@ -12318,6 +12318,57 @@
         "summary": "Update My Email Preferences",
         "tags": [
           "players"
+        ]
+      }
+    },
+    "/players/me/history": {
+      "get": {
+        "description": "Club history for the signed-in member (sheet + attested + in-app rounds).\n\nPowers the Account personal-stats panel. Prefer ``legacy_name`` when linked\nso sheet rows match; fall back to display name for accounts that have only\nplayed in-app games.",
+        "operationId": "get_my_history_players_me_history_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "recent_limit",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "title": "Recent Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get My History Players Me History Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get My History",
+        "tags": [
+          "member-rounds"
         ]
       }
     },

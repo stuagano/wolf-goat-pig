@@ -144,11 +144,29 @@ class PlayerStatisticsResponse(BaseModel):
     times_as_aardvark: int = 0
     favorite_game_mode: str
     preferred_player_count: int
-    best_hole_performance: list[dict[str, Any]]
-    worst_hole_performance: list[dict[str, Any]]
-    performance_trends: list[dict[str, Any]]
+    best_hole_performance: list[dict[str, Any]] = []
+    worst_hole_performance: list[dict[str, Any]] = []
+    performance_trends: list[dict[str, Any]] = []
     head_to_head_records: dict[str, Any] = {}
     last_updated: str
+
+    # Rows written before these JSON columns existed store SQL NULL, which
+    # Pydantic rejects because a field default never applies to an explicit
+    # None. Coerce so historical stats stay readable instead of 500ing.
+    @field_validator(
+        "best_hole_performance",
+        "worst_hole_performance",
+        "performance_trends",
+        mode="before",
+    )
+    @classmethod
+    def default_empty_list(cls, v):
+        return [] if v is None else v
+
+    @field_validator("head_to_head_records", mode="before")
+    @classmethod
+    def default_empty_dict(cls, v):
+        return {} if v is None else v
 
 
 # Player Achievement Schemas
