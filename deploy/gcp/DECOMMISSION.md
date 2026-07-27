@@ -1,50 +1,85 @@
-# Decommission Render + Vercel (after GCP soak)
+# Production cutover — GCP is primary
 
-Do **not** run this until Firebase Hosting + Cloud Run + Cloud SQL have soaked
-as production for at least a few days with no rollback need.
+**As of 2026-07-26:** Firebase Hosting + Cloud Run + Cloud SQL are **production**.
+Vercel + Render are being frozen / decommissioned.
 
-**Current canary (keep both stacks until soak is done):**
-
-| Traffic | Frontend | API | DB |
+| Role | Frontend | API | DB |
 |---|---|---|---|
-| Production (users today) | Vercel | Render | Render Postgres |
-| Canary | Firebase Hosting | Cloud Run | Cloud SQL (`db-f1-micro`) |
+| **Production** | Firebase Hosting | Cloud Run | Cloud SQL (`db-f1-micro`) |
+| Rollback only (warm) | Vercel (paused) | Render web (suspended) | Render Postgres (keep ~7 days) |
 
-**Canary URLs**
+**Production URLs**
 
 - SPA: https://seventh-country-232522.web.app
 - API: https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app
-- Auth0 cutover checklist: [phase3-hosting/AUTH0_CUTOVER.md](phase3-hosting/AUTH0_CUTOVER.md)
+- Auth0 cutover: [phase3-hosting/AUTH0_CUTOVER.md](phase3-hosting/AUTH0_CUTOVER.md)
 
-## Before cutting users over
+## Cutover status
 
-- [ ] Auth0 Allowed Callback / Logout / Web Origins include the Firebase domains
-- [ ] Log in on the Firebase SPA; spot-check roster, games, scorecard
-- [ ] Cloud Run `/health` shows `environment=production` and healthy DB
-- [ ] Cloud Scheduler jobs exist and at least one manual run succeeded
-- [ ] Rollback path known: restore `DATABASE_URL` from secret `RENDER_DATABASE_URL`
+- [x] Auth0 includes Firebase domains (keep localhost for local dev)
+- [x] Cloud Run `/health` + `/ready` healthy against Cloud SQL
+- [x] Cloud Scheduler jobs enabled
+- [x] Avatars on GCS (`wgp-media-seventh-country-232522`)
+- [ ] Remove Vercel URLs from Auth0 (Firebase + localhost only)
+- [ ] Suspend Render web service (keep Postgres)
+- [ ] Pause / archive Vercel project
+- [ ] After ≥7 days with no rollback need: delete Render Postgres
+- [ ] Delete secret `RENDER_DATABASE_URL` after Postgres is gone
 
-## Cutover checklist
+## Auth0 (do in dashboard)
 
-1. **Point users at Firebase**
-   - Share / bookmark https://seventh-country-232522.web.app (or custom domain later)
-   - Optionally set Auth0 Application Login URI to the Firebase URL
-2. **Freeze Render writes** (or put Render API in maintenance) once Cloud Run is primary
-3. **Turn off Render web service** (keep Postgres warm for N days)
-4. **Archive / delete the Vercel project** after Firebase is verified
-5. **Remove Vercel URLs from Auth0** (keep Firebase + localhost)
-6. **After soak (recommend ≥7 days): delete Render Postgres**
-7. Leave **Auth0** as-is (design decision D4)
+App: `qAZuRv5E9mPQ9uTGg7NWpkpfVj8bCeoB`
 
-## Rollback (if needed during soak)
+**Allowed Callback / Logout / Web Origins — production set:**
+
+```
+https://seventh-country-232522.web.app
+https://seventh-country-232522.firebaseapp.com
+http://localhost:3000
+```
+
+Optionally set **Application Login URI** to `https://seventh-country-232522.web.app`.
+
+Remove all `*.vercel.app` entries.
+
+## Suspend Render (dashboard or CLI)
+
+1. https://dashboard.render.com → `wolf-goat-pig` web service → **Suspend**
+2. Leave the Postgres instance running for ~7 days
+3. Booking microservice (`wolf-goat-pig-booking`) — leave running if ForeTees booking is still needed; it is still referenced by Cloud Run `BOOKING_SERVICE_URL`
 
 ```bash
-# Point Cloud Run back at Render Postgres
+render login
+render services list
+# then suspend the API web service in the dashboard (CLI suspend varies by plan)
+```
+
+## Pause Vercel
+
+```bash
+vercel login
+vercel project ls
+# Dashboard: Project → Settings → Advanced → Pause / Delete
+# Or: leave project but remove production domain traffic
+```
+
+Production bookmark: **https://seventh-country-232522.web.app** only.
+
+## Rollback (only while Render Postgres still exists)
+
+```bash
 printf '%s' "$(gcloud secrets versions access latest --secret=RENDER_DATABASE_URL)" \
   | gcloud secrets versions add DATABASE_URL --data-file=-
 gcloud run services update wolf-goat-pig-api --region=us-central1 \
   --update-secrets=DATABASE_URL=DATABASE_URL:latest
 ```
 
-Users can keep using Vercel → Render until you are ready; nothing here is irreversible
-until Render Postgres is deleted.
+Also re-enable the Render web service and unpause Vercel if you need the old SPA.
+
+## After 7 days — delete Render Postgres
+
+Only when you are sure you will not roll back:
+
+1. Dashboard → Postgres → Delete
+2. `gcloud secrets delete RENDER_DATABASE_URL --project=seventh-country-232522`
+3. Remove any remaining Render URLs from docs / Auth0 / env examples

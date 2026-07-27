@@ -88,6 +88,39 @@ class TestAvatarUpload:
         )
         assert resp.status_code == 400
 
+    def test_upload_uses_gcs_when_media_bucket_set(self, client, db_session, monkeypatch):
+        uploads: list[tuple[str, bytes, str]] = []
+
+        monkeypatch.setenv("MEDIA_BUCKET", "wgp-media-test")
+        from app.services import media_storage_service as mss
+
+        mss._client.cache_clear()
+
+        def fake_upload(object_path, data, content_type="application/octet-stream"):
+            uploads.append((object_path, data, content_type))
+
+        monkeypatch.setattr(mss, "upload_bytes", fake_upload)
+        monkeypatch.setattr(mss, "download_bytes", lambda path: uploads[0][1] if uploads else None)
+
+        resp = client.post(
+            "/players/me/avatar",
+            files={"file": ("photo.jpg", _make_jpeg_bytes(size=(800, 600)), "image/jpeg")},
+        )
+        assert resp.status_code == 200
+        assert uploads and uploads[0][0] == "avatars/1.jpg"
+        assert uploads[0][2] == "image/jpeg"
+
+        db = db_session()
+        player = db.query(PlayerProfile).filter_by(id=1).first()
+        assert player.avatar_url == "gcs:avatars/1.jpg"
+        assert player.avatar_image is None
+        assert player.has_avatar_image is True
+        db.close()
+
+        avatar_resp = client.get("/players/1/avatar")
+        assert avatar_resp.status_code == 200
+        assert avatar_resp.headers["content-type"] == "image/jpeg"
+
     def test_avatar_404_when_not_set(self, client):
         resp = client.get("/players/1/avatar")
         assert resp.status_code == 404

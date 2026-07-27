@@ -252,7 +252,11 @@ class PlayerProfile(Base):
 
     @property
     def has_avatar_image(self) -> bool:
-        return bool(self.avatar_image)
+        # Uploaded photo: DB base64 blob, inline data: URL, or GCS marker.
+        if self.avatar_image:
+            return True
+        url = self.avatar_url or ""
+        return url.startswith("gcs:") or url.startswith("data:image/")
 
 
 class PlayerStatistics(Base):

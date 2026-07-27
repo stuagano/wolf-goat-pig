@@ -14,14 +14,17 @@ To migrate: Replace players.py with this file after testing.
 
 import base64
 import logging
+from io import BytesIO
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
+from PIL import Image, ImageOps
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..database import get_db
+from ..services import media_storage_service
 from ..services.auth_service import get_current_user
 from ..services.player_service import PlayerService
 from ..services.unified_data_service import get_unified_data_service
@@ -33,19 +36,37 @@ AVATAR_MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # 8MB raw upload; we downscale server
 AVATAR_MAX_DIM = 400
 
 
-def _downscale_avatar(image_bytes: bytes) -> str:
-    """Resize to fit AVATAR_MAX_DIM, correct EXIF rotation, re-encode as base64 JPEG."""
-    from io import BytesIO
-
-    from PIL import Image, ImageOps
-
+def _downscale_avatar_jpeg(image_bytes: bytes) -> bytes:
+    """Resize to fit AVATAR_MAX_DIM, correct EXIF rotation, re-encode as JPEG bytes."""
     img = Image.open(BytesIO(image_bytes))
     img = ImageOps.exif_transpose(img)
     img = img.convert("RGB")
     img.thumbnail((AVATAR_MAX_DIM, AVATAR_MAX_DIM), Image.LANCZOS)
     buf = BytesIO()
     img.save(buf, format="JPEG", quality=85)
-    return base64.b64encode(buf.getvalue()).decode("ascii")
+    return buf.getvalue()
+
+
+def _downscale_avatar(image_bytes: bytes) -> str:
+    """Legacy helper: downscale and return base64 JPEG (DB blob fallback)."""
+    return base64.b64encode(_downscale_avatar_jpeg(image_bytes)).decode("ascii")
+
+
+def _avatar_jpeg_for_player(player: models.PlayerProfile) -> bytes | None:
+    """Resolve uploaded avatar bytes from GCS, data: URL, or legacy DB blob."""
+    if media_storage_service.is_gcs_avatar_url(player.avatar_url):
+        path = media_storage_service.gcs_path_from_marker(player.avatar_url or "")
+        return media_storage_service.download_bytes(path)
+    url = player.avatar_url or ""
+    if url.startswith("data:image/"):
+        try:
+            _header, b64 = url.split(",", 1)
+            return base64.b64decode(b64)
+        except Exception:
+            return None
+    if player.avatar_image:
+        return base64.b64decode(player.avatar_image)
+    return None
 
 
 logger = logging.getLogger("app.routers.players")
@@ -262,7 +283,7 @@ async def upload_my_avatar(
     current_user: models.PlayerProfile = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    """Upload a profile photo for the current user. Downscaled and stored in the DB."""
+    """Upload a profile photo. Stored in GCS when MEDIA_BUCKET is set, else DB blob."""
     content_type = file.content_type or "image/jpeg"
     if content_type not in AVATAR_ALLOWED_TYPES:
         raise HTTPException(status_code=400, detail=f"Unsupported image type: {content_type}. Use JPEG, PNG, or WebP.")
@@ -272,9 +293,21 @@ async def upload_my_avatar(
         raise HTTPException(status_code=400, detail="Image too large. Maximum size is 8MB.")
 
     try:
-        current_user.avatar_image = _downscale_avatar(image_bytes)
+        jpeg_bytes = _downscale_avatar_jpeg(image_bytes)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Could not read image: {e}") from e
+
+    if media_storage_service.is_enabled():
+        object_path = media_storage_service.avatar_object_path(current_user.id)
+        try:
+            media_storage_service.upload_bytes(object_path, jpeg_bytes, content_type="image/jpeg")
+        except Exception as e:
+            logger.exception("GCS avatar upload failed for player %s", current_user.id)
+            raise HTTPException(status_code=502, detail=f"Could not store avatar: {e}") from e
+        current_user.avatar_url = media_storage_service.avatar_gcs_marker(current_user.id)
+        current_user.avatar_image = None
+    else:
+        current_user.avatar_image = base64.b64encode(jpeg_bytes).decode("ascii")
 
     current_user.updated_at = utc_now().isoformat()
     db.commit()
@@ -472,9 +505,11 @@ async def update_my_email_preferences(
 def get_player_avatar(player_id: int, db: Session = Depends(get_db)) -> Response:
     """Serve a player's uploaded avatar image. Public — used directly as an <img> src."""
     player = db.query(models.PlayerProfile).filter(models.PlayerProfile.id == player_id).first()
-    if not player or not player.avatar_image:
+    if not player:
         raise HTTPException(status_code=404, detail="No uploaded avatar for this player")
-    image_bytes = base64.b64decode(player.avatar_image)
+    image_bytes = _avatar_jpeg_for_player(player)
+    if not image_bytes:
+        raise HTTPException(status_code=404, detail="No uploaded avatar for this player")
     return Response(content=image_bytes, media_type="image/jpeg")
 
 
@@ -561,7 +596,7 @@ def get_public_player_profile(
         "handicap": player.handicap,
         "description": player.description,
         "avatar_url": player.avatar_url,
-        "has_avatar_image": bool(player.avatar_image),
+        "has_avatar_image": bool(player.has_avatar_image),
         "last_played": player.last_played,
         "created_at": player.created_at,
         "available_days": available_days,

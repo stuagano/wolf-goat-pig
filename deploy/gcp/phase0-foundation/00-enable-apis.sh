@@ -15,6 +15,7 @@ APIS=(
   sqladmin.googleapis.com           # Cloud SQL (Phase 2)
   firebasehosting.googleapis.com    # Firebase Hosting (Phase 3)
   cloudscheduler.googleapis.com     # Cloud Scheduler (Phase 4)
+  storage.googleapis.com            # Cloud Storage avatars (Phase 5)
   iamcredentials.googleapis.com     # Workload Identity Federation
   sts.googleapis.com                # Workload Identity Federation
   iam.googleapis.com                # service accounts / IAM
