@@ -3510,7 +3510,7 @@ export interface paths {
         put?: never;
         /**
          * Upload My Avatar
-         * @description Upload a profile photo for the current user. Downscaled and stored in the DB.
+         * @description Upload a profile photo. Stored in GCS when MEDIA_BUCKET is set, else DB blob.
          */
         post: operations["upload_my_avatar_players_me_avatar_post"];
         delete?: never;
@@ -4830,24 +4830,36 @@ export interface components {
         };
         /** Body_import_course_from_file_courses_import_file_post */
         Body_import_course_from_file_courses_import_file_post: {
-            /** File */
+            /**
+             * File
+             * Format: binary
+             */
             file: string;
         };
         /** Body_scan_scorecard_photo_scorecard_scan_post */
         Body_scan_scorecard_photo_scorecard_scan_post: {
-            /** File */
+            /**
+             * File
+             * Format: binary
+             */
             file: string;
             /** Players */
             players?: string | null;
         };
         /** Body_upload_gmail_credentials_admin_upload_credentials_post */
         Body_upload_gmail_credentials_admin_upload_credentials_post: {
-            /** File */
+            /**
+             * File
+             * Format: binary
+             */
             file: string;
         };
         /** Body_upload_my_avatar_players_me_avatar_post */
         Body_upload_my_avatar_players_me_avatar_post: {
-            /** File */
+            /**
+             * File
+             * Format: binary
+             */
             file: string;
         };
         /** BookTeeTimeRequest */
@@ -6295,10 +6307,6 @@ export interface components {
         };
         /** ValidationError */
         ValidationError: {
-            /** Context */
-            ctx?: Record<string, never>;
-            /** Input */
-            input?: unknown;
             /** Location */
             loc: (string | number)[];
             /** Message */

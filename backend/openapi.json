@@ -211,7 +211,7 @@
       "Body_import_course_from_file_courses_import_file_post": {
         "properties": {
           "file": {
-            "contentMediaType": "application/octet-stream",
+            "format": "binary",
             "title": "File",
             "type": "string"
           }
@@ -225,7 +225,7 @@
       "Body_scan_scorecard_photo_scorecard_scan_post": {
         "properties": {
           "file": {
-            "contentMediaType": "application/octet-stream",
+            "format": "binary",
             "title": "File",
             "type": "string"
           },
@@ -250,7 +250,7 @@
       "Body_upload_gmail_credentials_admin_upload_credentials_post": {
         "properties": {
           "file": {
-            "contentMediaType": "application/octet-stream",
+            "format": "binary",
             "title": "File",
             "type": "string"
           }
@@ -264,7 +264,7 @@
       "Body_upload_my_avatar_players_me_avatar_post": {
         "properties": {
           "file": {
-            "contentMediaType": "application/octet-stream",
+            "format": "binary",
             "title": "File",
             "type": "string"
           }
@@ -554,7 +554,7 @@
         "type": "object"
       },
       "CustomPlayer": {
-        "description": "A player in a custom game \u2014 a real person or a ghost (AI-played).",
+        "description": "A player in a custom game — a real person or a ghost (AI-played).",
         "properties": {
           "handicap": {
             "default": 18,
@@ -3795,13 +3795,6 @@
       },
       "ValidationError": {
         "properties": {
-          "ctx": {
-            "title": "Context",
-            "type": "object"
-          },
-          "input": {
-            "title": "Input"
-          },
           "loc": {
             "items": {
               "anyOf": [
@@ -3926,7 +3919,7 @@
     },
     "/admin/badges/backfill-career": {
       "post": {
-        "description": "Award career-milestone badges (earnings/games-played tiers, etc.) to every\nactive player from their current PlayerStatistics (admin only).\n\nOne-time/on-demand backfill for players whose history is legacy sheet\nrounds \u2014 those never trigger the normal post-game badge check, which\nrequires a GamePlayerResult row. Safe to re-run: already-earned badges\nare skipped.",
+        "description": "Award career-milestone badges (earnings/games-played tiers, etc.) to every\nactive player from their current PlayerStatistics (admin only).\n\nOne-time/on-demand backfill for players whose history is legacy sheet\nrounds — those never trigger the normal post-game badge check, which\nrequires a GamePlayerResult row. Safe to re-run: already-earned badges\nare skipped.",
         "operationId": "backfill_career_badges_admin_badges_backfill_career_post",
         "parameters": [
           {
@@ -5526,7 +5519,7 @@
     },
     "/admin/spreadsheet/sync-round": {
       "post": {
-        "description": "Enqueue a completed round for background sync to Google Sheets.\n\nReturns 202 immediately. The background processor runs every 5 minutes,\ndeduplicates against existing legacy_rounds, and writes new/updated rounds\nto the sheet.\n\nDedup logic:\n  - Same date + group + same player set + same scores \u2192 skipped as duplicate\n  - Same date + group + same player set but different scores \u2192 written as update\n  - New player set for that date/group \u2192 written as new round\n\nNOTE: player_scores should be summed totals (not per-hole). The app tracks\nper-hole detail internally; the legacy sheet only stores round totals.",
+        "description": "Enqueue a completed round for background sync to Google Sheets.\n\nReturns 202 immediately. The background processor runs every 5 minutes,\ndeduplicates against existing legacy_rounds, and writes new/updated rounds\nto the sheet.\n\nDedup logic:\n  - Same date + group + same player set + same scores → skipped as duplicate\n  - Same date + group + same player set but different scores → written as update\n  - New player set for that date/group → written as new round\n\nNOTE: player_scores should be summed totals (not per-hole). The app tracks\nper-hole detail internally; the legacy sheet only stores round totals.",
         "operationId": "sync_round_to_spreadsheet_admin_spreadsheet_sync_round_post",
         "parameters": [
           {
@@ -5701,7 +5694,7 @@
     },
     "/admin/test-welcome-email": {
       "post": {
-        "description": "Send the welcome email to one address (admin only).\n\nDiagnostic for proving the welcome path works end-to-end. Sends the real\ntemplate \u2014 does not create an account or seed preferences.",
+        "description": "Send the welcome email to one address (admin only).\n\nDiagnostic for proving the welcome path works end-to-end. Sends the real\ntemplate — does not create an account or seed preferences.",
         "operationId": "send_test_welcome_email_admin_test_welcome_email_post",
         "parameters": [
           {
@@ -6889,7 +6882,7 @@
     },
     "/callouts/test-email": {
       "post": {
-        "description": "Send a sample headcount/matchmaking callout email to one address (admin only).\n\nDiagnostic for proving the notification path works end-to-end. Does NOT touch\nthe opt-in list or the once-per-window dedup table \u2014 it just renders and sends\nthe real callout template with sample data.",
+        "description": "Send a sample headcount/matchmaking callout email to one address (admin only).\n\nDiagnostic for proving the notification path works end-to-end. Does NOT touch\nthe opt-in list or the once-per-window dedup table — it just renders and sends\nthe real callout template with sample data.",
         "operationId": "send_test_callout_email_callouts_test_email_post",
         "parameters": [
           {
@@ -7422,7 +7415,7 @@
     },
     "/data/livsow/snapshot": {
       "post": {
-        "description": "Run the roster snapshot/diff check now. Called by the daily cron and\navailable for manual triggering. Idempotent and guarded \u2014 safe to call\nrepeatedly. ?force=true bypasses the debounce and circuit breaker.",
+        "description": "Run the roster snapshot/diff check now. Called by the daily cron and\navailable for manual triggering. Idempotent and guarded — safe to call\nrepeatedly. ?force=true bypasses the debounce and circuit breaker.",
         "operationId": "post_livsow_snapshot_data_livsow_snapshot_post",
         "parameters": [
           {
@@ -7488,7 +7481,7 @@
     },
     "/data/livsow/teams/seed-starters": {
       "post": {
-        "description": "Seed starter content for any franchise that has none. Admin-only,\nidempotent \u2014 teams a captain has already edited are left untouched.",
+        "description": "Seed starter content for any franchise that has none. Admin-only,\nidempotent — teams a captain has already edited are left untouched.",
         "operationId": "seed_livsow_team_starters_data_livsow_teams_seed_starters_post",
         "parameters": [
           {
@@ -7538,7 +7531,7 @@
     },
     "/data/livsow/teams/set-official-logos": {
       "post": {
-        "description": "Set each franchise's official crest as its logo. Admin-only. Upserts\nthe content row and touches only logo_url \u2014 captain motto/about/\nannouncement are preserved.",
+        "description": "Set each franchise's official crest as its logo. Admin-only. Upserts\nthe content row and touches only logo_url — captain motto/about/\nannouncement are preserved.",
         "operationId": "set_official_team_logos_data_livsow_teams_set_official_logos_post",
         "parameters": [
           {
@@ -7737,7 +7730,7 @@
     },
     "/data/livsow/transactions": {
       "get": {
-        "description": "LivSow transaction log \u2014 newest first, baseball-reference style.",
+        "description": "LivSow transaction log — newest first, baseball-reference style.",
         "operationId": "get_livsow_transactions_data_livsow_transactions_get",
         "parameters": [
           {
@@ -8127,7 +8120,7 @@
     },
     "/data/sync-sheets": {
       "post": {
-        "description": "Pull all rounds from Google Sheets and upsert into legacy_rounds table.\n\nSafe to run repeatedly \u2014 clears and repopulates the table each time.",
+        "description": "Pull all rounds from Google Sheets and upsert into legacy_rounds table.\n\nSafe to run repeatedly — clears and repopulates the table each time.",
         "operationId": "sync_sheets_to_db_data_sync_sheets_post",
         "parameters": [
           {
@@ -9744,7 +9737,7 @@
     },
     "/games/{game_id}/scores": {
       "post": {
-        "description": "Submit hole scores for a game. Each hole must sum to zero. Upserts \u2014 safe to call repeatedly.",
+        "description": "Submit hole scores for a game. Each hole must sum to zero. Upserts — safe to call repeatedly.",
         "operationId": "save_scores_games__game_id__scores_post",
         "parameters": [
           {
@@ -9840,7 +9833,7 @@
     },
     "/games/{game_id}/state": {
       "get": {
-        "description": "Get current game state for a specific multiplayer game.\n\nThe database is the single source of truth. (The old in-memory simulation\ncache was removed \u2014 it was the source of the split-brain where scorekeeper\nwrites landed in the DB but /state served a stale sim. The SimpleScorekeeper\ncomputes rules client-side and persists via /scores, so the server engine is\nno longer in the read path.)",
+        "description": "Get current game state for a specific multiplayer game.\n\nThe database is the single source of truth. (The old in-memory simulation\ncache was removed — it was the source of the split-brain where scorekeeper\nwrites landed in the DB but /state served a stale sim. The SimpleScorekeeper\ncomputes rules client-side and persists via /scores, so the server engine is\nno longer in the read path.)",
         "operationId": "get_game_state_by_id_games__game_id__state_get",
         "parameters": [
           {
@@ -10485,7 +10478,7 @@
         ]
       },
       "post": {
-        "description": "Post to the GroupMe group as the logged-in player (via the bot).\n\nAuth required \u2014 anonymous web visitors must not be able to spam the\nleague's chat.",
+        "description": "Post to the GroupMe group as the logged-in player (via the bot).\n\nAuth required — anonymous web visitors must not be able to spam the\nleague's chat.",
         "operationId": "groupme_post_groupme_messages_post",
         "requestBody": {
           "content": {
@@ -10554,7 +10547,7 @@
     },
     "/leaderboard/ghin-enhanced": {
       "get": {
-        "description": "Get leaderboard enhanced with stored GHIN handicap data.\n\nServes from DB only \u2014 no live GHIN API call. Handicaps are refreshed\ndaily by the background scheduler (or on-demand via POST /ghin/sync-handicaps).",
+        "description": "Get leaderboard enhanced with stored GHIN handicap data.\n\nServes from DB only — no live GHIN API call. Handicaps are refreshed\ndaily by the background scheduler (or on-demand via POST /ghin/sync-handicaps).",
         "operationId": "get_ghin_enhanced_leaderboard_leaderboard_ghin_enhanced_get",
         "parameters": [
           {
@@ -12153,7 +12146,7 @@
     },
     "/players/me/avatar": {
       "post": {
-        "description": "Upload a profile photo for the current user. Downscaled and stored in the DB.",
+        "description": "Upload a profile photo. Stored in GCS when MEDIA_BUCKET is set, else DB blob.",
         "operationId": "upload_my_avatar_players_me_avatar_post",
         "requestBody": {
           "content": {
@@ -12893,7 +12886,7 @@
     },
     "/players/{player_id}/avatar": {
       "get": {
-        "description": "Serve a player's uploaded avatar image. Public \u2014 used directly as an <img> src.",
+        "description": "Serve a player's uploaded avatar image. Public — used directly as an <img> src.",
         "operationId": "get_player_avatar_players__player_id__avatar_get",
         "parameters": [
           {
@@ -13215,7 +13208,7 @@
     },
     "/players/{player_id}/public-profile": {
       "get": {
-        "description": "Public profile \u2014 no auth required. Returns only non-sensitive fields\n(no email, venmo, or GHIN id).",
+        "description": "Public profile — no auth required. Returns only non-sensitive fields\n(no email, venmo, or GHIN id).",
         "operationId": "get_public_player_profile_players__player_id__public_profile_get",
         "parameters": [
           {
@@ -14741,7 +14734,7 @@
     },
     "/tee-sheet/signup": {
       "post": {
-        "description": "Sign up a player for a given date on the thousand-cranes.com tee sheet.\n\nThis writes to the LIVE, shared club tee sheet. A dry-run request \u2014 or any\nnon-production deployment without an explicit opt-in \u2014 returns a preview of\nexactly what would be written (name + date) and performs no live mutation,\nso preview/testing can never silently change the real sheet. See issue #323.",
+        "description": "Sign up a player for a given date on the thousand-cranes.com tee sheet.\n\nThis writes to the LIVE, shared club tee sheet. A dry-run request — or any\nnon-production deployment without an explicit opt-in — returns a preview of\nexactly what would be written (name + date) and performs no live mutation,\nso preview/testing can never silently change the real sheet. See issue #323.",
         "operationId": "signup_for_tee_sheet_tee_sheet_signup_post",
         "requestBody": {
           "content": {
