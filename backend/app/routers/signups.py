@@ -8,11 +8,11 @@ import logging
 import threading
 from datetime import datetime, timedelta
 
-import sentry_sdk
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 
 from .. import database, models, schemas
+from ..observability.report import report_exception, report_message
 from ..services.auth_service import get_current_user
 from ..services.legacy_player_service import (
     add_legacy_player,
@@ -64,7 +64,7 @@ def _deliver_signup_confirmation(signup_id: int, to_email: str, player_name: str
         svc = get_email_service()
         if not svc.is_configured():
             logger.warning("Signup confirmation skipped for <%s>: email provider not configured", to_email)
-            sentry_sdk.capture_message(f"Signup confirmation skipped: provider not configured (signup_id={signup_id})")
+            report_message(f"Signup confirmation skipped: provider not configured (signup_id={signup_id})")
             return
 
         accepted = svc.send_signup_confirmation(to_email, player_name, signup_date)
@@ -74,10 +74,10 @@ def _deliver_signup_confirmation(signup_id: int, to_email: str, player_name: str
             logger.info("Signup confirmation accepted by provider for signup %s <%s>", signup_id, to_email)
         else:
             logger.error("Signup confirmation rejected by provider for signup %s <%s>", signup_id, to_email)
-            sentry_sdk.capture_message(f"Signup confirmation rejected by provider (signup_id={signup_id})")
+            report_message(f"Signup confirmation rejected by provider (signup_id={signup_id})")
     except Exception as exc:  # never surface to the signup path
         logger.warning("Failed to send signup confirmation for signup %s: %s", signup_id, exc)
-        sentry_sdk.capture_exception(exc)
+        report_exception(exc)
         db.rollback()
     finally:
         db.close()

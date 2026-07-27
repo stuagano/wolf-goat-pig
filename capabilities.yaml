@@ -329,7 +329,7 @@ capabilities:
       \ to Sentry even though they return false/empty \u2014 an outage is never invisible"
     given: a GHIN/Google-Sheets/ForeTees call whose upstream errors
     when: the service swallows the error and returns false/empty/none
-    then: sentry_sdk.capture_exception is still called so the swallowed outage is observable,
+    then: report_exception is still called so the swallowed outage lands in Cloud Logging,
       not silent
     tier: cheap
     deps:

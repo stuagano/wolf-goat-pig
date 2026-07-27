@@ -1,16 +1,15 @@
-"""Each known silent-failure swallow site must report to Sentry while still
-returning its swallowed value (False / None). Mirrors the Phase-1 contract
-error mocks; spies on sentry_sdk.capture_exception."""
+"""Each known silent-failure swallow site must report via observability.report
+while still returning its swallowed value (False / None)."""
 
 import httpx
 import pytest
 import resend
 import respx
-import sentry_sdk
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.models import Base
+from app.observability import report as report_mod
 from app.services import spreadsheet_sync_service
 from app.services.foretees_service import (
     FORETEES_APP_BASE,
@@ -24,10 +23,6 @@ TEST_DB = "sqlite:///./test_silent_capture.db"
 _engine = create_engine(TEST_DB, connect_args={"check_same_thread": False})
 _Session = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
 
-# Proxy env vars httpx honors at client construction. This module lives outside
-# tests/contract/, so the contract conftest's proxy-clearing fixture does not
-# apply — clear them locally so httpx never tries to load `socksio` on a
-# SOCKS-proxied dev machine (same failure mode as the local-only startup test).
 _PROXY_ENV_VARS = (
     "ALL_PROXY",
     "all_proxy",
@@ -58,7 +53,18 @@ def db():
 @pytest.fixture
 def capture_spy(monkeypatch):
     calls = []
-    monkeypatch.setattr(sentry_sdk, "capture_exception", lambda e: calls.append(e))
+
+    def spy(e, *a, **k):
+        calls.append(e)
+
+    monkeypatch.setattr(report_mod, "report_exception", spy)
+    for target in (
+        "app.services.ghin_service.report_exception",
+        "app.services.spreadsheet_sync_service.report_exception",
+        "app.services.foretees_service.report_exception",
+        "app.services.providers.resend_provider.report_exception",
+    ):
+        monkeypatch.setattr(target, spy)
     return calls
 
 

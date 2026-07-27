@@ -112,16 +112,11 @@ class TestApplicationStartup:
         try:
             from app.main import app
 
-            # Use the OpenAPI schema rather than introspecting app.routes
-            # directly: FastAPI builds it from the full route tree, so it stays
-            # stable across Starlette versions (newer Starlette nests routes
-            # inside router-include wrappers that have no top-level `.path`,
-            # which broke a flat `[route.path for route in app.routes]` scan).
-            route_paths = list(app.openapi().get("paths", {}).keys())
-
-            # Check for critical routes
+            # OpenAPI intentionally omits operational probes. Resolve those by
+            # route name while keeping schema checks for the public API.
+            route_paths = app.openapi().get("paths", {})
             assert any("/games" in path for path in route_paths), "Games routes should be registered"
-            assert any("/health" in path for path in route_paths), "Health route should be registered"
+            assert str(app.url_path_for("health_check")) == "/health"
         except Exception as e:
             pytest.fail(f"Failed to verify routes: {e}")
 

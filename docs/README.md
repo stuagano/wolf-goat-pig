@@ -61,9 +61,9 @@ Feature specifications and game rules:
 
 ## Observability
 
-- [Sentry setup](./observability/sentry-setup.md) - Error tracking
+- [Observability (GCP)](./observability/sentry-setup.md) - Cloud Monitoring + Logging (no Sentry)
 - [Uptime monitoring](./observability/uptime-setup.md) - Synthetic monitoring
-- [Render blueprint](./observability/render-blueprint.md) - Infrastructure as code
+- [Render blueprint](./observability/render-blueprint.md) - Infrastructure as code (legacy)
 
 ## Development & automation
 

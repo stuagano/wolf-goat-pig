@@ -9,11 +9,11 @@ Sentry but never blocks or breaks login.
 from unittest.mock import Mock
 
 import pytest
-import sentry_sdk
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.models import Base, PlayerProfile
+from app.observability import report as report_mod
 from app.services import auth_service as auth_module
 from app.services import legacy_player_service as svc
 from app.services.auth_service import AuthService
@@ -100,7 +100,8 @@ def test_welcome_email_failure_is_captured_and_login_survives(db, monkeypatch):
     monkeypatch.setattr("app.services.email_service.get_email_service", lambda: boom_svc)
 
     captured: list[BaseException] = []
-    monkeypatch.setattr(sentry_sdk, "capture_exception", lambda e: captured.append(e))
+    monkeypatch.setattr(report_mod, "report_exception", lambda e, *a, **k: captured.append(e))
+    monkeypatch.setattr("app.services.auth_service.report_exception", lambda e, *a, **k: captured.append(e))
 
     auth0_user = {
         "sub": "auth0|brandnew",
@@ -152,7 +153,8 @@ def test_welcome_email_soft_failure_is_observable_and_not_marked(db, monkeypatch
     monkeypatch.setattr("app.services.email_service.get_email_service", lambda: soft_svc)
 
     messages: list[str] = []
-    monkeypatch.setattr(sentry_sdk, "capture_message", lambda m, *a, **k: messages.append(m))
+    monkeypatch.setattr(report_mod, "report_message", lambda m, *a, **k: messages.append(m))
+    monkeypatch.setattr("app.services.auth_service.report_message", lambda m, *a, **k: messages.append(m))
 
     player = AuthService.get_or_create_player_profile(db, _brandnew_user())
 

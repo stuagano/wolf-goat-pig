@@ -242,5 +242,8 @@ hive-mind-prompt-*.txt
 
 # GCP deploy — local config (holds project-specific but non-secret values)
 deploy/gcp/config.env
+deploy/gcp/phase6-monitoring/.notification-channel
+deploy/gcp/phase6-monitoring/.uptime-checks
+deploy/gcp/phase6-monitoring/policies/
 .firebaserc
 /firebase.json

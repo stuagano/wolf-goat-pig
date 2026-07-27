@@ -41,7 +41,7 @@ backend/
 │   ├── state/           # App/course/player/shot state
 │   ├── middleware/      # Caching, rate limiting
 │   ├── mixins/          # Reusable model mixins (persistence)
-│   ├── observability/   # Sentry + external health checks
+│   ├── observability/   # Cloud Logging report helpers + external health checks
 │   ├── validators/      # Betting / game-state / handicap validators
 │   ├── utils/           # Helpers (auth, api, response types, time)
 │   ├── migrations/      # Migration package
@@ -83,7 +83,7 @@ frontend/
 │   ├── theme/           # Theme provider and tokens
 │   ├── utils/           # Utility functions
 │   ├── styles/          # CSS
-│   └── sentry.js        # Sentry initialization
+│   └── index.jsx        # App bootstrap + ErrorBoundary
 ├── vite.config.js       # Vite build + dev-server proxy config
 ├── package.json         # Node dependencies and scripts
 └── build/               # Production build output (Vite `build.outDir`; generated, gitignored)
@@ -109,7 +109,7 @@ docs/
 ├── guides/              # Developer/operator guides
 ├── features/            # Feature specs and rules
 ├── product/             # Product context
-├── observability/       # Sentry / uptime / Render blueprint
+├── observability/       # GCP uptime / Logging / legacy Render notes
 ├── development/         # Contributor + automation docs
 └── README.md            # Documentation index
 ```

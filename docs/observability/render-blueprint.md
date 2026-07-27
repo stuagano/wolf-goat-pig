@@ -42,7 +42,7 @@ values intact. (Ask Isaac to flip them to `sync: false` if unsure.)
 
 ## What's already in code (this PR)
 
-- `SENTRY_DSN` — `value:` (Sentry ingestion key, public by design). Applies on Blueprint sync.
+- ~~`SENTRY_DSN`~~ — removed; observability is GCP Cloud Monitoring/Logging only.
 - `MONITOR_KEY` — `generateValue: true` (Render makes a strong value; copy it from the dashboard into the uptime monitor's `X-Monitor-Key` header).
 - `EXTERNAL_HEALTH_TTL` — `value: "300"`.
 
@@ -50,7 +50,7 @@ values intact. (Ask Isaac to flip them to `sync: false` if unsure.)
 
 Until you connect the Blueprint, the live service still ignores `render.yaml`.
 To turn Sentry on **now**, set one env var in the Render dashboard:
-`SENTRY_DSN` = the value in `render.yaml`. Once the Blueprint is connected you
+Sentry DSNs are no longer used. Once the Blueprint is connected you
 can delete that manual override and let `render.yaml` drive it.
 
 ## Why some things must stay out of render.yaml
@@ -58,7 +58,7 @@ can delete that manual override and let `render.yaml` drive it.
 - True secrets (`DATABASE_URL`, `RESEND_API_KEY`, `GHIN_API_PASS`,
   `BOOKING_SERVICE_SECRET`, the ForeTees creds) → `sync: false`. Never commit
   them to this public repo.
-- The frontend `VITE_SENTRY_DSN` lives in **Vercel** (it's a frontend build
+- Frontend error SaaS was removed; use GCP Monitoring for production alerts.
   var), not here. It's public-safe (ships in the browser), so it can go in
   `vercel.json` `build.env` for version control once a frontend Sentry project
   exists — or be set in the Vercel dashboard.

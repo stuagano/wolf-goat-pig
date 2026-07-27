@@ -15,11 +15,11 @@ from typing import Any, cast
 
 from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.responses import JSONResponse
-from sentry_sdk import capture_message, get_client
 from sqlalchemy import text
 
 from .. import models
 from ..observability.external_checks import check_all
+from ..observability.report import report_message
 from ..state.course_manager import CourseManager
 from ..utils.api_helpers import handle_api_errors, managed_session
 from ..utils.time import utc_now
@@ -386,39 +386,7 @@ async def external_health(
 
     if any_down:
         down = [s.name for s in statuses if s.status == "down"]
-        capture_message(f"External services down: {', '.join(down)}", level="error")
+        report_message(f"External services down: {', '.join(down)}", level="error")
 
     _EXTERNAL_CACHE.update(at=now, payload=payload, http_status=http_status)
     return JSONResponse(status_code=http_status, content={**payload, "cached": False})
-
-
-@router.get("/health/sentry-test")
-async def sentry_test(
-    send: int = Query(default=0),
-    monitor_key: str | None = Query(default=None),
-    x_monitor_key: str | None = Header(default=None),
-) -> JSONResponse:
-    """Diagnostic: is Sentry initialized in this process? (`sentry_initialized`
-    is true only when SENTRY_DSN is configured and the SDK started.) Pass
-    `?send=1` with the MONITOR_KEY (header or query param) to fire a real test
-    event you can confirm in the Sentry dashboard."""
-    from ..observability import sentry as _sentry_mod
-
-    initialized = get_client().is_active()
-    dsn = os.getenv("SENTRY_DSN")
-    result: dict[str, Any] = {
-        "sentry_initialized": initialized,
-        # Diagnostics (no secret revealed — only presence/length/init error):
-        "sentry_dsn_present": bool(dsn),
-        "sentry_dsn_len": len(dsn) if dsn else 0,
-        "sentry_init_error": _sentry_mod.last_init_error,
-        "environment": os.getenv("ENVIRONMENT", "development"),
-    }
-    if send:
-        expected = os.getenv("MONITOR_KEY")
-        if expected and x_monitor_key != expected and monitor_key != expected:
-            return JSONResponse(status_code=403, content={"detail": "forbidden"})
-        result["test_event_sent"] = initialized
-        if initialized:
-            result["test_event_id"] = capture_message("WGP backend Sentry self-test", level="info")
-    return JSONResponse(content=result)

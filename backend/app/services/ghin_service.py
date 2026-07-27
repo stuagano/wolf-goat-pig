@@ -13,11 +13,11 @@ import os
 from typing import Any, cast
 
 import httpx  # Added httpx for API calls
-import sentry_sdk
 from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
 
 from ..models import GHINHandicapHistory, GHINScore, PlayerProfile, PlayerStatistics
+from ..observability.report import report_exception
 from ..utils.time import utc_now
 
 # Note: The actual GHIN API integration would require proper authentication
@@ -85,7 +85,7 @@ class GHINService:
                 return False
 
         except Exception as e:
-            sentry_sdk.capture_exception(e)
+            report_exception(e)
             logger.error(f"Failed to initialize GHIN service: {e}")
             self.initialized = False
             return False

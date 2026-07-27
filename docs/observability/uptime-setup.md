@@ -1,29 +1,34 @@
-# Uptime monitoring setup (Phase 2b)
+# Uptime monitoring (GCP Cloud Monitoring)
 
-`GET /health/external` runs read-only probes of the 8 external services (cached
-~5 min, guarded by `X-Monitor-Key` when `MONITOR_KEY` is set). An external uptime
-service pings it + `/health` and emails on failure.
+Production uptime and operational alerts are **Google Cloud Monitoring** only
+(no Sentry, no UptimeRobot). Scripts:
+[`deploy/gcp/phase6-monitoring/`](../../deploy/gcp/phase6-monitoring/).
 
-## 1. Set the monitor key (Render)
-- In the Render backend service env (`wolf-goat-pig-api` → Environment), set `MONITOR_KEY` to a **URL-safe** random value — generate one with `openssl rand -hex 32` (hex has no `/ + =`, so it works in a URL).
-- (Optional) set `EXTERNAL_HEALTH_TTL` (seconds, default 300).
+## What gets probed / alerted
 
-## 2. Create the monitors (UptimeRobot or BetterStack — free tier)
-- **Monitor A — app up:** `GET https://wolf-goat-pig.onrender.com/health`, every 5 min. Alert if non-200. (No key needed.)
-- **Monitor B — externals:** every 5–15 min, alert if non-200. The guard key can be sent two ways — use whichever your tool supports:
-  - **Query param (works everywhere, incl. UptimeRobot free):**
-    `GET https://wolf-goat-pig.onrender.com/health/external?monitor_key=<MONITOR_KEY>`
-  - **Custom header (if your tool allows it):** `GET …/health/external` with header `X-Monitor-Key: <MONITOR_KEY>`.
-- To reduce flapping, set the monitor to alert only after 2 consecutive failures.
+| Check / policy | Signal | Alert if |
+|---|---|---|
+| `WGP API /health` | Cloud Run health | non-2xx ~2+ minutes |
+| `WGP Firebase Hosting` | SPA | non-2xx ~2+ minutes |
+| Cloud Run 5xx spike | Sustained 500s | 5xx for 5 minutes |
+| Scheduler job failed | Cron jobs | ERROR log from Scheduler |
+| Reported app error | `report_*` helpers | matching ERROR logs (email/GHIN/etc.) |
 
-## 3. Alerts → email
-- Add stuagano@gmail.com as the alert contact on both monitors.
+Email → `MONITOR_ALERT_EMAIL` (default `stuagano@gmail.com`).
 
-## What this catches (that Sentry/2a can't)
-- **Total downtime** — `/health` unreachable.
-- **A genuinely-down external** even with no user traffic — `/health/external` returns 503 listing the down services. (`not_configured` services never trigger an alert.)
+## Provision
 
-## Notes
-- The endpoint is cached, so pinging more often than the TTL does not increase real external calls (Groq spend / GHIN-ForeTees logins are bounded to ≤ once per TTL per instance).
-- Down services are also sent to Sentry (`capture_message`) when `SENTRY_DSN` is set — a secondary signal alongside the monitor email.
-- If `MONITOR_KEY` is unset, the endpoint is open (intended for local/dev, where no creds are configured so the probes all report `not_configured`). Always set `MONITOR_KEY` in production.
+```bash
+gcloud auth login   # needs Monitoring Admin on seventh-country-232522
+./deploy/gcp/phase6-monitoring/10-notification-channel.sh
+./deploy/gcp/phase6-monitoring/20-uptime-checks.sh
+./deploy/gcp/phase6-monitoring/30-alert-policies.sh
+```
+
+Verify the notification channel email the first time Google asks.
+
+## `/health/external`
+
+Still available for manual debugging of GHIN / Sheets / ForeTees. Down services
+are logged via `report_message` (Cloud Logging). `MONITOR_KEY` may stay unset
+on GCP.

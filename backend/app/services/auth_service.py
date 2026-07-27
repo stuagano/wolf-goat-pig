@@ -9,7 +9,6 @@ from collections.abc import Generator
 from typing import Any
 
 import httpx as _httpx
-import sentry_sdk
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
@@ -17,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from ..database import SessionLocal, get_db
 from ..models import EmailPreferences, PlayerProfile
+from ..observability.report import report_exception, report_message
 from ..utils.time import utc_now
 from .legacy_player_service import capture_pending_player, find_similar_players, get_canonical_name
 
@@ -94,7 +94,7 @@ def _deliver_welcome_email(name: str, email: str | None, player_id: int) -> None
         svc = get_email_service()
         if not svc.is_configured():
             logger.warning("Welcome email skipped for player %s <%s>: email provider not configured", player_id, email)
-            sentry_sdk.capture_message(f"Welcome email skipped: provider not configured (player_id={player_id})")
+            report_message(f"Welcome email skipped: provider not configured (player_id={player_id})")
             return
         accepted = svc.send_welcome_email(email, name)
         if accepted:
@@ -103,10 +103,10 @@ def _deliver_welcome_email(name: str, email: str | None, player_id: int) -> None
         else:
             # Soft failure: provider returned False without raising.
             logger.error("Welcome email rejected by provider for player %s <%s>", player_id, email)
-            sentry_sdk.capture_message(f"Welcome email rejected by provider (player_id={player_id}, email={email})")
+            report_message(f"Welcome email rejected by provider (player_id={player_id}, email={email})")
     except Exception as exc:  # never surface to the login path
         logger.warning(f"Failed to send welcome email to '{email}': {exc}")
-        sentry_sdk.capture_exception(exc)
+        report_exception(exc)
 
 
 def _send_welcome_email(name: str, email: str | None, player_id: int) -> None:
@@ -352,7 +352,7 @@ class AuthService:
                 _send_welcome_email(name, email, player.id)
             except Exception as exc:
                 logger.warning(f"Failed to dispatch welcome email for '{name}': {exc}")
-                sentry_sdk.capture_exception(exc)
+                report_exception(exc)
 
             # No legacy link → decide between "confirm a suggestion" and "brand
             # new golfer". If there's a plausible fuzzy suggestion, onboarding

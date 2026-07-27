@@ -15,6 +15,7 @@ Infrastructure-as-code for the migration designed in
 | 3 Firebase Hosting | **Production** — https://seventh-country-232522.web.app |
 | 4 Cloud Scheduler | Live — 6 jobs → `/internal/jobs/*` |
 | 5 Cloud Storage | Live — `wgp-media-seventh-country-232522` (avatars) |
+| 6 Monitoring | Live — Cloud Monitoring uptime + alerts; **no Sentry** ([phase6-monitoring](phase6-monitoring/README.md)) |
 | Decommission | In progress — freeze Vercel/Render ([DECOMMISSION.md](DECOMMISSION.md)) |
 
 **Production SPA:** https://seventh-country-232522.web.app  
@@ -45,6 +46,8 @@ Cloud Scheduler → Cloud Run jobs     └→ Cloud Storage (future: scorecard i
 | `phase2-cloud-sql/` | 2 | Provision Cloud SQL + Postgres migration runbook. |
 | `phase3-hosting/` | 3 | Firebase Hosting config (`firebase.json`). |
 | `phase4-scheduling/` | 4 | Cloud Scheduler → Cloud Run jobs. |
+| `phase5-storage/` | 5 | GCS media bucket for avatars. |
+| `phase6-monitoring/` | 6 | Uptime checks + alert policies (email). |
 | `secrets.md` | — | Secret Manager ↔ render.yaml mapping. |
 | `DECOMMISSION.md` | 5 | Render/Vercel cutover checklist. |
 | `../../.github/workflows/deploy-gcp.yml` | 1, 3 | GitHub Actions → Cloud Build (keyless WIF). |
@@ -85,6 +88,11 @@ source deploy/gcp/config.env
 # Phase 4 — scheduling
 export INTERNAL_JOB_TOKEN="$(gcloud secrets versions access latest --secret=INTERNAL_JOB_TOKEN)"
 ./deploy/gcp/phase4-scheduling/10-create-scheduler-jobs.sh
+
+# Phase 6 — monitoring (uptime + email alerts; GCP only — no Sentry)
+./deploy/gcp/phase6-monitoring/10-notification-channel.sh
+./deploy/gcp/phase6-monitoring/20-uptime-checks.sh
+./deploy/gcp/phase6-monitoring/30-alert-policies.sh
 ```
 
 ## GitHub Actions variables

@@ -8,11 +8,11 @@ confirmation_email_sent_at, preference opt-out, and observable soft failure.
 from unittest.mock import Mock
 
 import pytest
-import sentry_sdk
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.models import Base, DailySignup, EmailPreferences
+from app.observability import report as report_mod
 from app.routers import signups as signups_module
 from app.utils.time import utc_now
 
@@ -105,7 +105,8 @@ def test_confirmation_soft_failure_is_observable_and_not_marked(db, monkeypatch)
     monkeypatch.setattr("app.services.email_service.get_email_service", lambda: svc)
 
     messages: list[str] = []
-    monkeypatch.setattr(sentry_sdk, "capture_message", lambda m, *a, **k: messages.append(m))
+    monkeypatch.setattr(report_mod, "report_message", lambda m, *a, **k: messages.append(m))
+    monkeypatch.setattr("app.routers.signups.report_message", lambda m, *a, **k: messages.append(m))
 
     signups_module._deliver_signup_confirmation(signup.id, "brett@example.com", "Brett Saks", "2026-08-02")
 

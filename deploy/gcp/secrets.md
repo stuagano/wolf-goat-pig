@@ -20,15 +20,15 @@ them in with `--set-secrets`.
 
 | Secret | Why dropped |
 |---|---|
-| `MONITOR_KEY` | Uptime is Cloud Monitoring, not `/health/external` + UptimeRobot. Endpoint stays open/fail-open when unset (dev-safe). |
+| `MONITOR_KEY` | Optional. Leave unset on GCP — uptime is Cloud Monitoring (phase6). Endpoint stays open/fail-open when unset (dev-safe). |
 | `FORETEES_USERNAME` / `FORETEES_PASSWORD` | Direct ForeTees login/health probe only. Booking still works via `BOOKING_SERVICE_*`. Without these, ForeTees health reports `not_configured`. |
 
 ## What is **not** a secret (stays in `env.production.yaml`)
 
-`SENTRY_DSN` (public by design — also ships in the browser bundle),
-`GHIN_API_STATIC_TOKEN` (`"ghincom"`), the Auth0 domain/client-id/audience, and
+The Auth0 domain/client-id/audience, `GHIN_API_STATIC_TOKEN` (`"ghincom"`), and
 the various `LEGACY_SIGNUP_*` / URL / tuning values. These mirror the plain
-(non-`sync:false`) entries in render.yaml.
+(non-`sync:false`) entries in render.yaml. **Sentry DSNs were removed** —
+observability is Cloud Monitoring + Cloud Logging only.
 
 ## Populate a secret value
 

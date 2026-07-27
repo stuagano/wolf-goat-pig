@@ -2805,29 +2805,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/health/sentry-test": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Sentry Test
-         * @description Diagnostic: is Sentry initialized in this process? (`sentry_initialized`
-         *     is true only when SENTRY_DSN is configured and the SDK started.) Pass
-         *     `?send=1` with the MONITOR_KEY (header or query param) to fire a real test
-         *     event you can confirm in the Sentry dashboard.
-         */
-        get: operations["sentry_test_health_sentry_test_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/leaderboard/ghin-enhanced": {
         parameters: {
             query?: never;
@@ -10765,40 +10742,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-        };
-    };
-    sentry_test_health_sentry_test_get: {
-        parameters: {
-            query?: {
-                send?: number;
-                monitor_key?: string | null;
-            };
-            header?: {
-                "x-monitor-key"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

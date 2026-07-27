@@ -21,7 +21,6 @@ from pydantic import BaseModel
 from . import database, models, schemas
 from .badge_routes import router as badge_router
 from .migrations_routes import router as migrations_router
-from .observability.sentry import init_sentry
 from .post_hole_analytics import PostHoleAnalyzer
 
 # Import routers
@@ -58,9 +57,6 @@ from .state.app_state import (
     set_course_manager,
     set_post_hole_analyzer,
 )
-
-# Initialize Sentry as early as possible (no-op unless SENTRY_DSN is set).
-init_sentry()
 
 # Import shared action models from schemas
 

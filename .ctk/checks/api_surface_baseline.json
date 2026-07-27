@@ -83,7 +83,6 @@
   "GET /groupme/status",
   "GET /health",
   "GET /health/external",
-  "GET /health/sentry-test",
   "GET /healthz",
   "GET /leaderboard/ghin-enhanced",
   "GET /legacy-players",
