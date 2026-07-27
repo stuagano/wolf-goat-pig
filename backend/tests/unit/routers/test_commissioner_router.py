@@ -243,3 +243,52 @@ class TestBuildDataContext:
         # Should not raise — just returns what it can
         result = _build_data_context(mock_db)
         assert isinstance(result, str)
+
+
+# =============================================================================
+# Schema guidance — club season vs in-app tables
+# =============================================================================
+
+
+class TestDataSchemaGuidance:
+    def test_schema_steers_leaderboard_to_legacy_rounds_official(self):
+        from app.routers.commissioner import DATA_SCHEMA
+
+        assert "legacy_rounds_official" in DATA_SCHEMA
+        assert "ALWAYS use" in DATA_SCHEMA or "Default to" in DATA_SCHEMA
+        # Must warn that player_statistics is the sparse in-app table
+        assert "In-app WGP game aggregates ONLY" in DATA_SCHEMA
+        assert "Never use them for the club" in DATA_SCHEMA
+        assert "season leaderboard" in DATA_SCHEMA
+
+    def test_data_chat_system_prompt_includes_season_context_and_guidance(self):
+        """Leaderboard questions must see season standings + table-selection rules."""
+        from app.routers import commissioner as mod
+
+        captured: dict[str, str] = {}
+
+        async def fake_llm(message: str, system: str) -> str:
+            captured["system"] = system
+            # Rules-only answer so we don't hit SQL execution in this unit test
+            return "Steve Sutorius leads the season."
+
+        with (
+            patch.dict("os.environ", {"GROQ_API_KEY": "fake-key"}, clear=False),
+            patch.object(mod, "_llm_generate", side_effect=fake_llm),
+            patch.object(
+                mod,
+                "_build_data_context",
+                return_value="## Current Season Leaderboard\n  1. Steve Sutorius: +3510Q over 123 rounds",
+            ),
+        ):
+            resp = client.post(
+                "/api/commissioner/data-chat",
+                json={"question": "Who is on the leaderboard?"},
+            )
+
+        assert resp.status_code == 200
+        system = captured["system"]
+        assert "legacy_rounds_official" in system
+        assert "Steve Sutorius" in system
+        assert "Default to `legacy_rounds_official`" in system
+        assert "Who is leading / leaderboard / standings?" in system

@@ -220,6 +220,18 @@ async def commissioner_chat(
 DATA_SCHEMA = """
 ## Queryable Tables
 
+### Table-selection rules (read first)
+- Club season standings, leaderboard, historical rounds, quarters won/lost,
+  "who's winning the season", "how many rounds has X played" → ALWAYS use
+  `legacy_rounds_official`. That is the authoritative Wing Point season data
+  (hundreds of rounds from the Google Sheet + attested member posts).
+- `player_statistics` / `game_records` / `game_player_results` cover ONLY games
+  scored live inside this app (a small subset). Never use them for the club
+  season leaderboard — they will look empty or absurdly thin.
+- Club currency is quarters (`score` / SUM(score)), not "wins". A positive
+  score for a round is a winning round; win rate ≈
+  COUNT(*) FILTER (WHERE score > 0) / COUNT(*).
+
 ### legacy_rounds_official
 Columns: id, date, "group", member, score, location, duration, source, synced_at
 IMPORTANT: `group` is a PostgreSQL reserved word — always quote it as "group" in queries.
@@ -237,6 +249,8 @@ playing_style, description
 personality_traits, strengths, weaknesses)
 
 ### player_statistics
+In-app WGP game aggregates ONLY (not the club season). Sparse — often just a
+handful of players who have finished a live-scored round in the app.
 Columns: id, player_id, games_played, games_won, total_earnings, holes_played,
 holes_won, avg_earnings_per_hole, betting_success_rate, successful_bets,
 total_bets, partnership_success_rate, partnerships_formed, partnerships_won,
@@ -249,11 +263,13 @@ worst_loss_streak, times_as_wolf, times_as_goat, times_as_pig,
 times_as_aardvark, last_updated
 
 ### game_records
+In-app completed games ONLY (not sheet history).
 Columns: id, game_id, course_name, game_mode, player_count,
 total_holes_played, game_duration_minutes, created_at, completed_at,
 final_scores
 
 ### game_player_results
+Per-player rows for in-app games ONLY.
 Columns: id, game_record_id, player_profile_id, player_name, final_position,
 total_earnings, holes_won, successful_bets, total_bets, partnerships_formed,
 partnerships_won, solo_attempts, solo_wins, ping_pongs, ping_pongs_won,
@@ -463,19 +479,30 @@ async def commissioner_data_chat(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Ask Commissioner Hover Over a data question about the WGP database."""
-    # Step 1: Ask Gemini to produce a SQL query (or a direct answer for rules)
+    # Season snapshot so leaderboard questions have ground truth even before SQL.
+    data_context = _build_data_context(db)
+
+    # Step 1: Ask the LLM to produce a SQL query (or a direct answer for rules)
     system = f"""{WGP_RULES}
 
 {DATA_SCHEMA}
+
+{data_context}
 
 You are Commissioner Hover Over — the all-knowing statistician and historian of Wolf Goat Pig.
 You have access to the full game database. When asked a data question, respond with a SQL query
 wrapped in ```sql ... ``` code blocks. Use PostgreSQL syntax.
 
+Default to `legacy_rounds_official` for ANY season / leaderboard / standings /
+"who's ahead" / rounds-played / historical-performance question. Only use
+`player_statistics` when the question explicitly asks about in-app live games,
+solo rates, streaks, or hole-by-hole app scoring.
+
 If the question is purely about rules (not data), respond directly without SQL.
 If you're unsure which player is meant, use ILIKE with wildcards for fuzzy matching.
 
 Example queries:
+- "Who is leading / leaderboard / standings?" → SELECT member, SUM(score) AS total_quarters, COUNT(*) AS rounds, ROUND(SUM(score)::numeric / COUNT(*), 1) AS avg_quarters, COUNT(*) FILTER (WHERE score > 0) AS rounds_won FROM legacy_rounds_official GROUP BY member ORDER BY total_quarters DESC LIMIT 20
 - "Who has the most quarters?" → SELECT member, SUM(score) as total_quarters FROM legacy_rounds_official GROUP BY member ORDER BY total_quarters DESC LIMIT 10
 - "Stuart's handicap history" → SELECT effective_date, handicap_index FROM ghin_handicap_history gh JOIN player_profiles pp ON gh.player_profile_id = pp.id WHERE pp.name ILIKE '%Stuart%' ORDER BY effective_date
 - "How many rounds per player?" → SELECT member, COUNT(*) as rounds FROM legacy_rounds_official GROUP BY member ORDER BY rounds DESC

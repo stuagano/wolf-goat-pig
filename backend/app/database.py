@@ -122,17 +122,34 @@ def get_isolated_session() -> Generator[Session, None, None]:
 
 
 def ensure_legacy_rounds_official_view(bind) -> None:
-    """Create the ``legacy_rounds_official`` view on SQLite (dev/test) DBs.
+    """Create the ``legacy_rounds_official`` view if the status column exists.
 
     The view excludes unattested member self-posts (``status='pending'``) and is
     the only legacy-rounds source the Commissioner's read-only SQL path may query.
-    On PostgreSQL the view is created by the attestation migration (after the
-    ``status`` column is added), so this skips Postgres to avoid referencing a
-    column that may not exist yet at ``init_db`` time on an upgrading DB.
+    Safe to call on every boot: ``CREATE OR REPLACE`` / ``CREATE IF NOT EXISTS``.
+    Skips when the ``status`` column is missing (pre-attestation schema).
     """
-    if bind.dialect.name == "postgresql":
-        return
+    dialect = bind.dialect.name
     with bind.begin() as conn:
+        if dialect == "postgresql":
+            has_status = conn.execute(
+                text(
+                    "SELECT 1 FROM information_schema.columns "
+                    "WHERE table_name = 'legacy_rounds' AND column_name = 'status'"
+                )
+            ).first()
+            if not has_status:
+                logger.warning("Skipping legacy_rounds_official view — legacy_rounds.status column missing")
+                return
+            conn.execute(
+                text(
+                    "CREATE OR REPLACE VIEW legacy_rounds_official AS "
+                    "SELECT * FROM legacy_rounds WHERE status <> 'pending'"
+                )
+            )
+            return
+
+        # SQLite (dev/test)
         conn.execute(
             text(
                 "CREATE VIEW IF NOT EXISTS legacy_rounds_official AS "
