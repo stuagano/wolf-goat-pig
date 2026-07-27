@@ -22,7 +22,7 @@ Vercel + Render are being frozen / decommissioned.
 - [x] Avatars on GCS (`wgp-media-seventh-country-232522`)
 - [ ] Remove Vercel URLs from Auth0 (Firebase + localhost only)
 - [x] Suspend Render web services `wolf-goat-pig` + `wolf-goat-pig-api` (2026-07-27; Postgres kept warm; booking left running)
-- [ ] Pause / archive Vercel project
+- [x] Pause / archive Vercel project (paused 2026-07-27 via Pause Vercel workflow)
 - [ ] After ≥7 days with no rollback need: delete Render Postgres
 - [ ] Delete secret `RENDER_DATABASE_URL` after Postgres is gone
 
