@@ -34,13 +34,18 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Use Python 3.12 to match Render deployment
 FROM python:3.12-slim as production
 
-# Install runtime dependencies + Node.js for Playwright browser booking
-RUN apt-get update && apt-get install -y \
+# Install runtime dependencies + Node.js for Playwright browser booking.
+# Use the official Node tarball — Debian's `nodejs` package no longer ships
+# `npm`, and the NodeSource apt setup has been flaky on python:*-slim images.
+ARG NODE_VERSION=22.14.0
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
-    gnupg \
-    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y nodejs \
+    ca-certificates \
+    xz-utils \
+    && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+      | tar -xJ -C /usr/local --strip-components=1 \
+    && node -v && npm -v \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
