@@ -211,7 +211,7 @@
       "Body_import_course_from_file_courses_import_file_post": {
         "properties": {
           "file": {
-            "contentMediaType": "application/octet-stream",
+            "format": "binary",
             "title": "File",
             "type": "string"
           }
@@ -225,7 +225,7 @@
       "Body_scan_scorecard_photo_scorecard_scan_post": {
         "properties": {
           "file": {
-            "contentMediaType": "application/octet-stream",
+            "format": "binary",
             "title": "File",
             "type": "string"
           },
@@ -250,7 +250,7 @@
       "Body_upload_gmail_credentials_admin_upload_credentials_post": {
         "properties": {
           "file": {
-            "contentMediaType": "application/octet-stream",
+            "format": "binary",
             "title": "File",
             "type": "string"
           }
@@ -264,7 +264,7 @@
       "Body_upload_my_avatar_players_me_avatar_post": {
         "properties": {
           "file": {
-            "contentMediaType": "application/octet-stream",
+            "format": "binary",
             "title": "File",
             "type": "string"
           }
@@ -399,6 +399,24 @@
           "sheet_data"
         ],
         "title": "CompareSheetRequest",
+        "type": "object"
+      },
+      "ConfirmBookingJobRequest": {
+        "properties": {
+          "confirm": {
+            "default": true,
+            "title": "Confirm",
+            "type": "boolean"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "title": "ConfirmBookingJobRequest",
         "type": "object"
       },
       "CourseCreate": {
@@ -3795,13 +3813,6 @@
       },
       "ValidationError": {
         "properties": {
-          "ctx": {
-            "title": "Context",
-            "type": "object"
-          },
-          "input": {
-            "title": "Input"
-          },
           "loc": {
             "items": {
               "anyOf": [
@@ -6570,6 +6581,55 @@
           }
         ],
         "summary": "Book Tee Time",
+        "tags": [
+          "foretees"
+        ]
+      }
+    },
+    "/api/foretees/book/confirm": {
+      "post": {
+        "description": "Resume a paused Computer Use book/cancel job after user confirmation.",
+        "operationId": "confirm_booking_step_api_foretees_book_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmBookingJobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Confirm Booking Step Api Foretees Book Confirm Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Confirm Booking Step",
         "tags": [
           "foretees"
         ]
