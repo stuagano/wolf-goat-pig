@@ -48,7 +48,9 @@ Remove all `*.vercel.app` entries.
 
 1. https://dashboard.render.com → `wolf-goat-pig` web service → **Suspend**
 2. Leave the Postgres instance running for ~7 days
-3. Booking microservice (`wolf-goat-pig-booking`) — leave running if ForeTees booking is still needed; it is still referenced by Cloud Run `BOOKING_SERVICE_URL`
+3. Booking microservice (`wolf-goat-pig-booking`) — **no longer needed for prod**
+   (API `BOOKING_SERVICE_URL` → `wgp-booking` on Cloud Run). Suspend after a
+   successful book+cancel soak on the Computer Use agent.
 
 ```bash
 render login

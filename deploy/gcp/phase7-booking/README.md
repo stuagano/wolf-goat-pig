@@ -6,12 +6,21 @@ Computer Use. Design: [`docs/architecture/COMPUTER_USE_BOOKING.md`](../../../doc
 
 ## Deploy
 
+**Auto on push to `main`** when `GCP_AUTO_DEPLOY=true` and `booking-agent/**`
+(or this directory / `cloudbuild-booking.yaml`) changes.
+
+Manual:
+
 ```bash
 source deploy/gcp/config.env
 ./deploy/gcp/phase7-booking/10-deploy.sh
 ```
 
-Then point the main API at the new service:
+Or **Actions → Deploy to GCP → Run workflow** with `deploy_booking = true`
+(uses `deploy/gcp/cloudbuild-booking.yaml`).
+
+Then point the main API at the new service (already set in
+`phase1-cloud-run/env.production.yaml` for production):
 
 ```bash
 # After first deploy prints the URL:

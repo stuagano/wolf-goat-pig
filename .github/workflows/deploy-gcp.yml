@@ -1,17 +1,15 @@
 name: Deploy to GCP
 
-# Deploys the FastAPI backend to Cloud Run via the Cloud Build pipeline
-# (deploy/gcp/cloudbuild.yaml) and the React SPA to Firebase Hosting,
-# authenticating keylessly through Workload Identity Federation — no
-# service-account JSON key.
+# Deploys:
+#   - FastAPI backend → Cloud Run (cloudbuild.yaml)
+#   - React SPA → Firebase Hosting
+#   - Computer Use booking agent → Cloud Run (cloudbuild-booking.yaml)
+# Auth: Workload Identity Federation (no SA JSON key).
 #
 # Triggers:
 #   - workflow_dispatch — always available (manual button), never surprises.
-#   - push to main      — deploys backend and/or frontend when the matching
-#                         paths change AND the repo variable GCP_AUTO_DEPLOY
-#                         == "true". Unset (the default) = the push run starts
-#                         but deploy jobs are skipped, so a merge can never
-#                         surprise-deploy until you opt in.
+#   - push to main      — deploys matching targets when paths change AND
+#                         GCP_AUTO_DEPLOY == "true".
 #
 # Prerequisites (one-time, see deploy/gcp/README.md):
 #   - Run deploy/gcp/phase0-foundation/*.sh  (incl. 25-cloud-build-iam.sh)
@@ -31,11 +29,16 @@ on:
         description: "Build + deploy the React SPA to Firebase Hosting (Phase 3)"
         type: boolean
         default: false
+      deploy_booking:
+        description: "Build + deploy the Computer Use booking agent (Phase 7)"
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths:
       - "backend/**"
       - "frontend/**"
+      - "booking-agent/**"
       - "deploy/gcp/**"
       - ".github/workflows/deploy-gcp.yml"
 
@@ -45,17 +48,18 @@ permissions:
 
 env:
   RUN_SERVICE: wolf-goat-pig-api
+  BOOKING_SERVICE: wgp-booking
 
 jobs:
-  # Path filter so a frontend-only push does not rebuild Cloud Run and a
-  # backend-only push does not rebuild Firebase Hosting. Skipped on
-  # workflow_dispatch (manual checkboxes decide).
+  # Path filter so each target only rebuilds when its sources change.
+  # Skipped on workflow_dispatch (manual checkboxes decide).
   changes:
     if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
+      booking: ${{ steps.filter.outputs.booking }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -70,16 +74,19 @@ jobs:
               - 'deploy/gcp/phase2-cloud-sql/**'
               - 'deploy/gcp/phase4-scheduling/**'
               - 'deploy/gcp/phase5-storage/**'
-              - 'deploy/gcp/phase7-booking/**'
               - '.github/workflows/deploy-gcp.yml'
             frontend:
               - 'frontend/**'
               - 'deploy/gcp/phase3-hosting/**'
               - '.github/workflows/deploy-gcp.yml'
+            booking:
+              - 'booking-agent/**'
+              - 'deploy/gcp/cloudbuild-booking.yaml'
+              - 'deploy/gcp/phase7-booking/**'
+              - '.github/workflows/deploy-gcp.yml'
 
   deploy-backend:
     needs: [changes]
-    # workflow_dispatch: honor the checkbox. push: only if opted in + paths match.
     # `always()` so a skipped `changes` job (manual run) does not cancel this job.
     if: >-
       ${{ always() &&
@@ -211,3 +218,75 @@ jobs:
           firebase deploy --only hosting \
             --project "${{ vars.GCP_PROJECT_ID }}" \
             --non-interactive
+
+  deploy-booking:
+    needs: [changes]
+    if: >-
+      ${{ always() &&
+          (needs.changes.result == 'success' || needs.changes.result == 'skipped') &&
+          ((github.event_name == 'workflow_dispatch' && inputs.deploy_booking) ||
+           (github.event_name == 'push' && vars.GCP_AUTO_DEPLOY == 'true' &&
+            needs.changes.outputs.booking == 'true')) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        name: Authenticate to GCP (keyless, WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build & deploy booking agent via Cloud Build
+        run: |
+          set -euo pipefail
+          PROJECT="${{ vars.GCP_PROJECT_ID }}"
+          REGION="${{ vars.GCP_REGION }}"
+          BUILD_ID="$(
+            gcloud builds submit \
+              --async \
+              --project="${PROJECT}" \
+              --region="${REGION}" \
+              --config=deploy/gcp/cloudbuild-booking.yaml \
+              --substitutions="SHORT_SHA=${GITHUB_SHA::12},_REGION=${REGION}" \
+              --format='value(id)' \
+              .
+          )"
+          echo "Cloud Build id: ${BUILD_ID}"
+          for attempt in $(seq 1 60); do
+            STATUS="$(
+              gcloud builds describe "${BUILD_ID}" \
+                --project="${PROJECT}" \
+                --region="${REGION}" \
+                --format='value(status)'
+            )"
+            echo "[$attempt] build status=${STATUS}"
+            case "${STATUS}" in
+              SUCCESS) exit 0 ;;
+              FAILURE|INTERNAL_ERROR|TIMEOUT|CANCELLED)
+                gcloud builds log "${BUILD_ID}" --project="${PROJECT}" --region="${REGION}" | tail -80
+                exit 1
+                ;;
+            esac
+            sleep 30
+          done
+          echo "Timed out waiting for Cloud Build ${BUILD_ID}"
+          exit 1
+
+      - name: Smoke test /health
+        run: |
+          set -euo pipefail
+          URL="$(gcloud run services describe "${BOOKING_SERVICE}" \
+            --project="${{ vars.GCP_PROJECT_ID }}" --region="${{ vars.GCP_REGION }}" \
+            --format='value(status.url)')"
+          echo "Booking URL: ${URL}"
+          code="$(curl -sS -o /tmp/booking-health.json -w '%{http_code}' "${URL}/health")"
+          echo "GET /health -> ${code}"
+          cat /tmp/booking-health.json
+          test "${code}" = "200"
+          grep -q '"status"[[:space:]]*:[[:space:]]*"ok"' /tmp/booking-health.json
