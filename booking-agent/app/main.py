@@ -6,11 +6,13 @@ import logging
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from .agent import confirm_job, start_job
 from .config import get_settings
 from .jobs import JobKind, job_store
+from .tee_sheet import ForeteesAuthError, ForeteesSheetError, fetch_tee_times
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("booking_agent")
@@ -33,6 +35,12 @@ class CancelRequest(BaseModel):
     date: str = ""
     time: str = ""
     ttdata: str | None = None
+
+
+class TeeTimesRequest(BaseModel):
+    username: str
+    password: str
+    date: str
 
 
 class ConfirmRequest(BaseModel):
@@ -60,6 +68,35 @@ async def _startup() -> None:
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.post("/tee-times")
+async def tee_times(
+    body: TeeTimesRequest,
+    authorization: str | None = Header(default=None),
+) -> Any:
+    _check_auth(authorization)
+    username = body.username.strip()
+    date = body.date.strip()
+    if not username or not body.password:
+        raise HTTPException(status_code=400, detail="username and password required")
+    if not date:
+        raise HTTPException(status_code=400, detail="date required (YYYY-MM-DD)")
+    try:
+        slots = await fetch_tee_times(username, body.password, date)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ForeteesAuthError:
+        return JSONResponse(
+            status_code=502,
+            content={"status": "failed", "error": "foretees_auth_failed"},
+        )
+    except ForeteesSheetError:
+        return JSONResponse(
+            status_code=502,
+            content={"status": "failed", "error": "foretees_sheet_failed"},
+        )
+    return {"status": "ok", "date": date, "slots": slots}
 
 
 @app.post("/book")
