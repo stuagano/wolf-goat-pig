@@ -82,7 +82,8 @@ source deploy/gcp/config.env
 # Or: GCP_AUTO_DEPLOY=true for push-to-main
 
 # Phase 3 — hosting
-# Set VITE_API_URL, then Actions → deploy_frontend=true
+# Set VITE_API_URL. With GCP_AUTO_DEPLOY=true, frontend/** pushes deploy
+# Firebase Hosting automatically. Manual: Actions → deploy_frontend=true
 
 # Phase 2 — database
 ./deploy/gcp/phase2-cloud-sql/10-provision.sh

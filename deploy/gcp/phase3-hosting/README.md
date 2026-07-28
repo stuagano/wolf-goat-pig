@@ -5,7 +5,8 @@ Static assets are edge-cached with free SSL; no compute wakes to serve HTML.
 
 ## Deploy
 
-Via GitHub Actions: **Actions → Deploy to GCP → Run workflow** with
+**Auto on push to `main`** when `GCP_AUTO_DEPLOY=true` and `frontend/**` (or
+this directory) changes. Manual: **Actions → Deploy to GCP → Run workflow** with
 `deploy_frontend = true`. The job builds `frontend/` and runs `firebase deploy
 --only hosting`. `firebase.json` here is copied to the repo root at deploy time
 because Firebase resolves `hosting.public` relative to the config file's location.

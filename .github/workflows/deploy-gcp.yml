@@ -1,23 +1,24 @@
 name: Deploy to GCP
 
 # Deploys the FastAPI backend to Cloud Run via the Cloud Build pipeline
-# (deploy/gcp/cloudbuild.yaml), authenticating keylessly through Workload
-# Identity Federation — no service-account JSON key.
+# (deploy/gcp/cloudbuild.yaml) and the React SPA to Firebase Hosting,
+# authenticating keylessly through Workload Identity Federation — no
+# service-account JSON key.
 #
 # Triggers:
 #   - workflow_dispatch — always available (manual button), never surprises.
-#   - push to main      — ONLY deploys the backend when the repo variable
-#                         GCP_AUTO_DEPLOY == "true". Unset (the default) = the
-#                         push run starts but the deploy job is skipped, so a
-#                         merge can never surprise-deploy until you opt in.
-# The frontend (Firebase Hosting) is manual-only regardless.
+#   - push to main      — deploys backend and/or frontend when the matching
+#                         paths change AND the repo variable GCP_AUTO_DEPLOY
+#                         == "true". Unset (the default) = the push run starts
+#                         but deploy jobs are skipped, so a merge can never
+#                         surprise-deploy until you opt in.
 #
 # Prerequisites (one-time, see deploy/gcp/README.md):
 #   - Run deploy/gcp/phase0-foundation/*.sh  (incl. 25-cloud-build-iam.sh)
 #   - Set repo Actions *Variables*: GCP_PROJECT_ID, GCP_REGION,
 #     GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_DEPLOYER_SA
 #     (opt-in auto-deploy) GCP_AUTO_DEPLOY=true
-#     (optional, Phase 3) FIREBASE_SITE, VITE_API_URL
+#     (Phase 3) VITE_API_URL; optional FIREBASE_SITE
 
 on:
   workflow_dispatch:
@@ -34,6 +35,7 @@ on:
     branches: [main]
     paths:
       - "backend/**"
+      - "frontend/**"
       - "deploy/gcp/**"
       - ".github/workflows/deploy-gcp.yml"
 
@@ -45,11 +47,46 @@ env:
   RUN_SERVICE: wolf-goat-pig-api
 
 jobs:
+  # Path filter so a frontend-only push does not rebuild Cloud Run and a
+  # backend-only push does not rebuild Firebase Hosting. Skipped on
+  # workflow_dispatch (manual checkboxes decide).
+  changes:
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'deploy/gcp/cloudbuild.yaml'
+              - 'deploy/gcp/phase0-foundation/**'
+              - 'deploy/gcp/phase1-cloud-run/**'
+              - 'deploy/gcp/phase2-cloud-sql/**'
+              - 'deploy/gcp/phase4-scheduling/**'
+              - 'deploy/gcp/phase5-storage/**'
+              - 'deploy/gcp/phase7-booking/**'
+              - '.github/workflows/deploy-gcp.yml'
+            frontend:
+              - 'frontend/**'
+              - 'deploy/gcp/phase3-hosting/**'
+              - '.github/workflows/deploy-gcp.yml'
+
   deploy-backend:
-    # workflow_dispatch: honor the checkbox. push: only if opted in via the var.
+    needs: [changes]
+    # workflow_dispatch: honor the checkbox. push: only if opted in + paths match.
+    # `always()` so a skipped `changes` job (manual run) does not cancel this job.
     if: >-
-      ${{ (github.event_name == 'workflow_dispatch' && inputs.deploy_backend) ||
-          (github.event_name == 'push' && vars.GCP_AUTO_DEPLOY == 'true') }}
+      ${{ always() &&
+          (needs.changes.result == 'success' || needs.changes.result == 'skipped') &&
+          ((github.event_name == 'workflow_dispatch' && inputs.deploy_backend) ||
+           (github.event_name == 'push' && vars.GCP_AUTO_DEPLOY == 'true' &&
+            needs.changes.outputs.backend == 'true')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -118,8 +155,13 @@ jobs:
           test "${auth_code}" = "401"
 
   deploy-frontend:
-    # Manual-only — never runs on push, even with GCP_AUTO_DEPLOY set.
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_frontend }}
+    needs: [changes]
+    if: >-
+      ${{ always() &&
+          (needs.changes.result == 'success' || needs.changes.result == 'skipped') &&
+          ((github.event_name == 'workflow_dispatch' && inputs.deploy_frontend) ||
+           (github.event_name == 'push' && vars.GCP_AUTO_DEPLOY == 'true' &&
+            needs.changes.outputs.frontend == 'true')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
