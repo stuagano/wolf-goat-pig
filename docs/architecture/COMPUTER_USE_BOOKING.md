@@ -41,6 +41,7 @@ Playwright executes `click_at` / `type_text_at` / etc. from model function calls
 | `POST` | `/book` | Start book job |
 | `POST` | `/cancel` | Start cancel job |
 | `POST` | `/jobs/{job_id}/confirm` | Resume after SPA confirm (`{ "confirm": true\|false }`) |
+| `POST` | `/tee-times` | List day sheet + players via httpx |
 
 ### Responses
 
@@ -91,5 +92,5 @@ See `deploy/gcp/phase7-booking/`.
 ## Non-goals
 
 - Same-origin Firebase `/api` rewrite.
-- Replacing ForeTees tee-sheet **reads** (those stay on FastAPI/httpx).
+- SPA/FastAPI still own the product list path (`GET /api/foretees/tee-times`); booking-agent also exposes `POST /tee-times` (httpx) for direct callers. Computer Use is not used for reads.
 - Auto-acking Google `require_confirmation` (forbidden by ToS).

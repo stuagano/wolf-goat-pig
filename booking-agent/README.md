@@ -25,3 +25,11 @@ uvicorn app.main:app --reload --port 8080
 - `POST /book` — start book job (Bearer `BOOKING_SERVICE_SECRET`)
 - `POST /cancel` — start cancel job
 - `POST /jobs/{job_id}/confirm` — `{ "confirm": true|false }`
+- `POST /tee-times` — list day's slots + players (body: `username`, `password`, `date`; httpx scrape, not Computer Use)
+
+```bash
+curl -sS -X POST "$BOOKING_URL/tee-times" \
+  -H "Authorization: Bearer $BOOKING_SERVICE_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"…","password":"…","date":"2026-07-28"}'
+```
