@@ -40,6 +40,7 @@ const MatchmakingSuggestions = () => {
   const {
     fetchTeeTimes,
     bookTeeTime, bookingLoading, clearBookingError,
+    pendingConfirm, resolvePendingConfirm,
   } = useTeeTimes();
 
   const [matches, setMatches] = useState([]);
@@ -611,12 +612,15 @@ const MatchmakingSuggestions = () => {
       <BookingModal
         isOpen={bookingSlot !== null}
         onClose={() => {
+          if (pendingConfirm) return;
           setBookingSlot(null);
           clearBookingError();
         }}
         onConfirm={handleBookConfirm}
         slot={bookingSlot}
         loading={bookingLoading}
+        pendingConfirm={pendingConfirm}
+        onResolveConfirm={resolvePendingConfirm}
       />
     </div>
   );

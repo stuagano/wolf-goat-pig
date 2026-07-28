@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { acquireAccessToken } from '../services/authToken';
 import { apiConfig } from '../config/api.config';
@@ -14,6 +14,8 @@ const useTeeTimes = () => {
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState(null);
   const [credentialsStatus, setCredentialsStatus] = useState(null);
+  const [pendingConfirm, setPendingConfirm] = useState(null);
+  const confirmResolverRef = useRef(null);
 
   const clearError = useCallback(() => setError(null), []);
   const clearBookingError = useCallback(() => setBookingError(null), []);
@@ -29,6 +31,45 @@ const useTeeTimes = () => {
       },
     });
   }, [getAccessTokenSilently]);
+
+  const resolvePendingConfirm = useCallback((approved) => {
+    const resolver = confirmResolverRef.current;
+    confirmResolverRef.current = null;
+    setPendingConfirm(null);
+    if (resolver) resolver(approved);
+  }, []);
+
+  const waitForUserConfirm = useCallback((confirmPayload) => {
+    setPendingConfirm(confirmPayload);
+    setBookingLoading(false);
+    return new Promise((resolve) => {
+      confirmResolverRef.current = resolve;
+    });
+  }, []);
+
+  const runWithConfirmLoop = useCallback(async (initialJson) => {
+    let json = initialJson;
+    // Computer Use agent may pause multiple times (login, then submit, plus safety).
+    while (json?.data?.status === 'needs_confirmation') {
+      const approved = await waitForUserConfirm(json.data);
+      setBookingLoading(true);
+      if (!approved) {
+        setBookingError('Cancelled — confirmation denied');
+        return { denied: true, data: { success: false, status: 'failed', error: 'User denied confirmation' } };
+      }
+      const resp = await authFetch('/api/foretees/book/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_id: json.data.job_id, confirm: true }),
+      });
+      json = await resp.json();
+      if (!resp.ok && json?.data?.status !== 'needs_confirmation') {
+        setBookingError(json?.detail || json?.message || 'Booking confirmation failed');
+        return json;
+      }
+    }
+    return json;
+  }, [authFetch, waitForUserConfirm]);
 
   const fetchCredentialsStatus = useCallback(async () => {
     try {
@@ -104,15 +145,23 @@ const useTeeTimes = () => {
   const bookTeeTime = useCallback(async (ttdata, transportMode = 'WLK', date = null, time = null, players = null) => {
     setBookingLoading(true);
     setBookingError(null);
+    setPendingConfirm(null);
     try {
       const resp = await authFetch('/api/foretees/book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ttdata, transport_mode: transportMode, date, time, players }),
       });
-      const json = await resp.json();
-      if (!resp.ok) {
+      let json = await resp.json();
+      if (!resp.ok && json?.data?.status !== 'needs_confirmation') {
         setBookingError(json?.detail || json?.message || 'Booking failed');
+        return json;
+      }
+      json = await runWithConfirmLoop(json);
+      if (!json?.denied && !(json?.data?.success || json?.success) && json?.data?.status !== 'needs_confirmation') {
+        if (!json?.denied) {
+          setBookingError(json?.detail || json?.message || json?.data?.error || 'Booking failed');
+        }
       }
       return json;
     } catch (err) {
@@ -120,21 +169,28 @@ const useTeeTimes = () => {
       return null;
     } finally {
       setBookingLoading(false);
+      setPendingConfirm(null);
     }
-  }, [authFetch]);
+  }, [authFetch, runWithConfirmLoop]);
 
   const cancelTeeTime = useCallback(async (date, time, ttdata) => {
     setBookingLoading(true);
     setBookingError(null);
+    setPendingConfirm(null);
     try {
       const resp = await authFetch('/api/foretees/cancel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ date, time, ttdata }),
       });
-      const json = await resp.json();
-      if (!resp.ok) {
+      let json = await resp.json();
+      if (!resp.ok && json?.data?.status !== 'needs_confirmation') {
         setBookingError(json?.detail || json?.message || 'Cancellation failed');
+        return json;
+      }
+      json = await runWithConfirmLoop(json);
+      if (!json?.denied && !(json?.data?.success || json?.success)) {
+        setBookingError(json?.detail || json?.message || json?.data?.error || 'Cancellation failed');
       }
       return json;
     } catch (err) {
@@ -142,8 +198,9 @@ const useTeeTimes = () => {
       return null;
     } finally {
       setBookingLoading(false);
+      setPendingConfirm(null);
     }
-  }, [authFetch]);
+  }, [authFetch, runWithConfirmLoop]);
 
   return {
     teeTimes,
@@ -162,6 +219,8 @@ const useTeeTimes = () => {
     fetchCredentialsStatus,
     saveCredentials,
     removeCredentials,
+    pendingConfirm,
+    resolvePendingConfirm,
   };
 };
 

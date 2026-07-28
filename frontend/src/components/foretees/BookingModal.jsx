@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../theme/Provider';
+import AgentConfirmDialog from './AgentConfirmDialog';
 
 const TRANSPORT_OPTIONS = [
   { value: 'WLK', label: 'Walking' },
@@ -7,7 +8,15 @@ const TRANSPORT_OPTIONS = [
   { value: 'PC', label: 'Push Cart' },
 ];
 
-const BookingModal = ({ isOpen, onClose, onConfirm, slot, loading }) => {
+const BookingModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  slot,
+  loading,
+  pendingConfirm,
+  onResolveConfirm,
+}) => {
   const theme = useTheme();
   const [transportMode, setTransportMode] = useState('WLK');
 
@@ -17,18 +26,23 @@ const BookingModal = ({ isOpen, onClose, onConfirm, slot, loading }) => {
 
   useEffect(() => {
     if (!isOpen) return;
-    const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
+    const handleKey = (e) => { if (e.key === 'Escape' && !loading && !pendingConfirm) onClose(); };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, loading, pendingConfirm]);
+
+  if (pendingConfirm) {
+    return <AgentConfirmDialog pendingConfirm={pendingConfirm} onResolve={onResolveConfirm} />;
+  }
 
   if (!isOpen || !slot) return null;
 
   return (
     <>
-      {/* Backdrop */}
       <div
-        onClick={onClose}
+        onClick={() => {
+          if (!loading) onClose();
+        }}
         style={{
           position: 'fixed',
           inset: 0,
@@ -37,7 +51,6 @@ const BookingModal = ({ isOpen, onClose, onConfirm, slot, loading }) => {
         }}
       />
 
-      {/* Modal */}
       <div
         role="dialog"
         aria-modal="true"
@@ -111,6 +124,7 @@ const BookingModal = ({ isOpen, onClose, onConfirm, slot, loading }) => {
 
         <div style={{ display: 'flex', gap: 12 }}>
           <button
+            type="button"
             onClick={onClose}
             disabled={loading}
             style={{
@@ -128,6 +142,7 @@ const BookingModal = ({ isOpen, onClose, onConfirm, slot, loading }) => {
             Cancel
           </button>
           <button
+            type="button"
             onClick={() => onConfirm({ transportMode })}
             disabled={loading}
             style={{
@@ -142,7 +157,7 @@ const BookingModal = ({ isOpen, onClose, onConfirm, slot, loading }) => {
               cursor: loading ? 'not-allowed' : 'pointer',
             }}
           >
-            {loading ? 'Booking...' : 'Confirm Booking'}
+            {loading ? 'Working…' : 'Confirm Booking'}
           </button>
         </div>
 
@@ -157,7 +172,7 @@ const BookingModal = ({ isOpen, onClose, onConfirm, slot, loading }) => {
             color: '#1e40af',
             textAlign: 'center',
           }}>
-            This may take 30-60 seconds while the booking service processes your request.
+            The booking agent is driving ForeTees. You may be asked to approve login and final submit.
           </div>
         )}
       </div>

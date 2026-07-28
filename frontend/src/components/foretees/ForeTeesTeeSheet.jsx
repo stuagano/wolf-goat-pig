@@ -13,6 +13,7 @@ const ForeTeesTeeSheet = () => {
     teeTimes, bookings, loading, error,
     fetchTeeTimes, fetchBookings,
     bookTeeTime, cancelTeeTime, bookingLoading, clearBookingError,
+    pendingConfirm, resolvePendingConfirm,
   } = useTeeTimes();
   const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
   const [bookingSlot, setBookingSlot] = useState(null);
@@ -25,8 +26,6 @@ const ForeTeesTeeSheet = () => {
 
   useEffect(() => {
     fetchBookings();
-    // Pre-wake the booking service so it's ready when user clicks Book
-    fetch('https://wolf-goat-pig-booking.onrender.com/health', { mode: 'no-cors' }).catch(() => {});
   }, [fetchBookings]);
 
   useEffect(() => {
@@ -459,12 +458,15 @@ const ForeTeesTeeSheet = () => {
       <BookingModal
         isOpen={bookingSlot !== null}
         onClose={() => {
+          if (pendingConfirm) return;
           setBookingSlot(null);
           clearBookingError();
         }}
         onConfirm={handleBookConfirm}
         slot={bookingSlot}
         loading={bookingLoading}
+        pendingConfirm={pendingConfirm}
+        onResolveConfirm={resolvePendingConfirm}
       />
     </div>
   );
