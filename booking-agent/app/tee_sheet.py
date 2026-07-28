@@ -6,9 +6,98 @@ import html
 import json
 import logging
 import re
+from datetime import datetime
 from typing import Any
+from urllib.parse import quote
+
+import httpx
+
+from app.config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
+
+
+class ForeteesAuthError(Exception):
+    """Raised when Wing Point or ForeTees authentication fails."""
+
+
+class ForeteesSheetError(Exception):
+    """Raised when the ForeTees Member_sheet request fails."""
+
+
+def _build_url(base_url: str, path: str) -> str:
+    return f"{base_url.rstrip('/')}/{path.lstrip('/')}"
+
+
+def _validate_sheet_date(date: str) -> str:
+    dt = datetime.strptime(date, "%Y-%m-%d")
+    return dt.strftime("%m/%d/%Y")
+
+
+async def fetch_tee_times(
+    username: str,
+    password: str,
+    date: str,
+    *,
+    settings: Settings | None = None,
+) -> list[dict[str, Any]]:
+    """Fetch and parse a member tee sheet through the Wing Point ForeTees SSO flow."""
+    ft_date = _validate_sheet_date(date)
+    resolved_settings = settings or get_settings()
+
+    login_url = _build_url(resolved_settings.wingpoint_base, resolved_settings.login_page)
+    tee_time_url = _build_url(resolved_settings.wingpoint_base, resolved_settings.tee_time_page)
+    foretees_base = resolved_settings.foretees_base.rstrip("/")
+
+    async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
+        try:
+            login_resp = await client.get(login_url)
+            login_resp.raise_for_status()
+
+            login_post_resp = await client.post(
+                login_url,
+                data={
+                    "UserLOGIN": username,
+                    "UserPWD": password,
+                    "btnLogon": "Log On",
+                    "Action": "Authenticate",
+                    "DocID": "465",
+                    "LogonRequest": "",
+                    "R": "0",
+                },
+                headers={"Referer": login_url},
+            )
+            login_post_resp.raise_for_status()
+
+            tee_page_resp = await client.get(tee_time_url)
+            tee_page_resp.raise_for_status()
+        except (httpx.HTTPStatusError, httpx.RequestError) as exc:
+            raise ForeteesAuthError("ForeTees authentication request failed") from exc
+
+        sso_key_match = re.search(r"ftSSOKey\s*=\s*'([^']+)'", tee_page_resp.text)
+        sso_iv_match = re.search(r"ftSSOIV\s*=\s*'([^']+)'", tee_page_resp.text)
+        if not sso_key_match or not sso_iv_match:
+            raise ForeteesAuthError("ForeTees SSO parameters were not found")
+
+        sso_key = sso_key_match.group(1)
+        sso_iv = sso_iv_match.group(1)
+        try:
+            sso_url = f"{foretees_base}/Member_select?sso_uid={quote(sso_key)}&sso_iv={quote(sso_iv)}"
+            sso_resp = await client.get(sso_url)
+            sso_resp.raise_for_status()
+        except (httpx.HTTPStatusError, httpx.RequestError) as exc:
+            raise ForeteesAuthError("ForeTees SSO request failed") from exc
+
+        try:
+            sheet_resp = await client.get(
+                f"{foretees_base}/Member_sheet",
+                params={"calDate": ft_date, "course": "", "displayOpt": "0"},
+            )
+            sheet_resp.raise_for_status()
+        except (httpx.HTTPStatusError, httpx.RequestError) as exc:
+            raise ForeteesSheetError("ForeTees sheet request failed") from exc
+
+    return parse_tee_sheet(sheet_resp.text, date)
 
 
 def parse_tee_sheet(html_content: str, date: str) -> list[dict[str, Any]]:
