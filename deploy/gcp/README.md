@@ -16,6 +16,7 @@ Infrastructure-as-code for the migration designed in
 | 4 Cloud Scheduler | Live — 6 jobs → `/internal/jobs/*` |
 | 5 Cloud Storage | Live — `wgp-media-seventh-country-232522` (avatars) |
 | 6 Monitoring | Live — Cloud Monitoring uptime + alerts; **no Sentry** ([phase6-monitoring](phase6-monitoring/README.md)) |
+| 7 Booking agent | **Production** — `wgp-booking` (Computer Use); Render booking can be suspended |
 | Decommission | In progress — freeze Vercel/Render ([DECOMMISSION.md](DECOMMISSION.md)) |
 
 **Production SPA:** https://seventh-country-232522.web.app  
@@ -31,7 +32,8 @@ Auth stays on **Auth0** throughout (design decision D4). Firebase-only URLs: [ph
 Auth0 (unchanged) → JWT
 Firebase Hosting (SPA)  →  Cloud Run (FastAPI container, as-is)  →  Cloud SQL (Postgres)
                                      │                                Secret Manager
-Cloud Scheduler → Cloud Run jobs     └→ Cloud Storage (future: scorecard images)
+Cloud Scheduler → Cloud Run jobs     └→ Cloud Storage (avatars)
+Booking agent (Computer Use + Playwright) → Wingpoint / ForeTees
 ```
 
 ## Layout
@@ -48,6 +50,7 @@ Cloud Scheduler → Cloud Run jobs     └→ Cloud Storage (future: scorecard i
 | `phase4-scheduling/` | 4 | Cloud Scheduler → Cloud Run jobs. |
 | `phase5-storage/` | 5 | GCS media bucket for avatars. |
 | `phase6-monitoring/` | 6 | Uptime checks + alert policies (email). |
+| `phase7-booking/` | 7 | ForeTees Computer Use booking agent (Cloud Run). |
 | `secrets.md` | — | Secret Manager ↔ render.yaml mapping. |
 | `DECOMMISSION.md` | 5 | Render/Vercel cutover checklist. |
 | `../../.github/workflows/deploy-gcp.yml` | 1, 3 | GitHub Actions → Cloud Build (keyless WIF). |
@@ -93,6 +96,10 @@ export INTERNAL_JOB_TOKEN="$(gcloud secrets versions access latest --secret=INTE
 ./deploy/gcp/phase6-monitoring/10-notification-channel.sh
 ./deploy/gcp/phase6-monitoring/20-uptime-checks.sh
 ./deploy/gcp/phase6-monitoring/30-alert-policies.sh
+
+# Phase 7 — ForeTees booking via Computer Use (replaces Render booking-service)
+./deploy/gcp/phase7-booking/10-deploy.sh
+# then set BOOKING_SERVICE_URL on wolf-goat-pig-api to the printed URL
 ```
 
 ## GitHub Actions variables

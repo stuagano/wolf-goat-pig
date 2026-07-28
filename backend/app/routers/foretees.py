@@ -264,6 +264,10 @@ async def book_tee_time(
             message=result["messages"][0] if result.get("messages") else "Booking confirmed",
         )
 
+    # Computer Use agent paused for SPA confirmation (login / submit / safety).
+    if result.get("status") == "needs_confirmation":
+        return ApiResponse.success(data=result, message=result.get("explanation") or "Confirmation required")
+
     # If there's debug info from a form parse failure, return it directly
     if result.get("debug"):
         return ApiResponse.success(data=result, message=result.get("message", "Booking failed"))
@@ -276,6 +280,42 @@ async def book_tee_time(
         if msg and msg != result.get("title"):
             parts.append(msg)
     error_msg = result.get("message") or result.get("error") or ". ".join(parts) or "Booking failed"
+    raise ValueError(error_msg)
+
+
+class ConfirmBookingJobRequest(BaseModel):
+    job_id: str
+    confirm: bool = True
+
+
+@router.post("/book/confirm")
+@handle_api_errors(operation_name="confirm booking step")
+async def confirm_booking_step(
+    request: ConfirmBookingJobRequest,
+    current_user: models.PlayerProfile = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Resume a paused Computer Use book/cancel job after user confirmation."""
+    service = _get_user_service(current_user)
+    if not service.config.enabled:
+        raise ValueError("ForeTees integration is disabled")
+
+    try:
+        result = await service.confirm_booking_job(request.job_id, request.confirm)
+    finally:
+        if service is not get_foretees_service():
+            await service.close()
+
+    if result.get("status") == "needs_confirmation":
+        return ApiResponse.success(
+            data=result,
+            message=result.get("explanation") or "Confirmation required",
+        )
+    if result.get("success"):
+        return ApiResponse.success(
+            data=result,
+            message=result["messages"][0] if result.get("messages") else "Booking step completed",
+        )
+    error_msg = result.get("message") or result.get("error") or "Booking confirmation failed"
     raise ValueError(error_msg)
 
 
@@ -305,6 +345,9 @@ async def cancel_tee_time(
             data=result,
             message=result["messages"][0] if result.get("messages") else "Tee time cancelled",
         )
+
+    if result.get("status") == "needs_confirmation":
+        return ApiResponse.success(data=result, message=result.get("explanation") or "Confirmation required")
 
     parts = []
     if result.get("title"):

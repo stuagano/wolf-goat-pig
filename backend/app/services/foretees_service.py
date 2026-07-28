@@ -411,75 +411,22 @@ class ForeteesService:
                 "message": "ForeTees credentials not configured — please add them in Account settings",
             }
 
-        booking_url = os.getenv("BOOKING_SERVICE_URL", "http://localhost:3001")
-        booking_secret = os.getenv("BOOKING_SERVICE_SECRET", "")
-
-        headers = {"Content-Type": "application/json"}
-        if booking_secret:
-            headers["Authorization"] = f"Bearer {booking_secret}"
-
-        payload = {
-            "username": self.config.username,
-            "password": self.config.password,
-            "date": date,
-            "time": slot_time,
-            "ttdata": ttdata,
-        }
-
-        logger.info(
-            "Calling booking service: POST %s/cancel date=%s time=%s ttdata_set=%s username_set=%s",
-            booking_url,
-            date,
-            slot_time,
-            bool(ttdata),
-            bool(self.config.username),
+        return await self._call_booking_service(
+            "/cancel",
+            {
+                "username": self.config.username,
+                "password": self.config.password,
+                "date": date,
+                "time": slot_time,
+                "ttdata": ttdata,
+            },
+            action="cancel",
         )
-        try:
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                # Wake up the booking service
-                try:
-                    await client.get(f"{booking_url}/health", timeout=60.0)
-                except Exception:
-                    logger.warning("Booking service health check failed, trying anyway")
-                resp = await client.post(
-                    f"{booking_url}/cancel",
-                    json=payload,
-                    headers=headers,
-                )
-                if resp.status_code == 401:
-                    return {"success": False, "message": "Booking service auth failed — check BOOKING_SERVICE_SECRET"}
-                if resp.status_code == 503:
-                    return {
-                        "success": False,
-                        "message": "Booking service is starting up — please wait 30 seconds and try again",
-                    }
-                ct = resp.headers.get("content-type", "")
-                if "json" not in ct:
-                    logger.warning("Cancel service returned non-JSON: %d %s %s", resp.status_code, ct, resp.text[:200])
-                    return {
-                        "success": False,
-                        "message": f"Booking service unavailable (HTTP {resp.status_code}). Try again in 30 seconds.",
-                    }
-                result = resp.json()
-                logger.info("Cancel result: success=%s, status=%d", result.get("success"), resp.status_code)
-                return result
-        except httpx.TimeoutException:
-            return {
-                "success": False,
-                "message": "Cancel timed out — the service may still be waking up. Wait 30 seconds and try again.",
-            }
-        except Exception as exc:
-            logger.error("Cancel service error: %s", exc)
-            return {"success": False, "message": f"Cancel error: {exc}"}
 
     async def _book_via_browser(
         self, date: str, slot_time: str, transport_mode: str, players: list[str] | None = None
     ) -> dict[str, Any]:
-        """Book a tee time via the headless browser microservice.
-
-        Calls the separate Node.js booking service which uses Playwright
-        to authenticate with ForeTees and submit the booking.
-        """
+        """Book a tee time via the Computer Use / Playwright booking agent."""
         if not self.config.username or not self.config.password:
             logger.error("Book: no ForeTees credentials configured (username_set=%s)", bool(self.config.username))
             return {
@@ -487,43 +434,49 @@ class ForeteesService:
                 "message": "ForeTees credentials not configured — please add them in Account settings",
             }
 
-        booking_url = os.getenv("BOOKING_SERVICE_URL", "http://localhost:3001")
-        booking_secret = os.getenv("BOOKING_SERVICE_SECRET", "")
+        return await self._call_booking_service(
+            "/book",
+            {
+                "username": self.config.username,
+                "password": self.config.password,
+                "date": date,
+                "time": slot_time,
+                "transport_mode": transport_mode,
+                "players": [p for p in (players or []) if p],
+            },
+            action="book",
+        )
 
+    async def confirm_booking_job(self, job_id: str, confirm: bool = True) -> dict[str, Any]:
+        """Resume a paused Computer Use booking/cancel job after SPA confirmation."""
+        return await self._call_booking_service(
+            f"/jobs/{job_id}/confirm",
+            {"confirm": confirm},
+            action="confirm",
+        )
+
+    async def _call_booking_service(self, path: str, payload: dict[str, Any], *, action: str) -> dict[str, Any]:
+        booking_url = os.getenv("BOOKING_SERVICE_URL", "http://localhost:8080")
+        booking_secret = os.getenv("BOOKING_SERVICE_SECRET", "")
         headers = {"Content-Type": "application/json"}
         if booking_secret:
             headers["Authorization"] = f"Bearer {booking_secret}"
 
-        payload = {
-            "username": self.config.username,
-            "password": self.config.password,
-            "date": date,
-            "time": slot_time,
-            "transport_mode": transport_mode,
-            "players": [p for p in (players or []) if p],
-        }
-
-        logger.info(
-            "Calling booking service: POST %s/book date=%s time=%s username_set=%s",
-            booking_url,
-            date,
-            slot_time,
-            bool(self.config.username),
-        )
+        # Computer Use loops can take several minutes across confirm pauses.
+        timeout = httpx.Timeout(300.0, connect=30.0)
+        logger.info("Calling booking service: POST %s%s action=%s", booking_url, path, action)
         try:
-            async with httpx.AsyncClient(timeout=120.0) as booking_client:
-                # Wake up the booking service (Render free tier sleeps after inactivity)
+            async with httpx.AsyncClient(timeout=timeout) as client:
                 try:
-                    await booking_client.get(f"{booking_url}/health", timeout=60.0)
+                    await client.get(f"{booking_url}/health", timeout=30.0)
                 except Exception:
                     logger.warning("Booking service health check failed, trying anyway")
-                resp = await booking_client.post(
-                    f"{booking_url}/book",
-                    json=payload,
-                    headers=headers,
-                )
+                resp = await client.post(f"{booking_url}{path}", json=payload, headers=headers)
                 if resp.status_code == 401:
-                    return {"success": False, "message": "Booking service auth failed — check BOOKING_SERVICE_SECRET"}
+                    return {
+                        "success": False,
+                        "message": "Booking service auth failed — check BOOKING_SERVICE_SECRET",
+                    }
                 if resp.status_code == 503:
                     return {
                         "success": False,
@@ -531,28 +484,33 @@ class ForeteesService:
                     }
                 ct = resp.headers.get("content-type", "")
                 if "json" not in ct:
-                    logger.warning("Booking service returned non-JSON: %d %s %s", resp.status_code, ct, resp.text[:200])
+                    logger.warning(
+                        "Booking service returned non-JSON: %d %s %s",
+                        resp.status_code,
+                        ct,
+                        resp.text[:200],
+                    )
                     return {
                         "success": False,
-                        "message": f"Booking service unavailable (HTTP {resp.status_code}). Try again in 30 seconds.",
+                        "message": f"Booking service unavailable (HTTP {resp.status_code}). Try again shortly.",
                     }
                 result = resp.json()
                 logger.info(
-                    "Booking service result: success=%s, status=%d, error=%s, messages=%s",
+                    "Booking service %s: status=%s success=%s job=%s",
+                    action,
+                    result.get("status"),
                     result.get("success"),
-                    resp.status_code,
-                    result.get("error"),
-                    result.get("messages"),
+                    result.get("job_id"),
                 )
                 return result
         except httpx.TimeoutException:
-            logger.error("Booking service timed out")
+            logger.error("Booking service timed out action=%s", action)
             return {
                 "success": False,
-                "message": "Booking timed out — the service may still be waking up. Wait 30 seconds and try again.",
+                "message": f"{action.capitalize()} timed out — wait a moment and try again.",
             }
         except Exception as exc:
-            logger.error("Booking service error: %s", exc)
+            logger.error("Booking service error action=%s: %s", action, exc)
             return {"success": False, "message": f"Booking service error: {exc}"}
 
     async def close(self) -> None:

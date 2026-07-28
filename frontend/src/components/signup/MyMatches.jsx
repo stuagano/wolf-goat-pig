@@ -41,7 +41,7 @@ const formatDateDisplay = (dateStr) => {
 const MyMatches = () => {
   const navigate = useNavigate();
   const { getToken } = useAccessToken();
-  const { fetchTeeTimes, bookTeeTime, bookingLoading, bookingError, clearBookingError } = useTeeTimes();
+  const { fetchTeeTimes, bookTeeTime, bookingLoading, bookingError, clearBookingError, pendingConfirm, resolvePendingConfirm } = useTeeTimes();
 
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -501,10 +501,16 @@ const MyMatches = () => {
       {/* Booking Modal */}
       <BookingModal
         isOpen={bookingSlot !== null}
-        onClose={() => { setBookingSlot(null); clearBookingError(); }}
+        onClose={() => {
+          if (pendingConfirm) return;
+          setBookingSlot(null);
+          clearBookingError();
+        }}
         onConfirm={handleBookConfirm}
         slot={bookingSlot}
         loading={bookingLoading}
+        pendingConfirm={pendingConfirm}
+        onResolveConfirm={resolvePendingConfirm}
       />
     </div>
   );
