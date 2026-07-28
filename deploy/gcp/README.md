@@ -99,8 +99,10 @@ export INTERNAL_JOB_TOKEN="$(gcloud secrets versions access latest --secret=INTE
 ./deploy/gcp/phase6-monitoring/30-alert-policies.sh
 
 # Phase 7 — ForeTees booking via Computer Use (replaces Render booking-service)
-./deploy/gcp/phase7-booking/10-deploy.sh
+# With GCP_AUTO_DEPLOY=true, booking-agent/** pushes deploy wgp-booking.
+# Manual: Actions → deploy_booking=true  or  ./phase7-booking/10-deploy.sh
 # then set BOOKING_SERVICE_URL on wolf-goat-pig-api to the printed URL
+# (already set in phase1-cloud-run/env.production.yaml for production)
 ```
 
 ## GitHub Actions variables
