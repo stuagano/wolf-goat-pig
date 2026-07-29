@@ -4,7 +4,7 @@
 import requests
 
 # Your sheet URL
-csv_url = "https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM/export?format=csv&gid=474065919"
+csv_url = "https://docs.google.com/spreadsheets/d/141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ/export?format=csv&gid=474065919"
 
 # Fetch the CSV data
 response = requests.get(csv_url, timeout=30)

@@ -24,7 +24,7 @@ API_BASE_URL = LOCAL_API if "--local" in sys.argv else PRODUCTION_API
 
 # Test data
 TEST_ADMIN_EMAIL = "stuagano@gmail.com"
-TEST_CSV_URL = "https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM/export?format=csv&gid=0"
+TEST_CSV_URL = "https://docs.google.com/spreadsheets/d/141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ/export?format=csv&gid=0"
 
 # Colors for output
 GREEN = '\033[92m'

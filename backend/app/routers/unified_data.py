@@ -115,7 +115,7 @@ def get_leaderboard_config() -> Any:
     """Return the configured leaderboard spreadsheet URL.
 
     This is a public endpoint used by the frontend to build the 'View Spreadsheet' link.
-    The sheet ID can be changed via the LEADERBOARD_SHEET_ID env var on Render.
+    The sheet ID can be changed via the LEADERBOARD_SHEET_ID env var.
     """
     sheet_url = (
         f"https://docs.google.com/spreadsheets/d/{PRIMARY_SHEET_ID}"

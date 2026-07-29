@@ -2,7 +2,7 @@
 
 This service provides two-way sync between the Wolf Goat Pig app and the
 legacy Google Sheets dashboard at:
-- Primary (read-only): https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM
+- Primary (read-only): https://docs.google.com/spreadsheets/d/141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ
 - Writable copy: https://docs.google.com/spreadsheets/d/19AabC4vx0jRXHIAmz8QJfqTIBxxvMfFUplB0abg8mdA
 
 Sheet Structure:
@@ -40,7 +40,7 @@ from ..observability.report import report_exception
 logger = logging.getLogger(__name__)
 
 # Spreadsheet IDs — PRIMARY_SHEET_ID can be overridden via LEADERBOARD_SHEET_ID env var
-PRIMARY_SHEET_ID = os.environ.get("LEADERBOARD_SHEET_ID", "1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM")
+PRIMARY_SHEET_ID = os.environ.get("LEADERBOARD_SHEET_ID", "141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ")
 WRITABLE_SHEET_ID = "19AabC4vx0jRXHIAmz8QJfqTIBxxvMfFUplB0abg8mdA"  # Stuart's writable copy for app sync
 
 # Tab GID for the leaderboard view (Details tab)

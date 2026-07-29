@@ -69,7 +69,7 @@ To manually trigger a sync (bypassing the 1-hour rate limit):
 curl -X POST https://wolf-goat-pig.onrender.com/sheet-integration/sync-wgp-sheet \
   -H "Content-Type: application/json" \
   -H "X-Scheduled-Job: true" \
-  -d '{"csv_url": "https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM/export?format=csv&gid=0"}'
+  -d '{"csv_url": "https://docs.google.com/spreadsheets/d/141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ/export?format=csv&gid=0"}'
 ```
 
 ## Monitoring

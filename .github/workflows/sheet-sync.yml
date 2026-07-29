@@ -16,6 +16,6 @@ jobs:
     uses: ./.github/workflows/_cron-curl.yml
     with:
       label: Sheet → DB sync
-      url: https://wolf-goat-pig.onrender.com/admin/spreadsheet/sync-legacy-rounds
+      url: https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/admin/spreadsheet/sync-legacy-rounds
       headers: 'X-Admin-Email: stuagano@gmail.com'
       max-time: 120
