@@ -307,9 +307,8 @@ class UnifiedDataService:
             "writable_sheet": {
                 "available": False,
                 "record_count": 0,
-                "id": None,
-                "retired": True,
-                "error": "Prior-season writable copy is no longer read",
+                "id": PRIMARY_SHEET_ID,
+                "note": "Same workbook as primary_sheet (season of record)",
             },
             "database": {"available": False, "record_count": 0},
             "unified_total": 0,

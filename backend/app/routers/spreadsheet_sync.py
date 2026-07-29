@@ -341,7 +341,6 @@ def get_spreadsheet_config():
     return {
         "primary_sheet_id": PRIMARY_SHEET_ID,
         "writable_sheet_id": WRITABLE_SHEET_ID,
-        "writable_sheet_retired_for_reads": True,
         "primary_url": f"https://docs.google.com/spreadsheets/d/{PRIMARY_SHEET_ID}",
         "writable_url": f"https://docs.google.com/spreadsheets/d/{WRITABLE_SHEET_ID}",
         "sheets": ["Dashboard", "Details"],
