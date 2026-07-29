@@ -14,7 +14,12 @@ class Settings(BaseSettings):
     booking_service_secret: str = ""
     gcp_project_id: str = "seventh-country-232522"
     gcp_location: str = "global"
-    computer_use_model: str = "gemini-3.5-flash"
+    # Must be a model that actually serves the Computer Use tool. Vertex rejects
+    # `gemini-3.5-flash` here with "computer use is not supported for this model
+    # in this region" (8/8 calls on the global endpoint), and Gemini 3.x emits a
+    # different FunctionCall name set than browser.execute_computer_action
+    # implements. The dedicated 2.5 model answers reliably and speaks that set.
+    computer_use_model: str = "gemini-2.5-computer-use-preview-10-2025"
     max_agent_turns: int = 40
     job_ttl_seconds: int = 900
     screen_width: int = 1280

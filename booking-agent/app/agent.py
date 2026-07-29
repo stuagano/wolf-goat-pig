@@ -96,12 +96,8 @@ def _generate_config(settings: Settings) -> types.GenerateContentConfig:
         system_instruction=SYSTEM_INSTRUCTION,
         temperature=0.2,
         tools=[
-            # Do NOT set excluded_predefined_functions here. Vertex rejects a
-            # ComputerUse tool that both excludes predefined functions and is
-            # combined with custom function_declarations, failing the whole
-            # request with a misleading "computer use is not supported for this
-            # model in this region" 400. drag_and_drop is implemented in
-            # browser.execute_computer_action, so nothing needs excluding.
+            # Every predefined action stays enabled — browser.execute_computer_action
+            # implements the full Gemini 2.5 set, including drag_and_drop.
             types.Tool(
                 computer_use=types.ComputerUse(
                     environment=types.Environment.ENVIRONMENT_BROWSER,

@@ -6,8 +6,12 @@ def _tools():
     return _generate_config(Settings()).tools
 
 
-def test_computer_use_tool_excludes_nothing():
-    """Vertex 400s when ComputerUse excludes functions alongside custom declarations."""
+def test_model_serves_the_computer_use_tool():
+    """General-purpose models 400 with 'computer use is not supported ... in this region'."""
+    assert Settings().computer_use_model == "gemini-2.5-computer-use-preview-10-2025"
+
+
+def test_no_predefined_actions_are_excluded():
     computer_use_tools = [t for t in _tools() if t.computer_use is not None]
     assert len(computer_use_tools) == 1
     assert not computer_use_tools[0].computer_use.excluded_predefined_functions
