@@ -21,7 +21,11 @@ class Settings(BaseSettings):
     # implements. The dedicated 2.5 model answers reliably and speaks that set.
     computer_use_model: str = "gemini-2.5-computer-use-preview-10-2025"
     max_agent_turns: int = 40
-    job_ttl_seconds: int = 900
+    # Must stay under Cloud Run's ~15min idle reap. A job paused for confirmation
+    # sends no requests, so the instance (and the job's live browser) can be
+    # scaled away; expiring first turns that into an actionable message instead
+    # of a confirm landing on a cold instance that never saw the job.
+    job_ttl_seconds: int = 600
     screen_width: int = 1280
     screen_height: int = 720
     headless: bool = True
