@@ -6,9 +6,9 @@ Per-user credentials are stored encrypted in player_profiles.
 """
 
 import logging
-from typing import Any
+from typing import Any, cast
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
@@ -17,7 +17,9 @@ from ..database import get_db
 from ..services.auth_service import get_current_user
 from ..services.encryption_service import decrypt, encrypt
 from ..services.foretees_service import (
+    ForeteesTeeTimesError,
     create_user_foretees_service,
+    fetch_tee_times_via_booking_agent,
     get_foretees_service,
 )
 from ..utils.api_helpers import ApiResponse, handle_api_errors
@@ -196,16 +198,31 @@ async def get_tee_times(
     current_user: models.PlayerProfile = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Get available tee times for a given date."""
-    service = _get_user_service(current_user)
-    if not service.config.enabled:
+    if not get_foretees_service().config.enabled:
         return ApiResponse.success(data=[], message="ForeTees integration is disabled")
 
     try:
-        slots = await service.get_tee_times(date)
-    finally:
-        # Close request-scoped services (singleton is unaffected)
-        if service is not get_foretees_service():
-            await service.close()
+        username = cast("str | None", current_user.foretees_username)
+        encrypted_password = cast("str | None", current_user.foretees_password_encrypted)
+        if not username or not encrypted_password:
+            raise HTTPException(
+                status_code=400,
+                detail="Configure your ForeTees credentials in Account before viewing tee times.",
+            )
+
+        password = decrypt(encrypted_password)
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not read saved ForeTees credentials — please re-save them in Account.",
+        ) from None
+
+    try:
+        slots = await fetch_tee_times_via_booking_agent(username, password, date)
+    except ForeteesTeeTimesError as exc:
+        raise HTTPException(status_code=502, detail=exc.message) from exc
 
     return ApiResponse.success(
         data=slots,

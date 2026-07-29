@@ -66,6 +66,9 @@ Playwright executes `click_at` / `type_text_at` / etc. from model function calls
 FastAPI proxies these shapes on `/api/foretees/book`, `/cancel`, and
 `/api/foretees/book/confirm` (Auth0-protected). The SPA loops until
 `completed` / `failed`, showing a confirm step when `needs_confirmation`.
+Tee-time list reads use the separate path
+SPA → FastAPI `GET /api/foretees/tee-times` → booking-agent `POST /tee-times`
+(httpx, per-user creds).
 
 ## Agent tools
 
@@ -92,5 +95,5 @@ See `deploy/gcp/phase7-booking/`.
 ## Non-goals
 
 - Same-origin Firebase `/api` rewrite.
-- SPA/FastAPI still own the product list path (`GET /api/foretees/tee-times`); booking-agent also exposes `POST /tee-times` (httpx) for direct callers. Computer Use is not used for reads.
+- Book/cancel remain Computer Use on the agent; list is not Computer Use.
 - Auto-acking Google `require_confirmation` (forbidden by ToS).

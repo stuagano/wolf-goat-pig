@@ -61,6 +61,90 @@ class ForeteesConfig:
         )
 
 
+class ForeteesTeeTimesError(Exception):
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+async def fetch_tee_times_via_booking_agent(username: str, password: str, date: str) -> list[dict[str, Any]]:
+    booking_url = os.getenv("BOOKING_SERVICE_URL", "http://localhost:8080").rstrip("/")
+    booking_secret = os.getenv("BOOKING_SERVICE_SECRET", "")
+    headers = {"Content-Type": "application/json"}
+    if booking_secret:
+        headers["Authorization"] = f"Bearer {booking_secret}"
+
+    timeout = httpx.Timeout(60.0, connect=30.0)
+    payload = {"username": username, "password": password, "date": date}
+
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            try:
+                await client.get(f"{booking_url}/health")
+            except Exception:
+                logger.warning("Booking service health check failed for tee-times, trying anyway")
+            resp = await client.post(f"{booking_url}/tee-times", json=payload, headers=headers)
+    except httpx.TimeoutException as exc:
+        raise ForeteesTeeTimesError(
+            "booking_service_timeout",
+            "Tee times request timed out — try again shortly.",
+        ) from exc
+    except Exception as exc:
+        raise ForeteesTeeTimesError(
+            "booking_service_unavailable",
+            f"Booking service error: {exc}",
+        ) from exc
+
+    if resp.status_code == 401:
+        raise ForeteesTeeTimesError(
+            "booking_service_auth",
+            "Booking service auth failed — check BOOKING_SERVICE_SECRET",
+        )
+    if resp.status_code == 502:
+        body: dict[str, Any] = {}
+        try:
+            if "json" in resp.headers.get("content-type", ""):
+                body = resp.json()
+        except Exception:
+            body = {}
+        err = body.get("error") or "foretees_sheet_failed"
+        if err == "foretees_auth_failed":
+            raise ForeteesTeeTimesError(
+                "foretees_auth_failed",
+                "ForeTees login failed for your saved credentials.",
+            )
+        raise ForeteesTeeTimesError(
+            "foretees_sheet_failed",
+            "Could not load the ForeTees tee sheet.",
+        )
+    if resp.status_code != 200 or "json" not in resp.headers.get("content-type", ""):
+        raise ForeteesTeeTimesError(
+            "booking_service_unavailable",
+            f"Booking service unavailable (HTTP {resp.status_code}).",
+        )
+
+    try:
+        data = resp.json()
+    except Exception as exc:
+        raise ForeteesTeeTimesError(
+            "booking_service_unavailable",
+            "Booking service returned an invalid tee-times response.",
+        ) from exc
+    if data.get("status") != "ok":
+        raise ForeteesTeeTimesError(
+            "booking_service_unavailable",
+            "Booking service returned an unexpected tee-times response.",
+        )
+    slots = data.get("slots")
+    if not isinstance(slots, list):
+        raise ForeteesTeeTimesError(
+            "booking_service_unavailable",
+            "Booking service returned malformed tee-times slots.",
+        )
+    return slots
+
+
 class ForeteesService:
     """Client for the ForeTees tee time system at Wing Point Golf."""
 
