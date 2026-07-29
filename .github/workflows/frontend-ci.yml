@@ -137,7 +137,5 @@ jobs:
         temporaryPublicStorage: true
       continue-on-error: true
 
-  # Production deployment handled by:
-  # - Vercel: Auto-deploys via GitHub integration (free tier)
-  # - Render: Triggered via deploy hook in .github/workflows/deploy.yml
-  # See deploy.yml for unified deployment workflow
+  # Production deployment: Firebase Hosting + Cloud Run via deploy-gcp.yml
+  # (Vercel/Render are decommissioned — see deploy/gcp/DECOMMISSION.md)

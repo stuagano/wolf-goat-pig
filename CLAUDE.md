@@ -4,8 +4,8 @@ Golf wagering app with FastAPI backend and React frontend.
 
 ## Stack
 
-- **Backend**: FastAPI + SQLAlchemy + PostgreSQL (deployed on Render)
-- **Frontend**: React with hooks, JavaScript/JSX (deployed on Vercel)
+- **Backend**: FastAPI + SQLAlchemy + PostgreSQL (Cloud Run + Cloud SQL on GCP)
+- **Frontend**: React with hooks, JavaScript/JSX (Firebase Hosting on GCP)
 - **Auth**: Auth0
 - **Testing**: Jest (frontend), pytest (backend)
 
@@ -56,11 +56,14 @@ Editing rules that prevent past deploy failures:
 
 ## Deployment
 
-- Backend deploys to Render via `render.yaml` — but the live service does NOT
-  sync env vars from render.yaml; set those in the Render dashboard
-- Frontend deploys to Vercel via `vercel.json`
+- Production is GCP: FastAPI → Cloud Run, SPA → Firebase Hosting, booking
+  agent → Cloud Run (`wgp-booking`). Auto-deploys via `.github/workflows/deploy-gcp.yml`
+  when `GCP_AUTO_DEPLOY=true` (see `deploy/gcp/README.md`).
+- Vercel + Render are decommissioned leftovers — do not re-enable
+  (`deploy/gcp/DECOMMISSION.md`).
 - Local Docker setup via `docker-compose.yml`
-- After backend deploys, verify: `curl https://wolf-goat-pig.onrender.com/health`
+- After backend deploys, verify:
+  `curl https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/health`
   (`environment` must be `production`; junk Bearer token to `/players/me`
   should return 401, not 500)
 
