@@ -2,14 +2,15 @@ import React from 'react';
 import { useTheme } from '../../theme/Provider';
 
 const KIND_LABELS = {
-  login: 'Allow ForeTees login',
   submit: 'Confirm final submit',
   safety: 'Safety confirmation required',
 };
 
 /**
  * Mid-flow confirmation for the Computer Use booking agent.
- * Shown for login, final submit/cancel, and Google safety gates.
+ * Shown for the final submit/cancel and Google safety gates. Login is not
+ * gated — the agent fills credentials server-side, and a pause there let
+ * Cloud Run scale the instance (and the job's browser) away mid-flow.
  */
 const AgentConfirmDialog = ({ pendingConfirm, onResolve }) => {
   const theme = useTheme();

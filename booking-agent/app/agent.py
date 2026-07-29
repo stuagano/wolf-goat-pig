@@ -21,8 +21,9 @@ You are automating Wingpoint Golf Club / ForeTees tee-time booking in a browser.
 RULES:
 1. Never type usernames or passwords. For login:
    - Navigate to the Wingpoint member login page if needed.
-   - Call request_confirmation(kind="login", explanation=...).
-   - After the user confirms, call enter_foretees_credentials().
+   - Call enter_foretees_credentials() directly. Do NOT ask the user to
+     confirm logging in — the credentials are filled server-side and are
+     never exposed to you.
 2. Before clicking Submit Request, Submit Changes, or Cancel Reservation:
    - Call request_confirmation(kind="submit", explanation=...).
    - Only click the button after the user confirms.
@@ -36,15 +37,15 @@ RULES:
 REQUEST_CONFIRMATION_DECL = types.FunctionDeclaration(
     name="request_confirmation",
     description=(
-        "Pause and ask the end user to confirm before a sensitive step "
-        "(login or final submit/cancel)."
+        "Pause and ask the end user to confirm before the final submit or cancel. "
+        "Do not use this for logging in."
     ),
     parameters_json_schema={
         "type": "object",
         "properties": {
             "kind": {
                 "type": "string",
-                "enum": ["login", "submit", "safety"],
+                "enum": ["submit", "safety"],
                 "description": "Which sensitive step needs confirmation",
             },
             "explanation": {
@@ -60,7 +61,7 @@ ENTER_CREDENTIALS_DECL = types.FunctionDeclaration(
     name="enter_foretees_credentials",
     description=(
         "Fill and submit the Wingpoint login form using server-side credentials. "
-        "Call only after request_confirmation(kind='login') was approved."
+        "Call this as soon as the login form is visible; no confirmation needed."
     ),
     parameters_json_schema={"type": "object", "properties": {}},
 )
@@ -170,6 +171,10 @@ def _safety_decision(fc: Any) -> dict[str, Any] | None:
     return None
 
 
+class ConfirmationExpired(Exception):
+    """Raised when the user never answered a confirmation prompt in time."""
+
+
 async def _pause_for_confirm(
     job: BookingJob,
     kind: str,
@@ -185,7 +190,14 @@ async def _pause_for_confirm(
     job.confirm_decision = None
     job.touch()
     logger.info("job %s waiting for confirm kind=%s", job.id, kind)
-    await job.confirm_event.wait()
+    try:
+        await asyncio.wait_for(job.confirm_event.wait(), timeout=get_settings().job_ttl_seconds)
+    except TimeoutError as exc:
+        logger.info("job %s confirm kind=%s expired", job.id, kind)
+        raise ConfirmationExpired(
+            "This booking session expired because it sat unconfirmed too long. "
+            "Please start the booking again."
+        ) from exc
     approved = bool(job.confirm_decision)
     job.status = JobStatus.RUNNING
     job.confirm_kind = None
@@ -353,10 +365,7 @@ async def run_job(job: BookingJob) -> dict[str, Any]:
                             name,
                             page,
                             {
-                                "result": (
-                                    "blocked: use enter_foretees_credentials after "
-                                    "request_confirmation(kind=login)"
-                                )
+                                "result": "blocked: call enter_foretees_credentials instead"
                             },
                             extra_fr,
                         )
@@ -390,6 +399,12 @@ async def run_job(job: BookingJob) -> dict[str, Any]:
 
         job.status = JobStatus.FAILED
         job.error = f"Exceeded max agent turns ({settings.max_agent_turns})"
+        await job.close_browser()
+        return job.to_response()
+    except ConfirmationExpired as exc:
+        logger.info("job %s abandoned: %s", job.id, exc)
+        job.status = JobStatus.FAILED
+        job.error = str(exc)
         await job.close_browser()
         return job.to_response()
     except Exception as exc:
@@ -427,7 +442,18 @@ async def start_job(kind: JobKind, args: dict[str, Any]) -> dict[str, Any]:
 async def confirm_job(job_id: str, confirm: bool) -> dict[str, Any]:
     job = await job_store.get(job_id)
     if not job:
-        return {"status": "failed", "success": False, "error": "Unknown job_id"}
+        # The job and its live browser only exist in this instance's memory, so a
+        # scaled-away or recycled instance loses them. Say so instead of
+        # reporting a generic failure the user cannot act on.
+        return {
+            "status": "expired",
+            "success": False,
+            "error": (
+                "This booking session expired because it sat unconfirmed too long. "
+                "Please start the booking again."
+            ),
+            "job_id": job_id,
+        }
 
     if job.status != JobStatus.NEEDS_CONFIRMATION:
         # Idempotent: if already terminal, return that.

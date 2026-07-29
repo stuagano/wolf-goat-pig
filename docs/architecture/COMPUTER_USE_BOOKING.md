@@ -10,12 +10,22 @@ Replaces the Node/Playwright microservice on Render
 |---|---|
 | Approach | Full Computer Use rewrite (not lift-and-shift of scripted Playwright) |
 | Speed | Not a hard requirement — multi-turn agent loop is OK |
-| Safety | Hybrid: auto-run low-risk nav; **SPA must confirm login + final submit/cancel** |
+| Safety | Hybrid: auto-run low-risk nav and login; **SPA must confirm final submit/cancel** |
 | Credentials | Never sent through the model — custom tool `enter_foretees_credentials` |
 
 Google’s Computer Use ToS: when the model returns `require_confirmation`, the
 end user must confirm. We never auto-ack those. Separately, our policy always
-pauses before credential entry and before irreversible ForeTees submit/cancel.
+pauses before irreversible ForeTees submit/cancel.
+
+Login is deliberately **not** gated. The model never sees the credentials, so a
+prompt there bought no safety — and it cost reliability: the job and its live
+Playwright browser exist only in one instance's memory, so while the user read
+the login prompt Cloud Run scaled the instance away and the confirm landed on a
+cold instance that had never seen the job. Confirmations now happen seconds
+before the submit the user just asked for. Two guards back that up:
+`job_ttl_seconds` (600) expires a stalled job *before* Cloud Run's ~15min idle
+reap, and an unknown `job_id` returns `status: "expired"` with a
+"start the booking again" message rather than a bare failure.
 
 ## Architecture
 
@@ -50,8 +60,8 @@ Playwright executes `click_at` / `type_text_at` / etc. from model function calls
 {
   "status": "needs_confirmation",
   "job_id": "…",
-  "kind": "login" | "submit" | "safety",
-  "explanation": "About to log in to Wingpoint…",
+  "kind": "submit" | "safety",
+  "explanation": "About to submit the 8:40 AM request…",
   "screenshot_b64": "…",   // optional PNG
   "success": false
 }
@@ -75,7 +85,7 @@ SPA → FastAPI `GET /api/foretees/tee-times` → booking-agent `POST /tee-times
 Built-in Computer Use (`ENVIRONMENT_BROWSER`) plus:
 
 1. **`request_confirmation(kind, explanation)`** — pauses the job for the SPA.
-   Required before login and before Submit Request / Cancel Reservation.
+   Required before Submit Request / Cancel Reservation. Not used for login.
 2. **`enter_foretees_credentials()`** — fills Wingpoint login from job-scoped
    secrets (never included in model prompts or `type_text_at`).
 3. **`report_booking_result(success, title, messages)`** — terminal structured
