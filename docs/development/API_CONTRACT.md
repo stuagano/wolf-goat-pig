@@ -21,18 +21,23 @@ artifact fails the build.
 Any change to routes, params, or Pydantic response models changes the contract:
 
 ```bash
+# One-shot: regenerate both artifacts and verify --check
+./scripts/sync_openapi.sh
+
+# Or manually:
 # 1. Regenerate the committed spec from the app
 cd backend && python scripts/export_openapi.py
-
 # 2. Regenerate the frontend types from that spec
 cd ../frontend && npm run gen:api
-
 # 3. Commit both regenerated files with your change
 ```
 
-If you forget, the `OpenAPI Contract` CI job fails with a diff showing what's
-stale. `python scripts/export_openapi.py --check` reproduces the backend check
-locally.
+If you forget, **Backend CI** and the `OpenAPI Contract` workflow both fail.
+`python scripts/export_openapi.py --check` reproduces the backend check locally.
+
+FastAPI, Pydantic, and Starlette are exact-pinned in `backend/requirements.txt`
+because they control schema serialization. Bumping any of them requires running
+`./scripts/sync_openapi.sh` in the same change.
 
 ## Using the typed client in the frontend
 

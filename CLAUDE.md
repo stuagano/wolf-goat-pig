@@ -42,7 +42,9 @@ cd frontend && npm run typecheck && npx vitest run && npm run build
 
 # Backend changes (mirrors .github/workflows/backend-ci.yml):
 cd backend && ruff check app/ tests/ && ruff format --check app/ tests/ \
+  && python scripts/export_openapi.py --check \
   && pytest tests/ --ignore=tests/manual --ignore=tests/_diagnostic
+# If OpenAPI --check fails: ./scripts/sync_openapi.sh then commit both artifacts.
 ```
 
 Editing rules that prevent past deploy failures:

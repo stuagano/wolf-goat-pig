@@ -72,6 +72,15 @@ jobs:
         pip install -r requirements-testing.txt
         ruff check app/ tests/
         ruff format --check app/ tests/
+
+    # Keep the committed OpenAPI contract honest on every backend change — do not
+    # wait for the separate openapi-contract workflow. Fail here if routes/schemas
+    # drifted without regenerating backend/openapi.json.
+    - name: Check OpenAPI contract is in sync
+      if: matrix.python-version == '3.12'
+      run: |
+        cd backend
+        python scripts/export_openapi.py --check
     
     - name: Run type checking
       run: |

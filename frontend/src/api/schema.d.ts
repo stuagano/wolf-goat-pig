@@ -1067,6 +1067,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/foretees/book/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Booking Step
+         * @description Resume a paused Computer Use book/cancel job after user confirmation.
+         */
+        post: operations["confirm_booking_step_api_foretees_book_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/foretees/bookings": {
         parameters: {
             query?: never;
@@ -4918,6 +4938,16 @@ export interface components {
                 [key: string]: unknown;
             }[];
         };
+        /** ConfirmBookingJobRequest */
+        ConfirmBookingJobRequest: {
+            /**
+             * Confirm
+             * @default true
+             */
+            confirm: boolean;
+            /** Job Id */
+            job_id: string;
+        };
         /** CourseCreate */
         CourseCreate: {
             /** Description */
@@ -8068,6 +8098,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["BookTeeTimeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_booking_step_api_foretees_book_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmBookingJobRequest"];
             };
         };
         responses: {
