@@ -12,8 +12,11 @@ substitutions:
   _SERVICE: wgp-booking
   _RUNTIME_SA_NAME: wgp-run
   _SECRETS: "BOOKING_SERVICE_SECRET=BOOKING_SERVICE_SECRET:latest"
-  # Vertex model for Gemini Computer Use (global endpoint).
-  _COMPUTER_USE_MODEL: gemini-3.5-flash
+  # Vertex model for Gemini Computer Use (global endpoint). Keep in sync with
+  # booking-agent/app/config.py — general-purpose models such as
+  # `gemini-3.5-flash` are refused with "computer use is not supported for this
+  # model in this region".
+  _COMPUTER_USE_MODEL: gemini-2.5-computer-use-preview-10-2025
 
 images:
   - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}:${SHORT_SHA}"
