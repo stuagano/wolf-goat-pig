@@ -1,11 +1,11 @@
 """Unified data service that merges data from all sources.
 
 This service provides a single view of all game data by merging:
-1. Primary spreadsheet (read-only legacy data)
-2. Writable spreadsheet (app-entered data during transition)
-3. Render database (games recorded directly in the app)
+1. Primary spreadsheet (season-of-record Google Sheet)
+2. Database (games recorded directly in the app)
 
-The service deduplicates data and provides a unified leaderboard and round history.
+The old transition-era writable sheet copy is no longer read — it held prior-
+season rounds and was polluting the 2026-27 leaderboard after the sheet cutover.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import GamePlayerResult, GameRecord, LegacyRound
 from ..utils.time import utc_now
-from .spreadsheet_sync_service import PRIMARY_SHEET_ID, WRITABLE_SHEET_ID, RoundResult, SpreadsheetSyncService
+from .spreadsheet_sync_service import PRIMARY_SHEET_ID, RoundResult, SpreadsheetSyncService
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +80,6 @@ class UnifiedDataService:
 
     def __init__(self, db: Session | None = None):
         self.primary_sheet = SpreadsheetSyncService(PRIMARY_SHEET_ID)
-        self.writable_sheet = SpreadsheetSyncService(WRITABLE_SHEET_ID)
         self._db = db
 
     def _get_db(self) -> Session:
@@ -191,7 +190,12 @@ class UnifiedDataService:
                 # Exclude pending member-posted rounds — they are not
                 # authoritative until a foursome member attests them. Sheet/db
                 # rows default to status='attested' so they are unaffected.
-                for r in db.query(LegacyRound).filter(LegacyRound.status != "pending").all():
+                # Also skip retired writable_sheet rows from the prior season.
+                for r in (
+                    db.query(LegacyRound)
+                    .filter(LegacyRound.status != "pending", LegacyRound.source != "writable_sheet")
+                    .all()
+                ):
                     unified = self._legacy_round_to_unified(r)
                     key = (unified.date_sortable, unified.group, unified.member, unified.score)
                     if key not in all_rounds:
@@ -199,7 +203,8 @@ class UnifiedDataService:
             except Exception as e:
                 logger.warning(f"Failed to read legacy_rounds cache: {e}")
         else:
-            # Slow path: live Sheets API — used only by the sync job itself
+            # Slow path: live Sheets API — used only by the sync job itself.
+            # Primary season sheet only; the old writable copy is retired.
             try:
                 for r in self.primary_sheet.get_all_rounds():
                     unified = self._sheet_round_to_unified(r, "primary_sheet")
@@ -208,15 +213,6 @@ class UnifiedDataService:
                         all_rounds[key] = unified
             except Exception as e:
                 logger.warning(f"Failed to fetch primary sheet: {e}")
-
-            try:
-                for r in self.writable_sheet.get_all_rounds():
-                    unified = self._sheet_round_to_unified(r, "writable_sheet")
-                    key = (unified.date_sortable, unified.group, unified.member, unified.score)
-                    if key not in all_rounds:
-                        all_rounds[key] = unified
-            except Exception as e:
-                logger.warning(f"Failed to fetch writable sheet: {e}")
 
         # Merge in-app GameRecord results
         if include_database:
@@ -302,7 +298,7 @@ class UnifiedDataService:
         Returns:
             Status info for each source including record counts
         """
-        status = {
+        status: dict[str, Any] = {
             "primary_sheet": {
                 "available": False,
                 "record_count": 0,
@@ -311,7 +307,9 @@ class UnifiedDataService:
             "writable_sheet": {
                 "available": False,
                 "record_count": 0,
-                "id": WRITABLE_SHEET_ID,
+                "id": None,
+                "retired": True,
+                "error": "Prior-season writable copy is no longer read",
             },
             "database": {"available": False, "record_count": 0},
             "unified_total": 0,
@@ -321,14 +319,10 @@ class UnifiedDataService:
         try:
             db = self._get_db()
             primary_count = db.query(LegacyRound).filter(LegacyRound.source == "primary_sheet").count()
-            writable_count = db.query(LegacyRound).filter(LegacyRound.source == "writable_sheet").count()
-            status["primary_sheet"]["available"] = primary_count > 0  # type: ignore[index]
-            status["primary_sheet"]["record_count"] = primary_count  # type: ignore[index]
-            status["writable_sheet"]["available"] = writable_count > 0  # type: ignore[index]
-            status["writable_sheet"]["record_count"] = writable_count  # type: ignore[index]
+            status["primary_sheet"]["available"] = primary_count > 0
+            status["primary_sheet"]["record_count"] = primary_count
         except Exception as e:
-            status["primary_sheet"]["error"] = str(e)  # type: ignore[index]
-            status["writable_sheet"]["error"] = str(e)  # type: ignore[index]
+            status["primary_sheet"]["error"] = str(e)
 
         try:
             db = self._get_db()
@@ -338,21 +332,16 @@ class UnifiedDataService:
                 .filter(GameRecord.completed_at.isnot(None))
                 .count()
             )
-            status["database"]["available"] = True  # type: ignore[index]
-            status["database"]["record_count"] = db_count  # type: ignore[index]
+            status["database"]["available"] = True
+            status["database"]["record_count"] = db_count
         except Exception as e:
-            status["database"]["error"] = str(e)  # type: ignore[index]
+            status["database"]["error"] = str(e)
 
-        # Calculate totals
-        status["unified_total"] = (
-            status["primary_sheet"]["record_count"]  # type: ignore[index]
-            + status["writable_sheet"]["record_count"]  # type: ignore[index]
-            + status["database"]["record_count"]  # type: ignore[index]
-        )
+        status["unified_total"] = status["primary_sheet"]["record_count"] + status["database"]["record_count"]
 
         try:
             db = self._get_db()
-            status["deduplicated_total"] = db.query(LegacyRound).count()
+            status["deduplicated_total"] = db.query(LegacyRound).filter(LegacyRound.source != "writable_sheet").count()
         except Exception:
             pass
 

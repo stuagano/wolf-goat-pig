@@ -1,9 +1,8 @@
 """Service for syncing game data with the WGP Dashboard Google Sheet.
 
-This service provides two-way sync between the Wolf Goat Pig app and the
-legacy Google Sheets dashboard at:
-- Primary (read-only): https://docs.google.com/spreadsheets/d/141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ
-- Writable copy: https://docs.google.com/spreadsheets/d/19AabC4vx0jRXHIAmz8QJfqTIBxxvMfFUplB0abg8mdA
+This service syncs the Wolf Goat Pig app with the season Google Sheet:
+- Primary (season of record, reads): https://docs.google.com/spreadsheets/d/141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ
+- Writable copy (app→sheet writes only; no longer read): https://docs.google.com/spreadsheets/d/19AabC4vx0jRXHIAmz8QJfqTIBxxvMfFUplB0abg8mdA
 
 Sheet Structure:
 - Dashboard: Leaderboard summary (auto-calculated from Details)
@@ -41,7 +40,10 @@ logger = logging.getLogger(__name__)
 
 # Spreadsheet IDs — PRIMARY_SHEET_ID can be overridden via LEADERBOARD_SHEET_ID env var
 PRIMARY_SHEET_ID = os.environ.get("LEADERBOARD_SHEET_ID", "141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ")
-WRITABLE_SHEET_ID = "19AabC4vx0jRXHIAmz8QJfqTIBxxvMfFUplB0abg8mdA"  # Stuart's writable copy for app sync
+# Retired for reads after the 2026-27 cutover (prior-season rows polluted the
+# leaderboard). Still used as the default target for app→sheet *writes* until
+# those are pointed at the season sheet.
+WRITABLE_SHEET_ID = "19AabC4vx0jRXHIAmz8QJfqTIBxxvMfFUplB0abg8mdA"
 
 # Tab GID for the leaderboard view (Details tab)
 PRIMARY_SHEET_TAB_GID = os.environ.get("LEADERBOARD_SHEET_TAB_GID", "474065919")
