@@ -169,25 +169,57 @@ class TestGetTeeTimes:
         resp = client.get("/api/foretees/tee-times", params={"date": "2025-06-01"})
         assert resp.status_code in (401, 403)
 
-    @patch("app.routers.foretees._get_user_service")
-    def test_returns_200_with_slots(self, mock_get_svc):
-        _override_current_user()
-        mock_svc = AsyncMock()
-        mock_svc.config = MagicMock(enabled=True)
-        mock_svc.get_tee_times = AsyncMock(return_value=[{"time": "08:00 AM"}])
-        mock_svc.close = AsyncMock()
-        mock_get_svc.return_value = mock_svc
+    @patch("app.routers.foretees.get_foretees_service")
+    def test_returns_400_without_profile_credentials(self, mock_get_svc):
+        _override_current_user(_fake_player(foretees_username=None, foretees_password_encrypted=None))
+        mock_get_svc.return_value.config = MagicMock(enabled=True)
 
-        # Make service not equal to singleton to trigger close
-        with patch("app.routers.foretees.get_foretees_service", return_value=MagicMock()):
-            resp = client.get("/api/foretees/tee-times", params={"date": "2025-06-01"})
+        resp = client.get("/api/foretees/tee-times", params={"date": "2025-06-01"})
+        assert resp.status_code == 400
+        assert "credential" in resp.json()["detail"].lower()
+
+    @patch("app.routers.foretees.decrypt", return_value="plain-pass")
+    @patch("app.routers.foretees.fetch_tee_times_via_booking_agent", new_callable=AsyncMock)
+    @patch("app.routers.foretees.get_foretees_service")
+    def test_returns_200_with_slots(self, mock_get_svc, mock_fetch, _decrypt):
+        _override_current_user(_fake_player(foretees_username="1453-smith", foretees_password_encrypted="enc"))
+        mock_get_svc.return_value.config = MagicMock(enabled=True)
+        mock_fetch.return_value = [{"time": "08:00 AM"}]
+
+        resp = client.get("/api/foretees/tee-times", params={"date": "2025-06-01"})
         assert resp.status_code == 200
-        data = resp.json()
-        assert len(data["data"]) == 1
+        assert len(resp.json()["data"]) == 1
+        mock_fetch.assert_awaited_once_with("1453-smith", "plain-pass", "2025-06-01")
 
-    @patch("app.routers.foretees._get_user_service")
+    @patch("app.routers.foretees.decrypt", side_effect=ValueError("bad token"))
+    @patch("app.routers.foretees.get_foretees_service")
+    def test_returns_400_when_credentials_cannot_decrypt(self, mock_get_svc, _decrypt):
+        _override_current_user(_fake_player(foretees_username="1453-smith", foretees_password_encrypted="enc"))
+        mock_get_svc.return_value.config = MagicMock(enabled=True)
+
+        resp = client.get("/api/foretees/tee-times", params={"date": "2025-06-01"})
+        assert resp.status_code == 400
+        assert "re-save" in resp.json()["detail"]
+
+    @patch("app.routers.foretees.decrypt", return_value="plain-pass")
+    @patch("app.routers.foretees.fetch_tee_times_via_booking_agent", new_callable=AsyncMock)
+    @patch("app.routers.foretees.get_foretees_service")
+    def test_returns_502_on_foretees_auth_failed(self, mock_get_svc, mock_fetch, _decrypt):
+        from app.services.foretees_service import ForeteesTeeTimesError
+
+        _override_current_user(_fake_player(foretees_username="1453-smith", foretees_password_encrypted="enc"))
+        mock_get_svc.return_value.config = MagicMock(enabled=True)
+        mock_fetch.side_effect = ForeteesTeeTimesError(
+            "foretees_auth_failed", "ForeTees login failed for your saved credentials."
+        )
+
+        resp = client.get("/api/foretees/tee-times", params={"date": "2025-06-01"})
+        assert resp.status_code == 502
+        assert "ForeTees" in resp.json()["detail"] or "login" in resp.json()["detail"].lower()
+
+    @patch("app.routers.foretees.get_foretees_service")
     def test_returns_200_disabled(self, mock_get_svc):
-        _override_current_user()
+        _override_current_user(_fake_player(foretees_username=None, foretees_password_encrypted=None))
         mock_svc = MagicMock()
         mock_svc.config = MagicMock(enabled=False)
         mock_get_svc.return_value = mock_svc
