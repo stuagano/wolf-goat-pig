@@ -1,8 +1,7 @@
 """Service for syncing game data with the WGP Dashboard Google Sheet.
 
 This service syncs the Wolf Goat Pig app with the season Google Sheet:
-- Primary (season of record, reads): https://docs.google.com/spreadsheets/d/141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ
-- Writable copy (app→sheet writes only; no longer read): https://docs.google.com/spreadsheets/d/19AabC4vx0jRXHIAmz8QJfqTIBxxvMfFUplB0abg8mdA
+- Season of record (reads + writes): https://docs.google.com/spreadsheets/d/141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ
 
 Sheet Structure:
 - Dashboard: Leaderboard summary (auto-calculated from Details)
@@ -17,7 +16,7 @@ Sheet Structure:
 The service uses Google Sheets API v4 with OAuth credentials.
 
 To enable write access:
-1. Share the writable spreadsheet with stuagano@gmail.com as Editor
+1. Share the season spreadsheet with stuagano@gmail.com as Editor
 2. Ensure gcloud is authenticated with that account:
    gcloud auth application-default login --scopes="openid,https://www.googleapis.com/auth/userinfo.email,https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/drive"
 """
@@ -40,10 +39,8 @@ logger = logging.getLogger(__name__)
 
 # Spreadsheet IDs — PRIMARY_SHEET_ID can be overridden via LEADERBOARD_SHEET_ID env var
 PRIMARY_SHEET_ID = os.environ.get("LEADERBOARD_SHEET_ID", "141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ")
-# Retired for reads after the 2026-27 cutover (prior-season rows polluted the
-# leaderboard). Still used as the default target for app→sheet *writes* until
-# those are pointed at the season sheet.
-WRITABLE_SHEET_ID = "19AabC4vx0jRXHIAmz8QJfqTIBxxvMfFUplB0abg8mdA"
+# Season of record only — app→sheet writes go to the same workbook as reads.
+WRITABLE_SHEET_ID = PRIMARY_SHEET_ID
 
 # Tab GID for the leaderboard view (Details tab)
 PRIMARY_SHEET_TAB_GID = os.environ.get("LEADERBOARD_SHEET_TAB_GID", "474065919")
@@ -218,7 +215,7 @@ def _sheets_api_append(sheet_id: str, range_spec: str, values: list[list[Any]]) 
 class SpreadsheetSyncService:
     """Service for syncing game data with Google Sheets."""
 
-    def __init__(self, sheet_id: str = WRITABLE_SHEET_ID):
+    def __init__(self, sheet_id: str = PRIMARY_SHEET_ID):
         self.sheet_id = sheet_id
 
     def get_all_rounds(self) -> list[RoundResult]:
