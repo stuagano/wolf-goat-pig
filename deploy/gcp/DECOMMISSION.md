@@ -23,6 +23,7 @@ Vercel + Render are being frozen / decommissioned.
 - [ ] Remove Vercel URLs from Auth0 (Firebase + localhost only)
 - [x] Suspend Render web services `wolf-goat-pig` + `wolf-goat-pig-api` (2026-07-27; Postgres kept warm; booking left running)
 - [x] Pause / archive Vercel project (paused 2026-07-27 via Pause Vercel workflow)
+- [x] Remove legacy `.github/workflows/deploy.yml` (Render/Vercel deploy hook) — GCP only (2026-07-29)
 - [x] Deploy Computer Use booking agent (`wgp-booking`) and flip `BOOKING_SERVICE_URL` (2026-07-28)
 - [ ] Suspend Render `wolf-goat-pig-booking` after booking soak
 - [ ] After ≥7 days with no rollback need: delete Render Postgres
