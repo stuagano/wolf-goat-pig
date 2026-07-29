@@ -9,13 +9,12 @@ sync, how to verify it, and how to push data back to a sheet.
 - **Push** (app → sheet): an optional Apps Script writes the live leaderboard back
   into a sheet tab.
 
-**Default sheet:** `https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM`
+**Default sheet:** `https://docs.google.com/spreadsheets/d/141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ`
 
-> ⚠️ **Scheduling caveat.** The code references a daily 2 AM in-process sync
-> (`backend/app/services/email_scheduler.py`), but the in-process scheduler does
-> **not** run reliably on Render, and there is currently **no** GitHub Actions cron
-> replacement for sheet sync. Treat the **admin UI / API sync as the reliable path**
-> and trigger it manually when you need fresh data.
+> **Scheduling.** Sheet → DB sync runs every 2 hours via `.github/workflows/sheet-sync.yml`
+> against the Cloud Run API. In-process schedulers are disabled in production
+> (`RUN_INPROCESS_SCHEDULERS=false`). The admin UI / API sync remains available
+> for an immediate refresh.
 
 ## How it works
 
@@ -46,10 +45,10 @@ preview table and optional auto-sync interval.
 ### 2. API
 
 ```bash
-curl -X POST https://wolf-goat-pig.onrender.com/sheet-integration/sync-wgp-sheet \
+curl -X POST https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/sheet-integration/sync-wgp-sheet \
   -H "Content-Type: application/json" \
   -H "X-Scheduled-Job: true" \
-  -d '{"csv_url":"https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM/export?format=csv&gid=0"}'
+  -d '{"csv_url":"https://docs.google.com/spreadsheets/d/141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ/export?format=csv&gid=0"}'
 ```
 
 The `X-Scheduled-Job: true` header bypasses the one-sync-per-hour rate limit on
@@ -67,10 +66,10 @@ the public endpoint. The response includes `sync_results`
 
 ```bash
 # Backend up? (environment must read "production")
-curl https://wolf-goat-pig.onrender.com/health
+curl https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/health
 
 # Data present?
-curl https://wolf-goat-pig.onrender.com/leaderboard/total_earnings
+curl https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/leaderboard/total_earnings
 ```
 
 Expected leaderboard shape:
@@ -111,7 +110,7 @@ Direct API call (no context):
 
 ```javascript
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-const csvUrl = "https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM/export?format=csv&gid=0";
+const csvUrl = "https://docs.google.com/spreadsheets/d/141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ/export?format=csv&gid=0";
 const res = await fetch(`${API_URL}/sheet-integration/sync-wgp-sheet`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
@@ -129,7 +128,7 @@ pulls from the API. In the sheet: **Extensions → Apps Script**, paste the scri
 below, save, and run `testAPIConnection` once to grant permissions.
 
 ```javascript
-const API_URL = 'https://wolf-goat-pig.onrender.com';
+const API_URL = 'https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app';
 const LEADERBOARD_SHEET_NAME = 'Leaderboard';
 const LEADERBOARD_TYPE = 'total_earnings';
 // types: total_earnings | win_rate | games_played | average_score | partnerships_won

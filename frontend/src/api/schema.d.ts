@@ -1434,7 +1434,7 @@ export interface paths {
          * @description Return the configured leaderboard spreadsheet URL.
          *
          *     This is a public endpoint used by the frontend to build the 'View Spreadsheet' link.
-         *     The sheet ID can be changed via the LEADERBOARD_SHEET_ID env var on Render.
+         *     The sheet ID can be changed via the LEADERBOARD_SHEET_ID env var.
          */
         get: operations["get_leaderboard_config_data_leaderboard_config_get"];
         put?: never;
@@ -4874,24 +4874,36 @@ export interface components {
         };
         /** Body_import_course_from_file_courses_import_file_post */
         Body_import_course_from_file_courses_import_file_post: {
-            /** File */
+            /**
+             * File
+             * Format: binary
+             */
             file: string;
         };
         /** Body_scan_scorecard_photo_scorecard_scan_post */
         Body_scan_scorecard_photo_scorecard_scan_post: {
-            /** File */
+            /**
+             * File
+             * Format: binary
+             */
             file: string;
             /** Players */
             players?: string | null;
         };
         /** Body_upload_gmail_credentials_admin_upload_credentials_post */
         Body_upload_gmail_credentials_admin_upload_credentials_post: {
-            /** File */
+            /**
+             * File
+             * Format: binary
+             */
             file: string;
         };
         /** Body_upload_my_avatar_players_me_avatar_post */
         Body_upload_my_avatar_players_me_avatar_post: {
-            /** File */
+            /**
+             * File
+             * Format: binary
+             */
             file: string;
         };
         /** BookTeeTimeRequest */
@@ -6358,10 +6370,6 @@ export interface components {
         };
         /** ValidationError */
         ValidationError: {
-            /** Context */
-            ctx?: Record<string, never>;
-            /** Input */
-            input?: unknown;
             /** Location */
             loc: (string | number)[];
             /** Message */

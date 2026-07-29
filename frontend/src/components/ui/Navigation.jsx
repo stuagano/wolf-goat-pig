@@ -68,7 +68,7 @@ const Navigation = () => {
     { path: '/ask', label: 'Ask Commissioner', icon: '⚖️' },
     { path: '/analytics', label: 'Analytics', icon: '📈' },
     { path: '/about', label: 'About', icon: 'ℹ️' },
-    { href: 'https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM', label: 'Legacy Standings', icon: '📊', external: true },
+    { href: 'https://docs.google.com/spreadsheets/d/141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ', label: 'Legacy Standings', icon: '📊', external: true },
     ...(showAdminLink ? [{ path: '/admin', label: 'Admin', icon: '🔧' }] : [])
   ];
 
@@ -93,7 +93,7 @@ const Navigation = () => {
     { path: '/analytics', label: '📈 Analytics', primary: false },
     { path: '/about', label: 'ℹ️ About', primary: false },
     { path: '/rules', label: '📋 Rules', primary: false },
-    { href: 'https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM', label: '📊 Legacy Standings', primary: false, external: true },
+    { href: 'https://docs.google.com/spreadsheets/d/141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ', label: '📊 Legacy Standings', primary: false, external: true },
     ...(showAdminLink ? [{ path: '/admin', label: '🔧 Admin', primary: true }] : [])
   ];
 

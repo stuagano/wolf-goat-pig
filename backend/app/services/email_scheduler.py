@@ -590,7 +590,7 @@ class EmailScheduler:
         #     import httpx
         #
         #     # Hardcoded sheet URL (same as in SheetSyncContext)
-        #     sheet_id = "1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM"
+        #     sheet_id = "141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ"
         #     gid = "0"
         #     csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
         #

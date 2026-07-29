@@ -15,7 +15,7 @@ export const useSheetSync = () => {
 
 export const SheetSyncProvider = ({ children }) => {
   const [sheetUrl, setSheetUrl] = useState(
-    "https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM/edit?gid=474065919#gid=474065919",
+    "https://docs.google.com/spreadsheets/d/141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ/edit?gid=474065919#gid=474065919",
   );
   const [syncStatus, setSyncStatus] = useState("idle"); // idle, connecting, syncing, error, success
   const [lastSync, setLastSync] = useState(null);

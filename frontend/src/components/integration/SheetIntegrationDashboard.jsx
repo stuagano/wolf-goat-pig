@@ -464,7 +464,7 @@ const SheetIntegrationDashboard = () => {
                                 </div>
                             )}
                             <p className="text-xs text-gray-500">
-                                To change the spreadsheet, update <code>LEADERBOARD_SHEET_ID</code> in Render environment variables.
+                                To change the spreadsheet, update <code>LEADERBOARD_SHEET_ID</code> (or the default in spreadsheet_sync_service.py).
                                 The leaderboard cache syncs automatically every 2 hours.
                             </p>
                         </>
