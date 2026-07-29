@@ -68,9 +68,7 @@ class ForeteesTeeTimesError(Exception):
         self.message = message
 
 
-async def fetch_tee_times_via_booking_agent(
-    username: str, password: str, date: str
-) -> list[dict[str, Any]]:
+async def fetch_tee_times_via_booking_agent(username: str, password: str, date: str) -> list[dict[str, Any]]:
     booking_url = os.getenv("BOOKING_SERVICE_URL", "http://localhost:8080").rstrip("/")
     booking_secret = os.getenv("BOOKING_SERVICE_SECRET", "")
     headers = {"Content-Type": "application/json"}

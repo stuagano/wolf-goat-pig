@@ -51,9 +51,11 @@ async def test_agent_auth_failed_raises(monkeypatch):
     mock_client.get = AsyncMock(return_value=MagicMock(status_code=200))
     mock_client.post = AsyncMock(return_value=mock_resp)
 
-    with patch("app.services.foretees_service.httpx.AsyncClient", return_value=mock_client):
-        with pytest.raises(ForeteesTeeTimesError) as exc:
-            await fetch_tee_times_via_booking_agent("u", "p", "2026-07-29")
+    with (
+        patch("app.services.foretees_service.httpx.AsyncClient", return_value=mock_client),
+        pytest.raises(ForeteesTeeTimesError) as exc,
+    ):
+        await fetch_tee_times_via_booking_agent("u", "p", "2026-07-29")
     assert exc.value.code == "foretees_auth_failed"
 
 
@@ -72,9 +74,11 @@ async def test_booking_service_401_raises(monkeypatch):
     mock_client.get = AsyncMock(return_value=MagicMock(status_code=200))
     mock_client.post = AsyncMock(return_value=mock_resp)
 
-    with patch("app.services.foretees_service.httpx.AsyncClient", return_value=mock_client):
-        with pytest.raises(ForeteesTeeTimesError) as exc:
-            await fetch_tee_times_via_booking_agent("u", "p", "2026-07-29")
+    with (
+        patch("app.services.foretees_service.httpx.AsyncClient", return_value=mock_client),
+        pytest.raises(ForeteesTeeTimesError) as exc,
+    ):
+        await fetch_tee_times_via_booking_agent("u", "p", "2026-07-29")
     assert exc.value.code == "booking_service_auth"
 
 
@@ -88,7 +92,9 @@ async def test_timeout_raises(monkeypatch):
     mock_client.get = AsyncMock(return_value=MagicMock(status_code=200))
     mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("timeout"))
 
-    with patch("app.services.foretees_service.httpx.AsyncClient", return_value=mock_client):
-        with pytest.raises(ForeteesTeeTimesError) as exc:
-            await fetch_tee_times_via_booking_agent("u", "p", "2026-07-29")
+    with (
+        patch("app.services.foretees_service.httpx.AsyncClient", return_value=mock_client),
+        pytest.raises(ForeteesTeeTimesError) as exc,
+    ):
+        await fetch_tee_times_via_booking_agent("u", "p", "2026-07-29")
     assert exc.value.code == "booking_service_timeout"
