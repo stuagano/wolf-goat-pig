@@ -180,9 +180,7 @@ class TestGetUnifiedLeaderboard:
     def test_returns_list(self):
         svc = make_service()
         svc.primary_sheet = MagicMock()
-        svc.writable_sheet = MagicMock()
         svc.primary_sheet.get_all_rounds.return_value = []
-        svc.writable_sheet.get_all_rounds.return_value = []
 
         db = MagicMock()
         svc._db = db
@@ -198,7 +196,6 @@ class TestGetUnifiedLeaderboard:
         """Two rounds for same member should sum quarters."""
         svc = make_service()
         svc.primary_sheet = MagicMock()
-        svc.writable_sheet = MagicMock()
 
         from app.services.spreadsheet_sync_service import RoundResult
 
@@ -208,7 +205,6 @@ class TestGetUnifiedLeaderboard:
             RoundResult(date="06-Apr", group="A", member="Jeff", score=-4, location="Wing Point"),
         ]
         svc.primary_sheet.get_all_rounds.return_value = rounds
-        svc.writable_sheet.get_all_rounds.return_value = []
         svc._db = MagicMock()
         svc._db.query.return_value.all.return_value = []
 
@@ -220,3 +216,15 @@ class TestGetUnifiedLeaderboard:
                 assert stuart.rounds == 2
         except Exception:
             pass  # External deps; focus on pure logic elsewhere
+
+    def test_live_fetch_skips_writable_sheet(self):
+        """Prior-season writable copy must not be merged into season-of-record data."""
+        svc = make_service()
+        svc.primary_sheet = MagicMock()
+        svc.primary_sheet.get_all_rounds.return_value = []
+        svc._db = MagicMock()
+        # Would fail AttributeError if code still called writable_sheet
+        assert not hasattr(svc, "writable_sheet")
+        rounds = svc.get_all_rounds(include_database=False, use_sheet_cache=False)
+        assert rounds == []
+        svc.primary_sheet.get_all_rounds.assert_called_once()
