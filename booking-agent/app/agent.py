@@ -24,9 +24,10 @@ RULES:
    - Call enter_foretees_credentials() directly. Do NOT ask the user to
      confirm logging in — the credentials are filled server-side and are
      never exposed to you.
-2. Before clicking Submit Request, Submit Changes, or Cancel Reservation:
-   - Call request_confirmation(kind="submit", explanation=...).
-   - Only click the button after the user confirms.
+2. Call request_confirmation(kind="submit", explanation=...) exactly ONCE per
+   booking, immediately before the first Submit Request / Submit Changes /
+   Cancel Reservation click. That one approval covers the rest of this job —
+   do not ask again for later steps or confirmation dialogs.
 3. Stay on wingpointgolf.com and ftapp.wingpointgolf.com only.
 4. When the booking/cancel outcome is clear from the page (success or ForeTees
    error messages), call report_booking_result(...).
@@ -38,6 +39,7 @@ REQUEST_CONFIRMATION_DECL = types.FunctionDeclaration(
     name="request_confirmation",
     description=(
         "Pause and ask the end user to confirm before the final submit or cancel. "
+        "Call at most once per booking; the approval covers every remaining step. "
         "Do not use this for logging in."
     ),
     parameters_json_schema={
@@ -308,17 +310,26 @@ async def run_job(job: BookingJob) -> dict[str, Any]:
                 if name == "request_confirmation":
                     kind = str(args.get("kind") or "safety")
                     explanation = str(args.get("explanation") or "Confirmation required")
-                    approved = await _pause_for_confirm(job, kind, explanation, page)
-                    if not approved:
-                        job.status = JobStatus.FAILED
-                        job.error = "User denied confirmation"
-                        await job.close_browser()
-                        return job.to_response()
+                    if job.action_confirmed:
+                        # ForeTees has several submit-ish steps and the model asks at
+                        # each one; re-prompting made a single booking cost the user
+                        # three taps. The first approval covers this job's action.
+                        logger.info("job %s reusing existing confirmation kind=%s", job.id, kind)
+                        result = "confirmed"
+                    else:
+                        approved = await _pause_for_confirm(job, kind, explanation, page)
+                        if not approved:
+                            job.status = JobStatus.FAILED
+                            job.error = "User denied confirmation"
+                            await job.close_browser()
+                            return job.to_response()
+                        job.action_confirmed = True
+                        result = "confirmed"
                     fr_parts.append(
                         await _function_response_part(
                             name,
                             page,
-                            {"result": "confirmed"},
+                            {"result": result},
                             extra_fr,
                         )
                     )
