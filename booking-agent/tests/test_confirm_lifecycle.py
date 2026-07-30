@@ -1,9 +1,10 @@
-"""Confirmation-pause behaviour: no login gate, and expiry says so out loud."""
+"""Confirmation-pause behaviour: no login gate, asked once, and expiry says so."""
 
 import pytest
 
 from app.agent import REQUEST_CONFIRMATION_DECL, SYSTEM_INSTRUCTION, confirm_job
 from app.config import Settings
+from app.jobs import BookingJob, JobKind
 
 
 def test_login_is_not_a_confirmation_kind():
@@ -16,6 +17,17 @@ def test_login_is_not_a_confirmation_kind():
 def test_system_instruction_logs_in_without_asking():
     assert "enter_foretees_credentials() directly" in SYSTEM_INSTRUCTION
     assert 'request_confirmation(kind="login")' not in SYSTEM_INSTRUCTION
+
+
+def test_confirmation_is_requested_at_most_once():
+    """Asking at every submit-ish step cost the user three taps for one booking."""
+    assert "ONCE per" in SYSTEM_INSTRUCTION
+    assert "at most once per booking" in REQUEST_CONFIRMATION_DECL.description
+
+
+def test_a_fresh_job_has_not_been_confirmed():
+    job = BookingJob(id="j1", kind=JobKind.BOOK, args={})
+    assert job.action_confirmed is False
 
 
 def test_confirm_window_stays_under_cloud_run_idle_reap():

@@ -46,6 +46,9 @@ class BookingJob:
     pending_function_calls: list[Any] = field(default_factory=list)
     confirm_event: asyncio.Event = field(default_factory=asyncio.Event)
     confirm_decision: bool | None = None
+    # A job is a single book-or-cancel, so our own policy gate is asked once.
+    # Google's safety gates are separate and always surfaced.
+    action_confirmed: bool = False
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     def touch(self) -> None:
