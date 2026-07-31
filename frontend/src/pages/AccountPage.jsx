@@ -7,6 +7,8 @@ import useTeeTimes from '../hooks/useTeeTimes';
 import PlayerAvailability from '../components/signup/PlayerAvailability';
 import EmailPreferences from '../components/signup/EmailPreferences';
 import MyMatches from '../components/signup/MyMatches';
+import LegacyNameSelector from '../components/auth/LegacyNameSelector';
+import usePlayerProfile from '../hooks/usePlayerProfile';
 
 const STORAGE_KEY = 'wgp_account_settings';
 
@@ -685,6 +687,11 @@ function AccountPage() {
         )}
       </div>
 
+      {/* Club Player Link */}
+      {isAuthenticated && (
+        <ClubPlayerLinkSection cardStyle={cardStyle} sectionTitle={sectionTitle} theme={theme} />
+      )}
+
       {/* My Availability */}
       {isAuthenticated && (
         <div style={cardStyle}>
@@ -761,6 +768,207 @@ function AccountPage() {
         >
           Log Out
         </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Manage the link between this account and a Wing Point tee-sheet ("club")
+ * player. Onboarding covers the very first link via a one-shot modal; this
+ * section lets a user link, change, or unlink at any time afterwards — the
+ * modal alone left no way to revisit that decision.
+ */
+export function ClubPlayerLinkSection({ cardStyle, sectionTitle, theme }) {
+  const { profile, loading, updateLegacyName } = usePlayerProfile();
+  const [mode, setMode] = useState('view'); // 'view' | 'edit'
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [status, setStatus] = useState(null);
+  const [confirmingUnlink, setConfirmingUnlink] = useState(false);
+
+  const linkedName = profile?.legacy_name || null;
+  const suggestion = profile?.legacy_name_suggestion || null;
+
+  const flashStatus = (msg) => {
+    setStatus(msg);
+    setTimeout(() => setStatus(null), 2500);
+  };
+
+  const handleSelect = async (name) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await updateLegacyName(name);
+      setMode('view');
+      flashStatus(`Linked to ${name}`);
+    } catch (err) {
+      setError(err.message || 'Could not link — please try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleUnlink = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await updateLegacyName(null);
+      setConfirmingUnlink(false);
+      flashStatus('Unlinked from the club roster');
+    } catch (err) {
+      setError(err.message || 'Could not unlink — please try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const primaryButton = {
+    ...theme.buttonStyle,
+    padding: '10px 20px',
+    fontSize: '14px',
+    opacity: busy ? 0.6 : 1,
+  };
+
+  const outlineButton = {
+    ...theme.buttonStyle,
+    padding: '10px 20px',
+    fontSize: '14px',
+    background: 'transparent',
+    color: theme.colors.primary,
+    border: `1px solid ${theme.colors.primary}`,
+    opacity: busy ? 0.6 : 1,
+  };
+
+  const dangerButton = {
+    ...theme.buttonStyle,
+    padding: '10px 20px',
+    fontSize: '14px',
+    background: 'transparent',
+    color: theme.colors.error,
+    border: `1px solid ${theme.colors.error}`,
+    opacity: busy ? 0.6 : 1,
+  };
+
+  return (
+    <div style={cardStyle}>
+      <h3 style={{ ...sectionTitle, marginBottom: '4px' }}>Club Player</h3>
+      <p style={{ fontSize: '14px', color: theme.colors.textSecondary, margin: '0 0 16px 0' }}>
+        Link your account to your name on the Wing Point tee sheet so your signups and
+        round history stay in sync with the club system.
+      </p>
+
+      {status && (
+        <div style={{
+          padding: '10px 16px',
+          background: theme.isDark ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5',
+          color: theme.colors.success,
+          borderRadius: '8px',
+          fontSize: '14px',
+          fontWeight: 500,
+          marginBottom: '16px',
+        }}>
+          {status}
+        </div>
+      )}
+
+      {error && (
+        <div style={{
+          padding: '10px 16px',
+          background: theme.isDark ? 'rgba(239, 68, 68, 0.15)' : '#fef2f2',
+          color: theme.colors.error,
+          borderRadius: '8px',
+          fontSize: '14px',
+          fontWeight: 500,
+          marginBottom: '16px',
+        }}>
+          {error}
+        </div>
+      )}
+
+      {loading && !profile ? (
+        <div style={{ fontSize: '14px', color: theme.colors.textSecondary }}>Loading…</div>
+      ) : busy ? (
+        <div style={{ fontSize: '14px', color: theme.colors.textSecondary }}>Saving…</div>
+      ) : mode === 'edit' ? (
+        <LegacyNameSelector
+          currentName={profile?.name}
+          suggestedName={suggestion}
+          title={linkedName ? 'Change club player' : 'Link your club player'}
+          description="Pick your name from the Wing Point tee sheet."
+          skipLabel="Cancel"
+          onSelect={handleSelect}
+          onSkip={() => { setMode('view'); setError(null); }}
+        />
+      ) : linkedName ? (
+        <div>
+          <div style={{
+            padding: '10px 16px',
+            background: theme.isDark ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5',
+            color: theme.colors.success,
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: 500,
+            marginBottom: '16px',
+          }}>
+            Linked to <strong>{linkedName}</strong>
+          </div>
+
+          {confirmingUnlink ? (
+            <div>
+              <p style={{ fontSize: '14px', color: theme.colors.textSecondary, margin: '0 0 12px 0' }}>
+                Unlink from <strong>{linkedName}</strong>? Your signups will no longer sync
+                with the club tee sheet until you link again.
+              </p>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={handleUnlink} disabled={busy} style={dangerButton}>
+                  Yes, unlink
+                </button>
+                <button onClick={() => setConfirmingUnlink(false)} disabled={busy} style={outlineButton}>
+                  Keep linked
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => { setMode('edit'); setError(null); }}
+                disabled={busy}
+                style={outlineButton}
+              >
+                Change
+              </button>
+              <button
+                onClick={() => { setConfirmingUnlink(true); setError(null); }}
+                disabled={busy}
+                style={dangerButton}
+              >
+                Unlink
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div>
+          <div style={{
+            padding: '10px 16px',
+            background: theme.isDark ? theme.colors.gray200 : '#f9fafb',
+            color: theme.colors.textSecondary,
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: 500,
+            marginBottom: '16px',
+          }}>
+            Not linked yet.{suggestion ? ` We think you may be ${suggestion}.` : ''}
+          </div>
+          <button
+            onClick={() => { setMode('edit'); setError(null); }}
+            disabled={busy}
+            style={primaryButton}
+          >
+            Link my club player
+          </button>
+        </div>
       )}
     </div>
   );
