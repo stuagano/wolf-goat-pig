@@ -5,13 +5,21 @@ const API_URL = apiConfig.baseUrl;
 
 /**
  * Component for selecting a legacy player name from the thousand-cranes.com tee sheet
- * Shows a searchable dropdown of all known legacy players
+ * Shows a searchable dropdown of all known legacy players.
+ *
+ * Reused in two places: the first-login onboarding modal and the Account page's
+ * "Club Player" section. The header copy and the secondary (skip/cancel) button
+ * are configurable so it reads correctly in both contexts. The skip button is
+ * only rendered when ``onSkip`` is provided.
  */
 const LegacyNameSelector = ({
   currentName,
   onSelect,
   onSkip,
-  suggestedName = null
+  suggestedName = null,
+  title = 'Link Your Account',
+  description = 'Select your name from the Wing Point Golf tee sheet to sync your signups with the existing system.',
+  skipLabel = "I'm not in the list (new player)"
 }) => {
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -78,7 +86,7 @@ const LegacyNameSelector = ({
     return (
       <div className="legacy-name-selector error">
         <p>Error loading players: {error}</p>
-        <button onClick={onSkip}>Skip for now</button>
+        {onSkip && <button onClick={onSkip}>Skip for now</button>}
       </div>
     );
   }
@@ -86,11 +94,8 @@ const LegacyNameSelector = ({
   return (
     <div className="legacy-name-selector">
       <div className="selector-header">
-        <h3>Link Your Account</h3>
-        <p>
-          Select your name from the Wing Point Golf tee sheet to sync your signups
-          with the existing system.
-        </p>
+        <h3>{title}</h3>
+        <p>{description}</p>
         {currentName && (
           <p className="current-name">
             Signed in as: <strong>{currentName}</strong>
@@ -163,12 +168,14 @@ const LegacyNameSelector = ({
           Confirm: {selectedName || 'Select a name'}
         </button>
 
-        <button
-          className="skip-button"
-          onClick={onSkip}
-        >
-          I'm not in the list (new player)
-        </button>
+        {onSkip && (
+          <button
+            className="skip-button"
+            onClick={onSkip}
+          >
+            {skipLabel}
+          </button>
+        )}
       </div>
 
       <style jsx>{`
