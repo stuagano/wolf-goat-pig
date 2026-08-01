@@ -146,8 +146,9 @@ policy = {
     "mimeType": "text/markdown",
   },
   "combiner": "OR",
+  # One-off job blips shouldn't page — require sustained ERROR for 5m.
   "conditions": [{
-    "displayName": "Scheduler attempt failed",
+    "displayName": "Scheduler failures sustained 5m",
     "conditionThreshold": {
       "filter": (
         'resource.type = "cloud_scheduler_job" AND '
@@ -156,7 +157,7 @@ policy = {
       ),
       "comparison": "COMPARISON_GT",
       "thresholdValue": 0,
-      "duration": "60s",
+      "duration": "300s",
       "aggregations": [{
         "alignmentPeriod": "60s",
         "perSeriesAligner": "ALIGN_DELTA",
@@ -177,8 +178,9 @@ PY
 
 upsert_policy "WGP Cloud Scheduler job failed" "${POLICY_DIR}/scheduler-failed.json"
 
-# ── 4) Reported app failures (replaces Sentry issue emails) ─────────────────
-# Python report_exception / report_message → Cloud Logging ERROR.
+# ── 4) Reported app failures — DISABLED (too noisy: emails on a single log) ─
+# Keep the policy defined so it can be re-enabled later; use Logs Explorer for
+# day-to-day debugging instead of email-on-every-ERROR.
 python3 - "${CHANNEL}" "${RUN_SERVICE}" "${POLICY_DIR}/reported-errors.json" <<'PY'
 import json, sys
 channel, service, out = sys.argv[1:4]
@@ -194,6 +196,7 @@ policy = {
   "displayName": "WGP reported app error",
   "documentation": {
     "content": (
+      "DISABLED by default — single ERROR logs were too noisy for email.\n\n"
       "Cloud Logging saw a reported operational error "
       "(signup email, welcome email, GHIN/Sheets/ForeTees swallow, etc.).\n\n"
       "Open Logs Explorer filtered to Cloud Run service "
@@ -213,7 +216,7 @@ policy = {
     "notificationRateLimit": {"period": "300s"},
     "autoClose": "1800s",
   },
-  "enabled": True,
+  "enabled": False,
 }
 with open(out, "w") as f:
     json.dump(policy, f, indent=2)
@@ -224,3 +227,4 @@ upsert_policy "WGP reported app error" "${POLICY_DIR}/reported-errors.json"
 
 ok "Alert policies provisioned. Channel: ${CHANNEL}"
 warn "Uptime policy may cover all uptime_url checks in this project — keep only WGP checks or narrow the filter later."
+warn "'WGP reported app error' stays disabled — re-enable in console or flip enabled=True here if you want email again."

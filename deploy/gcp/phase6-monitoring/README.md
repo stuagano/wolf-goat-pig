@@ -6,8 +6,11 @@ Day-to-day user failures are handled **inside this GCP project** — no Sentry.
 |---|---|---|---|
 | Site / API down | Cloud Monitoring uptime | Hosting or `/health` failing | [Uptime](https://console.cloud.google.com/monitoring/uptime?project=seventh-country-232522) |
 | Sustained 5xx | Alert policy | Signup/login outages returning 500 | [Alerting](https://console.cloud.google.com/monitoring/alerting?project=seventh-country-232522) |
-| Reported app errors | Log-based alert | Swallowed email/GHIN/Sheets/ForeTees failures | same + Logs Explorer |
-| Scheduler jobs | Alert policy | Nightly emails / GHIN / pairings | Cloud Scheduler + Alerting |
+| Scheduler jobs | Alert policy | Sustained job failures (≥5m of ERRORs) | Cloud Scheduler + Alerting |
+| Reported app errors | Log-based alert (**disabled**) | Single-log emails were too noisy — use Logs Explorer | Logs Explorer |
+
+Email pages only for **uptime** and **sustained 5xx/scheduler**. Operational
+ERROR logs stay in Cloud Logging without inbox spam.
 
 Email: `MONITOR_ALERT_EMAIL` (default `stuagano@gmail.com`). Anyone with
 Monitoring Viewer/Editor on the project can manage this — bus factor > 1.
