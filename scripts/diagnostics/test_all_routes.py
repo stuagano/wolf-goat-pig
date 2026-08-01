@@ -26,7 +26,7 @@ PRODUCTION_API = os.getenv(
 API_BASE_URL = LOCAL_API if "--local" in sys.argv else PRODUCTION_API
 
 # Test data
-TEST_ADMIN_EMAIL = "stuagano@gmail.com"
+TEST_AUTH0_ACCESS_TOKEN = os.getenv("WGP_TEST_AUTH0_ACCESS_TOKEN", "")
 TEST_CSV_URL = "https://docs.google.com/spreadsheets/d/141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ/export?format=csv&gid=0"
 
 # Colors for output
@@ -240,7 +240,11 @@ class RouteTestSuite:
         """Test email and OAuth2 endpoints"""
         print(f"\n{BLUE}=== Testing Email/OAuth2 Endpoints ==={RESET}")
         
-        headers = {"X-Admin-Email": TEST_ADMIN_EMAIL}
+        headers = (
+            {"Authorization": f"Bearer {TEST_AUTH0_ACCESS_TOKEN}"}
+            if TEST_AUTH0_ACCESS_TOKEN
+            else {}
+        )
         
         # Email configuration status
         try:

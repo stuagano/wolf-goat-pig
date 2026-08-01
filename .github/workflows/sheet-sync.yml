@@ -16,6 +16,7 @@ jobs:
     uses: ./.github/workflows/_cron-curl.yml
     with:
       label: Sheet → DB sync
-      url: https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/admin/spreadsheet/sync-legacy-rounds
-      headers: 'X-Admin-Email: stuagano@gmail.com'
+      url: https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/internal/jobs/legacy-rounds-sync
       max-time: 120
+    secrets:
+      INTERNAL_JOB_TOKEN: ${{ secrets.INTERNAL_JOB_TOKEN }}

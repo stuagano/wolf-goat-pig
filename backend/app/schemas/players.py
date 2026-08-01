@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -88,8 +88,10 @@ class PlayerProfileResponse(PlayerProfileBase):
     # A non-authoritative fuzzy legacy-name suggestion to confirm in onboarding;
     # never auto-persisted to legacy_name. See issue #322.
     legacy_name_suggestion: str | None = None
-    # Whether this account is an admin (server-side ADMIN_EMAILS allowlist), so
-    # the client doesn't rely on a hardcoded list that can drift. See issue #316.
+    # Computed authorization fields returned only by GET /players/me.
+    role: Literal["normal", "super_admin"] = "normal"
+    is_super_admin: bool = False
+    # Backwards-compatible alias while older clients still read is_admin.
     is_admin: bool = False
 
 

@@ -25,9 +25,11 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..services import media_storage_service
-from ..services.auth_service import get_current_user
+from ..services.auth_service import get_current_auth0_user, get_current_user
+from ..services.legacy_player_service import find_similar_players
 from ..services.player_service import PlayerService
 from ..services.unified_data_service import get_unified_data_service
+from ..utils.admin_auth import is_super_admin_email
 from ..utils.api_helpers import ApiResponse, handle_api_errors, require_not_none
 from ..utils.time import utc_now
 
@@ -179,6 +181,7 @@ def get_all_players_availability(db: Session = Depends(get_db)) -> list[dict[str
 @handle_api_errors(operation_name="get my profile")
 async def get_my_profile(
     current_user: models.PlayerProfile = Depends(get_current_user),
+    auth0_user: dict[str, Any] = Depends(get_current_auth0_user),
     db: Session = Depends(get_db),
 ) -> schemas.PlayerProfileResponse:
     """Get current authenticated user's profile.
@@ -186,19 +189,18 @@ async def get_my_profile(
     Adds two computed fields not stored on the row:
     - ``legacy_name_suggestion``: when the account has no confirmed legacy link,
       a fuzzy roster match to *suggest* (never auto-persist) in onboarding (#322).
-    - ``is_admin``: server-side ADMIN_EMAILS membership so the client doesn't
-      depend on a hardcoded allowlist that can drift (#316).
+    - authorization role: derived from the verified Auth0 login email claim
+      and the server-side super-admin allowlist (never the DB profile email).
     """
-    from ..services.legacy_player_service import find_similar_players
-    from ..utils.admin_auth import get_admin_emails
-
     profile = schemas.PlayerProfileResponse.model_validate(current_user)
 
     if not current_user.legacy_name:
         suggestions = find_similar_players(current_user.name, max_results=1, db=db)
         profile.legacy_name_suggestion = suggestions[0] if suggestions else None
 
-    profile.is_admin = bool(current_user.email and current_user.email in get_admin_emails())
+    profile.is_super_admin = is_super_admin_email(auth0_user.get("email"))
+    profile.is_admin = profile.is_super_admin
+    profile.role = "super_admin" if profile.is_super_admin else "normal"
     return profile
 
 

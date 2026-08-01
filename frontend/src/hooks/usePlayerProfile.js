@@ -123,8 +123,10 @@ export const usePlayerProfile = () => {
     error,
     needsLegacyName,
     legacyNameSuggestion,
-    // Server-side admin allowlist membership (from /players/me). Null until loaded.
-    isAdmin: profile ? !!profile.is_admin : null,
+    role: profile?.role || null,
+    isSuperAdmin: profile ? !!profile.is_super_admin : null,
+    // Compatibility alias for existing admin screens.
+    isAdmin: profile ? !!profile.is_super_admin : null,
     updateLegacyName,
     skipLegacyName,
     resetSkip,

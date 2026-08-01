@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
-import { isAdminEmail, getStoredUserEmail } from '../utils/adminAuth';
 import { usePlayerProfile } from '../hooks/usePlayerProfile';
+import { useAuthenticatedFetch } from '../hooks/useAuthenticatedFetch';
 import { Card } from '../components/ui';
 import SheetIntegrationDashboard from '../components/integration/SheetIntegrationDashboard';
 import WGPAnalyticsDashboard from '../components/analytics/WGPAnalyticsDashboard';
@@ -17,9 +17,11 @@ const AdminPage = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth0();
   const { isAdmin: serverIsAdmin, loading: profileLoading } = usePlayerProfile();
+  const authenticatedFetch = useAuthenticatedFetch();
   const [activeTab, setActiveTab] = useState('email');
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
+  // Verified /players/me role is authoritative; never grant from browser identity.
+  const loading = authLoading || (isAuthenticated && profileLoading);
+  const isAdmin = !loading && serverIsAdmin === true;
   const [emailConfig, setEmailConfig] = useState({
     smtp_host: '',
     smtp_port: '',
@@ -53,13 +55,12 @@ const AdminPage = () => {
   const [bannerStatus, setBannerStatus] = useState('');
   const [currentBannerId, setCurrentBannerId] = useState(null);
 
-  // Check admin access
   useEffect(() => {
     if (authLoading) return;
-    // Wait for the profile fetch before deciding admin status, unless the user
+    // Wait for the profile fetch before loading admin data, unless the user
     // isn't authenticated (no profile will ever load).
     if (isAuthenticated && profileLoading) return;
-    checkAdminAccess();
+    if (!isAdmin) return;
     if (activeTab === 'email') {
       if (emailMethod === 'smtp') {
         fetchEmailConfig();
@@ -70,29 +71,11 @@ const AdminPage = () => {
       fetchBannerConfig();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, emailMethod, authLoading, user, isAuthenticated, serverIsAdmin, profileLoading]);
-
-  const checkAdminAccess = () => {
-    // The server's is_admin (from /players/me) is authoritative and mirrors the
-    // backend ADMIN_EMAILS allowlist, so the two never drift. The hardcoded
-    // email list is only a fallback while the profile hasn't loaded. No
-    // hardcoded default grants access — unknown users are not admins.
-    if (serverIsAdmin !== null && serverIsAdmin !== undefined) {
-      setIsAdmin(serverIsAdmin);
-    } else {
-      const userEmail = user?.email || getStoredUserEmail();
-      setIsAdmin(isAdminEmail(userEmail));
-    }
-    setLoading(false);
-  };
+  }, [activeTab, emailMethod, authLoading, user, isAuthenticated, isAdmin, serverIsAdmin, profileLoading]);
 
   const fetchEmailConfig = async () => {
     try {
-      const response = await fetch(`${API_URL}/admin/email-config`, {
-        headers: {
-          'X-Admin-Email': getStoredUserEmail()
-        }
-      });
+      const response = await authenticatedFetch(`${API_URL}/admin/email-config`);
       
       if (response.ok) {
         const data = await response.json();
@@ -116,11 +99,10 @@ const AdminPage = () => {
   const saveEmailConfig = async () => {
     setSaveStatus('saving');
     try {
-      const response = await fetch(`${API_URL}/admin/email-config`, {
+      const response = await authenticatedFetch(`${API_URL}/admin/email-config`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'X-Admin-Email': getStoredUserEmail()
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(emailConfig)
       });
@@ -145,11 +127,10 @@ const AdminPage = () => {
 
     setTestStatus('sending');
     try {
-      const response = await fetch(`${API_URL}/admin/test-email`, {
+      const response = await authenticatedFetch(`${API_URL}/admin/test-email`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'X-Admin-Email': getStoredUserEmail()
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ 
           test_email: testEmail,
@@ -173,11 +154,7 @@ const AdminPage = () => {
   // OAuth2 functions
   const fetchOAuth2Status = async () => {
     try {
-      const response = await fetch(`${API_URL}/admin/oauth2-status`, {
-        headers: {
-          'X-Admin-Email': getStoredUserEmail()
-        }
-      });
+      const response = await authenticatedFetch(`${API_URL}/admin/oauth2-status`);
       
       if (response.ok) {
         const data = await response.json();
@@ -199,11 +176,8 @@ const AdminPage = () => {
       const formData = new FormData();
       formData.append('file', credentialsFile);
 
-      const response = await fetch(`${API_URL}/admin/upload-credentials`, {
+      const response = await authenticatedFetch(`${API_URL}/admin/upload-credentials`, {
         method: 'POST',
-        headers: {
-          'X-Admin-Email': getStoredUserEmail()
-        },
         body: formData
       });
 
@@ -224,11 +198,10 @@ const AdminPage = () => {
   const startOAuth2Flow = async () => {
     setOauth2Loading(true);
     try {
-      const response = await fetch(`${API_URL}/admin/oauth2-authorize`, {
+      const response = await authenticatedFetch(`${API_URL}/admin/oauth2-authorize`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'X-Admin-Email': getStoredUserEmail()
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           from_email: emailConfig.from_email,
@@ -290,11 +263,10 @@ const AdminPage = () => {
 
     setTestStatus('sending');
     try {
-      const response = await fetch(`${API_URL}/admin/oauth2-test-email`, {
+      const response = await authenticatedFetch(`${API_URL}/admin/oauth2-test-email`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'X-Admin-Email': getStoredUserEmail()
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ 
           test_email: testEmail
@@ -317,11 +289,7 @@ const AdminPage = () => {
   // Banner management functions
   const fetchBannerConfig = async () => {
     try {
-      const response = await fetch(`${API_URL}/admin/banner`, {
-        headers: {
-          'X-Admin-Email': getStoredUserEmail()
-        }
-      });
+      const response = await authenticatedFetch(`${API_URL}/admin/banner`);
 
       if (response.ok) {
         const data = await response.json();
@@ -360,11 +328,10 @@ const AdminPage = () => {
 
       const method = currentBannerId ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      const response = await authenticatedFetch(url, {
         method: method,
         headers: {
-          'Content-Type': 'application/json',
-          'X-Admin-Email': getStoredUserEmail()
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(bannerConfig)
       });
@@ -392,11 +359,8 @@ const AdminPage = () => {
 
     setBannerStatus('deleting');
     try {
-      const response = await fetch(`${API_URL}/admin/banner/${currentBannerId}`, {
+      const response = await authenticatedFetch(`${API_URL}/admin/banner/${currentBannerId}`, {
         method: 'DELETE',
-        headers: {
-          'X-Admin-Email': getStoredUserEmail()
-        }
       });
 
       if (response.ok) {
@@ -444,8 +408,8 @@ const AdminPage = () => {
             ) : (
               <p className="text-gray-600 mb-6" data-testid="denied-not-admin">
                 You're signed in{user?.email ? <> as <strong>{user.email}</strong></> : null}, but this
-                account isn't an admin. Admin access is granted server-side via the{' '}
-                <code>ADMIN_EMAILS</code> allowlist — contact the commissioner to be added.
+                account is a normal user. Super-admin access is granted server-side
+                by verified Auth0 login email.
               </p>
             )}
             <button

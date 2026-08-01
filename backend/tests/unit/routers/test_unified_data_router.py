@@ -7,6 +7,8 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
+pytestmark = pytest.mark.usefixtures("mock_admin_identity")
+
 client = TestClient(app)
 
 
@@ -389,7 +391,7 @@ class TestSyncSheets:
 
         resp = client.post(
             "/data/sync-sheets",
-            headers={"X-Admin-Email": "admin@wgp.com"},
+            headers={"X-Admin-Email": "stuagano@gmail.com"},
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -404,7 +406,7 @@ class TestSyncSheets:
 
         resp = client.post(
             "/data/sync-sheets",
-            headers={"X-Admin-Email": "admin@wgp.com"},
+            headers={"X-Admin-Email": "stuagano@gmail.com"},
         )
         assert resp.status_code == 200
         data = resp.json()

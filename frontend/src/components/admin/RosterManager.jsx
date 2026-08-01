@@ -2,12 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
 import { Card } from "../ui";
-import {
-  isAdminEmail,
-  getStoredUserEmail,
-  adminHeaders,
-} from "../../utils/adminAuth";
 import { usePlayerProfile } from "../../hooks/usePlayerProfile";
+import { useAuthenticatedFetch } from "../../hooks/useAuthenticatedFetch";
 import { apiConfig } from "../../config/api.config";
 
 const API_URL = apiConfig.baseUrl;
@@ -15,7 +11,7 @@ const API_URL = apiConfig.baseUrl;
 /**
  * Organizer-facing roster management.
  *
- * Wraps the admin legacy-roster endpoints (all gated by X-Admin-Email):
+ * Wraps the super-admin legacy-roster endpoints (all gated by Auth0):
  *   GET  /legacy-players/pending            — capture queue
  *   POST /legacy-players/pending/{id}/promote
  *   POST /legacy-players/pending/{id}/dismiss
@@ -32,9 +28,11 @@ const RosterManager = () => {
     isAdmin: serverIsAdmin,
     loading: profileLoading,
   } = usePlayerProfile();
+  const authenticatedFetch = useAuthenticatedFetch();
 
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [checkingAdmin, setCheckingAdmin] = useState(true);
+  // Verified /players/me role is authoritative; never grant from browser identity.
+  const checkingAdmin = authLoading || (isAuthenticated && profileLoading);
+  const isAdmin = !checkingAdmin && serverIsAdmin === true;
 
   const [pending, setPending] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -45,32 +43,13 @@ const RosterManager = () => {
   const [adding, setAdding] = useState(false);
   const [actingId, setActingId] = useState(null);
 
-  // The server's is_admin (from /players/me) is authoritative — it mirrors the
-  // backend ADMIN_EMAILS allowlist so the two never drift. The hardcoded email
-  // list is only a fallback while the profile is still loading. No hardcoded
-  // default grants access — unknown users are never admins.
-  useEffect(() => {
-    if (authLoading) return;
-    // Wait for the profile fetch to resolve before deciding, unless the user
-    // isn't authenticated (no profile will ever load).
-    if (isAuthenticated && profileLoading) return;
-
-    if (serverIsAdmin !== null && serverIsAdmin !== undefined) {
-      setIsAdmin(serverIsAdmin);
-    } else {
-      const email = user?.email || getStoredUserEmail();
-      setIsAdmin(isAdminEmail(email));
-    }
-    setCheckingAdmin(false);
-  }, [authLoading, user, isAuthenticated, serverIsAdmin, profileLoading]);
-
   const fetchPending = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`${API_URL}/legacy-players/pending?status=pending`, {
-        headers: adminHeaders(),
-      });
+      const response = await authenticatedFetch(
+        `${API_URL}/legacy-players/pending?status=pending`,
+      );
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -81,7 +60,7 @@ const RosterManager = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authenticatedFetch]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -98,11 +77,10 @@ const RosterManager = () => {
     setFeedback("");
     setError("");
     try {
-      const response = await fetch(`${API_URL}/legacy-players`, {
+      const response = await authenticatedFetch(`${API_URL}/legacy-players`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...adminHeaders(),
         },
         body: JSON.stringify({ name }),
       });
@@ -128,11 +106,11 @@ const RosterManager = () => {
     setFeedback("");
     setError("");
     try {
-      const response = await fetch(
+      const response = await authenticatedFetch(
         `${API_URL}/legacy-players/pending/${player.id}/promote`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json", ...adminHeaders() },
+          headers: { "Content-Type": "application/json" },
         },
       );
       const data = await response.json().catch(() => ({}));
@@ -153,11 +131,11 @@ const RosterManager = () => {
     setFeedback("");
     setError("");
     try {
-      const response = await fetch(
+      const response = await authenticatedFetch(
         `${API_URL}/legacy-players/pending/${player.id}/dismiss`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json", ...adminHeaders() },
+          headers: { "Content-Type": "application/json" },
         },
       );
       const data = await response.json().catch(() => ({}));
@@ -206,9 +184,9 @@ const RosterManager = () => {
                     as <strong>{user.email}</strong>
                   </>
                 ) : null}
-                , but this account isn't an admin. Admin access is granted
-                server-side via the <code>ADMIN_EMAILS</code> allowlist — contact
-                the commissioner to be added.
+                , but this account is a normal user. Super-admin access is
+                granted server-side by verified Auth0 login email — contact a
+                super admin to be added.
               </p>
             )}
             <button

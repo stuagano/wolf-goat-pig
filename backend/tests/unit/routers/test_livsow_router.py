@@ -6,10 +6,13 @@ hermetic; snapshot state lives in the test DB.
 
 from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
 from app.services import livsow_transactions
+
+pytestmark = pytest.mark.usefixtures("mock_admin_identity")
 
 client = TestClient(app)
 
@@ -282,11 +285,25 @@ class TestTeamContentEditing:
             assert resp.status_code == 403
 
     def test_admin_can_edit_any_team(self):
-        pid = self._make_profile("Some Rando", "stuagano@gmail.com")  # admin email
+        pid = self._make_profile("Some Rando", "mutable-profile@example.com")
         lb = _leaderboard()
         with patch(PATCH_TARGET, return_value=lb):
             self._override_user(pid)
-            assert client.get("/data/livsow/teams/high-beta/can-edit").json() == {"can_edit": True}
+            response = client.get(
+                "/data/livsow/teams/high-beta/can-edit",
+                headers={"X-Admin-Email": "stuagano@gmail.com"},
+            )
+            assert response.json() == {"can_edit": True}
+
+    def test_mutable_profile_email_cannot_grant_admin(self):
+        pid = self._make_profile("Some Rando", "stuagano@gmail.com")
+        with patch(PATCH_TARGET, return_value=_leaderboard()):
+            self._override_user(pid)
+            response = client.get(
+                "/data/livsow/teams/high-beta/can-edit",
+                headers={"X-Admin-Email": "normal@example.com"},
+            )
+            assert response.json() == {"can_edit": False}
 
     def test_content_surfaces_on_team_detail(self):
         pid = self._make_profile("Gregg Colburn", "gregg@example.com")

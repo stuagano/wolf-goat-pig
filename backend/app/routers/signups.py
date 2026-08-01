@@ -8,7 +8,7 @@ import logging
 import threading
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from .. import database, models, schemas
@@ -135,53 +135,45 @@ class AddLegacyPlayerRequest(BaseModel):
     name: str
 
 
-@router.post("/legacy-players")
+@router.post("/legacy-players", dependencies=[Depends(require_admin)])
 def admin_add_legacy_player(
     body: AddLegacyPlayerRequest,
-    x_admin_email: str | None = Header(None),
 ):
     """Add a name to the canonical roster (admin only).
 
     Use once the player is known to exist on the legacy tee-sheet dropdown.
     """
-    require_admin(x_admin_email)
     return add_legacy_player(body.name, source="admin")
 
 
-@router.get("/legacy-players/pending")
+@router.get("/legacy-players/pending", dependencies=[Depends(require_admin)])
 def admin_list_pending_players(
     status: str = Query("pending", description="pending | promoted | dismissed"),
-    x_admin_email: str | None = Header(None),
 ):
     """List golfers captured at sign-up who have no canonical match yet (admin only)."""
-    require_admin(x_admin_email)
     players = list_pending_players(status=status)
     return {"count": len(players), "status": status, "players": players}
 
 
-@router.post("/legacy-players/pending/{pending_id}/promote")
+@router.post("/legacy-players/pending/{pending_id}/promote", dependencies=[Depends(require_admin)])
 def admin_promote_pending_player(
     pending_id: int,
-    x_admin_email: str | None = Header(None),
 ):
     """Promote a pending capture into the canonical roster (admin only).
 
     Call this once the player has been added to Jeff's legacy dropdown.
     """
-    require_admin(x_admin_email)
     result = promote_pending_player(pending_id)
     if not result.get("promoted"):
         raise HTTPException(status_code=404, detail=result.get("message", "Cannot promote"))
     return result
 
 
-@router.post("/legacy-players/pending/{pending_id}/dismiss")
+@router.post("/legacy-players/pending/{pending_id}/dismiss", dependencies=[Depends(require_admin)])
 def admin_dismiss_pending_player(
     pending_id: int,
-    x_admin_email: str | None = Header(None),
 ):
     """Dismiss a pending capture, e.g. a misspelling of an existing player (admin only)."""
-    require_admin(x_admin_email)
     result = dismiss_pending_player(pending_id)
     if not result.get("dismissed"):
         raise HTTPException(status_code=404, detail=result.get("message", "Cannot dismiss"))

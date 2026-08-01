@@ -11,7 +11,7 @@ from app.database import get_db
 from app.main import app
 from app.models import Base, PlayerProfile
 from app.services import legacy_player_service as legacy_svc
-from app.services.auth_service import get_current_user
+from app.services.auth_service import get_current_auth0_user, get_current_user
 
 client = TestClient(app)
 
@@ -50,18 +50,31 @@ class TestMyProfileComputedFields:
                 session.close()
 
         app.dependency_overrides[get_db] = _get_db
+        app.dependency_overrides[get_current_auth0_user] = lambda: {
+            "sub": "auth0|test",
+            "email": "golfer@example.com",
+            "name": "Test Golfer",
+        }
 
     def teardown_method(self):
         app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(get_current_auth0_user, None)
         app.dependency_overrides.pop(get_db, None)
         Base.metadata.drop_all(bind=_me_engine)
 
     def test_is_admin_true_for_allowlisted_email(self, monkeypatch):
-        monkeypatch.setenv("ADMIN_EMAILS", "boss@example.com")
+        monkeypatch.setenv("SUPER_ADMIN_EMAILS", "Boss@Example.com")
         app.dependency_overrides[get_current_user] = lambda: _make_user(email="boss@example.com")
+        app.dependency_overrides[get_current_auth0_user] = lambda: {
+            "sub": "auth0|boss",
+            "email": "boss@example.com",
+            "name": "Boss",
+        }
         resp = client.get("/players/me")
         assert resp.status_code == 200
         assert resp.json()["is_admin"] is True
+        assert resp.json()["is_super_admin"] is True
+        assert resp.json()["role"] == "super_admin"
 
     def test_is_admin_false_for_non_allowlisted_email(self, monkeypatch):
         monkeypatch.setenv("ADMIN_EMAILS", "boss@example.com")
@@ -69,6 +82,8 @@ class TestMyProfileComputedFields:
         resp = client.get("/players/me")
         assert resp.status_code == 200
         assert resp.json()["is_admin"] is False
+        assert resp.json()["is_super_admin"] is False
+        assert resp.json()["role"] == "normal"
 
     def test_fuzzy_suggestion_surfaced_when_unlinked(self):
         seed = _MeSession()

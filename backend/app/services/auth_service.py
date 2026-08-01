@@ -455,16 +455,19 @@ class AuthService:
 auth_service = AuthService()
 
 
-def get_current_user(
+def get_current_auth0_user(
     token: HTTPAuthorizationCredentials = Depends(security),
+) -> dict[str, Any]:
+    """Return identity claims from a verified Auth0 access token."""
+    auth0_user = auth_service.verify_token(token)
+    return auth_service.enrich_user_from_userinfo(auth0_user, token.credentials)
+
+
+def get_current_user(
+    auth0_user: dict[str, Any] = Depends(get_current_auth0_user),
     db: Session = Depends(get_db),
 ) -> PlayerProfile:
     """Dependency to get the current authenticated user"""
-
-    # Verify token and get Auth0 user info
-    auth0_user = auth_service.verify_token(token)
-    # Access tokens often omit email/name — pull them from /userinfo when needed.
-    auth0_user = auth_service.enrich_user_from_userinfo(auth0_user, token.credentials)
 
     # Get or create player profile
     player = auth_service.get_or_create_player_profile(db, auth0_user)

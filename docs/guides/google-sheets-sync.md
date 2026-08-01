@@ -11,10 +11,12 @@ sync, how to verify it, and how to push data back to a sheet.
 
 **Default sheet:** `https://docs.google.com/spreadsheets/d/141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ`
 
-> **Scheduling.** Sheet → DB sync runs every 2 hours via `.github/workflows/sheet-sync.yml`
-> against the Cloud Run API. In-process schedulers are disabled in production
-> (`RUN_INPROCESS_SCHEDULERS=false`). The admin UI / API sync remains available
-> for an immediate refresh.
+> **Scheduling.** Sheet → DB sync runs every 2 hours via
+> `.github/workflows/sheet-sync.yml`, which calls
+> `/internal/jobs/legacy-rounds-sync` with the GitHub Actions
+> `INTERNAL_JOB_TOKEN` secret. In-process schedulers are disabled in production
+> (`RUN_INPROCESS_SCHEDULERS=false`). The super-admin UI remains available for
+> an immediate refresh.
 
 ## How it works
 

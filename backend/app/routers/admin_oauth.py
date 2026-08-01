@@ -8,7 +8,7 @@ import logging
 import os
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
@@ -24,11 +24,9 @@ class OAuth2TestEmailRequest(BaseModel):
     test_email: str = Field(..., min_length=1)
 
 
-@router.get("/oauth2-status")
-def get_oauth2_status(x_admin_email: str = Header(None)):  # type: ignore
+@router.get("/oauth2-status", dependencies=[Depends(require_admin)])
+def get_oauth2_status():
     """Get OAuth2 configuration status (admin only)"""
-    require_admin(x_admin_email)
-
     try:
         oauth2_service = get_email_service()
         status = oauth2_service.get_configuration_status()  # type: ignore
@@ -38,11 +36,9 @@ def get_oauth2_status(x_admin_email: str = Header(None)):  # type: ignore
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/oauth2-authorize")
-def start_oauth2_authorization(request: dict[str, Any], x_admin_email: str = Header(None)):  # type: ignore
+@router.post("/oauth2-authorize", dependencies=[Depends(require_admin)])
+def start_oauth2_authorization(request: dict[str, Any]):
     """Start OAuth2 authorization flow (admin only)"""
-    require_admin(x_admin_email)
-
     try:
         oauth2_service = get_email_service()
 
@@ -252,10 +248,11 @@ def handle_oauth2_callback(code: str = Query(...), state: str = Query(None)):  #
 
 
 @router.post("/oauth2-test-email")
-async def test_oauth2_email(request: OAuth2TestEmailRequest, x_admin_email: str = Header(None)):  # type: ignore
+async def test_oauth2_email(
+    request: OAuth2TestEmailRequest,
+    auth0_user: dict[str, Any] = Depends(require_admin),
+):
     """Send test email using OAuth2 (admin only)"""
-    require_admin(x_admin_email)
-
     try:
         test_email = request.test_email
 
@@ -267,7 +264,10 @@ async def test_oauth2_email(request: OAuth2TestEmailRequest, x_admin_email: str 
                 detail="OAuth2 email service not configured. Please complete OAuth2 authorization first.",
             )
 
-        success = oauth2_service.send_test_email(test_email, x_admin_email)
+        success = oauth2_service.send_test_email(
+            test_email,
+            str(auth0_user.get("name") or "Super Admin"),
+        )
 
         if success:
             return {

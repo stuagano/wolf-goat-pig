@@ -4,6 +4,7 @@ import { render, screen, waitFor, fireEvent, within } from "@testing-library/rea
 import RosterManager from "../RosterManager";
 
 const ADMIN_EMAIL = "stuagano@gmail.com";
+const ACCESS_TOKEN = "admin-access-token";
 const API_URL = "http://test-api.com"; // matches VITE_API_URL stub in setupTests
 
 const mockNavigate = vi.fn();
@@ -12,7 +13,12 @@ vi.mock("react-router-dom", () => ({
 }));
 
 // Mutable auth identity so individual tests can switch admin/non-admin.
-let mockAuth = { user: { email: ADMIN_EMAIL }, isLoading: false };
+let mockAuth = {
+  user: { email: ADMIN_EMAIL },
+  isAuthenticated: true,
+  isLoading: false,
+  getAccessTokenSilently: vi.fn().mockResolvedValue(ACCESS_TOKEN),
+};
 vi.mock("@auth0/auth0-react", () => ({
   useAuth0: () => mockAuth,
 }));
@@ -32,6 +38,14 @@ const okJson = (body) =>
 
 function installAdminFetch(pending = PENDING) {
   global.fetch.mockImplementation((url, opts = {}) => {
+    if (url.endsWith("/players/me")) {
+      return okJson({
+        id: 1,
+        name: "Admin",
+        role: "super_admin",
+        is_super_admin: true,
+      });
+    }
     if (url.includes("/legacy-players/pending") && !url.includes("/promote") && !url.includes("/dismiss")) {
       return okJson({ count: pending.length, status: "pending", players: pending });
     }
@@ -54,10 +68,13 @@ function findCall(predicate) {
 }
 
 beforeEach(() => {
-  mockAuth = { user: { email: ADMIN_EMAIL }, isLoading: false };
+  mockAuth = {
+    user: { email: ADMIN_EMAIL },
+    isAuthenticated: true,
+    isLoading: false,
+    getAccessTokenSilently: vi.fn().mockResolvedValue(ACCESS_TOKEN),
+  };
   mockNavigate.mockClear();
-  // adminHeaders() reads localStorage 'userEmail' for the X-Admin-Email header.
-  localStorage.setItem("userEmail", ADMIN_EMAIL);
   installAdminFetch();
 });
 
@@ -70,13 +87,13 @@ describe("RosterManager", () => {
     expect(screen.getByText("Bob Brown")).toBeInTheDocument();
     expect(screen.getByText("alice@example.com")).toBeInTheDocument();
 
-    // Pending list was fetched with ?status=pending filter and the admin auth header.
+    // Pending list was fetched with a verified bearer token.
     const listCall = findCall((url) => url.includes("/legacy-players/pending?status=pending"));
     expect(listCall).toBeTruthy();
-    expect(listCall[1].headers["X-Admin-Email"]).toBe(ADMIN_EMAIL);
+    expect(listCall[1].headers.Authorization).toBe(`Bearer ${ACCESS_TOKEN}`);
   });
 
-  test("PROMOTE posts to the promote endpoint with the admin header", async () => {
+  test("PROMOTE posts to the promote endpoint with bearer auth", async () => {
     render(<RosterManager />);
     await screen.findByTestId("pending-row-11");
 
@@ -87,7 +104,7 @@ describe("RosterManager", () => {
       const call = findCall((url) => url.endsWith("/legacy-players/pending/11/promote"));
       expect(call).toBeTruthy();
       expect(call[1].method).toBe("POST");
-      expect(call[1].headers["X-Admin-Email"]).toBe(ADMIN_EMAIL);
+      expect(call[1].headers.Authorization).toBe(`Bearer ${ACCESS_TOKEN}`);
       expect(call[1].headers["Content-Type"]).toBe("application/json");
     });
     // Success feedback shown.
@@ -101,7 +118,7 @@ describe("RosterManager", () => {
     });
   });
 
-  test("DISMISS posts to the dismiss endpoint with the admin header", async () => {
+  test("DISMISS posts to the dismiss endpoint with bearer auth", async () => {
     render(<RosterManager />);
     await screen.findByTestId("pending-row-22");
 
@@ -112,7 +129,7 @@ describe("RosterManager", () => {
       const call = findCall((url) => url.endsWith("/legacy-players/pending/22/dismiss"));
       expect(call).toBeTruthy();
       expect(call[1].method).toBe("POST");
-      expect(call[1].headers["X-Admin-Email"]).toBe(ADMIN_EMAIL);
+      expect(call[1].headers.Authorization).toBe(`Bearer ${ACCESS_TOKEN}`);
       expect(call[1].headers["Content-Type"]).toBe("application/json");
     });
     expect(await screen.findByTestId("roster-feedback")).toHaveTextContent(/Dismissed/i);
@@ -140,7 +157,7 @@ describe("RosterManager", () => {
       );
       expect(call).toBeTruthy();
       expect(JSON.parse(call[1].body)).toEqual({ name: "Jane Smith" });
-      expect(call[1].headers["X-Admin-Email"]).toBe(ADMIN_EMAIL);
+      expect(call[1].headers.Authorization).toBe(`Bearer ${ACCESS_TOKEN}`);
       expect(call[1].headers["Content-Type"]).toBe("application/json");
     });
     expect(await screen.findByTestId("roster-feedback")).toHaveTextContent(/Added/i);
@@ -153,8 +170,13 @@ describe("RosterManager", () => {
   });
 
   test("non-admins see Access Denied and no roster fetch is made", async () => {
-    mockAuth = { user: { email: "random@nobody.com" }, isLoading: false };
-    localStorage.setItem("userEmail", "random@nobody.com");
+    mockAuth = {
+      user: { email: "random@nobody.com" },
+      isAuthenticated: true,
+      isLoading: false,
+      getAccessTokenSilently: vi.fn().mockResolvedValue("normal-user-token"),
+    };
+    installServerAdminFetch({ isSuperAdmin: false });
 
     render(<RosterManager />);
     expect(await screen.findByText("Access Denied")).toBeInTheDocument();
@@ -165,12 +187,16 @@ describe("RosterManager", () => {
   });
 });
 
-// Server-driven admin gating (issue #316): /players/me is_admin is authoritative
-// and overrides the hardcoded ADMIN_EMAILS fallback in both directions.
-function installServerAdminFetch({ isAdmin, pending = PENDING } = {}) {
+// Server-driven role gating: /players/me is authoritative.
+function installServerAdminFetch({ isSuperAdmin, pending = PENDING } = {}) {
   global.fetch.mockImplementation((url, opts = {}) => {
     if (url.endsWith("/players/me")) {
-      return okJson({ id: 1, name: "Someone", is_admin: isAdmin });
+      return okJson({
+        id: 1,
+        name: "Someone",
+        role: isSuperAdmin ? "super_admin" : "normal",
+        is_super_admin: isSuperAdmin,
+      });
     }
     if (url.includes("/legacy-players/pending")) {
       return okJson({ count: pending.length, status: "pending", players: pending });
@@ -183,15 +209,14 @@ function installServerAdminFetch({ isAdmin, pending = PENDING } = {}) {
 }
 
 describe("RosterManager server-driven admin", () => {
-  test("server is_admin:true grants access even when the email is NOT in the hardcoded list", async () => {
+  test("server super-admin role grants access regardless of browser email", async () => {
     mockAuth = {
       user: { email: "random@nobody.com" },
       isAuthenticated: true,
       isLoading: false,
       getAccessTokenSilently: vi.fn().mockResolvedValue("token"),
     };
-    localStorage.setItem("userEmail", "random@nobody.com");
-    installServerAdminFetch({ isAdmin: true });
+    installServerAdminFetch({ isSuperAdmin: true });
 
     render(<RosterManager />);
     // Roster content loads because the server says this account is an admin.
@@ -199,27 +224,23 @@ describe("RosterManager server-driven admin", () => {
     expect(screen.queryByText("Access Denied")).not.toBeInTheDocument();
   });
 
-  test("server is_admin:false denies access even when the email IS in the hardcoded list", async () => {
+  test("server normal role denies access regardless of browser email", async () => {
     mockAuth = {
       user: { email: ADMIN_EMAIL },
       isAuthenticated: true,
       isLoading: false,
       getAccessTokenSilently: vi.fn().mockResolvedValue("token"),
     };
-    localStorage.setItem("userEmail", ADMIN_EMAIL);
-    installServerAdminFetch({ isAdmin: false });
+    installServerAdminFetch({ isSuperAdmin: false });
 
     render(<RosterManager />);
     expect(await screen.findByText("Access Denied")).toBeInTheDocument();
-    // "signed in but not an admin" copy, mentioning the ADMIN_EMALS allowlist.
-    expect(screen.getByTestId("denied-not-admin")).toHaveTextContent(/ADMIN_EMAILS/);
+    expect(screen.getByTestId("denied-not-admin")).toHaveTextContent(/normal user/);
     expect(screen.queryByTestId("denied-signed-out")).not.toBeInTheDocument();
   });
 
   test("signed-out visitors get the 'not signed in' denial copy", async () => {
     mockAuth = { user: null, isAuthenticated: false, isLoading: false };
-    localStorage.setItem("userEmail", "");
-
     render(<RosterManager />);
     expect(await screen.findByText("Access Denied")).toBeInTheDocument();
     expect(screen.getByTestId("denied-signed-out")).toBeInTheDocument();

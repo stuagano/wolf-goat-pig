@@ -14,13 +14,13 @@ import os
 from datetime import timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .. import database, models, schemas
-from ..services.email_service import get_email_service
+from ..services.email_service import EmailService, get_email_service
 from ..state.app_state import set_email_service_instance
 from ..utils.admin_auth import require_admin
 from ..utils.time import utc_now
@@ -40,11 +40,9 @@ class AdminTestEmailRequest(BaseModel):
 # =============================================================================
 
 
-@router.get("/admin/email-config")
-def get_email_config(x_admin_email: str = Header(None)):  # type: ignore
+@router.get("/admin/email-config", dependencies=[Depends(require_admin)])
+def get_email_config():
     """Get current email configuration (admin only)"""
-    require_admin(x_admin_email)
-
     # Return current config (without password)
     return {
         "config": {
@@ -59,19 +57,16 @@ def get_email_config(x_admin_email: str = Header(None)):  # type: ignore
     }
 
 
-@router.post("/admin/test-welcome-email")
+@router.post("/admin/test-welcome-email", dependencies=[Depends(require_admin)])
 def send_test_welcome_email(
     to: str = Query(..., description="Recipient email for the sample welcome"),
     name: str = Query(default="Golfer", description="Player name to greet"),
-    x_admin_email: str = Header(None),  # type: ignore
 ):
     """Send the welcome email to one address (admin only).
 
     Diagnostic for proving the welcome path works end-to-end. Sends the real
     template — does not create an account or seed preferences.
     """
-    require_admin(x_admin_email)
-
     email_service = get_email_service()
     if not email_service.is_configured():
         raise HTTPException(status_code=503, detail="Email service not configured")
@@ -82,11 +77,9 @@ def send_test_welcome_email(
     return {"sent": True, "to": to, "name": name, "template": "welcome_email"}
 
 
-@router.post("/admin/email-config")
-def update_email_config(config: dict[str, Any], x_admin_email: str = Header(None)):  # type: ignore
+@router.post("/admin/email-config", dependencies=[Depends(require_admin)])
+def update_email_config(config: dict[str, Any]):
     """Update email configuration (admin only)"""
-    require_admin(x_admin_email)
-
     try:
         # Update environment variables (in memory for this session)
         if config.get("smtp_host"):
@@ -112,10 +105,11 @@ def update_email_config(config: dict[str, Any], x_admin_email: str = Header(None
 
 
 @router.post("/admin/test-email")
-async def test_admin_email(request: AdminTestEmailRequest, x_admin_email: str = Header(None)):  # type: ignore
+async def test_admin_email(
+    request: AdminTestEmailRequest,
+    auth0_user: dict[str, Any] = Depends(require_admin),
+):
     """Send a test email with provided configuration (admin only)"""
-    require_admin(x_admin_email)
-
     try:
         test_email = request.test_email
         config = request.config
@@ -147,8 +141,6 @@ async def test_admin_email(request: AdminTestEmailRequest, x_admin_email: str = 
                 os.environ["FROM_NAME"] = config["from_name"]
 
         # Create new email service with test config
-        from ..services.email_service import EmailService
-
         test_service = EmailService()
 
         if not test_service.is_configured:  # type: ignore
@@ -158,7 +150,10 @@ async def test_admin_email(request: AdminTestEmailRequest, x_admin_email: str = 
             )
 
         # Send test email
-        success = test_service.send_test_email(to_email=test_email, admin_name=x_admin_email)
+        success = test_service.send_test_email(
+            to_email=test_email,
+            admin_name=str(auth0_user.get("name") or "Super Admin"),
+        )
 
         # Restore original config if we changed it
         if config and "old_config" in locals():
@@ -184,11 +179,9 @@ async def test_admin_email(request: AdminTestEmailRequest, x_admin_email: str = 
 # =============================================================================
 
 
-@router.post("/admin/upload-credentials")
-async def upload_gmail_credentials(file: UploadFile = File(...), x_admin_email: str = Header(None)):  # type: ignore
+@router.post("/admin/upload-credentials", dependencies=[Depends(require_admin)])
+async def upload_gmail_credentials(file: UploadFile = File(...)):
     """Upload Gmail API credentials file (admin only)"""
-    require_admin(x_admin_email)
-
     try:
         # Validate file type
         if not file.filename or not file.filename.endswith(".json"):
@@ -260,11 +253,9 @@ async def get_active_banner(db: Session = Depends(database.get_db)):  # type: ig
         return {"banner": None}
 
 
-@router.get("/admin/banner")
-async def get_banner_config(x_admin_email: str = Header(None), db: Session = Depends(database.get_db)):  # type: ignore
+@router.get("/admin/banner", dependencies=[Depends(require_admin)])
+async def get_banner_config(db: Session = Depends(database.get_db)):  # type: ignore
     """Get current banner configuration (admin only)"""
-    require_admin(x_admin_email)
-
     try:
         banner = db.query(models.GameBanner).order_by(models.GameBanner.id.desc()).first()
 
@@ -291,15 +282,12 @@ async def get_banner_config(x_admin_email: str = Header(None), db: Session = Dep
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/admin/banner")
+@router.post("/admin/banner", dependencies=[Depends(require_admin)])
 async def create_or_update_banner(  # type: ignore
     banner_data: schemas.GameBannerCreate,
-    x_admin_email: str = Header(None),
     db: Session = Depends(database.get_db),
 ):
     """Create or update the game banner (admin only)"""
-    require_admin(x_admin_email)
-
     try:
         # Deactivate all existing banners if creating a new active one
         if banner_data.is_active:
@@ -346,16 +334,13 @@ async def create_or_update_banner(  # type: ignore
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.put("/admin/banner/{banner_id}")
+@router.put("/admin/banner/{banner_id}", dependencies=[Depends(require_admin)])
 async def update_banner(  # type: ignore
     banner_id: int,
     banner_data: schemas.GameBannerUpdate,
-    x_admin_email: str = Header(None),
     db: Session = Depends(database.get_db),
 ):
     """Update an existing banner (admin only)"""
-    require_admin(x_admin_email)
-
     try:
         banner = db.query(models.GameBanner).filter(models.GameBanner.id == banner_id).first()
 
@@ -401,15 +386,12 @@ async def update_banner(  # type: ignore
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/admin/banner/{banner_id}")
+@router.delete("/admin/banner/{banner_id}", dependencies=[Depends(require_admin)])
 async def delete_banner(  # type: ignore
     banner_id: int,
-    x_admin_email: str = Header(None),
     db: Session = Depends(database.get_db),
 ):
     """Delete a banner (admin only)"""
-    require_admin(x_admin_email)
-
     try:
         banner = db.query(models.GameBanner).filter(models.GameBanner.id == banner_id).first()
 
@@ -433,10 +415,9 @@ async def delete_banner(  # type: ignore
 # =============================================================================
 
 
-@router.delete("/admin/matches")
-def admin_delete_all_matches(x_admin_email: str = Header(None)):  # type: ignore
+@router.delete("/admin/matches", dependencies=[Depends(require_admin)])
+def admin_delete_all_matches():
     """Delete all match records (admin only, for testing)."""
-    require_admin(x_admin_email)
     db = database.SessionLocal()
     try:
         deleted_players = db.query(models.MatchPlayer).delete()
@@ -452,10 +433,9 @@ def admin_delete_all_matches(x_admin_email: str = Header(None)):  # type: ignore
 # =============================================================================
 
 
-@router.get("/admin/db/schemas")
-async def get_db_schemas(x_admin_email: str | None = Header(None), db: Session = Depends(database.get_db)):  # type: ignore
+@router.get("/admin/db/schemas", dependencies=[Depends(require_admin)])
+async def get_db_schemas(db: Session = Depends(database.get_db)):  # type: ignore
     """Get all database schemas."""
-    require_admin(x_admin_email)
     try:
         query = text("SELECT schema_name FROM information_schema.schemata;")
         result = db.execute(query).fetchall()
@@ -466,14 +446,12 @@ async def get_db_schemas(x_admin_email: str | None = Header(None), db: Session =
         raise HTTPException(status_code=500, detail=f"Failed to get db schemas: {e!s}")
 
 
-@router.get("/admin/db/schemas/{schema_name}/tables")
+@router.get("/admin/db/schemas/{schema_name}/tables", dependencies=[Depends(require_admin)])
 async def get_db_tables(
     schema_name: str,
-    x_admin_email: str | None = Header(None),
     db: Session = Depends(database.get_db),
 ):  # type: ignore
     """Get all tables within a specific schema."""
-    require_admin(x_admin_email)
     try:
         query = text("SELECT table_name FROM information_schema.tables WHERE table_schema = :schema_name;")
         result = db.execute(query, {"schema_name": schema_name}).fetchall()
@@ -484,15 +462,13 @@ async def get_db_tables(
         raise HTTPException(status_code=500, detail=f"Failed to get db tables: {e!s}")
 
 
-@router.get("/admin/db/schemas/{schema_name}/tables/{table_name}")
+@router.get("/admin/db/schemas/{schema_name}/tables/{table_name}", dependencies=[Depends(require_admin)])
 async def get_table_content(
     schema_name: str,
     table_name: str,
-    x_admin_email: str | None = Header(None),
     db: Session = Depends(database.get_db),
 ):  # type: ignore
     """Get the content of a specific table."""
-    require_admin(x_admin_email)
     try:
         # Security check: verify table exists in the schema
         check_query = text(
@@ -520,10 +496,9 @@ async def get_table_content(
         raise HTTPException(status_code=500, detail=f"Failed to get table content: {e!s}")
 
 
-@router.get("/test-deployment")
-async def test_deployment(x_admin_email: str | None = Header(None)):  # type: ignore
+@router.get("/test-deployment", dependencies=[Depends(require_admin)])
+async def test_deployment():
     """Test that new deployments are working."""
-    require_admin(x_admin_email)
     return {"message": "Deployment is working", "timestamp": utc_now().isoformat()}
 
 
@@ -532,14 +507,12 @@ async def test_deployment(x_admin_email: str | None = Header(None)):  # type: ig
 # =============================================================================
 
 
-@router.get("/admin/cleanup/orphaned-games")
+@router.get("/admin/cleanup/orphaned-games", dependencies=[Depends(require_admin)])
 async def get_orphaned_games(
-    x_admin_email: str | None = Header(None),
     hours_old: int = Query(24, description="Only show games older than this many hours"),
     db: Session = Depends(database.get_db),
 ):  # type: ignore
     """Get a list of orphaned games (setup status, 0 players, older than specified hours)."""
-    require_admin(x_admin_email)
     try:
         cutoff_time = utc_now() - timedelta(hours=hours_old)
 
@@ -579,9 +552,8 @@ async def get_orphaned_games(
         raise HTTPException(status_code=500, detail=f"Failed to get orphaned games: {e!s}")
 
 
-@router.delete("/admin/cleanup/orphaned-games")
+@router.delete("/admin/cleanup/orphaned-games", dependencies=[Depends(require_admin)])
 async def delete_orphaned_games(
-    x_admin_email: str | None = Header(None),
     hours_old: int = Query(24, description="Only delete games older than this many hours"),
     dry_run: bool = Query(True, description="If true, only show what would be deleted"),
     db: Session = Depends(database.get_db),
@@ -591,7 +563,6 @@ async def delete_orphaned_games(
     Use dry_run=true (default) to preview what will be deleted.
     Set dry_run=false to actually delete the games.
     """
-    require_admin(x_admin_email)
     try:
         cutoff_time = utc_now() - timedelta(hours=hours_old)
 
@@ -643,10 +614,9 @@ async def delete_orphaned_games(
         raise HTTPException(status_code=500, detail=f"Failed to delete orphaned games: {e!s}")
 
 
-@router.get("/admin/cleanup/database-stats")
-async def get_database_stats(x_admin_email: str | None = Header(None), db: Session = Depends(database.get_db)):  # type: ignore
+@router.get("/admin/cleanup/database-stats", dependencies=[Depends(require_admin)])
+async def get_database_stats(db: Session = Depends(database.get_db)):  # type: ignore
     """Get database statistics for health monitoring."""
-    require_admin(x_admin_email)
     try:
         stats = {}
 
@@ -711,10 +681,9 @@ async def get_database_stats(x_admin_email: str | None = Header(None), db: Sessi
         raise HTTPException(status_code=500, detail=f"Failed to get database stats: {e!s}")
 
 
-@router.post("/admin/run-migration")
+@router.post("/admin/run-migration", dependencies=[Depends(require_admin)])
 async def run_database_migration(
     migration: str = Query(..., description="Migration to run: 'add_statistics_columns'"),
-    x_admin_email: str | None = Header(None),
     db: Session = Depends(database.get_db),
 ):  # type: ignore
     """
@@ -723,8 +692,6 @@ async def run_database_migration(
     Available migrations:
     - add_statistics_columns: Adds missing columns to player_statistics table
     """
-    require_admin(x_admin_email)
-
     if migration == "add_statistics_columns":
         try:
             from ..migrations.add_missing_statistics_columns import run_migration
@@ -766,9 +733,8 @@ async def run_database_migration(
         )
 
 
-@router.post("/admin/badges/backfill-career")
+@router.post("/admin/badges/backfill-career", dependencies=[Depends(require_admin)])
 def backfill_career_badges(
-    x_admin_email: str = Header(None),  # type: ignore
     db: Session = Depends(database.get_db),
 ):
     """Award career-milestone badges (earnings/games-played tiers, etc.) to every
@@ -779,8 +745,6 @@ def backfill_career_badges(
     requires a GamePlayerResult row. Safe to re-run: already-earned badges
     are skipped.
     """
-    require_admin(x_admin_email)
-
     from ..badge_engine import BadgeEngine
 
     engine = BadgeEngine(db)

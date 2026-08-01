@@ -1,31 +1,46 @@
-"""Admin authentication dependency for FastAPI routes."""
+"""Super-admin authorization dependencies for FastAPI routes."""
 
 import os
+from typing import Any
 
-from fastapi import Header, HTTPException
+from fastapi import Depends, HTTPException
 
-# Fallback to hardcoded set if env var not set, but prefer env var for flexibility
-_DEFAULT_ADMIN_EMAILS = {"stuagano@gmail.com", "admin@wgp.com"}
+from ..services.auth_service import get_current_auth0_user
+
+_DEFAULT_SUPER_ADMIN_EMAILS = {"stuagano@gmail.com"}
+
+
+def get_super_admin_emails() -> set[str]:
+    """Return normalized super-admin login emails.
+
+    ``ADMIN_EMAILS`` remains a temporary compatibility fallback for existing
+    deployments. New environments should configure ``SUPER_ADMIN_EMAILS``.
+    """
+    env = os.getenv("SUPER_ADMIN_EMAILS") or os.getenv("ADMIN_EMAILS")
+    if env:
+        return {email.strip().casefold() for email in env.split(",") if email.strip()}
+    return _DEFAULT_SUPER_ADMIN_EMAILS
 
 
 def get_admin_emails() -> set[str]:
-    """Return the set of allowed admin emails (env-configured or default)."""
-    env = os.getenv("ADMIN_EMAILS")
-    if env:
-        return {e.strip() for e in env.split(",") if e.strip()}
-    return _DEFAULT_ADMIN_EMAILS
+    """Compatibility alias for notification recipients."""
+    return get_super_admin_emails()
 
 
-# Backwards-compatible private alias for existing internal callers.
-_get_admin_emails = get_admin_emails
+def is_super_admin_email(email: str | None) -> bool:
+    """Return whether a verified login email has super-admin access."""
+    email = (email or "").strip().casefold()
+    return bool(email and email in get_super_admin_emails())
 
 
-def require_admin(x_admin_email: str | None = Header(None)) -> None:
-    """FastAPI dependency that restricts access to admin email addresses.
+def require_super_admin(
+    auth0_user: dict[str, Any] = Depends(get_current_auth0_user),
+) -> dict[str, Any]:
+    """Require verified Auth0 claims whose login email is allowlisted."""
+    if not is_super_admin_email(auth0_user.get("email")):
+        raise HTTPException(status_code=403, detail="Super-admin access required")
+    return auth0_user
 
-    Callers pass the email in the X-Admin-Email request header.
-    Configure allowed emails via the ADMIN_EMAILS env var (comma-separated)
-    or fall back to the hardcoded default set.
-    """
-    if not x_admin_email or x_admin_email not in _get_admin_emails():
-        raise HTTPException(status_code=403, detail="Admin access required")
+
+# Compatibility name used by existing route declarations.
+require_admin = require_super_admin

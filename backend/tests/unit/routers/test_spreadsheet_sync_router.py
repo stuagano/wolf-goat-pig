@@ -7,6 +7,8 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
+pytestmark = pytest.mark.usefixtures("mock_admin_identity")
+
 client = TestClient(app)
 
 ADMIN_EMAIL = "stuagano@gmail.com"

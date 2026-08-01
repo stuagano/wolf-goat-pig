@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useTheme } from '../../theme/Provider';
+import { usePlayerProfile } from '../../hooks/usePlayerProfile';
 import NotificationBell from './NotificationBell';
-import { isAdminEmail } from '../../utils/adminAuth';
 
 // Single source of truth for this component's stacking order. A child's
 // z-index only competes within its own parent's stacking context — it was
@@ -31,16 +31,9 @@ const Navigation = () => {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   const { isAuthenticated, user, loginWithRedirect, logout } = useAuth0();
+  const { isSuperAdmin } = usePlayerProfile();
 
-  // Keep localStorage in sync with the authenticated user (read by admin API helpers)
-  useEffect(() => {
-    if (user?.email) {
-      localStorage.setItem('userEmail', user.email);
-    }
-  }, [user?.email]);
-
-  // Admin link only for authenticated admins — never default to an admin identity
-  const showAdminLink = isAuthenticated && isAdminEmail(user?.email);
+  const showAdminLink = isAuthenticated && isSuperAdmin === true;
 
   // Bottom tab bar items (always visible on mobile)
   const bottomTabItems = [

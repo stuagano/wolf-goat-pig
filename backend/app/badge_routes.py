@@ -21,6 +21,7 @@ from .models import (
     PlayerSeriesProgress,
 )
 from .services.auth_service import get_current_user
+from .utils.admin_auth import require_admin
 
 router = APIRouter(prefix="/api/badges", tags=["badges"])
 
@@ -420,7 +421,10 @@ def get_top_collectors(limit: int = 50, db: Session = Depends(get_db)) -> list[d
 # ====================================================================================
 
 
-@router.post("/admin/check-achievements/{player_id}")
+@router.post(
+    "/admin/check-achievements/{player_id}",
+    dependencies=[Depends(require_admin)],
+)
 def manually_check_achievements(
     player_id: int, game_record_id: int | None = None, db: Session = Depends(get_db)
 ) -> dict[str, Any]:
@@ -469,7 +473,10 @@ def manually_check_achievements(
     }
 
 
-@router.get("/admin/badge/{badge_id}/holders")
+@router.get(
+    "/admin/badge/{badge_id}/holders",
+    dependencies=[Depends(require_admin)],
+)
 def get_badge_holders(badge_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
     """Get detailed information about who holds a specific badge"""
     holders = (

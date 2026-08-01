@@ -28,6 +28,10 @@ on:
         required: false
         type: number
         default: 60
+    secrets:
+      INTERNAL_JOB_TOKEN:
+        description: 'Optional token for /internal/jobs/* endpoints'
+        required: false
 
 jobs:
   post:
@@ -39,6 +43,7 @@ jobs:
         HEADERS: ${{ inputs.headers }}
         MAX_TIME: ${{ inputs.max-time }}
         LABEL: ${{ inputs.label }}
+        INTERNAL_JOB_TOKEN: ${{ secrets.INTERNAL_JOB_TOKEN }}
       run: |
         echo "▶️ ${LABEL}: POST ${TARGET_URL}"
 
@@ -47,6 +52,9 @@ jobs:
         while IFS= read -r line; do
           [ -n "$line" ] && HEADER_ARGS+=(-H "$line")
         done <<< "$HEADERS"
+        if [ -n "$INTERNAL_JOB_TOKEN" ]; then
+          HEADER_ARGS+=(-H "X-Internal-Job-Token: $INTERNAL_JOB_TOKEN")
+        fi
 
         RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
           "$TARGET_URL" \

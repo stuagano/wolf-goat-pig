@@ -12,12 +12,12 @@ dedup lives in the service.
 import logging
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from .. import database
 from ..services.callout_service import run_callout, run_callout_for_next_sunday
 from ..services.email_service import get_email_service
-from ..utils.admin_auth import get_admin_emails
+from ..utils.admin_auth import require_admin
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +26,9 @@ router = APIRouter(prefix="/callouts", tags=["callouts"])
 VALID_WINDOWS = ("pre_pairing", "morning_of")
 
 
-@router.post("/test-email")
+@router.post("/test-email", dependencies=[Depends(require_admin)])
 async def send_test_callout_email(
     to: str = Query(..., description="Recipient email for the sample callout"),
-    x_admin_email: str = Header(default=None),
 ):
     """Send a sample headcount/matchmaking callout email to one address (admin only).
 
@@ -37,9 +36,6 @@ async def send_test_callout_email(
     the opt-in list or the once-per-window dedup table — it just renders and sends
     the real callout template with sample data.
     """
-    if not x_admin_email or x_admin_email not in get_admin_emails():
-        raise HTTPException(status_code=403, detail="Admin access required")
-
     email_service = get_email_service()
     if not email_service.is_configured():
         raise HTTPException(status_code=503, detail="Email service not configured")

@@ -7,8 +7,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import (
+    Depends,
     FastAPI,
-    Header,
     HTTPException,
     Request,
 )
@@ -256,7 +256,6 @@ app.add_middleware(
         "Content-Language",
         "Content-Type",
         "Authorization",
-        "X-Admin-Email",
         "X-Admin-Key",
         "X-Requested-With",
         "Origin",
@@ -534,10 +533,9 @@ STATIC_DIR = Path(__file__).parent.parent.parent / "frontend" / "build"
 
 if ENABLE_TEST_ENDPOINTS:
 
-    @app.get("/debug/paths")
-    async def debug_paths(x_admin_email: str | None = Header(None)):  # type: ignore
+    @app.get("/debug/paths", dependencies=[Depends(require_admin)])
+    async def debug_paths():
         """Debug endpoint to check file paths."""
-        require_admin(x_admin_email)
         current_file = Path(__file__).resolve()
         static_dir = STATIC_DIR.resolve()
         index_file = static_dir / "index.html"

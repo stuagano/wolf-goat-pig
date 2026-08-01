@@ -2,12 +2,15 @@
 
 import uuid
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.database import engine
 from app.main import app
 from app.models import Base
 from app.services import legacy_player_service as svc
+
+pytestmark = pytest.mark.usefixtures("mock_admin_identity")
 
 # Ensure the new tables exist in the dev DB (lifespan isn't run by TestClient).
 Base.metadata.create_all(bind=engine)

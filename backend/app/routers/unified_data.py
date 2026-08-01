@@ -17,12 +17,12 @@ from sqlalchemy.orm import Session
 
 from .. import models
 from ..database import get_db
-from ..services.auth_service import get_current_user
+from ..services.auth_service import get_current_auth0_user, get_current_user
 from ..services.livsow_service import get_livsow_leaderboard, get_livsow_team_map
 from ..services.livsow_transactions import LIVSOW_SEASON, check_and_record_snapshot, describe_transaction
 from ..services.spreadsheet_sync_service import PRIMARY_SHEET_ID, PRIMARY_SHEET_TAB_GID
 from ..services.unified_data_service import get_unified_data_service
-from ..utils.admin_auth import require_admin
+from ..utils.admin_auth import is_super_admin_email, require_admin
 from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
@@ -297,11 +297,15 @@ def get_livsow_team_detail(slug: str, db: Session = Depends(get_db)) -> Any:
     }
 
 
-def _is_team_captain_or_admin(db: Session, slug: str, user: models.PlayerProfile) -> bool:
+def _is_team_captain_or_admin(
+    db: Session,
+    slug: str,
+    user: models.PlayerProfile,
+    *,
+    is_super_admin: bool,
+) -> bool:
     """True if `user` is the captain of team `slug` (by profile-id match) or an admin."""
-    from ..utils.admin_auth import _get_admin_emails
-
-    if user.email and user.email in _get_admin_emails():
+    if is_super_admin:
         return True
     data = get_livsow_leaderboard()
     team = next((t for t in data.get("teams", []) if _livsow_slugify(t["name"]) == slug), None)
@@ -326,10 +330,18 @@ class TeamContentUpdate(BaseModel):
 def can_edit_livsow_team(
     slug: str,
     current_user: models.PlayerProfile = Depends(get_current_user),
+    auth0_user: dict[str, Any] = Depends(get_current_auth0_user),
     db: Session = Depends(get_db),
 ) -> Any:
     """Whether the logged-in user may edit this team's page (captain or admin)."""
-    return {"can_edit": _is_team_captain_or_admin(db, slug, current_user)}
+    return {
+        "can_edit": _is_team_captain_or_admin(
+            db,
+            slug,
+            current_user,
+            is_super_admin=is_super_admin_email(auth0_user.get("email")),
+        )
+    }
 
 
 @router.put("/livsow/teams/{slug}/content")
@@ -337,10 +349,16 @@ def update_livsow_team_content(
     slug: str,
     body: TeamContentUpdate,
     current_user: models.PlayerProfile = Depends(get_current_user),
+    auth0_user: dict[str, Any] = Depends(get_current_auth0_user),
     db: Session = Depends(get_db),
 ) -> Any:
     """Captain-only (or admin) update of a team's franchise-page content."""
-    if not _is_team_captain_or_admin(db, slug, current_user):
+    if not _is_team_captain_or_admin(
+        db,
+        slug,
+        current_user,
+        is_super_admin=is_super_admin_email(auth0_user.get("email")),
+    ):
         raise HTTPException(status_code=403, detail="Only this team's captain can edit its page")
 
     def _clean(v: str | None) -> str | None:

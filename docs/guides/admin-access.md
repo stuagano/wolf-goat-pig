@@ -1,42 +1,43 @@
 # Admin access (roster & commissioner tools)
 
 Some routes — `/admin/roster`, `/admin`, and the promote/dismiss/add-player
-roster operations — are intentionally **admin-only**. This doc explains who has
+roster operations — are intentionally **super-admin-only**. This doc explains who has
 access, how access is granted, and what testers should expect. It exists
 because testers following the July 2026 checklist hit `Access Denied` at
 `/admin/roster` with no explanation of why or how to get in (issue #316).
 
-## Who is an admin
+## Who is a super admin
 
-Admin status is decided by an **email allowlist** configured on the server via
-the `ADMIN_EMAILS` environment variable (comma-separated). If unset, the code
-falls back to a small default set (the commissioner). The allowlist lives in
-`backend/app/utils/admin_auth.py`.
+Super-admin status is decided by a normalized **Auth0 login email allowlist**
+configured on the server via the `SUPER_ADMIN_EMAILS` environment variable
+(comma-separated). `ADMIN_EMAILS` remains a temporary compatibility fallback for
+existing deployments. If neither is set, the code falls back to the commissioner.
+The allowlist lives in `backend/app/utils/admin_auth.py`.
 
-The frontend no longer keeps its own separate hardcoded list as the source of
-truth: `GET /players/me` now returns an `is_admin` boolean computed from the
-same server allowlist, and the admin screens use that. This removes the old
-drift where the backend `ADMIN_EMAILS` and a hardcoded frontend list could
-disagree (a user could be a backend admin but still see `Access Denied`).
+The backend verifies the Auth0 bearer token and compares the **verified token
+email claim** to the allowlist — never the mutable DB profile email, display
+name, browser storage, or caller-supplied identity headers. `GET /players/me`
+returns `role`, `is_super_admin`, and a temporary `is_admin` compatibility
+alias. Everyone not on the allowlist has the `normal` role.
 
 ## Granting access
 
-1. An existing admin (the commissioner) adds the new admin's **login email** to
-   `ADMIN_EMAILS` in the Cloud Run service configuration.
+1. An existing super admin adds the new super admin's exact **Auth0 login
+   email** to `SUPER_ADMIN_EMAILS` in the Cloud Run service configuration.
 2. Deploy a new revision so the value is picked up.
 3. The new admin hard-refreshes and re-opens `/admin/roster`.
 
-Do not commit real admin emails beyond the commissioner default into the repo.
+Do not grant access by display name; names are not unique or verified.
 Keep the production allowlist in Cloud Run configuration.
 
 ## What testers should expect
 
 - **Not signed in** → the page prompts you to sign in (this is normal).
-- **Signed in but not an admin** → you see a clear "you're signed in as
-  `<email>` but this area is admin-only; ask the commissioner to grant admin
+- **Signed in but not a super admin** → you see a clear "you're signed in as
+  `<email>` but this area is super-admin-only; ask a super admin to grant
   access" message. This is expected for most testers — admin steps are **not**
   part of the general tester checklist.
-- **Admin** → you can open `/admin/roster` and promote / dismiss / add players.
+- **Super admin** → you can open `/admin/roster` and promote / dismiss / add players.
 
 ## Tester checklist guidance
 

@@ -27,3 +27,16 @@ def test_earned_badges_empty_for_unknown_player():
     resp = client.get("/api/badges/player/999999/earned")
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+def test_manual_achievement_check_requires_authentication():
+    resp = client.post("/api/badges/admin/check-achievements/1")
+    assert resp.status_code == 401
+
+
+def test_badge_holders_rejects_normal_user(mock_admin_identity):
+    resp = client.get(
+        "/api/badges/admin/badge/1/holders",
+        headers={"X-Admin-Email": "normal@example.com"},
+    )
+    assert resp.status_code == 403

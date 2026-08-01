@@ -7,6 +7,8 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
+pytestmark = pytest.mark.usefixtures("mock_admin_identity")
+
 client = TestClient(app)
 
 ADMIN_EMAIL = "stuagano@gmail.com"
@@ -283,5 +285,5 @@ class TestOAuth2TestEmailValidation:
 
         from app.main import app
 
-        resp = TestClient(app).post("/admin/oauth2-test-email", json={})
+        resp = TestClient(app).post("/admin/oauth2-test-email", json={}, headers=ADMIN_HEADER)
         assert resp.status_code == 422

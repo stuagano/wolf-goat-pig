@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from '../../components/ui';
 import { apiConfig } from '../../config/api.config';
-import { getStoredUserEmail } from '../../utils/adminAuth';
+import { useAuthenticatedFetch } from '../../hooks/useAuthenticatedFetch';
 
 const API_URL = apiConfig.baseUrl;
 
 const DatabaseManager = () => {
+  const authenticatedFetch = useAuthenticatedFetch();
   const [schemas, setSchemas] = useState([]);
   const [selectedSchema, setSelectedSchema] = useState('');
   const [tables, setTables] = useState([]);
@@ -18,9 +19,7 @@ const DatabaseManager = () => {
     setLoading('schemas');
     setError('');
     try {
-      const response = await fetch(`${API_URL}/admin/db/schemas`, {
-        headers: { 'X-Admin-Email': getStoredUserEmail() }
-      });
+      const response = await authenticatedFetch(`${API_URL}/admin/db/schemas`);
       if (!response.ok) throw new Error('Failed to fetch schemas');
       const data = await response.json();
       setSchemas(data.schemas);
@@ -29,14 +28,13 @@ const DatabaseManager = () => {
     } finally {
       setLoading('');
     }
-  }, []);
+  }, [authenticatedFetch]);
 
   const fetchTables = useCallback(async (schema, signal) => {
     setLoading('tables');
     setError('');
     try {
-      const response = await fetch(`${API_URL}/admin/db/schemas/${schema}/tables`, {
-        headers: { 'X-Admin-Email': getStoredUserEmail() },
+      const response = await authenticatedFetch(`${API_URL}/admin/db/schemas/${schema}/tables`, {
         signal,
       });
       if (!response.ok) throw new Error('Failed to fetch tables');
@@ -49,14 +47,13 @@ const DatabaseManager = () => {
     } finally {
       setLoading('');
     }
-  }, []);
+  }, [authenticatedFetch]);
 
   const fetchTableContent = useCallback(async (table, signal) => {
     setLoading('content');
     setError('');
     try {
-      const response = await fetch(`${API_URL}/admin/db/schemas/${selectedSchema}/tables/${table}`, {
-        headers: { 'X-Admin-Email': getStoredUserEmail() },
+      const response = await authenticatedFetch(`${API_URL}/admin/db/schemas/${selectedSchema}/tables/${table}`, {
         signal,
       });
       if (!response.ok) throw new Error('Failed to fetch table content');
@@ -69,7 +66,7 @@ const DatabaseManager = () => {
     } finally {
       setLoading('');
     }
-  }, [selectedSchema]);
+  }, [authenticatedFetch, selectedSchema]);
 
   useEffect(() => {
     fetchSchemas();
