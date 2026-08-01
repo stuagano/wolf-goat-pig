@@ -1,11 +1,12 @@
 """
 Callout endpoints — driven by an external scheduler (GitHub Actions cron).
 
-The in-process email scheduler is a no-op in production (a vendored `schedule`
-shim never fires jobs), so real scheduled work runs as GitHub Actions cron jobs
-that POST to an endpoint — the same pattern as GHIN sync (POST /ghin/sync-handicaps).
-This router exposes the headcount callout so a Friday (pre-pairing) and Sunday
-(morning-of) cron can fire it. Once-per-window dedup lives in the service.
+The in-process email scheduler is a no-op in production
+(``RUN_INPROCESS_SCHEDULERS=false``), so real scheduled work runs as GitHub
+Actions cron jobs that POST to Cloud Run — the same pattern as GHIN sync
+(POST /ghin/sync-handicaps). This router exposes the headcount callout so a
+Friday (pre-pairing) and Sunday (morning-of) cron can fire it. Once-per-window
+dedup lives in the service.
 """
 
 import logging

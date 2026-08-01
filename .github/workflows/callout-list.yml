@@ -48,6 +48,6 @@ jobs:
     uses: ./.github/workflows/_cron-curl.yml
     with:
       label: Headcount callout (window=${{ needs.determine-window.outputs.window }})
-      url: https://wolf-goat-pig.onrender.com/callouts/run?window=${{ needs.determine-window.outputs.window }}
+      url: https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/callouts/run?window=${{ needs.determine-window.outputs.window }}
       headers: 'Content-Type: application/json'
       max-time: 60

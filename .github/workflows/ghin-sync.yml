@@ -16,6 +16,8 @@ jobs:
     uses: ./.github/workflows/_cron-curl.yml
     with:
       label: GHIN sync
-      url: https://wolf-goat-pig.onrender.com/ghin/sync-handicaps
+      # Cloud Scheduler also fires /internal/jobs/ghin-sync at 06:00 UTC.
+      # This GHA pass is the ~10am ET catch-up (idempotent).
+      url: https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/ghin/sync-handicaps
       headers: 'Content-Type: application/json'
       max-time: 60

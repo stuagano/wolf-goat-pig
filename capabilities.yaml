@@ -43,13 +43,13 @@ capabilities:
   - id: health-live-production
     description: the deployed backend is up and reports the production environment with
       a healthy database
-    given: the Render deployment of the backend
+    given: the Cloud Run deployment of the backend
     when: GET /health is requested
     then: it returns 200 and reports environment=production
     tier: live
     deps: []
     check:
-      shell: resp=$(curl -s -w '|%{http_code}' --max-time 15 https://wolf-goat-pig.onrender.com/health)
+      shell: resp=$(curl -s -w '|%{http_code}' --max-time 15 https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/health)
         || exit 3; code=${resp##*|}; body=${resp%|*}; [ "$code" = 200 ] || exit 1; printf
         '%s' "$body" | grep -qF 'production' || exit 1; exit 0
   - id: auth-rejects-junk-token
@@ -62,7 +62,7 @@ capabilities:
     deps: []
     check:
       shell: 'code=$(curl -s -o /dev/null -w ''%{http_code}'' --max-time 15 -H ''Authorization:
-        Bearer junk.token.here'' https://wolf-goat-pig.onrender.com/players/me) || exit
+        Bearer junk.token.here'' https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/players/me) || exit
         3; [ "$code" = 401 ] && exit 0 || exit 1'
   - id: ghin-client-contract
     description: GHINService upholds the api2.ghin.com contract (auth + handicap lookup)
