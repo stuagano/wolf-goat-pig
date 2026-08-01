@@ -16,7 +16,8 @@ Official Rules:
 
 IMPORTANT: In match play, strokes are calculated relative to the lowest handicap
 player. Use calculate_net_handicaps() first to get relative handicaps, then pass
-those to calculate_strokes_received_with_creecher().
+those to calculate_strokes_received_with_creecher(). Those inputs are course
+handicaps, not handicap indexes — no conversion happens along the way.
 """
 
 import pytest
@@ -28,7 +29,7 @@ class TestNetHandicapCalculation:
     """Test calculation of net handicaps relative to lowest player."""
 
     def test_net_handicaps_basic(self):
-        """Test basic net handicap calculation with neutral slope/rating."""
+        """Everyone plays off the difference from the low player's course handicap."""
         player_handicaps = {
             "player1": 5.0,
             "player2": 10.0,
@@ -36,10 +37,7 @@ class TestNetHandicapCalculation:
             "player4": 20.0,
         }
 
-        # Use neutral slope (113) and matching course_rating/par so course HC = index
-        net_handicaps = HandicapValidator.calculate_net_handicaps(
-            player_handicaps, slope_rating=113, course_rating=71.0, par=71
-        )
+        net_handicaps = HandicapValidator.calculate_net_handicaps(player_handicaps)
 
         assert net_handicaps["player1"] == 0.0  # Lowest gets 0
         assert net_handicaps["player2"] == 5.0  # 10 - 5
@@ -50,13 +48,23 @@ class TestNetHandicapCalculation:
         """Test when multiple players have the same lowest handicap."""
         player_handicaps = {"player1": 10.0, "player2": 10.0, "player3": 15.0}
 
-        net_handicaps = HandicapValidator.calculate_net_handicaps(
-            player_handicaps, slope_rating=113, course_rating=71.0, par=71
-        )
+        net_handicaps = HandicapValidator.calculate_net_handicaps(player_handicaps)
 
         assert net_handicaps["player1"] == 0.0
         assert net_handicaps["player2"] == 0.0
         assert net_handicaps["player3"] == 5.0
+
+    def test_course_handicaps_are_not_converted_again(self):
+        """A game's handicaps are already course handicaps.
+
+        Re-running the index → course handicap formula here inflated the spread
+        and bumped players into the wrong Creecher band.
+        """
+        player_handicaps = {"scratch": 0.0, "mid": 11.0, "high": 15.0}
+
+        net_handicaps = HandicapValidator.calculate_net_handicaps(player_handicaps)
+
+        assert net_handicaps == {"scratch": 0.0, "mid": 11.0, "high": 15.0}
 
     def test_net_handicaps_all_equal(self):
         """Test when all players have the same handicap."""
@@ -69,21 +77,14 @@ class TestNetHandicapCalculation:
         assert net_handicaps["player3"] == 0.0
 
     def test_net_handicaps_with_fractional(self):
-        """Test net handicap calculation with fractional handicaps.
+        """Fractions survive the subtraction — they drive the Creecher half strokes."""
+        player_handicaps = {"player1": 5.3, "player2": 10.3, "player3": 15.8}
 
-        With neutral slope (113) and matching course_rating/par, course HC = round(index).
-        Using .3 fractions to avoid banker's rounding ambiguity on .5 values.
-        5.3→5, 10.3→10, 15.3→15  →  net: 0, 5, 10
-        """
-        player_handicaps = {"player1": 5.3, "player2": 10.3, "player3": 15.3}
+        net_handicaps = HandicapValidator.calculate_net_handicaps(player_handicaps)
 
-        net_handicaps = HandicapValidator.calculate_net_handicaps(
-            player_handicaps, slope_rating=113, course_rating=71.0, par=71
-        )
-
-        assert net_handicaps["player1"] == 0.0
-        assert net_handicaps["player2"] == 5.0  # round(10.3) - round(5.3) = 10 - 5
-        assert net_handicaps["player3"] == 10.0  # round(15.3) - round(5.3) = 15 - 5
+        assert net_handicaps["player1"] == pytest.approx(0.0)
+        assert net_handicaps["player2"] == pytest.approx(5.0)
+        assert net_handicaps["player3"] == pytest.approx(10.5)
 
     def test_net_handicaps_empty_dict(self):
         """Test with empty player dictionary."""

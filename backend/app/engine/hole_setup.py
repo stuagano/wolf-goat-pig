@@ -96,19 +96,15 @@ class HoleSetupMixin:
         hole_yardage = None
         stroke_index = min(hole_number, 18)  # Default
 
-        if self.course_manager:
-            if not hasattr(self.course_manager, "get_hole_info"):
-                hole_info = {}
-
-            else:
-                try:
-                    hole_info = self.course_manager.get_hole_info(hole_number)
-                    hole_par = hole_info.get("par")
-                    hole_yardage = hole_info.get("yards")
-                    stroke_index = hole_info.get("stroke_index", stroke_index)
-                except (KeyError, AttributeError, TypeError):
-                    # Fall back to defaults if course info unavailable
-                    pass
+        if self.course_manager and hasattr(self.course_manager, "get_hole_info"):
+            try:
+                hole_info = self.course_manager.get_hole_info(hole_number)
+                hole_par = hole_info.get("par")
+                hole_yardage = hole_info.get("yards")
+                stroke_index = hole_info.get("stroke_index", stroke_index)
+            except (KeyError, AttributeError, TypeError):
+                # Fall back to defaults if course info unavailable
+                pass
 
         # Initialize hole state
         hole_state = HoleState(
@@ -126,12 +122,11 @@ class HoleSetupMixin:
         hole_state.tee_shots_complete = 0
         hole_state.partnership_deadline_passed = False
 
-        # Set hole information (par, yardage, difficulty) - uses course data if available
-        if hole_par is not None and hole_yardage is not None:
-            hole_state.set_hole_info(par=hole_par, yardage=hole_yardage, stroke_index=stroke_index)
-
-        else:
-            hole_state.set_hole_info()
+        # Set hole information (par, yardage, difficulty) - uses course data if available.
+        # Always pass the resolved stroke index: set_hole_info() randomizes any argument
+        # left as None, and a random stroke index silently decouples handicap strokes
+        # from the course being played.
+        hole_state.set_hole_info(par=hole_par, yardage=hole_yardage, stroke_index=stroke_index)
 
         # Calculate stroke advantages for all players on this hole
         hole_state.calculate_stroke_advantages(self.players)

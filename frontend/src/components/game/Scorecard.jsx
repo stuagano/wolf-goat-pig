@@ -3,8 +3,6 @@ import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Card, Button, Input } from '../ui';
 import { useTheme } from '../../theme/Provider';
-import { calculateCourseHandicap } from '../../utils';
-
 /**
  * Unified Scorecard component for both real games and simulations
  * Displays all 18 holes with strokes and quarters, with click-to-edit functionality
@@ -482,7 +480,7 @@ const Scorecard = ({
                   >
                     {isHuman ? '👤 ' : '🤖 '}
                     {playerName}
-                    {player.handicap != null && <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.7 }}>({calculateCourseHandicap(player.handicap)})</span>}
+                    {player.handicap != null && <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.7 }}>({player.handicap})</span>}
                     {onPlayerNameChange && <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.5 }}>✏️</span>}
                   </div>
                   <div>Stroke</div>

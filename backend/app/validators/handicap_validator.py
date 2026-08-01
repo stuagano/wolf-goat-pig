@@ -104,47 +104,26 @@ class HandicapValidator:
     WING_POINT_BLACKS_PAR = 71
 
     @classmethod
-    def calculate_net_handicaps(
-        cls,
-        player_handicaps: dict[str, float],
-        slope_rating: int = 124,
-        course_rating: float = 70.3,
-        par: int = 71,
-    ) -> dict[str, float]:
+    def calculate_net_handicaps(cls, player_handicaps: dict[str, float]) -> dict[str, float]:
         """
-        Calculate net handicaps relative to the lowest handicap player.
+        Calculate net handicaps by subtracting the low player's from everyone's.
 
-        Converts handicap index → course handicap using USGA formula before
-        computing differences. Defaults to Wing Point black tees.
+        The handicaps carried on a game are already course handicaps — the number
+        the group plays off. Re-running the index → course handicap conversion here
+        would inflate the spread a second time and push players into the wrong
+        Creecher band.
 
         Args:
-            player_handicaps: Dictionary mapping player IDs to their handicap index
-            slope_rating: Course slope rating (default: Wing Point blacks 124)
-            course_rating: Course rating (default: Wing Point blacks 70.3)
-            par: Course par (default: Wing Point 71)
+            player_handicaps: Dictionary mapping player IDs to their course handicap
 
         Returns:
-            Dictionary mapping player IDs to their net course handicaps (relative to lowest)
+            Dictionary mapping player IDs to their handicap relative to the low player
         """
         if not player_handicaps:
             return {}
 
-        # Convert handicap index → course handicap for each player
-        course_handicaps = {}
-        for player_id, handicap_index in player_handicaps.items():
-            course_handicaps[player_id] = float(
-                cls.calculate_course_handicap(handicap_index, slope_rating, course_rating, par, validate=False)
-            )
-
-        # Find the lowest course handicap in the group
-        lowest_course_handicap = min(course_handicaps.values())
-
-        # Calculate net handicaps relative to the lowest
-        net_handicaps = {}
-        for player_id, course_hc in course_handicaps.items():
-            net_handicaps[player_id] = max(0.0, course_hc - lowest_course_handicap)
-
-        return net_handicaps
+        lowest = min(player_handicaps.values())
+        return {player_id: max(0.0, handicap - lowest) for player_id, handicap in player_handicaps.items()}
 
     @classmethod
     def validate_handicap(cls, handicap: float, field_name: str = "handicap") -> None:

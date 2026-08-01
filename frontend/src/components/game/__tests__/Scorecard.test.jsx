@@ -2,7 +2,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import Scorecard from '../Scorecard';
-import { calculateCourseHandicap } from '../../../utils';
 import {
   createMockTheme,
   createMockPlayers,
@@ -165,14 +164,12 @@ describe('Scorecard', () => {
       expect(robotEmojis.length).toBeGreaterThan(0);
     });
 
-    test('shows player course handicaps', () => {
+    test('shows each player course handicap as carried, not re-converted', () => {
       render(<Scorecard {...defaultProps} />);
-      const playerOneCourseHandicap = calculateCourseHandicap(mockPlayers[0].handicap);
-      const playerTwoCourseHandicap = calculateCourseHandicap(mockPlayers[1].handicap);
 
       // Multiple instances in new layout (front 9, back 9, totals)
-      expect(screen.getAllByText(`(${playerOneCourseHandicap})`).length).toBeGreaterThan(0);
-      expect(screen.getAllByText(`(${playerTwoCourseHandicap})`).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(`(${mockPlayers[0].handicap})`).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(`(${mockPlayers[1].handicap})`).length).toBeGreaterThan(0);
     });
   });
 

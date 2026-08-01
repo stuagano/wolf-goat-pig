@@ -2,6 +2,7 @@
 
 import logging
 import random
+import re
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -94,7 +95,9 @@ class CustomPlayer(BaseModel):
     """A player in a custom game — a real person or a ghost (AI-played)."""
 
     name: str = Field(min_length=1, max_length=60)
-    handicap: float = 18
+    # None means "look it up" — the roster handicap wins. Only send a number to
+    # deliberately override the roster for this round.
+    handicap: float | None = None
     is_ghost: bool = False
     player_profile_id: int | None = None
     user_id: str | None = None
@@ -106,10 +109,52 @@ class CreateCustomGameRequest(BaseModel):
 
 
 def _slug_id(name: str, i: int) -> str:
-    import re
-
     base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "player"
     return f"{base}-{i + 1}"
+
+
+def _normalize_name(name: str) -> str:
+    """Fold a name for matching: case, punctuation and spacing all ignored."""
+    return re.sub(r"[^a-z0-9]+", "", name.lower())
+
+
+# Placeholder handicap for a player we know nothing about. Never let this stand
+# in for a roster value: a scratch player silently entered as an 18 is handed
+# strokes all round and every net score in the game is wrong.
+UNKNOWN_HANDICAP = 18.0
+
+
+def _resolve_handicaps(db: Session, players: list[CustomPlayer]) -> list[float]:
+    """Fill in each player's handicap from their roster profile.
+
+    An explicit handicap in the request always wins (a one-off override for the
+    round). Otherwise we match the profile by id, then by name ignoring case and
+    punctuation, and only fall back to the placeholder when there is no profile.
+    """
+    by_id: dict[int, float] = {}
+    by_name: dict[str, float] = {}
+    if any(p.handicap is None for p in players):
+        for pid, name, handicap in db.query(
+            models.PlayerProfile.id, models.PlayerProfile.name, models.PlayerProfile.handicap
+        ).all():
+            if handicap is None:
+                continue
+            by_id[pid] = handicap
+            if name:
+                by_name.setdefault(_normalize_name(name), handicap)
+
+    resolved: list[float] = []
+    for player in players:
+        if player.handicap is not None:
+            resolved.append(player.handicap)
+            continue
+
+        handicap = by_id.get(player.player_profile_id) if player.player_profile_id is not None else None
+        if handicap is None:
+            handicap = by_name.get(_normalize_name(player.name))
+        resolved.append(handicap if handicap is not None else UNKNOWN_HANDICAP)
+
+    return resolved
 
 
 @router.get("/roster-suggestions")
@@ -175,11 +220,12 @@ async def create_custom_game(body: CreateCustomGameRequest, db: Session = Depend
     game_id = str(uuid.uuid4())
     now = utc_now().isoformat()
 
+    handicaps = _resolve_handicaps(db, body.players)
     seeds = [
         {
             "id": _slug_id(p.name, i),
             "name": p.name,
-            "handicap": p.handicap,
+            "handicap": handicaps[i],
             "is_ghost": p.is_ghost,
             "player_profile_id": p.player_profile_id,
             "user_id": p.user_id,

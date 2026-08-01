@@ -6,7 +6,18 @@ import { apiConfig } from '../config/api.config';
 
 const API_URL = apiConfig.baseUrl;
 
-const emptyPlayer = () => ({ name: '', handicap: 18, isGhost: true, player_profile_id: null });
+// `handicapTouched` tracks whether a human typed this number. Untouched slots
+// are sent as null so the server fills in the roster handicap — shipping the 18
+// placeholder for a rostered player silently rewrites their strokes for the round.
+const emptyPlayer = () => ({ name: '', handicap: 18, handicapTouched: false, isGhost: true, player_profile_id: null });
+
+const normalizeName = (name) => (name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+const handicapNote = (player) => {
+  if (player.handicapTouched) return { text: 'Handicap set by hand for this round', color: '#b45309' };
+  if (player.player_profile_id) return { text: `Roster handicap ${player.handicap}`, color: '#15803d' };
+  return { text: 'Not on the roster — will play off 18', color: '#b45309' };
+};
 
 function CreateGamePage() {
   const theme = useTheme();
@@ -21,7 +32,7 @@ function CreateGamePage() {
   const [suggestions, setSuggestions] = useState([]);
   const [players, setPlayers] = useState(() => {
     // First slot defaults to the logged-in user as a real player.
-    const me = { name: '', handicap: 18, isGhost: false, player_profile_id: null };
+    const me = { name: '', handicap: 18, handicapTouched: false, isGhost: false, player_profile_id: null };
     return [me, emptyPlayer(), emptyPlayer(), emptyPlayer()];
   });
 
@@ -56,17 +67,41 @@ function CreateGamePage() {
     }
   }, [user?.name]);
 
-  const suggestionByName = (name) =>
-    suggestions.find((s) => s.name.toLowerCase() === (name || '').toLowerCase());
+  // Match on an exact name first, then on an unambiguous prefix so a half-typed
+  // "Rainer" still links to the roster instead of falling through to the 18.
+  const suggestionByName = (name) => {
+    const key = normalizeName(name);
+    if (!key) return null;
+    const exact = suggestions.find((s) => normalizeName(s.name) === key);
+    if (exact) return exact;
+    const prefixed = suggestions.filter((s) => normalizeName(s.name).startsWith(key));
+    return prefixed.length === 1 ? prefixed[0] : null;
+  };
 
   const updatePlayer = (i, patch) =>
     setPlayers((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
 
   const onNameChange = (i, name) => {
     const match = suggestionByName(name);
-    updatePlayer(i, match
-      ? { name: match.name, handicap: match.handicap ?? 18, player_profile_id: match.player_profile_id ?? null }
-      : { name, player_profile_id: null });
+    if (!match) {
+      updatePlayer(i, { name, player_profile_id: null });
+      return;
+    }
+    setPlayers((prev) => prev.map((p, idx) => (idx === i
+      ? {
+        ...p,
+        name,
+        player_profile_id: match.player_profile_id ?? null,
+        // A handicap the user typed themselves outranks the roster.
+        handicap: p.handicapTouched ? p.handicap : (match.handicap ?? 18),
+      }
+      : p)));
+  };
+
+  // Snap a prefix ("Stu") to the full roster name once the field loses focus.
+  const onNameBlur = (i) => {
+    const match = suggestionByName(players[i].name);
+    if (match && match.name !== players[i].name) updatePlayer(i, { name: match.name });
   };
 
   const addPlayer = () => players.length < 6 && setPlayers((p) => [...p, emptyPlayer()]);
@@ -90,7 +125,9 @@ function CreateGamePage() {
           course_name: courseName,
           players: named.map((p) => ({
             name: p.name,
-            handicap: Number(p.handicap) || 18,
+            // null lets the server use the roster handicap; only an explicitly
+            // typed number overrides it.
+            handicap: p.handicapTouched ? (Number(p.handicap) || 0) : null,
             is_ghost: p.isGhost,
             player_profile_id: p.player_profile_id,
             user_id: !p.isGhost && p.name === user?.name && isAuthenticated ? user?.sub : null,
@@ -174,23 +211,25 @@ function CreateGamePage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
           {players.map((p, i) => (
             <div key={i} style={{
-              display: 'flex', gap: 8, alignItems: 'center',
               padding: 10, borderRadius: 10,
               border: `1px solid ${p.isGhost ? '#f0abfc' : theme.colors.border}`,
               background: p.isGhost ? 'rgba(217,70,239,0.05)' : theme.colors.paper,
             }}>
+             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <input
                 list="roster-suggestions"
                 value={p.name}
                 onChange={(e) => onNameChange(i, e.target.value)}
+                onBlur={() => onNameBlur(i)}
                 placeholder={`Player ${i + 1}`}
                 style={{ ...inputStyle, flex: 1, minWidth: 0 }}
                 aria-label={`Player ${i + 1} name`}
               />
               <input
                 type="number"
+                step="0.1"
                 value={p.handicap}
-                onChange={(e) => updatePlayer(i, { handicap: e.target.value })}
+                onChange={(e) => updatePlayer(i, { handicap: e.target.value, handicapTouched: true })}
                 style={{ ...inputStyle, width: 64 }}
                 aria-label={`Player ${i + 1} handicap`}
                 title="Handicap"
@@ -217,6 +256,12 @@ function CreateGamePage() {
                 >
                   ×
                 </button>
+              )}
+             </div>
+              {p.name.trim() && (
+                <div style={{ fontSize: 12, marginTop: 6, color: handicapNote(p).color }}>
+                  {handicapNote(p).text}
+                </div>
               )}
             </div>
           ))}

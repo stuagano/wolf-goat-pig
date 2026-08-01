@@ -3480,8 +3480,8 @@ export interface paths {
          *     Adds two computed fields not stored on the row:
          *     - ``legacy_name_suggestion``: when the account has no confirmed legacy link,
          *       a fuzzy roster match to *suggest* (never auto-persist) in onboarding (#322).
-         *     - ``is_admin``: server-side ADMIN_EMAILS membership so the client doesn't
-         *       depend on a hardcoded allowlist that can drift (#316).
+         *     - authorization role: derived from the verified Auth0 login email claim
+         *       and the server-side super-admin allowlist (never the DB profile email).
          */
         get: operations["get_my_profile_players_me_get"];
         put?: never;
@@ -5004,11 +5004,8 @@ export interface components {
          * @description A player in a custom game — a real person or a ghost (AI-played).
          */
         CustomPlayer: {
-            /**
-             * Handicap
-             * @default 18
-             */
-            handicap: number;
+            /** Handicap */
+            handicap?: number | null;
             /**
              * Is Ghost
              * @default false
@@ -5796,6 +5793,11 @@ export interface components {
              * @default false
              */
             is_ai: boolean;
+            /**
+             * Is Super Admin
+             * @default false
+             */
+            is_super_admin: boolean;
             /** Last Played */
             last_played?: string | null;
             /** Legacy Name */
@@ -5810,6 +5812,12 @@ export interface components {
             preferences?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Role
+             * @default normal
+             * @enum {string}
+             */
+            role: "normal" | "super_admin";
             /** Updated At */
             updated_at?: string | null;
             /** Venmo Handle */
@@ -6443,9 +6451,7 @@ export interface operations {
     backfill_career_badges_admin_badges_backfill_career_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -6458,15 +6464,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -6474,9 +6471,7 @@ export interface operations {
     get_banner_config_admin_banner_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -6491,23 +6486,12 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     create_or_update_banner_admin_banner_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -6540,9 +6524,7 @@ export interface operations {
     update_banner_admin_banner__banner_id__put: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string;
-            };
+            header?: never;
             path: {
                 banner_id: number;
             };
@@ -6577,9 +6559,7 @@ export interface operations {
     delete_banner_admin_banner__banner_id__delete: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string;
-            };
+            header?: never;
             path: {
                 banner_id: number;
             };
@@ -6610,9 +6590,7 @@ export interface operations {
     get_database_stats_admin_cleanup_database_stats_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -6627,15 +6605,6 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     get_orphaned_games_admin_cleanup_orphaned_games_get: {
@@ -6644,9 +6613,7 @@ export interface operations {
                 /** @description Only show games older than this many hours */
                 hours_old?: number;
             };
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -6680,9 +6647,7 @@ export interface operations {
                 /** @description If true, only show what would be deleted */
                 dry_run?: boolean;
             };
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -6711,9 +6676,7 @@ export interface operations {
     get_db_schemas_admin_db_schemas_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -6728,23 +6691,12 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     get_db_tables_admin_db_schemas__schema_name__tables_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path: {
                 schema_name: string;
             };
@@ -6775,9 +6727,7 @@ export interface operations {
     get_table_content_admin_db_schemas__schema_name__tables__table_name__get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path: {
                 schema_name: string;
                 table_name: string;
@@ -6809,9 +6759,7 @@ export interface operations {
     get_email_config_admin_email_config_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -6826,23 +6774,12 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     update_email_config_admin_email_config_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -6899,9 +6836,7 @@ export interface operations {
     admin_delete_all_matches_admin_matches_delete: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -6916,23 +6851,12 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     start_oauth2_authorization_admin_oauth2_authorize_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -6999,9 +6923,7 @@ export interface operations {
     get_oauth2_status_admin_oauth2_status_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -7016,23 +6938,12 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     test_oauth2_email_admin_oauth2_test_email_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -7068,9 +6979,7 @@ export interface operations {
                 /** @description Migration to run: 'add_statistics_columns' */
                 migration: string;
             };
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -7121,9 +7030,7 @@ export interface operations {
     get_spreadsheet_config_admin_spreadsheet_config_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -7138,23 +7045,12 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     get_spreadsheet_leaderboard_admin_spreadsheet_leaderboard_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -7169,23 +7065,12 @@ export interface operations {
                     "application/json": components["schemas"]["LeaderboardEntry"][];
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     get_player_history_admin_spreadsheet_player__member_name__get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path: {
                 member_name: string;
             };
@@ -7216,9 +7101,7 @@ export interface operations {
     get_reconciliation_diff_admin_spreadsheet_reconcile_diff_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -7233,15 +7116,6 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     sync_primary_to_writable_admin_spreadsheet_reconcile_primary_to_writable_post: {
@@ -7250,9 +7124,7 @@ export interface operations {
                 /** @description Preview changes without applying */
                 dry_run?: boolean;
             };
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -7281,9 +7153,7 @@ export interface operations {
     get_reconciliation_status_admin_spreadsheet_reconcile_status_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -7298,15 +7168,6 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     sync_writable_to_primary_admin_spreadsheet_reconcile_writable_to_primary_post: {
@@ -7315,9 +7176,7 @@ export interface operations {
                 /** @description Preview changes without applying */
                 dry_run?: boolean;
             };
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -7349,9 +7208,7 @@ export interface operations {
                 /** @description Maximum number of results */
                 limit?: number;
             };
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -7380,9 +7237,7 @@ export interface operations {
     get_rounds_by_date_admin_spreadsheet_rounds_by_date__date__get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path: {
                 date: string;
             };
@@ -7415,9 +7270,7 @@ export interface operations {
     trigger_legacy_rounds_sync_admin_spreadsheet_sync_legacy_rounds_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -7432,23 +7285,12 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     sync_round_to_spreadsheet_admin_spreadsheet_sync_round_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -7483,9 +7325,7 @@ export interface operations {
             query?: {
                 limit?: number;
             };
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -7514,9 +7354,7 @@ export interface operations {
     test_admin_email_admin_test_email_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -7554,9 +7392,7 @@ export interface operations {
                 /** @description Player name to greet */
                 name?: string;
             };
-            header?: {
-                "x-admin-email"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -7585,9 +7421,7 @@ export interface operations {
     upload_gmail_credentials_admin_upload_credentials_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -8395,9 +8229,7 @@ export interface operations {
                 /** @description Recipient email for the sample callout */
                 to: string;
             };
-            header?: {
-                "x-admin-email"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -8845,9 +8677,7 @@ export interface operations {
     seed_livsow_team_starters_data_livsow_teams_seed_starters_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -8860,15 +8690,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -8876,9 +8697,7 @@ export interface operations {
     set_official_team_logos_data_livsow_teams_set_official_logos_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -8891,15 +8710,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -9039,9 +8849,7 @@ export interface operations {
     delete_livsow_transaction_data_livsow_transactions__transaction_id__delete: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path: {
                 transaction_id: number;
             };
@@ -9221,9 +9029,7 @@ export interface operations {
     sync_sheets_to_db_data_sync_sheets_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -9236,15 +9042,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -10673,9 +10470,7 @@ export interface operations {
     groupme_groups_groupme_groups_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -10688,15 +10483,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -10906,9 +10692,7 @@ export interface operations {
     admin_add_legacy_player_legacy_players_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -10944,9 +10728,7 @@ export interface operations {
                 /** @description pending | promoted | dismissed */
                 status?: string;
             };
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -10975,9 +10757,7 @@ export interface operations {
     admin_dismiss_pending_player_legacy_players_pending__pending_id__dismiss_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path: {
                 pending_id: number;
             };
@@ -11008,9 +10788,7 @@ export interface operations {
     admin_promote_pending_player_legacy_players_pending__pending_id__promote_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path: {
                 pending_id: number;
             };
@@ -13863,9 +13641,7 @@ export interface operations {
     test_deployment_test_deployment_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-email"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -13878,15 +13654,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

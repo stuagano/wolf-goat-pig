@@ -575,9 +575,15 @@
         "description": "A player in a custom game — a real person or a ghost (AI-played).",
         "properties": {
           "handicap": {
-            "default": 18,
-            "title": "Handicap",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handicap"
           },
           "is_ghost": {
             "default": false,
@@ -2579,6 +2585,11 @@
             "title": "Is Ai",
             "type": "boolean"
           },
+          "is_super_admin": {
+            "default": false,
+            "title": "Is Super Admin",
+            "type": "boolean"
+          },
           "last_played": {
             "anyOf": [
               {
@@ -2638,6 +2649,15 @@
               }
             ],
             "title": "Preferences"
+          },
+          "role": {
+            "default": "normal",
+            "enum": [
+              "normal",
+              "super_admin"
+            ],
+            "title": "Role",
+            "type": "string"
           },
           "updated_at": {
             "anyOf": [
@@ -3939,17 +3959,6 @@
       "post": {
         "description": "Award career-milestone badges (earnings/games-played tiers, etc.) to every\nactive player from their current PlayerStatistics (admin only).\n\nOne-time/on-demand backfill for players whose history is legacy sheet\nrounds — those never trigger the normal post-game badge check, which\nrequires a GamePlayerResult row. Safe to re-run: already-earned badges\nare skipped.",
         "operationId": "backfill_career_badges_admin_badges_backfill_career_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "title": "X-Admin-Email",
-              "type": "string"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -3958,18 +3967,13 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Backfill Career Badges",
         "tags": [
           "admin"
@@ -3980,17 +3984,6 @@
       "get": {
         "description": "Get current banner configuration (admin only)",
         "operationId": "get_banner_config_admin_banner_get",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "title": "X-Admin-Email",
-              "type": "string"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -3999,18 +3992,13 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Banner Config",
         "tags": [
           "admin"
@@ -4019,17 +4007,6 @@
       "post": {
         "description": "Create or update the game banner (admin only)",
         "operationId": "create_or_update_banner_admin_banner_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "title": "X-Admin-Email",
-              "type": "string"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -4060,6 +4037,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create Or Update Banner",
         "tags": [
           "admin"
@@ -4078,15 +4060,6 @@
             "schema": {
               "title": "Banner Id",
               "type": "integer"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "title": "X-Admin-Email",
-              "type": "string"
             }
           }
         ],
@@ -4110,6 +4083,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Delete Banner",
         "tags": [
           "admin"
@@ -4126,15 +4104,6 @@
             "schema": {
               "title": "Banner Id",
               "type": "integer"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "title": "X-Admin-Email",
-              "type": "string"
             }
           }
         ],
@@ -4168,6 +4137,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Update Banner",
         "tags": [
           "admin"
@@ -4178,24 +4152,6 @@
       "get": {
         "description": "Get database statistics for health monitoring.",
         "operationId": "get_database_stats_admin_cleanup_database_stats_get",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -4204,18 +4160,13 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Database Stats",
         "tags": [
           "admin"
@@ -4250,22 +4201,6 @@
               "title": "Dry Run",
               "type": "boolean"
             }
-          },
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
           }
         ],
         "responses": {
@@ -4288,6 +4223,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Delete Orphaned Games",
         "tags": [
           "admin"
@@ -4308,22 +4248,6 @@
               "title": "Hours Old",
               "type": "integer"
             }
-          },
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
           }
         ],
         "responses": {
@@ -4346,6 +4270,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Orphaned Games",
         "tags": [
           "admin"
@@ -4356,24 +4285,6 @@
       "get": {
         "description": "Get all database schemas.",
         "operationId": "get_db_schemas_admin_db_schemas_get",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -4382,18 +4293,13 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Db Schemas",
         "tags": [
           "admin"
@@ -4413,22 +4319,6 @@
               "title": "Schema Name",
               "type": "string"
             }
-          },
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
           }
         ],
         "responses": {
@@ -4451,6 +4341,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Db Tables",
         "tags": [
           "admin"
@@ -4479,22 +4374,6 @@
               "title": "Table Name",
               "type": "string"
             }
-          },
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
           }
         ],
         "responses": {
@@ -4517,6 +4396,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Table Content",
         "tags": [
           "admin"
@@ -4527,17 +4411,6 @@
       "get": {
         "description": "Get current email configuration (admin only)",
         "operationId": "get_email_config_admin_email_config_get",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "title": "X-Admin-Email",
-              "type": "string"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -4546,18 +4419,13 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Email Config",
         "tags": [
           "admin"
@@ -4566,17 +4434,6 @@
       "post": {
         "description": "Update email configuration (admin only)",
         "operationId": "update_email_config_admin_email_config_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "title": "X-Admin-Email",
-              "type": "string"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -4609,6 +4466,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Update Email Config",
         "tags": [
           "admin"
@@ -4643,17 +4505,6 @@
       "delete": {
         "description": "Delete all match records (admin only, for testing).",
         "operationId": "admin_delete_all_matches_admin_matches_delete",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "title": "X-Admin-Email",
-              "type": "string"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -4662,18 +4513,13 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Admin Delete All Matches",
         "tags": [
           "admin"
@@ -4684,17 +4530,6 @@
       "post": {
         "description": "Start OAuth2 authorization flow (admin only)",
         "operationId": "start_oauth2_authorization_admin_oauth2_authorize_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "title": "X-Admin-Email",
-              "type": "string"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -4727,6 +4562,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Start Oauth2 Authorization",
         "tags": [
           "admin-oauth"
@@ -4787,17 +4627,6 @@
       "get": {
         "description": "Get OAuth2 configuration status (admin only)",
         "operationId": "get_oauth2_status_admin_oauth2_status_get",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "title": "X-Admin-Email",
-              "type": "string"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -4806,18 +4635,13 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Oauth2 Status",
         "tags": [
           "admin-oauth"
@@ -4828,17 +4652,6 @@
       "post": {
         "description": "Send test email using OAuth2 (admin only)",
         "operationId": "test_oauth2_email_admin_oauth2_test_email_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "title": "X-Admin-Email",
-              "type": "string"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -4869,6 +4682,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Test Oauth2 Email",
         "tags": [
           "admin-oauth"
@@ -4889,22 +4707,6 @@
               "description": "Migration to run: 'add_statistics_columns'",
               "title": "Migration",
               "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
             }
           }
         ],
@@ -4928,6 +4730,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Run Database Migration",
         "tags": [
           "admin"
@@ -4962,24 +4769,6 @@
       "get": {
         "description": "Get the current spreadsheet configuration.",
         "operationId": "get_spreadsheet_config_admin_spreadsheet_config_get",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -4988,18 +4777,13 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Spreadsheet Config",
         "tags": [
           "admin",
@@ -5011,24 +4795,6 @@
       "get": {
         "description": "Get the current leaderboard computed from the legacy_rounds DB (synced every 2h).",
         "operationId": "get_spreadsheet_leaderboard_admin_spreadsheet_leaderboard_get",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -5043,18 +4809,13 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Spreadsheet Leaderboard",
         "tags": [
           "admin",
@@ -5074,22 +4835,6 @@
             "schema": {
               "title": "Member Name",
               "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
             }
           }
         ],
@@ -5119,6 +4864,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Player History",
         "tags": [
           "admin",
@@ -5130,24 +4880,6 @@
       "get": {
         "description": "Get detailed diff between primary and writable sheets.",
         "operationId": "get_reconciliation_diff_admin_spreadsheet_reconcile_diff_get",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -5156,18 +4888,13 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Reconciliation Diff",
         "tags": [
           "admin",
@@ -5190,22 +4917,6 @@
               "description": "Preview changes without applying",
               "title": "Dry Run",
               "type": "boolean"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
             }
           }
         ],
@@ -5231,6 +4942,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Sync Primary To Writable",
         "tags": [
           "admin",
@@ -5242,24 +4958,6 @@
       "get": {
         "description": "Get sync status between primary and writable spreadsheets.",
         "operationId": "get_reconciliation_status_admin_spreadsheet_reconcile_status_get",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -5268,18 +4966,13 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Reconciliation Status",
         "tags": [
           "admin",
@@ -5302,22 +4995,6 @@
               "description": "Preview changes without applying",
               "title": "Dry Run",
               "type": "boolean"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
             }
           }
         ],
@@ -5343,6 +5020,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Sync Writable To Primary",
         "tags": [
           "admin",
@@ -5367,22 +5049,6 @@
               "minimum": 1,
               "title": "Limit",
               "type": "integer"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
             }
           }
         ],
@@ -5412,6 +5078,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get All Rounds",
         "tags": [
           "admin",
@@ -5431,22 +5102,6 @@
             "schema": {
               "title": "Date",
               "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
             }
           }
         ],
@@ -5477,6 +5132,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Rounds By Date",
         "tags": [
           "admin",
@@ -5488,24 +5148,6 @@
       "post": {
         "description": "Manually trigger a sync of Google Sheets data into the legacy_rounds table.\n\nNormally runs automatically every 2 hours. Use this to force an immediate refresh.",
         "operationId": "trigger_legacy_rounds_sync_admin_spreadsheet_sync_legacy_rounds_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -5516,18 +5158,13 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Trigger Legacy Rounds Sync",
         "tags": [
           "admin",
@@ -5539,24 +5176,6 @@
       "post": {
         "description": "Enqueue a completed round for background sync to Google Sheets.\n\nReturns 202 immediately. The background processor runs every 5 minutes,\ndeduplicates against existing legacy_rounds, and writes new/updated rounds\nto the sheet.\n\nDedup logic:\n  - Same date + group + same player set + same scores → skipped as duplicate\n  - Same date + group + same player set but different scores → written as update\n  - New player set for that date/group → written as new round\n\nNOTE: player_scores should be summed totals (not per-hole). The app tracks\nper-hole detail internally; the legacy sheet only stores round totals.",
         "operationId": "sync_round_to_spreadsheet_admin_spreadsheet_sync_round_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -5589,6 +5208,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Sync Round To Spreadsheet",
         "tags": [
           "admin",
@@ -5611,22 +5235,6 @@
               "minimum": 1,
               "title": "Limit",
               "type": "integer"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
             }
           }
         ],
@@ -5652,6 +5260,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Sync Queue Status",
         "tags": [
           "admin",
@@ -5663,17 +5276,6 @@
       "post": {
         "description": "Send a test email with provided configuration (admin only)",
         "operationId": "test_admin_email_admin_test_email_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "title": "X-Admin-Email",
-              "type": "string"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -5704,6 +5306,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Test Admin Email",
         "tags": [
           "admin"
@@ -5737,15 +5344,6 @@
               "title": "Name",
               "type": "string"
             }
-          },
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "title": "X-Admin-Email",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -5768,6 +5366,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Send Test Welcome Email",
         "tags": [
           "admin"
@@ -5778,17 +5381,6 @@
       "post": {
         "description": "Upload Gmail API credentials file (admin only)",
         "operationId": "upload_gmail_credentials_admin_upload_credentials_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "title": "X-Admin-Email",
-              "type": "string"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -5819,6 +5411,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Upload Gmail Credentials",
         "tags": [
           "admin"
@@ -5924,6 +5521,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Badge Holders",
         "tags": [
           "badges"
@@ -5985,6 +5587,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Manually Check Achievements",
         "tags": [
           "badges"
@@ -6962,15 +6569,6 @@
               "title": "To",
               "type": "string"
             }
-          },
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "title": "X-Admin-Email",
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -6993,6 +6591,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Send Test Callout Email",
         "tags": [
           "callouts"
@@ -7550,24 +7153,6 @@
       "post": {
         "description": "Seed starter content for any franchise that has none. Admin-only,\nidempotent — teams a captain has already edited are left untouched.",
         "operationId": "seed_livsow_team_starters_data_livsow_teams_seed_starters_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -7578,18 +7163,13 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Seed Livsow Team Starters",
         "tags": [
           "data"
@@ -7600,24 +7180,6 @@
       "post": {
         "description": "Set each franchise's official crest as its logo. Admin-only. Upserts\nthe content row and touches only logo_url — captain motto/about/\nannouncement are preserved.",
         "operationId": "set_official_team_logos_data_livsow_teams_set_official_logos_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -7628,18 +7190,13 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Set Official Team Logos",
         "tags": [
           "data"
@@ -7913,22 +7470,6 @@
               "title": "Transaction Id",
               "type": "integer"
             }
-          },
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
           }
         ],
         "responses": {
@@ -7953,6 +7494,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Delete Livsow Transaction",
         "tags": [
           "data"
@@ -8189,24 +7735,6 @@
       "post": {
         "description": "Pull all rounds from Google Sheets and upsert into legacy_rounds table.\n\nSafe to run repeatedly — clears and repopulates the table each time.",
         "operationId": "sync_sheets_to_db_data_sync_sheets_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -8217,18 +7745,13 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Sync Sheets To Db",
         "tags": [
           "data"
@@ -10305,24 +9828,6 @@
       "get": {
         "description": "Admin setup helper: list the token owner's groups to find the group ID.",
         "operationId": "groupme_groups_groupme_groups_get",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -10333,18 +9838,13 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Groupme Groups",
         "tags": [
           "groupme"
@@ -10678,24 +10178,6 @@
       "post": {
         "description": "Add a name to the canonical roster (admin only).\n\nUse once the player is known to exist on the legacy tee-sheet dropdown.",
         "operationId": "admin_add_legacy_player_legacy_players_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -10726,6 +10208,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Admin Add Legacy Player",
         "tags": [
           "signups"
@@ -10748,22 +10235,6 @@
               "title": "Status",
               "type": "string"
             }
-          },
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
           }
         ],
         "responses": {
@@ -10786,6 +10257,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Admin List Pending Players",
         "tags": [
           "signups"
@@ -10805,22 +10281,6 @@
               "title": "Pending Id",
               "type": "integer"
             }
-          },
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
           }
         ],
         "responses": {
@@ -10843,6 +10303,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Admin Dismiss Pending Player",
         "tags": [
           "signups"
@@ -10862,22 +10327,6 @@
               "title": "Pending Id",
               "type": "integer"
             }
-          },
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
           }
         ],
         "responses": {
@@ -10900,6 +10349,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Admin Promote Pending Player",
         "tags": [
           "signups"
@@ -12110,7 +11564,7 @@
     },
     "/players/me": {
       "get": {
-        "description": "Get current authenticated user's profile.\n\nAdds two computed fields not stored on the row:\n- ``legacy_name_suggestion``: when the account has no confirmed legacy link,\n  a fuzzy roster match to *suggest* (never auto-persist) in onboarding (#322).\n- ``is_admin``: server-side ADMIN_EMAILS membership so the client doesn't\n  depend on a hardcoded allowlist that can drift (#316).",
+        "description": "Get current authenticated user's profile.\n\nAdds two computed fields not stored on the row:\n- ``legacy_name_suggestion``: when the account has no confirmed legacy link,\n  a fuzzy roster match to *suggest* (never auto-persist) in onboarding (#322).\n- authorization role: derived from the verified Auth0 login email claim\n  and the server-side super-admin allowlist (never the DB profile email).",
         "operationId": "get_my_profile_players_me_get",
         "responses": {
           "200": {
@@ -14960,24 +14414,6 @@
       "get": {
         "description": "Test that new deployments are working.",
         "operationId": "test_deployment_test_deployment_get",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-admin-email",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Email"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -14986,18 +14422,13 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Test Deployment",
         "tags": [
           "admin"

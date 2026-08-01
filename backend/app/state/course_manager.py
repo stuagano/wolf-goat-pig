@@ -156,6 +156,30 @@ class CourseManager:
             return []
         return [h.handicap for h in sorted(course.holes, key=lambda x: x.hole_number)]
 
+    def get_hole_info(self, hole_number: int) -> dict[str, Any]:
+        """Gets par, yardage and stroke index for one hole of the selected course.
+
+        Raises KeyError when the hole cannot be resolved, so callers fall back
+        explicitly instead of scoring the hole against invented values.
+        """
+        course = self.get_selected_course()
+        if not course:
+            raise KeyError(f"No course is loaded; cannot resolve hole {hole_number}")
+
+        hole = next((h for h in course.holes if h.hole_number == hole_number), None)
+        if hole is None:
+            raise KeyError(f"Hole {hole_number} is not part of course '{self.selected_course_name}'")
+
+        return {
+            "hole_number": hole.hole_number,
+            "par": hole.par,
+            "yards": hole.yards,
+            # The Hole.handicap column is the stroke index (1 = hardest).
+            "stroke_index": hole.handicap,
+            "handicap": hole.handicap,
+            "description": hole.description or "",
+        }
+
 
 # Singleton instance of the CourseManager
 _course_manager_instance = None

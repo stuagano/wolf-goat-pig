@@ -85,26 +85,28 @@ export const getStrokesForHole = (netHandicap, strokeIndex) => {
 };
 
 /**
- * Calculate net handicaps for all players relative to the lowest handicap player.
- * Converts handicap index → course handicap (USGA formula) before computing differences.
+ * Calculate net handicaps by subtracting the low player's from everyone's.
  *
- * @param {Array} players - Array of player objects with handicap property (handicap index)
- * @param {object} courseData - { rating, slope, par } defaults to Wing Point blacks
- * @returns {Object} - Map of playerId to net course handicap
+ * A player's handicap on a game is already the course handicap they play off.
+ * Running calculateCourseHandicap over it again inflates the spread a second
+ * time and hands out strokes the group never agreed to.
+ *
+ * @param {Array} players - Array of player objects with a course handicap
+ * @returns {Object} - Map of playerId to handicap relative to the low player
  */
-export const calculateNetHandicaps = (players, courseData = WING_POINT_BLACKS) => {
+export const calculateNetHandicaps = (players) => {
   if (!Array.isArray(players) || players.length === 0) return {};
 
-  const courseHandicaps = players.reduce((acc, player) => {
-    acc[player.id] = calculateCourseHandicap(player.handicap || 0, courseData);
+  const handicaps = players.reduce((acc, player) => {
+    acc[player.id] = player.handicap || 0;
     return acc;
   }, {});
 
-  const lowestCourseHandicap = Math.min(...Object.values(courseHandicaps));
+  const lowest = Math.min(...Object.values(handicaps));
 
   const netHandicaps = {};
-  Object.entries(courseHandicaps).forEach(([playerId, courseHC]) => {
-    netHandicaps[playerId] = Math.max(0, courseHC - lowestCourseHandicap);
+  Object.entries(handicaps).forEach(([playerId, handicap]) => {
+    netHandicaps[playerId] = Math.max(0, handicap - lowest);
   });
 
   return netHandicaps;
