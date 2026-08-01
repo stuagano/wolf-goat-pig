@@ -123,7 +123,7 @@ class ChatRequest(BaseModel):
 
 
 def _build_data_context(db: Session) -> str:
-    """Build leaderboard and player context from the Render DB only."""
+    """Build leaderboard and player context from the application database only."""
     from sqlalchemy import func
 
     from .. import models

@@ -1,7 +1,7 @@
 # Local Containers (Docker / Podman)
 
-Run the full stack locally in containers that mirror the Render (backend) and
-Vercel (frontend) deployments — useful for catching containerization issues
+Run the full stack locally in containers that approximate Cloud Run (backend)
+and Firebase Hosting (frontend) — useful for catching containerization issues
 before they reach production. Docker is the default; Podman works too (same
 compose file). For the cloud deploy itself, see [DEPLOYMENT.md](./DEPLOYMENT.md).
 
@@ -9,14 +9,13 @@ compose file). For the cloud deploy itself, see [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 | Service | URL | Mirrors |
 |---------|-----|---------|
-| Frontend | http://localhost:3000 | Vercel (nginx serving the production build) |
-| Backend API | http://localhost:8000 | Render (`render-startup.py`, health check `/ready`) |
+| Frontend | http://localhost:3000 | Firebase-style static production build |
+| Backend API | http://localhost:8000 | Cloud Run container (`render-startup.py`, `/ready`) |
 | API docs | http://localhost:8000/docs | — |
-| Database | localhost:5432 | Render managed PostgreSQL 15 |
+| Database | localhost:5432 | Cloud SQL PostgreSQL |
 
-The backend uses the same `render-startup.py` startup sequence and PostgreSQL setup
-as Render; the frontend builds with `npm run build` and is served by nginx, as on
-Vercel.
+The backend uses the production container startup sequence and PostgreSQL setup;
+the frontend builds with `npm run build` and is served by nginx.
 
 ## Quick start (Docker)
 
@@ -118,13 +117,13 @@ For Podman, substitute `./scripts/testing/podman-test.sh logs <service>` and
 
 ## Differences from cloud
 
-| Aspect | Local container | Render / Vercel |
+| Aspect | Local container | GCP production |
 |--------|-----------------|-----------------|
-| Database | Local PostgreSQL | Render managed PostgreSQL (same version) |
+| Database | Local PostgreSQL | Cloud SQL PostgreSQL |
 | SSL | HTTP | HTTPS (automatic) |
 | Scaling | Single container | Auto-scaling |
-| Env vars | `.env` / `.env.local` | Render + Vercel dashboards |
-| CDN | none | Vercel Edge Network |
+| Env vars | `.env` / `.env.local` | Cloud Run + Secret Manager / GitHub Actions |
+| CDN | none | Firebase Hosting CDN |
 
 Auth0 uses the real production tenant in both, and external APIs work locally only
 if their keys are present in your env file.

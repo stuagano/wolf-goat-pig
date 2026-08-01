@@ -47,8 +47,7 @@ async function testGoogleSheetsLiveSync() {
     const possibleUrls = [
       'http://localhost:3001',
       'http://localhost:3000',
-      'https://wolf-goat-pig.vercel.app', // common deployment URL pattern
-      'https://wgp-app.netlify.app' // another common pattern
+      'https://seventh-country-232522.web.app'
     ];
     
     let currentUrl = null;

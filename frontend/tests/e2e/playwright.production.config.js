@@ -14,7 +14,7 @@ export default defineConfig({
   workers: 1,
 
   use: {
-    baseURL: process.env.FRONTEND_URL || 'https://wolf-goat-pig.vercel.app',
+    baseURL: process.env.FRONTEND_URL || 'https://seventh-country-232522.web.app',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     trace: 'retain-on-failure',

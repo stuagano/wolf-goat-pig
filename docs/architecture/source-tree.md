@@ -9,14 +9,13 @@ For deeper detail, browse the directories directly or see
 
 ```
 wolf-goat-pig/
-├── api/                  # Vercel serverless functions (e.g. gemini-proxy.js)
 ├── backend/              # FastAPI backend application
-├── booking-service/      # Standalone Node tee-sheet booking service
+├── booking-agent/        # Gemini Computer Use booking service
+├── deploy/gcp/           # GCP infrastructure and deployment scripts
 ├── frontend/             # React + Vite frontend application
 ├── docs/                 # Project documentation
 ├── scripts/              # Deployment, development, diagnostics, testing scripts
-├── render.yaml           # Render deployment (backend + booking-service)
-├── vercel.json           # Vercel deployment (frontend)
+├── firebase.json         # Firebase Hosting configuration
 ├── docker-compose.yml    # Local container stack
 ├── capabilities.yaml     # Capability manifest (caps tooling)
 ├── package.json          # Root scripts that delegate into frontend/backend
@@ -48,7 +47,7 @@ backend/
 │   └── data/            # Seed data (legacy players, course data)
 ├── migrations/          # `*_postgres.sql` files applied at startup
 ├── tests/               # Test suite (see below)
-├── render-startup.py    # Render entrypoint (runs migrations, then uvicorn)
+├── render-startup.py    # Container entrypoint (runs migrations, then uvicorn)
 ├── requirements.txt     # Python dependencies
 └── venv/                # Virtual environment (local; not committed)
 ```
@@ -109,26 +108,26 @@ docs/
 ├── guides/              # Developer/operator guides
 ├── features/            # Feature specs and rules
 ├── product/             # Product context
-├── observability/       # GCP uptime / Logging / legacy Render notes
+├── observability/       # GCP uptime and Cloud Logging notes
 ├── development/         # Contributor + automation docs
 └── README.md            # Documentation index
 ```
 
 ## Environment Variables
 
-### Backend (.env / Render dashboard)
+### Backend (.env / Cloud Run)
 ```
 DATABASE_URL=postgresql://...
 ENVIRONMENT=development|production
 FRONTEND_URL=http://localhost:3000
 ```
 
-### Frontend (.env.local / Vercel dashboard)
+### Frontend (.env.local / Firebase build)
 ```
 VITE_API_URL=http://localhost:8000   # empty locally → uses vite.config.js proxy
 VITE_AUTH0_DOMAIN=...
 VITE_AUTH0_CLIENT_ID=...
-VITE_AUTH0_AUDIENCE=https://wolf-goat-pig.onrender.com
+VITE_AUTH0_AUDIENCE=https://wolf-goat-pig.onrender.com  # stable Auth0 identifier, not a live endpoint
 ```
 
 See `frontend/.env.example` for the full, authoritative list.
@@ -137,7 +136,7 @@ See `frontend/.env.example` for the full, authoritative list.
 
 ### Backend Entry
 - **File**: `backend/app/main.py`
-- **Render start**: `python render-startup.py` (applies migrations, then serves)
+- **Container start**: `python render-startup.py` (applies migrations, then serves)
 - **Local start**: `uvicorn app.main:app`
 
 ### Frontend Entry
@@ -168,16 +167,16 @@ files, run with Vitest.
 ## Deployment Artifacts
 
 ### Backend Deployment
-- Render reads from root `render.yaml` (`rootDir: backend`).
+- Cloud Run builds `backend/Dockerfile` through `deploy/gcp/cloudbuild.yaml`.
 - Migrations run at startup via `render-startup.py` → `app/migrations_runner.py`.
 
 ### Frontend Deployment
-- Vercel reads from root `vercel.json` (builds `frontend/` with Vite).
+- Firebase Hosting reads root `firebase.json`.
 - Output directory: `frontend/build`, served as a static SPA with CDN.
 
 ### Booking Service
-- Separate Render service (`rootDir: booking-service`, `node server.js`).
+- Cloud Run service `wgp-booking` builds from `booking-agent/`.
 
 ---
 
-*Reflects the repository structure as of 2026-06-17.*
+*Reflects the repository structure as of 2026-07-31.*

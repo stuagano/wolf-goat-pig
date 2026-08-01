@@ -55,7 +55,7 @@ asking the host admin to paste it near the top of the page):
     continue to sync with the classic tee sheet everyone knows.
   </p>
   <a
-    href="https://wolf-goat-pig.vercel.app/signup"
+    href="https://seventh-country-232522.web.app/signup"
     style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.6rem 1.2rem;background:#047857;color:#fff;font-weight:600;border-radius:0.5rem;text-decoration:none"
   >
     🚀 Try the new sign-up experience

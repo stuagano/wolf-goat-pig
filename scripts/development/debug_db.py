@@ -27,12 +27,6 @@ def debug_database_connection():
             print(f"👤 Username: {parsed.username}")
             print(f"🔑 Password: {'Set' if parsed.password else 'Not set'}")
             
-            # Check if it's a Render-style URL
-            if "render.com" in database_url or "dpg-" in database_url:
-                print("✅ This appears to be a Render database URL")
-            else:
-                print("⚠️ This doesn't look like a Render database URL")
-                
         except Exception as e:
             print(f"❌ Error parsing DATABASE_URL: {e}")
     else:
@@ -62,14 +56,14 @@ def debug_database_connection():
         if "could not translate host name" in str(e):
             print("\n💡 **SOLUTION**: This is a DNS resolution issue.")
             print("   - Your database service might be down or restarting")
-            print("   - Check your Render dashboard for database service status")
+            print("   - Check Cloud SQL instance and connector status")
             print("   - The database URL might have changed")
-            print("   - Try redeploying your database service")
+            print("   - Verify the DATABASE_URL secret version")
             
         elif "connection refused" in str(e):
             print("\n💡 **SOLUTION**: Database service is not accepting connections.")
             print("   - Database might be starting up")
-            print("   - Check if database service is running in Render")
+            print("   - Check if the Cloud SQL instance is running")
             
         elif "authentication failed" in str(e):
             print("\n💡 **SOLUTION**: Authentication credentials are incorrect.")
@@ -78,14 +72,14 @@ def debug_database_connection():
             
         else:
             print(f"\n💡 **GENERIC ERROR**: {type(e).__name__}")
-            print("   - Check your Render service logs")
+            print("   - Check your Cloud Run service logs")
             print("   - Verify database service is running")
     
     print(f"\n🎯 **NEXT STEPS**:")
-    print("1. Check your Render dashboard for database service status")
+    print("1. Check Cloud SQL instance status")
     print("2. Verify the DATABASE_URL in your service environment variables")
-    print("3. Try redeploying your database service")
-    print("4. Check the render.yaml configuration")
+    print("3. Check the Cloud SQL connector and networking")
+    print("4. Verify the Cloud Run DATABASE_URL secret mapping")
 
 if __name__ == "__main__":
     debug_database_connection() 

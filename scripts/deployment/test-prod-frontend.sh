@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Test production-like frontend deployment locally
-# Simulates Vercel deployment environment
+# Exercises the same static build served by Firebase Hosting
 
 set -e
 
@@ -26,7 +26,7 @@ if [ ! -f "frontend/.env.production" ]; then
     echo -e "${YELLOW}Creating frontend/.env.production...${NC}"
     cat > frontend/.env.production << EOF
 # Production Frontend Environment
-REACT_APP_API_URL=https://your-backend-url.onrender.com
+VITE_API_URL=https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app
 NODE_ENV=production
 GENERATE_SOURCEMAP=false
 EOF
@@ -48,7 +48,7 @@ set +a
 cd frontend
 
 echo -e "\n${GREEN}1. Installing dependencies...${NC}"
-npm ci  # Use ci for reproducible builds like Vercel
+npm ci --legacy-peer-deps --no-audit
 
 echo -e "\n${GREEN}2. Running production build...${NC}"
 npm run build
@@ -86,12 +86,12 @@ else
     echo "  CSS files: $(find build/static/css -name "*.css" 2>/dev/null | wc -l)"
 fi
 
-# Check for environment variables in build
+# Check for the configured API URL in the build
 echo -e "\n${BLUE}Checking environment configuration...${NC}"
-if grep -q "REACT_APP_API_URL" build/static/js/*.js 2>/dev/null; then
-    echo -e "${YELLOW}⚠ Found REACT_APP_API_URL in build (this is expected)${NC}"
-    FOUND_URL=$(grep -oh 'https://[^"]*onrender.com' build/static/js/*.js 2>/dev/null | head -1 || echo "Not found")
-    echo "  Configured API URL: $FOUND_URL"
+if grep -Rqs "${VITE_API_URL}" build; then
+    echo -e "${GREEN}✓ Configured API URL found in build${NC}"
+else
+    echo -e "${YELLOW}⚠ Configured API URL not found in build output${NC}"
 fi
 
 echo -e "\n${GREEN}4. Starting local production server...${NC}"
@@ -109,7 +109,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo -e "\n${GREEN}Server starting at http://localhost:3000${NC}"
-echo -e "${YELLOW}This simulates Vercel's static hosting${NC}"
+echo -e "${YELLOW}This simulates Firebase's static hosting${NC}"
 
 npx serve -s build -l 3000 >"$SERVE_LOG" 2>&1 &
 SERVE_PID=$!

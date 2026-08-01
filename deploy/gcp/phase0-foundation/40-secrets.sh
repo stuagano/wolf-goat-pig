@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Phase 0 — create Secret Manager secrets and grant the runtime SA read access.
 #
-# These mirror the `sync: false` (dashboard-managed) env vars in render.yaml —
-# the values that must NEVER be committed. This script creates the *containers*
+# These runtime values must NEVER be committed. This script creates the *containers*
 # and IAM; it does not put real values in git. Add each value as a version with:
 #
 #   printf '%s' "the-value" | gcloud --project=PROJECT secrets versions add NAME --data-file=-

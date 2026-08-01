@@ -13,7 +13,7 @@ import { test, expect } from '@playwright/test';
  * Or with custom URL: FRONTEND_URL=https://staging.example.com npx playwright test ...
  */
 
-const BACKEND_URL = process.env.BACKEND_URL || 'https://wolf-goat-pig.onrender.com';
+const BACKEND_URL = process.env.BACKEND_URL || 'https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app';
 
 test.describe('Production Deployment Verification', () => {
 
@@ -163,7 +163,7 @@ test.describe('Production Backend Connectivity', () => {
   });
 
   test('CORS allows frontend origin', async ({ request }) => {
-    const frontendUrl = process.env.FRONTEND_URL || 'https://wolf-goat-pig.vercel.app';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://seventh-country-232522.web.app';
 
     const response = await request.fetch(`${BACKEND_URL}/health`, {
       method: 'OPTIONS',

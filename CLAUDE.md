@@ -30,7 +30,7 @@ cd frontend && npm run typecheck
 
 ## Definition of done — REQUIRED before every push
 
-Pushing to main auto-deploys (Vercel + Render). The local gate must mirror CI
+Pushing to main auto-deploys to GCP when `GCP_AUTO_DEPLOY=true`. The local gate must mirror CI
 **exactly** — a subset is not a gate. Run ALL of these and check real exit
 codes (don't pipe away failures):
 

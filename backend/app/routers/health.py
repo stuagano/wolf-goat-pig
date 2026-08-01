@@ -227,10 +227,10 @@ def health_check() -> dict[str, Any]:
 
 
 @router.api_route("/healthz", methods=["GET", "HEAD"], include_in_schema=False)
-def health_check_render_alias():
-    """Simplified health endpoint for Render monitoring."""
+def health_check_compat_alias():
+    """Simplified compatibility health endpoint."""
     try:
-        # Reuse the comprehensive health check; Render only needs 200/503.
+        # Reuse the comprehensive health check and preserve its 200/503 signal.
         health_check()
         return {"status": "ok"}
     except HTTPException as exc:
@@ -241,7 +241,7 @@ def health_check_render_alias():
 @router.api_route("/ready", methods=["GET", "HEAD"], include_in_schema=False)
 def readiness_check():
     """
-    Lightweight readiness probe for Render/K8s.
+    Lightweight container readiness probe.
     Only checks if the app is running, not comprehensive system health.
     Use /health for detailed health checks.
     """

@@ -17,7 +17,10 @@ from typing import Dict, List, Tuple, Optional
 
 # Configuration sourced from environment when available
 LOCAL_API = os.getenv("WGP_API_BASE", "http://localhost:8000")
-PRODUCTION_API = os.getenv("WGP_PROD_API_BASE", "https://wolf-goat-pig.onrender.com")
+PRODUCTION_API = os.getenv(
+    "WGP_PROD_API_BASE",
+    "https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app",
+)
 
 # Use production by default, or local if specified
 API_BASE_URL = LOCAL_API if "--local" in sys.argv else PRODUCTION_API

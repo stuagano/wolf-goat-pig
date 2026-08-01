@@ -35,8 +35,6 @@
     "lint": "eslint src/**/*.{js,jsx}",
     "typecheck": "tsc --noEmit",
     "gen:api": "openapi-typescript ../backend/openapi.json -o src/api/schema.d.ts",
-    "prevercel-build": "node scripts/update-sw-version.cjs",
-    "vercel-build": "vite build",
     "lint:deploy": "node scripts/lint-frontend-deploy.js"
   },
   "devDependencies": {

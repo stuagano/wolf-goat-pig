@@ -1,12 +1,11 @@
 # Production cutover — GCP is primary
 
-**As of 2026-07-26:** Firebase Hosting + Cloud Run + Cloud SQL are **production**.
-Vercel + Render are being frozen / decommissioned.
+**As of 2026-07-31:** Firebase Hosting + Cloud Run + Cloud SQL are production.
+All Render services and Render Postgres have been deleted; Vercel is paused.
 
 | Role | Frontend | API | DB |
 |---|---|---|---|
 | **Production** | Firebase Hosting | Cloud Run | Cloud SQL (`db-f1-micro`) |
-| Rollback only (warm) | Vercel (paused) | Render web (suspended) | Render Postgres (keep ~7 days) |
 
 **Production URLs**
 
@@ -21,7 +20,6 @@ Vercel + Render are being frozen / decommissioned.
 - [x] Cloud Scheduler jobs enabled
 - [x] Avatars on GCS (`wgp-media-seventh-country-232522`)
 - [ ] Remove Vercel URLs from Auth0 (Firebase + localhost only)
-- [x] Suspend Render web services `wolf-goat-pig` + `wolf-goat-pig-api` (2026-07-27; Postgres kept warm; booking left running)
 - [x] Pause / archive Vercel project (paused 2026-07-27 via Pause Vercel workflow)
 - [x] Remove legacy `.github/workflows/deploy.yml` (Render/Vercel deploy hook) — GCP only (2026-07-29)
 - [x] Deploy Computer Use booking agent (`wgp-booking`) and flip `BOOKING_SERVICE_URL` (2026-07-28)
@@ -46,46 +44,12 @@ Optionally set **Application Login URI** to `https://seventh-country-232522.web.
 
 Remove all `*.vercel.app` entries.
 
-## Suspend Render (dashboard or CLI)
+## Remaining manual cleanup
 
-1. https://dashboard.render.com → `wolf-goat-pig` web service → **Suspend**
-2. Leave the Postgres instance running for ~7 days
-3. Booking microservice (`wolf-goat-pig-booking`) — **no longer needed for prod**
-   (API `BOOKING_SERVICE_URL` → `wgp-booking` on Cloud Run). Suspend after a
-   successful book+cancel soak on the Computer Use agent.
-
-```bash
-render login
-render services list
-# then suspend the API web service in the dashboard (CLI suspend varies by plan)
-```
-
-## Pause Vercel
-
-```bash
-vercel login
-vercel project ls
-# Dashboard: Project → Settings → Advanced → Pause / Delete
-# Or: leave project but remove production domain traffic
-```
+1. Remove all `*.vercel.app` entries from Auth0.
+2. Delete the paused Vercel project when no longer needed as a historical shell.
 
 Production bookmark: **https://seventh-country-232522.web.app** only.
 
-## Rollback (only while Render Postgres still exists)
-
-```bash
-printf '%s' "$(gcloud secrets versions access latest --secret=RENDER_DATABASE_URL)" \
-  | gcloud secrets versions add DATABASE_URL --data-file=-
-gcloud run services update wolf-goat-pig-api --region=us-central1 \
-  --update-secrets=DATABASE_URL=DATABASE_URL:latest
-```
-
-Also re-enable the Render web service and unpause Vercel if you need the old SPA.
-
-## After 7 days — delete Render Postgres
-
-Only when you are sure you will not roll back:
-
-1. Dashboard → Postgres → Delete
-2. `gcloud secrets delete RENDER_DATABASE_URL --project=seventh-country-232522`
-3. Remove any remaining Render URLs from docs / Auth0 / env examples
+There is no live Render rollback path. Recovery now uses Cloud SQL backups and
+Cloud Run revision rollback.

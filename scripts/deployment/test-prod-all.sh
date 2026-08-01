@@ -53,8 +53,8 @@ fi
 echo -e "\n${BLUE}Select testing mode:${NC}"
 echo "1) Quick test (Backend + Frontend separately)"
 echo "2) Full Docker production test"
-echo "3) Backend only (Render simulation)"
-echo "4) Frontend only (Vercel simulation)"
+echo "3) Backend container only (Cloud Run parity)"
+echo "4) Frontend static build only (Firebase parity)"
 echo "5) Verification only (test existing services)"
 echo "6) All tests (comprehensive)"
 
@@ -78,7 +78,8 @@ case $choice in
 
         # Run verification
         echo -e "${BLUE}Running verification tests...${NC}"
-        python scripts/deployment/verify-deployments.py
+        BACKEND_URL=http://localhost:8000 FRONTEND_URL=http://localhost:3000 \
+            ./scripts/deployment/verify-deployment.sh
 
         # Cleanup
         kill $BACKEND_PID $FRONTEND_PID 2>/dev/null || true
@@ -112,7 +113,8 @@ case $choice in
 
         # Run verification
         echo -e "${BLUE}Running verification tests...${NC}"
-        python scripts/deployment/verify-deployments.py
+        BACKEND_URL=http://localhost:8000 FRONTEND_URL=http://localhost:3000 \
+            ./scripts/deployment/verify-deployment.sh
 
         # Show logs
         echo -e "\n${BLUE}Container logs:${NC}"
@@ -145,9 +147,8 @@ case $choice in
         read -p "Frontend URL [http://localhost:3000]: " FRONTEND_URL
         FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
 
-        python scripts/deployment/verify-deployments.py \
-            --backend "$BACKEND_URL" \
-            --frontend "$FRONTEND_URL"
+        BACKEND_URL="$BACKEND_URL" FRONTEND_URL="$FRONTEND_URL" \
+            ./scripts/deployment/verify-deployment.sh
         ;;
 
     6)
@@ -170,7 +171,8 @@ case $choice in
             fi
             docker-compose -f "$COMPOSE_FILE" up --build -d
             sleep 20
-            python scripts/deployment/verify-deployments.py
+            BACKEND_URL=http://localhost:8000 FRONTEND_URL=http://localhost:3000 \
+                ./scripts/deployment/verify-deployment.sh
             docker-compose -f "$COMPOSE_FILE" down
         else
             echo -e "\n${YELLOW}Test 3/4: Docker test skipped (Docker not installed)${NC}"

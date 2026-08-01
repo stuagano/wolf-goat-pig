@@ -1,44 +1,29 @@
 /**
- * Smart API Configuration with Runtime Detection
- *
- * Handles multiple deployment scenarios:
- * - Local development (localhost:8000)
- * - Local production testing (Podman/Docker)
- * - Vercel production (Render backend)
+ * API configuration for local development and Firebase Hosting → Cloud Run.
  *
  * Priority:
- * 1. VITE_API_URL environment variable (set in Vercel dashboard)
- * 2. Runtime detection from window.location
- * 3. Default fallback URLs
+ * 1. VITE_API_URL build-time override (preferred for previews/production builds)
+ * 2. localhost → local backend
+ * 3. Cloud Run production fallback
  */
 
 /**
  * Detect the appropriate API URL based on environment
  */
 function detectApiUrl() {
-  // 1. Check build-time environment variable (preferred)
   const envApiUrl = import.meta.env.VITE_API_URL;
   if (envApiUrl && envApiUrl.trim() !== '') {
     return envApiUrl.trim();
   }
 
-  // 2. Runtime detection based on hostname
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-
-    // Local development
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       return 'http://localhost:8000';
     }
-
-    // Vercel production
-    if (hostname.includes('vercel.app')) {
-      return 'https://wolf-goat-pig.onrender.com';
-    }
   }
 
-  // 3. Final fallback - assume production
-  return 'https://wolf-goat-pig.onrender.com';
+  return 'https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app';
 }
 
 /**
@@ -54,6 +39,18 @@ function validateApiUrl(url) {
   } catch {
     return false;
   }
+}
+
+/**
+ * Detect deployment platform from the browser hostname.
+ */
+function detectPlatform() {
+  if (typeof window === 'undefined') return 'local';
+  const host = window.location.hostname;
+  if (host.endsWith('.web.app') || host.endsWith('.firebaseapp.com')) {
+    return 'firebase';
+  }
+  return 'local';
 }
 
 // Detect and validate API URL
@@ -76,10 +73,7 @@ export const apiConfig = {
   isDevelopment: API_URL.includes('localhost'),
   isProduction: !API_URL.includes('localhost'),
 
-  // Deployment platform
-  platform: typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')
-    ? 'vercel'
-    : 'local',
+  platform: detectPlatform(),
 };
 
 export default apiConfig;

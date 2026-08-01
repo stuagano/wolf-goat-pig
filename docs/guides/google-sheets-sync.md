@@ -85,7 +85,7 @@ Expected leaderboard shape:
 }
 ```
 
-In the Render logs, a successful sync looks like:
+In Cloud Run logs, a successful sync looks like:
 `Sheet sync completed: {'players_processed': 10, 'players_created': 0, 'players_updated': 10}`.
 
 ## Using the sync from the frontend
@@ -183,10 +183,10 @@ Script *Triggers* panel (e.g. every 6 hours).
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| Backend not responding | Render free-tier cold start | Wait ~15s and retry |
+| Backend not responding | Cloud Run cold start or revision failure | Check Cloud Run status and logs |
 | Empty leaderboard | No sync has run | Trigger a manual sync (admin UI / API) |
 | "Rate limit exceeded" | One sync/hour on public endpoint | Send `X-Scheduled-Job: true`, or wait |
-| CORS error in console | Wrong `VITE_API_URL` | Fix in Vercel dashboard and redeploy |
+| CORS error in console | Wrong `VITE_API_URL` | Fix the GitHub Actions variable and redeploy Firebase |
 | Some players skipped | Summary rows / non-numeric scores / stray spaces | Clean the sheet data |
 | "Invalid Google Sheets URL" | Wrong URL form | Use `.../d/SHEET_ID/edit` (full `https://`) |
 
@@ -198,7 +198,7 @@ Verify the sheet's CSV export is reachable (incognito):
 ```
 backend/app/routers/sheet_integration.py            ← API endpoints
 backend/app/services/sheet_integration_service.py   ← CSV parse + transform
-backend/app/services/email_scheduler.py             ← in-process scheduler (unreliable on Render)
+backend/app/services/email_scheduler.py             ← job implementations invoked by Cloud Scheduler
 frontend/src/context/SheetSyncContext.js            ← sync state
 frontend/src/components/GoogleSheetsLiveSync.js     ← sync UI
 frontend/src/components/Leaderboard.js              ← display

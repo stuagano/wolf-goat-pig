@@ -14,7 +14,7 @@ Wolf Goat Pig is built with modern, production-ready technologies chosen for rel
 
 ### Database
 - **SQLAlchemy** (v2.0.30+) - ORM for database operations
-- **PostgreSQL** - Production database (Render)
+- **PostgreSQL 17 on Cloud SQL** - Production database
 - **SQLite** - Local development database
 
 ### Python Dependencies
@@ -48,19 +48,22 @@ Wolf Goat Pig is built with modern, production-ready technologies chosen for rel
 ## Infrastructure
 
 ### Hosting
-- **Render** - Backend hosting (Free tier with cold start handling)
-  - PostgreSQL database
-  - Auto-deploy from GitHub
-  - Health monitoring
-  
-- **Vercel** - Frontend hosting
-  - Edge network CDN
+- **Cloud Run** - FastAPI backend and Computer Use booking agent
+  - Container-based autoscaling
+  - Cloud SQL connectivity
+  - Cloud Monitoring health checks
+
+- **Firebase Hosting** - Frontend hosting
+  - Global CDN
   - Automatic HTTPS
-  - Preview deployments
+
+- **Cloud SQL** - Managed PostgreSQL
+- **Cloud Scheduler** - Periodic backend jobs
+- **Cloud Storage** - Avatar media
 
 ### CI/CD
 - **GitHub Actions** - Automated workflows
-  - Issue-triggered Claude sessions
+  - GCP deployments via Workload Identity Federation
   - Deployment validation
   - Test automation
 
@@ -101,12 +104,12 @@ Wolf Goat Pig is built with modern, production-ready technologies chosen for rel
 
 ### Health Checks
 - Backend: `/health` endpoint
-- Frontend: Cold start detection
+- Frontend: Firebase Hosting uptime check
 - Database: Connection validation
 
 ### Performance
 - Response time targets: <200ms API, <2s page load
-- Cold start handling: Graceful UX during warmup
+- Cold start handling: Graceful UX during Cloud Run warmup
 - Scalability: 100+ concurrent games
 
 ## Development Environment
@@ -152,4 +155,4 @@ Wolf Goat Pig is built with modern, production-ready technologies chosen for rel
 
 ---
 
-*Last Updated: 2025-08-18*
+*Last Updated: 2026-07-31*

@@ -184,12 +184,11 @@ jobs:
       - name: Build SPA
         working-directory: frontend
         env:
-          # Cross-origin to Cloud Run (backend CORS honors FRONTEND_URL), mirroring
-          # today's Vercel→Render setup. See phase3-hosting/README.md for the
-          # same-origin /api rewrite alternative.
+          # Cross-origin to Cloud Run; backend CORS honors FRONTEND_URL.
           VITE_API_URL: ${{ vars.VITE_API_URL }}
           VITE_AUTH0_DOMAIN: "dev-jm88n088hpt7oe48.us.auth0.com"
           VITE_AUTH0_CLIENT_ID: "qAZuRv5E9mPQ9uTGg7NWpkpfVj8bCeoB"
+          # Stable Auth0 API identifier; this is not a live Render endpoint.
           VITE_AUTH0_AUDIENCE: "https://wolf-goat-pig.onrender.com"
           VITE_DEPLOY_PLATFORM: "firebase"
           CI: "false"

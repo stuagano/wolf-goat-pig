@@ -4,7 +4,7 @@
 # =============================================================================
 # Build Stage
 # =============================================================================
-# Use Python 3.12.8 to match Render deployment (render.yaml specifies PYTHON_VERSION: 3.12.8)
+# Pin the Python runtime used by Cloud Run.
 FROM python:3.12-slim as builder
 
 # Install build dependencies
@@ -31,21 +31,14 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # =============================================================================
 # Production Stage
 # =============================================================================
-# Use Python 3.12 to match Render deployment
+# Production Python runtime
 FROM python:3.12-slim as production
 
-# Install runtime dependencies + Node.js for Playwright browser booking.
-# Use the official Node tarball — Debian's `nodejs` package no longer ships
-# `npm`, and the NodeSource apt setup has been flaky on python:*-slim images.
-ARG NODE_VERSION=22.14.0
+# Install runtime dependencies.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
     ca-certificates \
-    xz-utils \
-    && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
-      | tar -xJ -C /usr/local --strip-components=1 \
-    && node -v && npm -v \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -59,23 +52,16 @@ WORKDIR /app
 COPY --from=builder /venv /venv
 ENV PATH="/venv/bin:$PATH"
 
-# Install Playwright + Chromium headless shell
-COPY package.json package-lock.json ./
-ENV PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers
-RUN npm ci --omit=dev \
-    && npx playwright install --with-deps --only-shell chromium \
-    && chmod -R 755 /opt/pw-browsers
-
 # Copy application code
 COPY --chown=wgp:wgp . .
 
 # Ensure startup scripts are executable
 RUN chmod +x startup.py render-startup.py
 
-# Create data directory (matches Render disk mount path)
-RUN mkdir -p /opt/render/project/src/data logs && chown -R wgp:wgp /opt/render/project/src/data logs
+# Create runtime log directory
+RUN mkdir -p logs && chown -R wgp:wgp logs
 
-# Health check (matches Render health check path: /ready)
+# Container health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8000}/ready || exit 1
 
@@ -92,7 +78,7 @@ ENV PYTHONPATH=/app \
 # Expose port
 EXPOSE 8000
 
-# Use render-startup.py to match Render deployment exactly
+# Apply migrations, then start uvicorn.
 CMD ["python", "render-startup.py"]
 
 # =============================================================================

@@ -16,8 +16,8 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Default URLs
-BACKEND_URL="${BACKEND_URL:-https://wolf-goat-pig.onrender.com}"
-FRONTEND_URL="${FRONTEND_URL:-https://wolf-goat-pig.vercel.app}"
+BACKEND_URL="${BACKEND_URL:-https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app}"
+FRONTEND_URL="${FRONTEND_URL:-https://seventh-country-232522.web.app}"
 
 # Function to check HTTP endpoint
 check_endpoint() {
@@ -135,10 +135,10 @@ else
     echo -e "${RED}❌ $TOTAL_FAILURES check(s) failed${NC}"
     echo ""
     echo "Troubleshooting:"
-    echo "  1. Verify backend is deployed on Render: $BACKEND_URL"
-    echo "  2. Verify frontend is deployed on Vercel: $FRONTEND_URL"
-    echo "  3. Check Vercel environment variables (REACT_APP_API_URL)"
-    echo "  4. Check Render environment variables (FRONTEND_URL)"
+    echo "  1. Verify the Cloud Run backend: $BACKEND_URL"
+    echo "  2. Verify Firebase Hosting: $FRONTEND_URL"
+    echo "  3. Check the VITE_API_URL GitHub Actions variable"
+    echo "  4. Check Cloud Run FRONTEND_URL configuration"
     echo "  5. Check CORS configuration in backend/app/main.py"
     echo ""
     exit 1

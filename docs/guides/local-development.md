@@ -116,10 +116,10 @@ Git hooks will run automatically when you push:
 
 2. **Test production builds locally**:
    ```bash
-   # Test backend (Render-like)
+   # Test backend production container
    ./scripts/deployment/test-prod-backend.sh
 
-   # Test frontend (Vercel-like)
+   # Test frontend static production build
    ./scripts/deployment/test-prod-frontend.sh
 
    # Test both interactively
@@ -128,7 +128,7 @@ Git hooks will run automatically when you push:
 
 3. **Verify deployment health**:
    ```bash
-   python scripts/deployment/verify-deployments.py
+   ./scripts/deployment/verify-deployment.sh
    ```
 
 4. **Full production simulation with Docker**:
@@ -137,7 +137,7 @@ Git hooks will run automatically when you push:
    ```
 
 5. Commit and push to GitHub
-6. Deployment happens automatically on Render/Vercel
+6. Deployment runs through the GCP GitHub Actions workflow
 
 ## Current Status
 

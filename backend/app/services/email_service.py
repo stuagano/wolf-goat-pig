@@ -435,7 +435,7 @@ class EmailService:
         except ValueError:
             formatted_date = game_date
 
-        app_base_url = os.getenv("APP_BASE_URL", "https://wolf-goat-pig.vercel.app").rstrip("/")
+        app_base_url = os.getenv("APP_BASE_URL", "https://seventh-country-232522.web.app").rstrip("/")
         signup_url = f"{app_base_url}/signup"
 
         player_word = "player" if needed == 1 else "players"

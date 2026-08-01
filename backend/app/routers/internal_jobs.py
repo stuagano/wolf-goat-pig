@@ -9,9 +9,8 @@ Security: the Cloud Run service is deployed ``--allow-unauthenticated``, so thes
 endpoints are guarded at the application layer by a shared secret,
 ``INTERNAL_JOB_TOKEN`` (supplied as the ``X-Internal-Job-Token`` header or a
 ``?token=`` query param — Cloud Scheduler sends the header). **Fail-closed:** when
-the env var is unset (e.g. today on Render, where the in-process thread runs
-instead) every request is rejected, so the endpoints can never be triggered
-anonymously.
+the env var is unset every request is rejected, so the endpoints can never be
+triggered anonymously.
 """
 
 import logging

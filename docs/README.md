@@ -9,10 +9,9 @@ Day-to-day engineering workflow, deployment, and troubleshooting:
 
 - [Local development](./guides/local-development.md) - Getting started locally
 - [Developer quick start](./guides/DEVELOPER_QUICK_START.md) - Fast orientation for contributors
-- [Deployment](./guides/DEPLOYMENT.md) - Deploy process for Render + Vercel
+- [Deployment](./guides/DEPLOYMENT.md) - GCP deployment and rollback
 - [Deployment troubleshooting](./guides/deployment-troubleshooting.md) - Common deploy issues and fixes
 - [Docker setup](./guides/DOCKER-SETUP.md) - Local production-parity container stack
-- [Vercel configuration](./guides/VERCEL_CONFIG.md) - Vercel build/config notes
 - [Resilience guide](./guides/RESILIENCE_GUIDE.md) - Fault tolerance and recovery
 - [BDD workflow](./guides/bdd-workflow.md) - Behave end-to-end testing
 - [Validator usage](./guides/VALIDATOR_USAGE_GUIDE.md) - Game-state validators
@@ -63,7 +62,6 @@ Feature specifications and game rules:
 
 - [Observability (GCP)](./observability/sentry-setup.md) - Cloud Monitoring + Logging (no Sentry)
 - [Uptime monitoring](./observability/uptime-setup.md) - Synthetic monitoring
-- [Render blueprint](./observability/render-blueprint.md) - Infrastructure as code (legacy)
 
 ## Development & automation
 

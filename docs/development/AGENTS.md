@@ -27,13 +27,13 @@ Before requesting review, validate your work locally:
 4. Document any skipped checks (with justification) in your PR summary.
 
 ## Deployment Testing
-Before deploying to production (Render/Vercel):
+Before deploying to production on GCP:
 1. **Run deployment checklist**: `.husky/deployment-checklist` - comprehensive pre-deployment validation
 2. **Test production builds locally**:
-   - Backend (Render-like): `./scripts/deployment/test-prod-backend.sh`
-   - Frontend (Vercel-like): `./scripts/deployment/test-prod-frontend.sh`
+   - Backend container: `./scripts/deployment/test-prod-backend.sh`
+   - Frontend static build: `./scripts/deployment/test-prod-frontend.sh`
    - Full stack: `./scripts/deployment/test-prod-all.sh` (interactive menu)
-3. **Verify deployment health**: `python scripts/deployment/verify-deployments.py`
+3. **Verify deployment health**: `./scripts/deployment/verify-deployment.sh`
 4. **Docker production simulation**: `docker-compose -f docker-compose.prod.yml up`
 
 Git hooks are configured to run automatic checks:

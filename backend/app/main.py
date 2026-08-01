@@ -134,8 +134,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     # In-process schedulers assume a single long-lived process. On Cloud Run
     # (autoscaled, many instances) set RUN_INPROCESS_SCHEDULERS=false and let
-    # Cloud Scheduler drive /internal/jobs/* instead (Phase 4). Default true keeps
-    # Render behavior unchanged.
+    # Cloud Scheduler drive /internal/jobs/* instead (Phase 4). Default true
+    # preserves local and test behavior.
     run_inprocess_schedulers = os.getenv("RUN_INPROCESS_SCHEDULERS", "true").lower() == "true"
 
     # Initialize email scheduler if enabled
@@ -219,27 +219,11 @@ from .utils.admin_auth import require_admin
 
 # Database initialization moved to main startup handler
 
-# Trusted host middleware for security
-# Temporarily disable TrustedHostMiddleware during development/testing for easier debugging
-# if os.getenv("ENVIRONMENT") != "development":
-#     app.add_middleware(
-#         TrustedHostMiddleware,
-#         allowed_hosts=[
-#             "localhost",
-#             "127.0.0.1",
-#             "wolf-goat-pig-api.onrender.com",
-#             "wolf-goat-pig.onrender.com",
-#             "wolf-goat-pig-frontend.onrender.com"
-#         ]
-#     )
-
 # CORS middleware
 # Configure origins based on environment. Always honor FRONTEND_URL so Firebase
 # Hosting (and any future SPA origin) works without another code change.
 allowed_origins = [
-    "https://wolf-goat-pig.vercel.app",  # Production frontend (until decommission)
-    "https://wolf-goat-pig-frontend.onrender.com",  # Legacy frontend URL
-    "https://seventh-country-232522.web.app",  # Firebase Hosting canary
+    "https://seventh-country-232522.web.app",  # Firebase Hosting production
     "https://seventh-country-232522.firebaseapp.com",  # Firebase alternate domain
 ]
 
@@ -351,7 +335,7 @@ app.include_router(legacy_scoring.router)
 app.include_router(groupme.router)
 
 # Cloud Scheduler → /internal/jobs/* (Phase 4). Guarded by INTERNAL_JOB_TOKEN and
-# fail-closed when unset, so this is inert on Render (in-process thread runs there).
+# fail-closed when unset.
 from .routers import internal_jobs
 
 app.include_router(internal_jobs.router)
@@ -579,7 +563,7 @@ else:
 
 @app.head("/")
 async def head_root():
-    """Handle HEAD requests for health checks (e.g., Render)."""
+    """Handle HEAD requests for health checks."""
     return Response(status_code=200)
 
 
@@ -591,7 +575,7 @@ async def serve_homepage():
         return FileResponse(str(index_file))
 
     frontend_url = (
-        os.getenv("PUBLIC_FRONTEND_URL") or os.getenv("FRONTEND_BASE_URL") or "https://wolf-goat-pig.vercel.app"
+        os.getenv("PUBLIC_FRONTEND_URL") or os.getenv("FRONTEND_BASE_URL") or "https://seventh-country-232522.web.app"
     )
 
     docs_link = ""
@@ -657,8 +641,7 @@ async def serve_homepage():
         <main class="card">
           <h1>Wolf Goat Pig API</h1>
           <p>
-            The backend is running and healthy. The interactive frontend lives on our
-            Vercel deployment — you can reach it here:
+            The backend is running and healthy. The interactive frontend is available here:
           </p>
           <ul>
             <li><a href="{frontend_url}" target="_blank" rel="noopener">Open the production app</a></li>

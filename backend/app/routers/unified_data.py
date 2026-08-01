@@ -3,7 +3,7 @@
 These endpoints provide a unified view of all game data from:
 - Primary spreadsheet (legacy data)
 - Writable spreadsheet (transition data)
-- Render database (app-recorded games)
+- Application database (app-recorded games)
 
 Data is automatically deduplicated based on date/group/member/score.
 """

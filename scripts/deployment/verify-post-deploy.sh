@@ -19,8 +19,8 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # Configuration
-FRONTEND_URL="${FRONTEND_URL:-https://wolf-goat-pig.vercel.app}"
-BACKEND_URL="${BACKEND_URL:-https://wolf-goat-pig.onrender.com}"
+FRONTEND_URL="${FRONTEND_URL:-https://seventh-country-232522.web.app}"
+BACKEND_URL="${BACKEND_URL:-https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app}"
 EXPECTED_VERSION="${EXPECTED_VERSION:-}"
 MAX_RETRIES=5
 RETRY_DELAY=10
@@ -242,7 +242,7 @@ else
     echo -e "${RED}❌ Deployment verification FAILED with $FAILURES error(s) and $WARNINGS warning(s).${NC}"
     echo ""
     echo "Troubleshooting steps:"
-    echo "  1. Check Vercel deployment logs for build errors"
+    echo "  1. Check Firebase deploy and GitHub Actions logs"
     echo "  2. Verify version.json was created during build"
     echo "  3. Clear CDN cache if version mismatch persists"
     echo "  4. Check browser DevTools for service worker status"

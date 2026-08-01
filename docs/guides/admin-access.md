@@ -22,13 +22,12 @@ disagree (a user could be a backend admin but still see `Access Denied`).
 ## Granting access
 
 1. An existing admin (the commissioner) adds the new admin's **login email** to
-   `ADMIN_EMAILS` in the Render dashboard (the live service does not sync env
-   vars from `render.yaml` — set it in the dashboard).
-2. Redeploy / restart so the new value is picked up.
+   `ADMIN_EMAILS` in the Cloud Run service configuration.
+2. Deploy a new revision so the value is picked up.
 3. The new admin hard-refreshes and re-opens `/admin/roster`.
 
 Do not commit real admin emails beyond the commissioner default into the repo.
-Keep the production allowlist in the Render dashboard.
+Keep the production allowlist in Cloud Run configuration.
 
 ## What testers should expect
 

@@ -66,7 +66,7 @@ schedule.every().day.at("23:00").do(self._sync_google_sheets)  # 11 PM
 To manually trigger a sync (bypassing the 1-hour rate limit):
 
 ```bash
-curl -X POST https://wolf-goat-pig.onrender.com/sheet-integration/sync-wgp-sheet \
+curl -X POST https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/sheet-integration/sync-wgp-sheet \
   -H "Content-Type: application/json" \
   -H "X-Scheduled-Job: true" \
   -d '{"csv_url": "https://docs.google.com/spreadsheets/d/141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ/export?format=csv&gid=0"}'

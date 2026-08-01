@@ -3920,7 +3920,7 @@
         "summary": "Serve Homepage"
       },
       "head": {
-        "description": "Handle HEAD requests for health checks (e.g., Render).",
+        "description": "Handle HEAD requests for health checks.",
         "operationId": "head_root__head",
         "responses": {
           "200": {

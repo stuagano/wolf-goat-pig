@@ -98,7 +98,7 @@ Built-in Computer Use (`ENVIRONMENT_BROWSER`) plus:
 - Runtime SA needs Vertex AI user + Secret Manager access to
   `BOOKING_SERVICE_SECRET`.
 - Main API `BOOKING_SERVICE_URL` points at the booking-agent Cloud Run URL.
-- After soak: suspend Render `wolf-goat-pig-booking`.
+- Render `wolf-goat-pig-booking` was deleted after cutover (2026-07-31).
 
 See `deploy/gcp/phase7-booking/`.
 

@@ -133,16 +133,16 @@ Complete containerization support:
 
 **Scripts:**
 - `docker-startup.sh`: Container startup logic
-- `scripts/deployment/deploy.sh`: Multi-target deployment
+- `deploy/gcp/`: GCP deployment infrastructure
 
 ### 7. Deployment Support
 
-Multi-platform deployment preparation:
+Deployment support:
 
-- **Render.com**: `render.yaml` configuration
-- **Heroku**: `Procfile` and `app.json`
-- **Docker**: Production-ready containers
-- **Local**: Development server
+- **Cloud Run**: backend and booking-agent containers
+- **Firebase Hosting**: frontend SPA
+- **Docker**: local production-parity containers
+- **Local**: development server
 
 ### 8. Testing Suite (`tests/test_bootstrapping.py`)
 
@@ -215,16 +215,9 @@ docker run -p 8000:8000 wgp-api
 
 ### Cloud Platforms
 
-```bash
-# Prepare for Render.com
-./deploy.sh render
-
-# Prepare for Heroku  
-./deploy.sh heroku
-
-# Check deployment health
-./deploy.sh health http://your-app.com
-```
+Production deploys use Cloud Run and Firebase Hosting. See
+[`deploy/gcp/README.md`](../../deploy/gcp/README.md) and verify the live stack
+with `./scripts/deployment/verify-deployment.sh` from the repository root.
 
 ## Troubleshooting
 

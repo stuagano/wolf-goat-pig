@@ -229,10 +229,10 @@ class TestGetUnifiedLeaderboard:
         assert rounds == []
         svc.primary_sheet.get_all_rounds.assert_called_once()
 
+
 def test_writable_sheet_is_season_primary():
     """App→sheet writes must target the same 2026-27 workbook as reads."""
     from app.services.spreadsheet_sync_service import PRIMARY_SHEET_ID, WRITABLE_SHEET_ID
 
     assert WRITABLE_SHEET_ID == PRIMARY_SHEET_ID
     assert PRIMARY_SHEET_ID == "141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ"
-

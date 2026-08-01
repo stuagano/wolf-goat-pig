@@ -22,7 +22,7 @@ export interface paths {
         options?: never;
         /**
          * Head Root
-         * @description Handle HEAD requests for health checks (e.g., Render).
+         * @description Handle HEAD requests for health checks.
          */
         head: operations["head_root__head"];
         patch?: never;

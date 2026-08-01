@@ -16,10 +16,10 @@ Your Wolf Goat Pig application has full GHIN (Golf Handicap and Information Netw
 The fast path to working handicap sync. Each step is expanded in the sections below.
 
 1. **Get credentials** — a GHIN.com account (email + password). See [Step 1](#-step-1-get-ghin-api-credentials).
-2. **Set env vars** — add `GHIN_USERNAME` and `GHIN_PASSWORD` in the Render dashboard
-   (Environment tab); the service restarts automatically. Locally, put them in
+2. **Set secrets** — add `GHIN_API_USER` and `GHIN_API_PASS` in Secret Manager
+   and deploy a new Cloud Run revision. Locally, put them in
    `backend/.env` and restart `uvicorn`. See [Step 2](#-step-2-configure-environment-variables).
-3. **Verify** — open `https://wolf-goat-pig.onrender.com/ghin/diagnostic`; expect
+3. **Verify** — open `https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/ghin/diagnostic`; expect
    `"all_configured": true`. See [Step 3](#-step-3-verify-configuration).
 4. **Add GHIN IDs** — `/admin` → **⛳ GHIN** tab → *Add GHIN ID to Player* (7–8 digit ID). See [Step 4](#-step-4-add-ghin-ids-to-players).
 5. **Sync** — same tab → **Sync All Player Handicaps**. See [Step 5](#-step-5-sync-handicaps).
@@ -67,15 +67,14 @@ You need a GHIN.com account with API access.
 
 You need to set these environment variables where your backend is deployed:
 
-**For Render.com (Production):**
-1. Go to Render.com dashboard
-2. Select your backend service
-3. Go to "Environment" section
-4. Add these variables:
+**For Cloud Run (Production):**
+1. Add versions for `GHIN_API_USER` and `GHIN_API_PASS` in Secret Manager.
+2. Confirm `deploy-gcp.yml` maps both secrets into `wolf-goat-pig-api`.
+3. Deploy a new backend revision.
 
 ```env
-GHIN_USERNAME=your-email@example.com
-GHIN_PASSWORD=your-ghin-password
+GHIN_API_USER=your-email@example.com
+GHIN_API_PASS=your-ghin-password
 ```
 
 **For Local Development:**
@@ -111,7 +110,7 @@ The backend looks for these variables (either name works):
 ### Method 2: API Endpoint
 
 ```bash
-curl https://wolf-goat-pig.onrender.com/ghin/diagnostic
+curl https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/ghin/diagnostic
 ```
 
 **Expected Response (when configured):**
@@ -154,7 +153,7 @@ Players need GHIN IDs associated with their profiles before you can sync handica
 ### Using API
 
 ```bash
-curl -X PUT https://wolf-goat-pig.onrender.com/players/{player_id} \
+curl -X PUT https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/players/{player_id} \
   -H "Content-Type: application/json" \
   -d '{"ghin_id": "12345678", "name": "Player Name"}'
 ```
@@ -185,7 +184,7 @@ curl -X PUT https://wolf-goat-pig.onrender.com/players/{player_id} \
 
 **Using API:**
 ```bash
-curl -X POST https://wolf-goat-pig.onrender.com/ghin/sync-player-handicap/1
+curl -X POST https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/ghin/sync-player-handicap/1
 ```
 
 ### Sync All Players
@@ -197,7 +196,7 @@ curl -X POST https://wolf-goat-pig.onrender.com/ghin/sync-player-handicap/1
 
 **Using API:**
 ```bash
-curl -X POST https://wolf-goat-pig.onrender.com/ghin/sync-handicaps
+curl -X POST https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/ghin/sync-handicaps
 ```
 
 ---
@@ -414,7 +413,7 @@ ORDER BY effective_date DESC;
 
 **✅ DO:**
 - Store credentials in environment variables
-- Use secrets management (Render.com secrets, etc.)
+- Use Google Secret Manager
 - Rotate credentials periodically
 
 **❌ DON'T:**
@@ -444,7 +443,7 @@ ORDER BY effective_date DESC;
 **Weekly:**
 ```bash
 # Check how many players have synced handicaps
-curl https://wolf-goat-pig.onrender.com/leaderboard/ghin-enhanced | \
+curl https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/leaderboard/ghin-enhanced | \
   grep -o '"handicap_index"' | wc -l
 ```
 
@@ -462,11 +461,10 @@ curl https://wolf-goat-pig.onrender.com/leaderboard/ghin-enhanced | \
 - "Synced handicap for player X" (good)
 - "Failed to sync handicap" (investigate player GHIN ID)
 
-**Render.com logs:**
-1. Go to dashboard
-2. Select backend service
-3. Click "Logs"
-4. Search for "GHIN"
+**Cloud Run logs:**
+1. Open the `wolf-goat-pig-api` service
+2. Open its Logs tab
+3. Search for "GHIN"
 
 ---
 
@@ -484,7 +482,7 @@ You can still trigger a sync manually any time from the admin UI, the API
 
 ```bash
 # e.g. weekly on Sunday 6 AM
-0 6 * * 0 curl -X POST https://wolf-goat-pig.onrender.com/ghin/sync-handicaps
+0 6 * * 0 curl -X POST https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/ghin/sync-handicaps
 ```
 
 ### Handicap Trending
@@ -573,11 +571,11 @@ Use this checklist to verify GHIN integration is working:
 
 1. **Check diagnostic endpoint:**
    ```bash
-   curl https://wolf-goat-pig.onrender.com/ghin/diagnostic
+   curl https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/ghin/diagnostic
    ```
 
 2. **Check backend logs:**
-   - Render.com → Service → Logs
+   - Cloud Run → `wolf-goat-pig-api` → Logs
    - Search for "GHIN" or "authentication"
 
 3. **Test credentials manually:**

@@ -154,6 +154,4 @@ jobs:
           backend/bandit-report.json
           backend/safety-report.json
 
-# build-docker job removed: it pushed to Docker Hub using DOCKER_USERNAME/
-# DOCKER_PASSWORD secrets that were never configured (failed on every push),
-# and the backend deploys to Render via git — no image registry involved.
+# Image build/deploy lives in deploy-gcp.yml via Cloud Build and Artifact Registry.

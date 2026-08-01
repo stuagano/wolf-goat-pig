@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Test production-like backend deployment locally
-# Simulates Render deployment environment
+# Exercises the Cloud Run container entrypoint locally
 
 set -e
 

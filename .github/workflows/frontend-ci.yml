@@ -1,21 +1,19 @@
 name: Frontend CI
 
-# NOTE: frontend/package-lock.json is intentionally NOT committed (it breaks
-# Vercel builds — see vercel.json installCommand). Therefore this workflow
-# uses `npm install`, never `npm ci`, and does not cache against a lockfile.
+# Keep this gate aligned with the Firebase deploy build in deploy-gcp.yml.
 
 on:
   push:
     branches: [ main, develop ]
     paths:
       - 'frontend/**'
-      - 'vercel.json'
+      - 'firebase.json'
       - '.github/workflows/frontend-ci.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'frontend/**'
-      - 'vercel.json'
+      - 'firebase.json'
       - '.github/workflows/frontend-ci.yml'
 
 # Cancel superseded runs: a new push to the same PR/branch aborts the in-flight
@@ -38,8 +36,7 @@ jobs:
 
     - name: Install dependencies
       working-directory: frontend
-      # Mirrors vercel.json installCommand
-      run: npm install --legacy-peer-deps --no-audit
+      run: npm ci --legacy-peer-deps --no-audit
 
     # No lint step: eslint is not currently a project dependency.
     # If you add eslint + config, restore: npm run lint

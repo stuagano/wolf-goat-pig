@@ -4,7 +4,7 @@
 
 set -e
 
-PROD_URL="https://wolf-goat-pig.onrender.com"
+PROD_URL="${PROD_URL:-https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app}"
 SHEET_CSV_URL="https://docs.google.com/spreadsheets/d/141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ/export?format=csv&gid=0"
 
 echo "🔍 Testing Production Google Sheets Sync"
@@ -21,7 +21,7 @@ else
     if curl -s -f "$PROD_URL/health" > /dev/null 2>&1; then
         echo "   ✅ Backend is now healthy"
     else
-        echo "   ❌ Backend is not responding. Please check Render.com dashboard."
+        echo "   ❌ Backend is not responding. Check Cloud Run status and logs."
         exit 1
     fi
 fi
@@ -111,7 +111,7 @@ echo "========================================"
 echo "✅ Production sync test complete!"
 echo ""
 echo "📊 To view the leaderboard in browser:"
-echo "   https://wolf-goat-pig.onrender.com/leaderboard/total_earnings"
+echo "   ${PROD_URL}/leaderboard/total_earnings"
 echo ""
 echo "🔄 To view the sync UI:"
-echo "   https://your-frontend-url.vercel.app/live-sync"
+echo "   ${FRONTEND_URL:-https://seventh-country-232522.web.app}/live-sync"

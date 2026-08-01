@@ -105,16 +105,18 @@ The frontend expects `REACT_APP_API_URL` to be defined. When running everything 
 
 See [`docs/guides/bdd-workflow.md`](./docs/guides/bdd-workflow.md) for authoring guidance and collaboration tips with the AI agent.
 
-> **Pre-commit hooks** now run `npm test`, `./scripts/deployment/test-prod-backend.sh`, and `./scripts/deployment/test-prod-frontend.sh` automatically to keep Render and Vercel deployments compliant. Configure `.env.production` and `frontend/.env.production` with the values from your Render (service `srv-d0pa0vje5dus73djl050`) and Vercel dashboards—at minimum `DATABASE_URL`, `REACT_APP_API_URL`, Auth0 credentials, and SMTP settings—before committing to avoid false failures.
+> **Pre-commit hooks** run frontend and backend production-build checks. Keep
+> local `.env.production` files aligned with Cloud Run and Firebase build-time
+> configuration, without copying Secret Manager values into git.
 
 ### Deployment Testing
 
 | Command | Purpose |
 | ------- | ------- |
 | `./scripts/deployment/test-prod-all.sh` | Interactive menu for comprehensive deployment testing |
-| `./scripts/deployment/test-prod-backend.sh` | Test backend in Render-like production environment |
-| `./scripts/deployment/test-prod-frontend.sh` | Test frontend production build (Vercel-like) |
-| `python scripts/deployment/verify-deployments.py` | Verify deployment health and integration |
+| `./scripts/deployment/test-prod-backend.sh` | Test the backend production container |
+| `./scripts/deployment/test-prod-frontend.sh` | Test the frontend static production build |
+| `./scripts/deployment/verify-deployment.sh` | Verify production health and integration |
 | `docker-compose -f docker-compose.prod.yml up` | Full production stack simulation with PostgreSQL |
 
 See [`docs/guides/local-deployment-testing.md`](./docs/guides/local-deployment-testing.md) for detailed deployment testing instructions.
