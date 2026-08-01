@@ -4,6 +4,7 @@ import { useAccessToken } from '../hooks/useAccessToken';
 import { apiConfig } from '../config/api.config';
 import { useTheme } from '../theme/Provider';
 import useTeeTimes from '../hooks/useTeeTimes';
+import ClubPlayerSection from '../components/auth/ClubPlayerSection';
 import PlayerAvailability from '../components/signup/PlayerAvailability';
 import EmailPreferences from '../components/signup/EmailPreferences';
 import MyMatches from '../components/signup/MyMatches';
@@ -367,6 +368,15 @@ function AccountPage() {
           )}
         </div>
       </div>
+
+      {/* Club player link — required for signups and available after onboarding skip. */}
+      {isAuthenticated && (
+        <ClubPlayerSection
+          cardStyle={cardStyle}
+          sectionTitle={sectionTitle}
+          theme={theme}
+        />
+      )}
 
       {/* Personal Stats */}
       <div style={cardStyle}>

@@ -207,6 +207,8 @@ class EmailService:
         sends — no per-method opt-out gate (preferences are seeded with sane
         defaults at account creation and managed via /me/email-preferences).
         """
+        frontend_base = os.getenv("FRONTEND_URL", "https://seventh-country-232522.web.app").rstrip("/")
+        account_url = f"{frontend_base}/account#club-player"
         content = f"""
         <h2>Welcome to Wolf Goat Pig!</h2>
         <p>Hi {player_name},</p>
@@ -215,12 +217,14 @@ class EmailService:
         the tee sheet or squinting at a spreadsheet to see where you stand.</p>
         <p>Here's the short version of how it works:</p>
         <ul>
+            <li><strong>Link your club player</strong> &mdash; choose your Wing Point tee-sheet name so signups and rounds count as you.</li>
             <li><strong>Sign up for a play date</strong> &mdash; you'll land right on the tee sheet, same as always.</li>
             <li><strong>We'll match &amp; pair you</strong>, and email you the moment your group comes together.</li>
             <li><strong>Scores, standings, and your running tally</strong> all live in the app.</li>
         </ul>
-        <p>Nothing to download and nothing to set up. Just sign up for the next
-        game and show up.</p>
+        <p>Start by <a href="{account_url}">linking your club player in Account</a>.
+        If you're new and not on the list yet, you can still explore the app while
+        the club roster is updated.</p>
         <p>Welcome aboard &mdash; see you on the first tee. &#9971;</p>
         """
         template = Template(self._get_base_template())
@@ -233,10 +237,12 @@ class EmailService:
             "here, and your spot at the table is now official - no more chasing the "
             "tee sheet or squinting at a spreadsheet to see where you stand.\n\n"
             "Here's the short version of how it works:\n"
+            "- Link your club player - choose your Wing Point tee-sheet name so signups and rounds count as you.\n"
             "- Sign up for a play date - you'll land right on the tee sheet, same as always.\n"
             "- We'll match & pair you, and email you the moment your group comes together.\n"
             "- Scores, standings, and your running tally all live in the app.\n\n"
-            "Nothing to download and nothing to set up. Just sign up for the next game and show up.\n\n"
+            f"Start by linking your club player in Account: {account_url}\n"
+            "If you're new and not on the list yet, you can still explore the app while the club roster is updated.\n\n"
             "Welcome aboard - see you on the first tee!"
         )
 

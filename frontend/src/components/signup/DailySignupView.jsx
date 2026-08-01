@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
+import { useNavigate } from 'react-router-dom';
 import '../../styles/mobile-touch.css';
 import { calculateCourseHandicap } from '../../utils';
 import { usePlayerProfile } from '../../hooks/usePlayerProfile';
 import { acquireAccessToken } from '../../services/authToken';
 import { api } from '../../api/client';
 import { errorDetail } from '../../api/http';
+
+const CLUB_PLAYER_ACCOUNT_PATH = '/account#club-player';
 
 function getSignupButtonLabel({
   confirmingSignup,
@@ -24,6 +27,7 @@ function getSignupButtonLabel({
 const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
   const { profile, loading: profileLoading } = usePlayerProfile();
+  const navigate = useNavigate();
   const [currentWeekStart, setCurrentWeekStart] = useState('');
   const [selectedDate, setSelectedDate] = useState(initialDate || '');
   const [weekData, setWeekData] = useState({ daily_summaries: [] });
@@ -37,7 +41,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   const [signingUp, setSigningUp] = useState(false);
   const signupName = profile?.legacy_name || '';
   const signupProfileReady = Boolean(profile?.id && signupName);
-  const signupDisabled = signingUp || profileLoading || !signupProfileReady;
+  const signupDisabled = signingUp || profileLoading;
 
   // Compute the Sunday that starts the week containing a given date
   const getSundayOfWeek = useCallback((dateStr) => {
@@ -177,6 +181,10 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
 
   // Handle signup with confirmation step
   const handleSignupClick = () => {
+    if (!signupProfileReady) {
+      navigate(CLUB_PLAYER_ACCOUNT_PATH);
+      return;
+    }
     if (confirmingSignup) {
       handleSignup();
     } else {

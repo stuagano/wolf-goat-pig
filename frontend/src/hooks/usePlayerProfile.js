@@ -88,6 +88,7 @@ export const usePlayerProfile = () => {
         const updatedProfile = await response.json();
         setProfile(updatedProfile);
         setNeedsLegacyName(false);
+        localStorage.removeItem("legacy_name_skipped");
 
         return updatedProfile;
       } catch (err) {

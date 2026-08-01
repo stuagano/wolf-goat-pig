@@ -11,7 +11,8 @@ const LegacyNameSelector = ({
   currentName,
   onSelect,
   onSkip,
-  suggestedName = null
+  suggestedName = null,
+  allowSkip = true,
 }) => {
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +22,7 @@ const LegacyNameSelector = ({
   // pre-selected — the account stays unlinked until the user confirms a choice.
   const [selectedName, setSelectedName] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const canSkip = Boolean(allowSkip && onSkip);
 
   // Fetch legacy players list
   useEffect(() => {
@@ -78,7 +80,7 @@ const LegacyNameSelector = ({
     return (
       <div className="legacy-name-selector error">
         <p>Error loading players: {error}</p>
-        <button onClick={onSkip}>Skip for now</button>
+        {canSkip && <button onClick={onSkip}>Skip for now</button>}
       </div>
     );
   }
@@ -163,12 +165,14 @@ const LegacyNameSelector = ({
           Confirm: {selectedName || 'Select a name'}
         </button>
 
-        <button
-          className="skip-button"
-          onClick={onSkip}
-        >
-          I'm not in the list (new player)
-        </button>
+        {canSkip && (
+          <button
+            className="skip-button"
+            onClick={onSkip}
+          >
+            I'm not in the list (new player)
+          </button>
+        )}
       </div>
 
       <style jsx>{`

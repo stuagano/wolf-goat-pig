@@ -5,8 +5,14 @@ import { useAuth0 as mockUseAuth0 } from '@auth0/auth0-react';
 import { usePlayerProfile as mockUsePlayerProfile } from '../../../hooks/usePlayerProfile';
 import DailySignupView from '../DailySignupView';
 
+const mockNavigate = vi.fn();
+
 vi.mock('@auth0/auth0-react', () => ({
   useAuth0: vi.fn(),
+}));
+
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => mockNavigate,
 }));
 
 vi.mock('../../../hooks/usePlayerProfile', () => ({
@@ -50,6 +56,7 @@ const weeklyResponse = (signups = []) => ({
 
 describe('DailySignupView', () => {
   beforeEach(() => {
+    mockNavigate.mockReset();
     mockUseAuth0.mockReturnValue({
       user: { name: 'Auth0 Display Name', email: 'stuart@example.com' },
       isAuthenticated: true,
@@ -121,7 +128,7 @@ describe('DailySignupView', () => {
     expect(screen.getByRole('button', { name: 'Cancel My Signup' })).toBeInTheDocument();
   });
 
-  test('requires a linked club player before signup', async () => {
+  test('sends an unlinked player to Account instead of leaving signup disabled', async () => {
     mockUsePlayerProfile.mockReturnValue({
       profile: { ...playerProfile, legacy_name: null },
       loading: false,
@@ -141,6 +148,9 @@ describe('DailySignupView', () => {
       name: 'Link club player in Account',
     });
     expect(buttons).not.toHaveLength(0);
-    buttons.forEach((button) => expect(button).toBeDisabled());
+    buttons.forEach((button) => expect(button).toBeEnabled());
+
+    fireEvent.click(buttons[0]);
+    expect(mockNavigate).toHaveBeenCalledWith('/account#club-player');
   });
 });

@@ -166,3 +166,29 @@ class TestEmailService:
 
         # Service should have a provider now
         assert service.provider is not None
+
+    @patch.dict(
+        "os.environ",
+        {
+            "EMAIL_PROVIDER": "smtp",
+            "SMTP_USER": "test@test.com",
+            "SMTP_PASSWORD": "password123",
+            "FRONTEND_URL": "https://example.test",
+        },
+    )
+    @patch("app.services.email_service.SMTPEmailProvider")
+    def test_welcome_email_explains_club_player_setup(self, mock_smtp_provider):
+        mock_provider = Mock()
+        mock_provider.is_configured.return_value = True
+        mock_provider.send_email.return_value = True
+        mock_smtp_provider.return_value = mock_provider
+
+        service = EmailService()
+
+        assert service.send_welcome_email("new@example.com", "New Player") is True
+        _, _, html_body, text_body = mock_provider.send_email.call_args.args
+        club_player_url = "https://example.test/account#club-player"
+        assert "Link your club player" in html_body
+        assert club_player_url in html_body
+        assert club_player_url in text_body
+        assert "Nothing to download and nothing to set up" not in text_body
