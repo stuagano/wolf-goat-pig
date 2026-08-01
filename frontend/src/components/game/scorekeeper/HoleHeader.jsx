@@ -45,6 +45,7 @@ const HoleHeader = ({
   editingHole,
   editingOrder,
   setEditingOrder,
+  onRedoOrder,
   jumpToHole,
   movePlayerInOrder,
 }) => {
@@ -229,25 +230,52 @@ const HoleHeader = ({
               }}
             >
               Hitting Order
+              {editingOrder && (
+                <span style={{ marginLeft: "6px", opacity: 0.9, fontWeight: 600 }}>
+                  (1st = captain)
+                </span>
+              )}
             </div>
-            <button
-              onClick={() => setEditingOrder(!editingOrder)}
-              style={{
-                background: editingOrder
-                  ? theme.colors.primary
-                  : "rgba(255,255,255,0.2)",
-                color: "white",
-                border: "none",
-                borderRadius: "12px",
-                padding: "4px 10px",
-                fontSize: "11px",
-                fontWeight: "bold",
-                cursor: "pointer",
-                transition: "all 0.2s",
-              }}
-            >
-              {editingOrder ? "\u2713 Done" : "\u270F\uFE0F Edit"}
-            </button>
+            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+              {onRedoOrder && (
+                <button
+                  type="button"
+                  onClick={onRedoOrder}
+                  style={{
+                    background: "rgba(255,255,255,0.2)",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "12px",
+                    padding: "4px 10px",
+                    fontSize: "11px",
+                    fontWeight: "bold",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  Redo Order
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setEditingOrder(!editingOrder)}
+                style={{
+                  background: editingOrder
+                    ? theme.colors.primary
+                    : "rgba(255,255,255,0.2)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "12px",
+                  padding: "4px 10px",
+                  fontSize: "11px",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
+              >
+                {editingOrder ? "\u2713 Done" : "\u270F\uFE0F Edit"}
+              </button>
+            </div>
           </div>
           <div
             style={{
@@ -428,6 +456,7 @@ HoleHeader.propTypes = {
   editingHole: PropTypes.number,
   editingOrder: PropTypes.bool.isRequired,
   setEditingOrder: PropTypes.func.isRequired,
+  onRedoOrder: PropTypes.func,
   jumpToHole: PropTypes.func.isRequired,
   movePlayerInOrder: PropTypes.func.isRequired,
 };

@@ -44,6 +44,7 @@ export const GAME_ACTIONS = {
   
   // Rotation actions
   SET_ROTATION_ORDER: 'SET_ROTATION_ORDER',
+  REORDER_HITTING_ORDER: 'REORDER_HITTING_ORDER',
   SET_CAPTAIN_INDEX: 'SET_CAPTAIN_INDEX',
   SET_IS_HOEPFINGER: 'SET_IS_HOEPFINGER',
   SET_GOAT_ID: 'SET_GOAT_ID',
@@ -404,6 +405,41 @@ export function gameReducer(state, action) {
         ...state,
         rotation: { ...state.rotation, order: action.payload },
       };
+
+    // Mid-game tee-order redo: first player becomes captain, clear hole setup
+    // that depended on the previous order (teams / specials / aardvark).
+    case GAME_ACTIONS.REORDER_HITTING_ORDER:
+      return {
+        ...state,
+        rotation: {
+          ...state.rotation,
+          order: action.payload,
+          captainIndex: 0,
+        },
+        teams: {
+          ...state.teams,
+          team1: [],
+          team2: [],
+          captain: null,
+          opponents: [],
+        },
+        betting: {
+          ...state.betting,
+          floatInvokedBy: null,
+          optionInvokedBy: null,
+          optionTurnedOff: false,
+          duncanInvoked: false,
+          joesSpecialWager: null,
+          pendingOffer: null,
+          currentHoleBettingEvents: [],
+        },
+        aardvark: {
+          requestedTeam: null,
+          tossed: false,
+          solo: false,
+          invisibleTossed: false,
+        },
+      };
       
     case GAME_ACTIONS.SET_CAPTAIN_INDEX:
       return {
@@ -626,6 +662,10 @@ export const gameActions = {
   
   // Rotation
   setRotationOrder: (order) => ({ type: GAME_ACTIONS.SET_ROTATION_ORDER, payload: order }),
+  reorderHittingOrder: (order) => ({
+    type: GAME_ACTIONS.REORDER_HITTING_ORDER,
+    payload: order,
+  }),
   setCaptainIndex: (index) => ({ type: GAME_ACTIONS.SET_CAPTAIN_INDEX, payload: index }),
   setIsHoepfinger: (is) => ({ type: GAME_ACTIONS.SET_IS_HOEPFINGER, payload: is }),
   setGoatId: (id) => ({ type: GAME_ACTIONS.SET_GOAT_ID, payload: id }),

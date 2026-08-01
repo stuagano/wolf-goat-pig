@@ -90,6 +90,10 @@ const useGameActions = (dispatch) => {
     (o) => dispatch(gameActions.setRotationOrder(o)),
     [],
   );
+  const reorderHittingOrder = useCallback(
+    (o) => dispatch(gameActions.reorderHittingOrder(o)),
+    [],
+  );
   const setCaptainIndex = useCallback(
     (i) => dispatch(gameActions.setCaptainIndex(i)),
     [],
@@ -154,6 +158,7 @@ const useGameActions = (dispatch) => {
     setVinniesVariation,
     setJoesSpecialWager,
     setRotationOrder,
+    reorderHittingOrder,
     setCaptainIndex,
     setIsHoepfinger,
     setGoatId,

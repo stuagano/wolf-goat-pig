@@ -20,6 +20,7 @@ import BettingOddsPanel from "../betting/BettingOddsPanel";
 import CommissionerChat from "./CommissionerChat";
 import EditPlayerNameModal from "./EditPlayerNameModal";
 import EditHoleModal from "./EditHoleModal";
+import TeeTossModal from "./TeeTossModal";
 import { SyncStatusBanner } from "../ui/SyncStatusIndicator";
 import { useHoleSync, useUIState, useBettingState } from "../../hooks";
 import { gameReducer, createInitialState } from "./gameReducer";
@@ -224,6 +225,7 @@ const SimpleScorekeeper = ({
     setVinniesVariation,
     setJoesSpecialWager,
     setRotationOrder,
+    reorderHittingOrder,
     setCaptainIndex,
     setIsHoepfinger,
     setGoatId,
@@ -313,6 +315,7 @@ const SimpleScorekeeper = ({
   const [localPlayers, setLocalPlayers] = useState(players); // Local copy of players for immediate UI updates
   const [courseData, setCourseData] = useState(null); // Course data with hole information
   const [editingOrder, setEditingOrder] = useState(false); // Track if user is editing hitting order
+  const [showTeeToss, setShowTeeToss] = useState(false); // Mid-game full hitting-order redo
   const [expandedPlayers, setExpandedPlayers] = useState({ 0: true }); // Track which player cards are expanded (first player by default)
   const [editModalHole, setEditModalHole] = useState(null); // Hole data for edit modal (null = closed)
 
@@ -664,7 +667,28 @@ const SimpleScorekeeper = ({
     startEditingPlayerName(playerId, currentName);
   };
 
-  // Handle reordering hitting order
+  // Correct the hitting order after the game has started: first player becomes
+  // captain, current-hole teams/specials clear, and the order sticks for the
+  // rest of the round (tee_order is what a reload rebuilds rotation from).
+  const applyHittingOrder = async (newOrder) => {
+    const previousOrder = rotationOrder;
+    reorderHittingOrder(newOrder);
+    // Interactive betting lives outside the game reducer
+    setPendingOffer(null);
+    setCurrentHoleBettingEvents([]);
+    setShowTeamSelection(true);
+
+    try {
+      await fetchJson(`${API_URL}/games/${gameId}/tee-order`, {
+        method: "PATCH",
+        body: JSON.stringify({ player_order: newOrder }),
+      });
+    } catch (error) {
+      console.error("Error updating hitting order:", error);
+      setRotationOrder(previousOrder);
+    }
+  };
+
   const movePlayerInOrder = async (fromIndex, direction) => {
     const toIndex = fromIndex + direction;
     if (toIndex < 0 || toIndex >= rotationOrder.length) return;
@@ -675,20 +699,14 @@ const SimpleScorekeeper = ({
       newOrder[fromIndex],
     ];
 
-    // Update local state immediately for responsive UI
-    setRotationOrder(newOrder);
+    await applyHittingOrder(newOrder);
+  };
 
-    // Persist to backend
-    try {
-      await fetchJson(`${API_URL}/games/${gameId}/tee-order`, {
-        method: "PATCH",
-        body: JSON.stringify({ player_order: newOrder }),
-      });
-    } catch (error) {
-      console.error("Error updating hitting order:", error);
-      // Revert on error
-      setRotationOrder(rotationOrder);
-    }
+  const handleTeeTossComplete = async (orderedPlayers) => {
+    const newOrder = orderedPlayers.map((p) => p.id);
+    setShowTeeToss(false);
+    setEditingOrder(false);
+    await applyHittingOrder(newOrder);
   };
 
   const handleSavePlayerName = async () => {
@@ -871,9 +889,18 @@ const SimpleScorekeeper = ({
         editingHole={editingHole}
         editingOrder={editingOrder}
         setEditingOrder={setEditingOrder}
+        onRedoOrder={() => setShowTeeToss(true)}
         jumpToHole={jumpToHole}
         movePlayerInOrder={movePlayerInOrder}
       />
+
+      {showTeeToss && (
+        <TeeTossModal
+          players={localPlayers}
+          onClose={() => setShowTeeToss(false)}
+          onOrderComplete={handleTeeTossComplete}
+        />
+      )}
 
       <HolePhaseStrip
         stuartMode={stuartMode}
