@@ -4,6 +4,7 @@ import {
   gameActions,
   gameReducer,
 } from "../gameReducer";
+import { nudgeHittingOrder } from "../../../utils/hittingOrder";
 
 const players = [
   { id: "p1", name: "Alice", handicap: 10 },
@@ -77,5 +78,22 @@ describe("REORDER_HITTING_ORDER", () => {
     expect(state.rotation.order).toEqual(newOrder);
     expect(state.rotation.captainIndex).toBe(1);
     expect(state.teams.team1).toEqual(["p1", "p2"]);
+  });
+
+  test("nudge then REORDER makes the new first player captain", () => {
+    let state = createInitialState({ players, baseWager: 1 });
+    state = gameReducer(state, gameActions.setCaptainIndex(0));
+    state = gameReducer(state, gameActions.setTeam1(["p1", "p2"]));
+
+    // Same path SimpleScorekeeper.movePlayerInOrder uses: nudge slot 0 down,
+    // then persist via REORDER_HITTING_ORDER (first = captain).
+    const nudged = nudgeHittingOrder(state.rotation.order, 0, 1);
+    expect(nudged).toEqual(["p2", "p1", "p3", "p4"]);
+
+    state = gameReducer(state, gameActions.reorderHittingOrder(nudged));
+    expect(state.rotation.order).toEqual(["p2", "p1", "p3", "p4"]);
+    expect(state.rotation.captainIndex).toBe(0);
+    expect(state.rotation.order[0]).toBe("p2");
+    expect(state.teams.team1).toEqual([]);
   });
 });

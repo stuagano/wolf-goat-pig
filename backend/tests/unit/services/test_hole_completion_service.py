@@ -11,6 +11,7 @@ from app.services.hole_completion_service import (
     validate_aardvark,
     validate_big_dick,
     validate_float,
+    validate_joes_special,
 )
 
 
@@ -220,3 +221,42 @@ def test_aardvark_ping_pong_quadruples_points_delta():
     for pid in base:
         assert multiplied[pid] == pytest.approx(base[pid] * 4)
     assert abs(sum(multiplied.values())) < 0.01
+
+
+# ── Joe's Special / Hoepfinger ───────────────────────────────────────────────
+
+
+def _hoepfinger_request(*, wager=4, hole_number=17):
+    return CompleteHoleRequest(
+        hole_number=hole_number,
+        rotation_order=["p1", "p2", "p3", "p4"],
+        captain_index=0,
+        phase="hoepfinger",
+        teams=HoleTeams(type="partners", team1=["p1", "p2"], team2=["p3", "p4"]),
+        final_wager=float(wager),
+        winner="team1",
+        scores={"p1": 4, "p2": 5, "p3": 5, "p4": 6},
+        joes_special_wager=wager,
+    )
+
+
+def test_joes_special_rejects_wagers_outside_2_4_8():
+    request = _hoepfinger_request(wager=6)
+    with pytest.raises(HTTPException) as exc:
+        validate_joes_special(request)
+    assert exc.value.status_code == 400
+    assert "2, 4, or 8" in str(exc.value.detail)
+
+
+@pytest.mark.parametrize("wager", [2, 4, 8])
+def test_joes_special_allows_canonical_wagers(wager):
+    validate_joes_special(_hoepfinger_request(wager=wager))
+
+
+def test_hoepfinger_does_not_get_the_17_18_auto_double():
+    """Joe's Special sets the hole value — don't stack the end-of-round ×2 on top."""
+    request = _hoepfinger_request(wager=4, hole_number=17)
+    base = calculate_points_delta(request, _game_state())
+    after = apply_multipliers(dict(base), request, 17)
+    assert after == base
+    assert after["p1"] == pytest.approx(4.0)

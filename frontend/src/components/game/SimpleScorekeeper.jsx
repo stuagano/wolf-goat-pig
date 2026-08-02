@@ -32,6 +32,7 @@ import { fetchJson } from "../../services/fetchJson";
 // this component's raw-handicap fallback intentionally does not.
 import { getStrokesForHole } from "../../utils/strokeAllocation";
 import { allHolesPlayed } from "../../utils/holeHistory";
+import { nudgeHittingOrder } from "../../utils/hittingOrder";
 import {
   HoleHeader,
   TeamSelector,
@@ -698,14 +699,8 @@ const SimpleScorekeeper = ({
   };
 
   const movePlayerInOrder = async (fromIndex, direction) => {
-    const toIndex = fromIndex + direction;
-    if (toIndex < 0 || toIndex >= rotationOrder.length) return;
-
-    const newOrder = [...rotationOrder];
-    [newOrder[fromIndex], newOrder[toIndex]] = [
-      newOrder[toIndex],
-      newOrder[fromIndex],
-    ];
+    const newOrder = nudgeHittingOrder(rotationOrder, fromIndex, direction);
+    if (newOrder === rotationOrder) return;
 
     await applyHittingOrder(newOrder);
   };
