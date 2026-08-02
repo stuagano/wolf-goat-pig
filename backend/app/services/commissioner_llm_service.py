@@ -19,6 +19,11 @@ def _provider() -> str:
     return os.getenv("COMMISSIONER_LLM_PROVIDER", "vertex").strip().lower()
 
 
+def commissioner_provider() -> str:
+    """Public accessor for commissioner LLM provider (vertex | groq)."""
+    return _provider()
+
+
 async def llm_generate(prompt: str, system_instruction: str) -> str:
     """Generate commissioner text from a user prompt and system instruction."""
     if _provider() == "groq":

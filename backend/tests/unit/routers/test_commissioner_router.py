@@ -233,8 +233,48 @@ class TestDataSchemaGuidance:
         assert "determined ONLY by total quarters" in DATA_SCHEMA
         assert "Do not calculate, rank by, or narrate wins" in DATA_SCHEMA
 
+    def test_data_chat_uses_adk_on_vertex(self, monkeypatch):
+        """Leaderboard questions route through the ADK agent on Vertex."""
+        from app.routers import commissioner as mod
+
+        monkeypatch.setenv("COMMISSIONER_LLM_PROVIDER", "vertex")
+        monkeypatch.setenv("GCP_PROJECT_ID", "test-project")
+
+        captured: dict[str, str] = {}
+
+        async def fake_adk(db, question, data_context):
+            captured["question"] = question
+            captured["data_context"] = data_context
+            return {
+                "response": "Steve Sutorius leads the season.",
+                "table_data": None,
+                "sql_used": None,
+            }
+
+        with (
+            patch(
+                "app.services.commissioner_adk_service.run_data_chat_adk",
+                side_effect=fake_adk,
+            ),
+            patch.object(
+                mod,
+                "_build_data_context",
+                return_value="## Current Season Leaderboard\n  1. Steve Sutorius: +3510Q over 123 rounds",
+            ),
+        ):
+            resp = client.post(
+                "/api/commissioner/data-chat",
+                json={"question": "Who is on the leaderboard?"},
+            )
+
+        assert resp.status_code == 200
+        assert captured["question"] == "Who is on the leaderboard?"
+        assert "Steve Sutorius" in captured["data_context"]
+        data = resp.json()["data"]
+        assert data["response"] == "Steve Sutorius leads the season."
+
     def test_data_chat_system_prompt_includes_season_context_and_guidance(self):
-        """Leaderboard questions must see season standings + table-selection rules."""
+        """Groq path still builds the legacy SQL-generation system prompt."""
         from app.routers import commissioner as mod
 
         captured: dict[str, str] = {}
@@ -244,6 +284,7 @@ class TestDataSchemaGuidance:
             return "Steve Sutorius leads the season."
 
         with (
+            patch.object(mod, "commissioner_provider", return_value="groq"),
             patch.object(mod, "llm_generate", side_effect=fake_llm),
             patch.object(
                 mod,

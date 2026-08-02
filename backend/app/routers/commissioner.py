@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from sqlglot import exp
 
 from ..database import get_db
-from ..services.commissioner_llm_service import llm_generate
+from ..services.commissioner_llm_service import commissioner_provider, llm_generate
 from ..utils.api_helpers import ApiResponse, handle_api_errors
 
 logger = logging.getLogger("app.routers.commissioner")
@@ -433,7 +433,13 @@ async def commissioner_data_chat(
     # Season snapshot so leaderboard questions have ground truth even before SQL.
     data_context = _build_data_context(db)
 
-    # Step 1: Ask the LLM to produce a SQL query (or a direct answer for rules)
+    if commissioner_provider() == "vertex":
+        from ..services.commissioner_adk_service import run_data_chat_adk
+
+        result = await run_data_chat_adk(db, request.question, data_context)
+        return ApiResponse.success(data=result)
+
+    # Groq fallback: two-step SQL generation + narration (no ADK tools).
     system = f"""{WGP_RULES}
 
 {DATA_SCHEMA}
