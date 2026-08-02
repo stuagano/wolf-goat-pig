@@ -11,7 +11,7 @@ substitutions:
   _AR_REPO: wolf-goat-pig
   _SERVICE: wgp-scorecard
   _RUNTIME_SA_NAME: wgp-run
-  _SECRETS: "SCORECARD_SERVICE_SECRET=SCORECARD_SERVICE_SECRET:latest"
+  _SECRETS: "SCORECARD_SERVICE_SECRET=BOOKING_SERVICE_SECRET:latest"
   _VISION_MODEL: gemini-2.5-flash
 
 images:

@@ -14,7 +14,7 @@ async def dispatch_scorecard_scan(
     content_type: str,
     expected_players: list[str] | None = None,
 ) -> dict[str, Any]:
-    provider = os.getenv("SCORECARD_VISION_PROVIDER", "groq").strip().lower()
+    provider = os.getenv("SCORECARD_VISION_PROVIDER", "agent").strip().lower()
     if provider == "agent":
         from .scorecard_agent_client import scan_via_scorecard_agent
 
