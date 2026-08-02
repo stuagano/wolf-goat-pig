@@ -28,6 +28,56 @@ describe("apiTokenOptions", () => {
   });
 });
 
+describe("withApiAudience", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  const importWithAudience = async (audience) => {
+    vi.stubEnv("VITE_AUTH0_AUDIENCE", audience);
+    vi.resetModules();
+    return import("../authToken");
+  };
+
+  // Regression guard for the audience-less `useAccessToken().getToken()` path:
+  // Auth0 minted an opaque token the backend rejected as "Not enough segments".
+  test("pins the API audience when called with no options", async () => {
+    const { withApiAudience } = await importWithAudience("https://api.example.com");
+    expect(withApiAudience()).toEqual({
+      authorizationParams: { audience: "https://api.example.com" },
+    });
+  });
+
+  test("merges the audience into caller options without dropping them", async () => {
+    const { withApiAudience } = await importWithAudience("https://api.example.com");
+    expect(withApiAudience({ cacheMode: "off" })).toEqual({
+      cacheMode: "off",
+      authorizationParams: { audience: "https://api.example.com" },
+    });
+  });
+
+  test("preserves other authorizationParams alongside the audience", async () => {
+    const { withApiAudience } = await importWithAudience("https://api.example.com");
+    expect(withApiAudience({ authorizationParams: { scope: "openid profile" } })).toEqual({
+      authorizationParams: { audience: "https://api.example.com", scope: "openid profile" },
+    });
+  });
+
+  test("lets an explicit caller audience win", async () => {
+    const { withApiAudience } = await importWithAudience("https://api.example.com");
+    expect(withApiAudience({ authorizationParams: { audience: "https://other.example.com" } })).toEqual({
+      authorizationParams: { audience: "https://other.example.com" },
+    });
+  });
+
+  test("passes options through unchanged when no audience is configured", async () => {
+    const { withApiAudience } = await importWithAudience("");
+    expect(withApiAudience()).toBeUndefined();
+    expect(withApiAudience({ cacheMode: "off" })).toEqual({ cacheMode: "off" });
+  });
+});
+
 describe("isRecoverableAuthError", () => {
   test("returns false for nullish input", () => {
     expect(isRecoverableAuthError(null)).toBe(false);

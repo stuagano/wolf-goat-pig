@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
-import { acquireAccessToken, isRecoverableAuthError } from "../services/authToken";
+import { acquireAccessToken, isRecoverableAuthError, withApiAudience } from "../services/authToken";
 
 /**
  * Provides a token getter that recovers from the "Missing Refresh Token" error
@@ -16,7 +16,7 @@ export const useAccessToken = () => {
   const { getAccessTokenSilently, loginWithRedirect } = useAuth0();
 
   const getToken = useCallback(
-    (options) => acquireAccessToken(getAccessTokenSilently, options),
+    (options) => acquireAccessToken(getAccessTokenSilently, withApiAudience(options)),
     [getAccessTokenSilently],
   );
 

@@ -29,6 +29,30 @@ export const apiTokenOptions = import.meta.env.VITE_AUTH0_AUDIENCE
   ? { authorizationParams: { audience: import.meta.env.VITE_AUTH0_AUDIENCE } }
   : undefined;
 
+/**
+ * Merge the API audience into caller-supplied token options.
+ *
+ * Opting in per call site is how the audience got missed on `useAccessToken`
+ * (every `getToken()` there minted an audience-less, opaque token the backend
+ * rejected with "Not enough segments"). Wrapping at the hook boundary makes the
+ * audience the default rather than something each caller must remember. An
+ * explicit `authorizationParams.audience` from the caller still wins.
+ *
+ * @param {object} [options] - Auth0 `getAccessTokenSilently` options
+ * @returns {object|undefined} options pinned to the API audience
+ */
+export const withApiAudience = (options) => {
+  if (!apiTokenOptions) return options;
+  if (!options) return apiTokenOptions;
+  return {
+    ...options,
+    authorizationParams: {
+      ...apiTokenOptions.authorizationParams,
+      ...options.authorizationParams,
+    },
+  };
+};
+
 // Auth0 error codes that mean "the cached credential is gone/stale — get a fresh
 // one" rather than a genuine failure we should surface as-is.
 const RECOVERABLE_AUTH_ERROR_CODES = new Set([
