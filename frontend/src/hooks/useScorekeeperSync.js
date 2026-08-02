@@ -89,9 +89,13 @@ const useScorekeeperSync = ({
         holeHistory,
         currentHole,
         playerStandings,
+        // Roster snapshot so a mid-round reload can open without the network.
+        players,
+        baseWager,
+        courseName,
       });
     }
-  }, [gameId, holeHistory, currentHole, playerStandings]);
+  }, [gameId, holeHistory, currentHole, playerStandings, players, baseWager, courseName]);
 
   // Initialize player standings from hole history
   useEffect(() => {

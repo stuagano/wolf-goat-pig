@@ -25,6 +25,7 @@ const SimpleScorekeeperPage = () => {
   const loadGame = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await fetch(`${API_URL}/games/${gameId}/state`);
 
       if (!response.ok) {
@@ -39,11 +40,31 @@ const SimpleScorekeeperPage = () => {
         holeHistory: data.hole_history || [],
         currentHole: data.current_hole,
         playerStandings: data.standings || {},
+        players: data.players || [],
+        baseWager: data.base_wager || 1,
+        courseName: data.course_name,
       });
       setGameData(data);
       setLoading(false);
     } catch (err) {
       console.error('Error loading game:', err);
+      // Bad course signal: open from the local write-buffer if we have a roster.
+      const local = syncManager.loadLocalGameState(gameId);
+      if (local?.players?.length) {
+        syncManager.ensureScoresQueued(gameId, { holeHistory: [] });
+        setGameData({
+          players: local.players,
+          hole_history: local.holeHistory || [],
+          current_hole: local.currentHole || 1,
+          standings: local.playerStandings || {},
+          course_name: local.courseName || 'Wing Point Golf & Country Club',
+          base_wager: local.baseWager || 1,
+          game_status: 'in_progress',
+          offline_fallback: true,
+        });
+        setLoading(false);
+        return;
+      }
       setError(err.message);
       setLoading(false);
     }

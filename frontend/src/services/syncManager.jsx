@@ -1,21 +1,35 @@
 /**
  * Sync Manager - Offline-First Data Synchronization
- * 
+ *
  * Handles unreliable network conditions (like on a golf course) by:
  * 1. Saving all data locally first (optimistic update)
  * 2. Queueing sync requests for background processing
  * 3. Automatically retrying when connectivity is restored
  * 4. Providing sync status for UI feedback
+ *
+ * Course-signal notes:
+ * - `navigator.onLine` is a hint, not truth — we still queue on timeout/network fail
+ *   even when the browser claims to be online.
+ * - Hole `scores` queue items are never dropped after max attempts; they keep
+ *   retrying with capped backoff until a POST succeeds.
+ * - If the queue was emptied but local still has holes the server lacks, we
+ *   re-seed the queue from the local snapshot on load/reconnect.
  */
 
 import { createNamespacedStorage } from '../utils/storage';
 import { apiConfig } from '../config/api.config';
 import { localHasUnsyncedHoles } from './gameReconcile';
 
+/** Interactive hole-submit timeout — fail into the queue quickly on flaky signal. */
+const INTERACTIVE_TIMEOUT_MS = 10000;
+/** Background drain timeout — allow a bit more for catch-up after reconnect. */
+const QUEUE_TIMEOUT_MS = 30000;
+const MAX_ATTEMPTS = 5;
+
 // Convert internal queue payload {hole_quarters, optional_details, current_hole}
 // to the /scores API shape {holes: [...], current_hole}
-function toScoresPayload({ hole_quarters, optional_details, current_hole }) {
-  const holes = Object.keys(hole_quarters || {}).map(holeStr => {
+export function toScoresPayload({ hole_quarters, optional_details, current_hole }) {
+  const holes = Object.keys(hole_quarters || {}).map((holeStr) => {
     const details = (optional_details || {})[holeStr] || {};
     return {
       hole_number: parseInt(holeStr, 10),
@@ -38,6 +52,45 @@ function toScoresPayload({ hole_quarters, optional_details, current_hole }) {
     };
   });
   return { holes, current_hole };
+}
+
+/**
+ * Rebuild a /scores queue payload from the local write-buffer snapshot.
+ * Used when local is ahead of the server but the sync queue is empty
+ * (max-retries previously dropped the item, or a reload mid-flight).
+ */
+export function buildScoresPayloadFromLocal(localState) {
+  const hole_quarters = {};
+  const optional_details = {};
+  (localState?.holeHistory || []).forEach((hole) => {
+    if (hole?.hole == null) return;
+    const key = String(hole.hole);
+    if (hole.points_delta) {
+      hole_quarters[key] = hole.points_delta;
+    }
+    optional_details[key] = {
+      teams: hole.teams || null,
+      winner: hole.winner || null,
+      wager: hole.wager ?? null,
+      gross_scores: hole.gross_scores || null,
+      phase: hole.phase || null,
+      notes: hole.notes || null,
+      float_invoked_by: hole.float_invoked_by || null,
+      option_invoked_by: hole.option_invoked_by || null,
+      duncan_invoked: hole.duncan_invoked || false,
+      joes_special_wager: hole.joes_special_wager ?? null,
+      aardvark_requested_team: hole.aardvark_requested_team || null,
+      aardvark_tossed: hole.aardvark_tossed || false,
+      aardvark_solo: hole.aardvark_solo || false,
+      aardvark_ping_ponged: hole.aardvark_ping_ponged || false,
+      carry_over_applied: hole.carry_over_applied || false,
+    };
+  });
+  return {
+    hole_quarters,
+    optional_details,
+    current_hole: localState?.currentHole || 1,
+  };
 }
 
 const syncStore = createNamespacedStorage('wgp-sync');
@@ -237,7 +290,6 @@ export async function processQueue(options = {}) {
 
   const updatedQueue = [];
   const API_URL = apiConfig.baseUrl;
-  const MAX_ATTEMPTS = 5;
 
   for (const item of queue) {
     try {
@@ -261,7 +313,7 @@ export async function processQueue(options = {}) {
       }
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const timeoutId = setTimeout(() => controller.abort(), QUEUE_TIMEOUT_MS);
 
       const response = await fetch(url, {
         method,
@@ -310,47 +362,14 @@ export async function processQueue(options = {}) {
           console.error('[SyncManager] Permanent failure:', item.id, errorMessage);
         } else {
           // Retry server errors
-          item.attempts++;
-          item.lastAttempt = new Date().toISOString();
-          item.lastError = errorMessage;
-          
-          if (item.attempts < MAX_ATTEMPTS) {
-            updatedQueue.push(item);
-            results.retrying.push(item.id);
-          } else {
-            results.failed++;
-            results.errors.push({
-              id: item.id,
-              gameId: item.gameId,
-              type: item.type,
-              error: `Max attempts reached: ${errorMessage}`,
-            });
-          }
+          requeueForRetry(item, errorMessage, updatedQueue, results);
         }
       }
     } catch (error) {
       // Network error - queue for retry
-      item.attempts++;
-      item.lastAttempt = new Date().toISOString();
-      item.lastError = error.message;
-      
-      if (error.name === 'AbortError') {
-        item.lastError = 'Request timed out';
-      }
-      
-      if (item.attempts < MAX_ATTEMPTS) {
-        updatedQueue.push(item);
-        results.retrying.push(item.id);
-      } else {
-        results.failed++;
-        results.errors.push({
-          id: item.id,
-          gameId: item.gameId,
-          type: item.type,
-          error: `Max attempts reached: ${item.lastError}`,
-        });
-        console.error('[SyncManager] Max retries exceeded:', item.id);
-      }
+      const message =
+        error.name === 'AbortError' ? 'Request timed out' : error.message;
+      requeueForRetry(item, message, updatedQueue, results);
     }
   }
 
@@ -363,11 +382,41 @@ export async function processQueue(options = {}) {
   // Schedule retry for remaining items with exponential backoff
   if (updatedQueue.length > 0 && navigator.onLine) {
     const maxAttempts = Math.max(...updatedQueue.map(i => i.attempts));
-    const delay = Math.min(30000, 2000 * Math.pow(2, maxAttempts - 1));
+    const delay = Math.min(30000, 2000 * Math.pow(2, Math.max(0, maxAttempts - 1)));
     scheduleProcessing(delay);
   }
 
   return results;
+}
+
+/**
+ * Keep a failed item in the queue. Hole scores never drop — on a golf course
+ * you can burn through MAX_ATTEMPTS while signal is dead; dropping them would
+ * leave local ahead of the server with nothing left to drain.
+ */
+function requeueForRetry(item, errorMessage, updatedQueue, results) {
+  item.attempts = (item.attempts || 0) + 1;
+  item.lastAttempt = new Date().toISOString();
+  item.lastError = errorMessage;
+
+  const keepForever = item.type === 'scores';
+  if (item.attempts < MAX_ATTEMPTS || keepForever) {
+    if (keepForever && item.attempts >= MAX_ATTEMPTS) {
+      // Cap the counter so backoff stays at the max delay, but never drop.
+      item.attempts = MAX_ATTEMPTS;
+    }
+    updatedQueue.push(item);
+    results.retrying.push(item.id);
+  } else {
+    results.failed++;
+    results.errors.push({
+      id: item.id,
+      gameId: item.gameId,
+      type: item.type,
+      error: `Max attempts reached: ${errorMessage}`,
+    });
+    console.error('[SyncManager] Max retries exceeded:', item.id);
+  }
 }
 
 /**
@@ -405,13 +454,30 @@ export async function forceRetryAll() {
 }
 
 /**
- * Setup automatic sync on reconnection
+ * Setup automatic sync on reconnection / tab focus
  * @returns {Function} Cleanup function
  */
 export function setupAutoSync() {
-  const handleOnline = () => {
+  const wakeAndDrain = () => {
+    // Fresh signal after a dead stretch — give score uploads another full try.
+    const queue = getSyncQueue();
+    let touched = false;
+    queue.forEach((item) => {
+      if (item.type === 'scores' && (item.attempts || 0) > 0) {
+        item.attempts = 0;
+        item.lastError = null;
+        touched = true;
+      }
+    });
+    if (touched) {
+      syncStore.set(STORAGE_KEYS.SYNC_QUEUE, queue);
+    }
     notifyListeners();
-    scheduleProcessing(2000); // Small delay after reconnect
+    scheduleProcessing(1500);
+  };
+
+  const handleOnline = () => {
+    wakeAndDrain();
   };
 
   const handleOffline = () => {
@@ -422,8 +488,17 @@ export function setupAutoSync() {
     notifyListeners();
   };
 
+  const handleVisibility = () => {
+    if (document.visibilityState === 'visible' && navigator.onLine) {
+      if (getPendingSyncCount() > 0) {
+        wakeAndDrain();
+      }
+    }
+  };
+
   window.addEventListener('online', handleOnline);
   window.addEventListener('offline', handleOffline);
+  document.addEventListener('visibilitychange', handleVisibility);
 
   // Process any pending items on init if online
   if (navigator.onLine && getPendingSyncCount() > 0) {
@@ -433,6 +508,7 @@ export function setupAutoSync() {
   return () => {
     window.removeEventListener('online', handleOnline);
     window.removeEventListener('offline', handleOffline);
+    document.removeEventListener('visibilitychange', handleVisibility);
     if (retryTimeoutId) {
       clearTimeout(retryTimeoutId);
     }
@@ -472,7 +548,7 @@ export async function syncHoleData(gameId, holeQuarters, optionalDetails, curren
   
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+    const timeoutId = setTimeout(() => controller.abort(), INTERACTIVE_TIMEOUT_MS);
 
     const response = await fetch(`${API_URL}/games/${gameId}/scores`, {
       method: 'POST',
@@ -614,10 +690,34 @@ export function hasPendingSyncForGame(gameId) {
 }
 
 /**
+ * If local is ahead of the server (or already queued), make sure a scores
+ * sync item exists and kick the drain. Returns true when work was queued/pending.
+ */
+export function ensureScoresQueued(gameId, serverState = null) {
+  const localState = loadLocalGameState(gameId);
+  const needsSync =
+    hasPendingSyncForGame(gameId) ||
+    localHasUnsyncedHoles(localState, serverState);
+
+  if (!needsSync) {
+    return false;
+  }
+
+  if (!hasPendingSyncForGame(gameId) && localState?.holeHistory?.length) {
+    queueSync(gameId, 'scores', buildScoresPayloadFromLocal(localState));
+  }
+
+  if (typeof navigator === 'undefined' || navigator.onLine) {
+    scheduleProcessing(500);
+  }
+  return true;
+}
+
+/**
  * Reconcile local cache vs server truth on load.
  * - Pending edits, OR local holds holes the server lacks (an in-flight sync that
- *   hasn't landed): flush the queue and LEAVE the local cache so no unsynced
- *   work is lost.
+ *   hasn't landed): re-seed the queue from local if needed and LEAVE the local
+ *   cache so no unsynced work is lost.
  * - Otherwise the server is authoritative — overwrite the local cache with the
  *   server state so stale/duplicated local can't resurface.
  *
@@ -627,11 +727,18 @@ export function hasPendingSyncForGame(gameId) {
 export function reconcileOnLoad(gameId, serverState) {
   const localState = loadLocalGameState(gameId);
   if (hasPendingSyncForGame(gameId) || localHasUnsyncedHoles(localState, serverState)) {
-    processQueue();
+    ensureScoresQueued(gameId, serverState);
     return;
   }
   if (serverState) {
-    saveLocalGameState(gameId, serverState);
+    // Preserve roster snapshot fields when healing hole history from server.
+    saveLocalGameState(gameId, {
+      ...localState,
+      ...serverState,
+      players: serverState.players || localState?.players,
+      baseWager: serverState.baseWager ?? localState?.baseWager,
+      courseName: serverState.courseName || localState?.courseName,
+    });
   }
 }
 
@@ -649,6 +756,9 @@ const syncManager = {
   forceRetryAll,
   setupAutoSync,
   syncHoleData,
+  toScoresPayload,
+  buildScoresPayloadFromLocal,
+  ensureScoresQueued,
   // Local game state persistence
   saveLocalGameState,
   loadLocalGameState,

@@ -73,9 +73,11 @@ export function useGameState({
         holeHistory: history.holes,
         currentHole: hole.currentHole,
         playerStandings: history.playerStandings,
+        players,
+        baseWager,
       });
     }
-  }, [gameId, history.holes, hole.currentHole, history.playerStandings]);
+  }, [gameId, history.holes, hole.currentHole, history.playerStandings, players, baseWager]);
 
   // Initialize player standings from hole history
   useEffect(() => {
