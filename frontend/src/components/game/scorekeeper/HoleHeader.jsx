@@ -125,15 +125,16 @@ const HoleHeader = ({
               alignItems: "flex-start",
             }}
           >
-            <div
-              style={{
-                fontSize: "12px",
-                opacity: 0.9,
-                textTransform: "uppercase",
-              }}
-            >
-              Hole
-            </div>
+          <div
+            data-testid="current-hole"
+            style={{
+              fontSize: "12px",
+              opacity: 0.9,
+              textTransform: "uppercase",
+            }}
+          >
+            Hole {currentHole}
+          </div>
             {editingHole && (
               <div
                 style={{
@@ -200,7 +201,10 @@ const HoleHeader = ({
           >
             Wager
           </div>
-          <div style={{ fontSize: "20px", fontWeight: "bold" }}>
+          <div
+            data-testid="current-wager"
+            style={{ fontSize: "20px", fontWeight: "bold" }}
+          >
             {currentWager}q
           </div>
           {carryOver && (

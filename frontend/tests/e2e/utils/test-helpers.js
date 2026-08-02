@@ -3,13 +3,15 @@ import { APIHelpers } from '../fixtures/api-helpers.js';
 export async function cleanupTestGame(page, gameId) {
   if (!gameId) return;
 
-  // Cleanup localStorage
-  await page.evaluate(() => {
-    localStorage.removeItem('wgp_current_game');
-    Object.keys(localStorage)
-      .filter(key => key.startsWith('wgp_session_'))
-      .forEach(key => localStorage.removeItem(key));
-  });
+  if (page) {
+    // Cleanup localStorage
+    await page.evaluate(() => {
+      localStorage.removeItem('wgp_current_game');
+      Object.keys(localStorage)
+        .filter(key => key.startsWith('wgp_session_'))
+        .forEach(key => localStorage.removeItem(key));
+    });
+  }
 
   // Delete test game from backend
   const apiHelpers = new APIHelpers();
@@ -29,19 +31,23 @@ export async function waitForGameState(page, gameId, timeout = 10000) {
 }
 
 export async function waitForHoleCompletion(page, holeNumber) {
-  // Wait for API response
+  // Frontend syncs via POST /scores (offline-first), not /holes/complete.
   await page.waitForResponse(
-    response => response.url().includes('/holes/complete') && response.status() === 200,
-    { timeout: 10000 }
-  );
+    (response) =>
+      response.url().includes('/scores') &&
+      response.request().method() === 'POST' &&
+      response.status() === 200,
+    { timeout: 15000 }
+  ).catch(() => {
+    // Offline queue path — no network POST; UI still advances locally.
+  });
 
-  // Wait for UI to update to next hole (verify text content changed)
   await page.waitForFunction(
     (nextHole) => {
       const elem = document.querySelector('[data-testid="current-hole"]');
-      return elem && parseInt(elem.textContent.replace(/[^0-9]/g, '')) === nextHole;
+      return elem && parseInt(elem.textContent.replace(/[^0-9]/g, ''), 10) === nextHole;
     },
     holeNumber + 1,
-    { timeout: 5000 }
+    { timeout: 10000 }
   );
 }

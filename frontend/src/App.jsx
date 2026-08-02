@@ -65,6 +65,9 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, isLoading } = useAuth0();
+  const isScorekeeperRoute = /^\/game\/[^/]+$/.test(location.pathname);
+  const mockAuthEnabled = import.meta.env.VITE_USE_MOCK_AUTH === "true";
+  const canUseApp = isAuthenticated || mockAuthEnabled || isScorekeeperRoute;
 
   const [backendReady, setBackendReady] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
@@ -140,8 +143,8 @@ function App() {
     );
   }
 
-  // Show login screen if not authenticated
-  if (!isAuthenticated) {
+  // Scorekeeper deep-links and E2E mock auth must reach the game without login.
+  if (!canUseApp) {
     return (
       <ThemeProvider>
         <div

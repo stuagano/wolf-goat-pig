@@ -58,6 +58,7 @@ const QuartersPanel = ({
     <div style={{ marginBottom: "20px" }}>
       {/* Balance indicator — sticky so it's always visible */}
       <div
+        data-testid="zero-sum-validation"
         style={{
           position: "sticky",
           top: 0,
@@ -145,6 +146,7 @@ const QuartersPanel = ({
                 type="text"
                 inputMode="numeric"
                 pattern="-?[0-9]*\.?[0-9]*"
+                data-testid={`quarters-input-${player.id}`}
                 value={quarters[player.id] ?? ""}
                 onChange={(e) => {
                   const v = e.target.value;
@@ -196,6 +198,8 @@ const QuartersPanel = ({
       {/* Quick Actions */}
       <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
         <button
+          type="button"
+          data-testid="push-hole-button"
           onClick={handlePush}
           className="touch-optimized"
           style={{
