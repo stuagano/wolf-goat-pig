@@ -58,7 +58,7 @@ class TestScanScorecard:
         assert resp.status_code == 400
         assert "too large" in resp.json()["detail"]
 
-    @patch("app.services.scorecard_scan_service.scan_scorecard", new_callable=AsyncMock)
+    @patch("app.services.scorecard_scan_dispatcher.dispatch_scorecard_scan", new_callable=AsyncMock)
     def test_scan_valid_jpeg_calls_service(self, mock_scan):
         mock_scan.return_value = {
             "players": [{"name": "Alice", "running_totals": [1, 2, 3]}],
@@ -74,7 +74,7 @@ class TestScanScorecard:
         assert "players" in data
         mock_scan.assert_called_once()
 
-    @patch("app.services.scorecard_scan_service.scan_scorecard", new_callable=AsyncMock)
+    @patch("app.services.scorecard_scan_dispatcher.dispatch_scorecard_scan", new_callable=AsyncMock)
     def test_scan_valid_png_accepted(self, mock_scan):
         mock_scan.return_value = {"players": [], "holes_detected": 0}
         image_data = _fake_image_bytes(1024)
@@ -84,7 +84,7 @@ class TestScanScorecard:
         )
         assert resp.status_code == 200
 
-    @patch("app.services.scorecard_scan_service.scan_scorecard", new_callable=AsyncMock)
+    @patch("app.services.scorecard_scan_dispatcher.dispatch_scorecard_scan", new_callable=AsyncMock)
     def test_scan_valid_webp_accepted(self, mock_scan):
         mock_scan.return_value = {"players": [], "holes_detected": 0}
         image_data = _fake_image_bytes(1024)
@@ -94,7 +94,7 @@ class TestScanScorecard:
         )
         assert resp.status_code == 200
 
-    @patch("app.services.scorecard_scan_service.scan_scorecard", new_callable=AsyncMock)
+    @patch("app.services.scorecard_scan_dispatcher.dispatch_scorecard_scan", new_callable=AsyncMock)
     def test_scan_valid_heic_accepted(self, mock_scan):
         mock_scan.return_value = {"players": [], "holes_detected": 0}
         image_data = _fake_image_bytes(1024)
@@ -104,7 +104,7 @@ class TestScanScorecard:
         )
         assert resp.status_code == 200
 
-    @patch("app.services.scorecard_scan_service.scan_scorecard", new_callable=AsyncMock)
+    @patch("app.services.scorecard_scan_dispatcher.dispatch_scorecard_scan", new_callable=AsyncMock)
     def test_scan_service_value_error_returns_422(self, mock_scan):
         mock_scan.side_effect = ValueError("Could not parse scorecard")
         image_data = _fake_image_bytes(1024)
@@ -115,7 +115,7 @@ class TestScanScorecard:
         assert resp.status_code == 422
         assert "Could not parse scorecard" in resp.json()["detail"]
 
-    @patch("app.services.scorecard_scan_service.scan_scorecard", new_callable=AsyncMock)
+    @patch("app.services.scorecard_scan_dispatcher.dispatch_scorecard_scan", new_callable=AsyncMock)
     def test_scan_service_generic_error_returns_500(self, mock_scan):
         mock_scan.side_effect = RuntimeError("Gemini API down")
         image_data = _fake_image_bytes(1024)
@@ -126,7 +126,7 @@ class TestScanScorecard:
         assert resp.status_code == 500
         assert "Scan failed" in resp.json()["detail"]
 
-    @patch("app.services.scorecard_scan_service.scan_scorecard", new_callable=AsyncMock)
+    @patch("app.services.scorecard_scan_dispatcher.dispatch_scorecard_scan", new_callable=AsyncMock)
     def test_scan_passes_correct_content_type(self, mock_scan):
         mock_scan.return_value = {"players": []}
         image_data = _fake_image_bytes(1024)
@@ -138,7 +138,7 @@ class TestScanScorecard:
         call_args = mock_scan.call_args
         assert call_args[0][1] == "image/png"
 
-    @patch("app.services.scorecard_scan_service.scan_scorecard", new_callable=AsyncMock)
+    @patch("app.services.scorecard_scan_dispatcher.dispatch_scorecard_scan", new_callable=AsyncMock)
     def test_scan_returns_service_result_as_is(self, mock_scan):
         expected = {
             "players": [
@@ -161,15 +161,15 @@ class TestScanScorecard:
 
 
 def test_scan_passes_players_to_service(monkeypatch):
-    import app.services.scorecard_scan_service as svc_mod
+    import app.services.scorecard_scan_dispatcher as dispatch_mod
 
     captured = {}
 
-    async def fake_scan(image_bytes, content_type, expected_players=None):
+    async def fake_dispatch(image_bytes, content_type, expected_players=None):
         captured["players"] = expected_players
         return {"players": [], "running_totals": [], "per_hole_quarters": [], "validation": {"valid": True}}
 
-    monkeypatch.setattr(svc_mod, "scan_scorecard", fake_scan)
+    monkeypatch.setattr(dispatch_mod, "dispatch_scorecard_scan", fake_dispatch)
     resp = client.post(
         "/scorecard/scan",
         files={"file": ("c.png", b"\x89PNG\r\n\x1a\n" + b"\x00" * 64, "image/png")},

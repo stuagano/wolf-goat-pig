@@ -11,6 +11,7 @@ with `--set-secrets`.
 | `GHIN_API_PASS` | GHIN authentication. |
 | `RESEND_API_KEY` | Email delivery (Resend). |
 | `BOOKING_SERVICE_SECRET` | Shared secret between the API and booking agent. |
+| `SCORECARD_SERVICE_SECRET` | Shared secret between the API and scorecard vision agent. |
 | `FORETEES_ENCRYPTION_KEY` | Fernet key for per-user ForeTees creds — **losing/rotating it breaks stored creds**. |
 | `INTERNAL_JOB_TOKEN` | Guards `POST /internal/jobs/*`; Cloud Scheduler sends it as `X-Internal-Job-Token`. Endpoints are disabled (503) when unset. |
 | `CLOUD_SQL_PASSWORD` | Provisioning-only Cloud SQL `wgp` user password; not injected into the app. |

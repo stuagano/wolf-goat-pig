@@ -13327,7 +13327,7 @@
     },
     "/scorecard/scan": {
       "post": {
-        "description": "Upload a scorecard photo and extract running quarter totals via Gemini Vision.\nReturns extracted running totals and computed per-hole quarter deltas.\nPhase 1: no image persistence, process and return immediately.\n\nOptional form field:\n- players: JSON array of player name strings (e.g. '[\"CK\",\"SS\",\"SG\"]').\n  When provided, passed to the scan service as expected_players to guide\n  tiled/guided scanning.",
+        "description": "Upload a scorecard photo and extract running quarter totals.\nProvider is selected by SCORECARD_VISION_PROVIDER (groq | agent).\n\nOptional form field:\n- players: JSON array of player name strings (e.g. '[\"CK\",\"SS\",\"SG\"]').\n  When provided, passed to the scan service as expected_players to guide\n  tiled/guided scanning.",
         "operationId": "scan_scorecard_photo_scorecard_scan_post",
         "requestBody": {
           "content": {
