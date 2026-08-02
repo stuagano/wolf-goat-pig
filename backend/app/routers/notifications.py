@@ -39,7 +39,9 @@ def get_notifications(
             "message": n.message,
             "data": n.data,
             "is_read": n.is_read,
-            "created_at": n.created_at.isoformat() if n.created_at else None,
+            # Notification.created_at is a String column holding an ISO
+            # timestamp, not a DateTime — it needs no further conversion.
+            "created_at": n.created_at,
         }
         for n in notifications
     ]

@@ -58,6 +58,30 @@ def _cleanup():
         db.close()
 
 
+class TestListNotifications:
+    def test_list_returns_seeded_notification(self):
+        """Listing a NON-EMPTY result set must not 500.
+
+        The mark-read tests only ever read back an empty list, so they never
+        serialized a row. created_at is a String column; calling .isoformat()
+        on it raised AttributeError and made this endpoint 500 in production.
+        """
+        _override_user()
+        try:
+            nid = _seed_notification(is_read=False)
+
+            resp = client.get("/notifications?unread_only=true")
+            assert resp.status_code == 200
+
+            listed = {n["id"]: n for n in resp.json()}
+            assert nid in listed
+            assert listed[nid]["created_at"] == "2026-06-14T00:00:00"
+            assert listed[nid]["message"] == "Your turn"
+        finally:
+            _cleanup()
+            _clear_override()
+
+
 class TestMarkRead:
     def test_mark_read_persists(self):
         _override_user()
