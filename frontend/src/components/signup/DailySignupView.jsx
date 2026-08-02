@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import '../../styles/mobile-touch.css';
 import { calculateCourseHandicap } from '../../utils';
 import { usePlayerProfile } from '../../hooks/usePlayerProfile';
-import { acquireAccessToken } from '../../services/authToken';
+import { acquireAccessToken, apiTokenOptions } from '../../services/authToken';
 import { api } from '../../api/client';
 import { errorDetail } from '../../api/http';
 
@@ -208,7 +208,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     }
     try {
       setSigningUp(true);
-      const token = await acquireAccessToken(getAccessTokenSilently);
+      const token = await acquireAccessToken(getAccessTokenSilently, apiTokenOptions);
       const { data, error: apiError } = await api.POST('/signups', {
         headers: { Authorization: `Bearer ${token}` },
         body: {

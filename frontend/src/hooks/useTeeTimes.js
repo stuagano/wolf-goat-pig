@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
-import { acquireAccessToken } from '../services/authToken';
+import { acquireAccessToken, apiTokenOptions } from '../services/authToken';
 import { apiConfig } from '../config/api.config';
 
 const API_URL = apiConfig.baseUrl;
@@ -21,7 +21,7 @@ const useTeeTimes = () => {
   const clearBookingError = useCallback(() => setBookingError(null), []);
 
   const authFetch = useCallback(async (url, options = {}) => {
-    const token = await acquireAccessToken(getAccessTokenSilently);
+    const token = await acquireAccessToken(getAccessTokenSilently, apiTokenOptions);
     const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
     return fetch(fullUrl, {
       ...options,

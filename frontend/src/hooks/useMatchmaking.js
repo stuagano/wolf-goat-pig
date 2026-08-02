@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
-import { acquireAccessToken } from '../services/authToken';
+import { acquireAccessToken, apiTokenOptions } from '../services/authToken';
 import { api } from '../api/client';
 
 // How often to refresh matches in the background. Matchmaking is not
@@ -33,7 +33,7 @@ const useMatchmaking = (playerProfileId) => {
   // Per-request auth header — token acquired via Auth0, with transparent
   // recovery from a missing/expired refresh token (see acquireAccessToken).
   const authHeaders = useCallback(async () => {
-    const token = await acquireAccessToken(getAccessTokenSilently);
+    const token = await acquireAccessToken(getAccessTokenSilently, apiTokenOptions);
     return { Authorization: `Bearer ${token}` };
   }, [getAccessTokenSilently]);
 

@@ -6,15 +6,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { apiConfig } from '../../../config/api.config';
-import { acquireAccessToken } from '../../../services/authToken';
+import { acquireAccessToken, apiTokenOptions } from '../../../services/authToken';
 import { teamColor, RoleTag, WeekCell } from './shared';
 import LivSowTransactions from './LivSowTransactions';
 import TeamEditModal from './TeamEditModal';
-
-const AUTH0_AUDIENCE = import.meta.env.VITE_AUTH0_AUDIENCE;
-const tokenOptions = AUTH0_AUDIENCE
-  ? { authorizationParams: { audience: AUTH0_AUDIENCE } }
-  : undefined;
 
 const ROLE_ORDER = { Captain: 0, Starter: 1, Alternate: 2 };
 
@@ -51,7 +46,7 @@ const LivSowTeamPage = () => {
     let cancelled = false;
     (async () => {
       try {
-        const token = await acquireAccessToken(getAccessTokenSilently, tokenOptions);
+        const token = await acquireAccessToken(getAccessTokenSilently, apiTokenOptions);
         const res = await fetch(`${apiConfig.baseUrl}/data/livsow/teams/${teamSlug}/can-edit`, {
           headers: { Authorization: `Bearer ${token}` },
         });
