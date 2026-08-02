@@ -1,5 +1,32 @@
-import { describe, test, expect, vi } from "vitest";
+import { describe, test, expect, vi, afterEach } from "vitest";
 import { acquireAccessToken, isRecoverableAuthError } from "../authToken";
+
+describe("apiTokenOptions", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  // Pins the fix for club-player linking not tying into OAuth users: every token
+  // acquisition must request our backend API audience, not just rely on the
+  // Auth0Provider default (a silent refresh can otherwise mint an /userinfo-only
+  // token the backend rejects). Evaluated at import, so stub the env then re-import.
+  test("requests the API audience when VITE_AUTH0_AUDIENCE is set", async () => {
+    vi.stubEnv("VITE_AUTH0_AUDIENCE", "https://api.example.com");
+    vi.resetModules();
+    const { apiTokenOptions } = await import("../authToken");
+    expect(apiTokenOptions).toEqual({
+      authorizationParams: { audience: "https://api.example.com" },
+    });
+  });
+
+  test("is undefined when no audience is configured", async () => {
+    vi.stubEnv("VITE_AUTH0_AUDIENCE", "");
+    vi.resetModules();
+    const { apiTokenOptions } = await import("../authToken");
+    expect(apiTokenOptions).toBeUndefined();
+  });
+});
 
 describe("isRecoverableAuthError", () => {
   test("returns false for nullish input", () => {

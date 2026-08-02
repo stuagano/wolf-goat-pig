@@ -13,6 +13,22 @@
  * the provider). If that still fails the caller can prompt a full re-login.
  */
 
+/**
+ * Token options that pin every acquisition to our backend API audience.
+ *
+ * The backend verifies the JWT with `audience=AUTH0_API_AUDIENCE` and rejects
+ * anything else. Relying on the `Auth0Provider` default audience is not enough:
+ * once `offline_access`/`useRefreshTokens` is on, a silent refresh can mint a
+ * token for the default OIDC (`/userinfo`) audience instead of our API. The
+ * backend then rejects it as an invalid token (401), which silently breaks
+ * `/players/me` and the club-player → OAuth link. Passing the audience on every
+ * call keeps each request pinned to the API regardless of how the token is
+ * minted. `undefined` when unset so tests and audience-less setups are unchanged.
+ */
+export const apiTokenOptions = import.meta.env.VITE_AUTH0_AUDIENCE
+  ? { authorizationParams: { audience: import.meta.env.VITE_AUTH0_AUDIENCE } }
+  : undefined;
+
 // Auth0 error codes that mean "the cached credential is gone/stale — get a fresh
 // one" rather than a genuine failure we should surface as-is.
 const RECOVERABLE_AUTH_ERROR_CODES = new Set([

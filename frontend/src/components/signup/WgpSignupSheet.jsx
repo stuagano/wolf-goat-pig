@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../../theme/Provider';
 import { useAuth0 } from '@auth0/auth0-react';
-import { acquireAccessToken } from '../../services/authToken';
+import { acquireAccessToken, apiTokenOptions } from '../../services/authToken';
 import { api } from '../../api/client';
 import { errorDetail } from '../../api/http';
 import { apiConfig } from '../../config/api.config';
@@ -93,7 +93,7 @@ export default function WgpSignupSheet() {
     if (!isAuthenticated) return;
     (async () => {
       try {
-        const token = await acquireAccessToken(getAccessTokenSilently);
+        const token = await acquireAccessToken(getAccessTokenSilently, apiTokenOptions);
         const { data, response } = await api.GET('/players/me', {
           headers: { Authorization: `Bearer ${token}` },
         });

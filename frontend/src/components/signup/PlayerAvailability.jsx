@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
-import { acquireAccessToken } from '../../services/authToken';
+import { acquireAccessToken, apiTokenOptions } from '../../services/authToken';
 import { api } from '../../api/client';
 import { errorDetail } from '../../api/http';
 
@@ -8,11 +8,7 @@ const dayNamesFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'S
 
 const PlayerAvailability = () => {
   const { getAccessTokenSilently, isAuthenticated } = useAuth0();
-  const AUTH0_AUDIENCE = import.meta.env.VITE_AUTH0_AUDIENCE;
-  const tokenOptions = useMemo(
-    () => (AUTH0_AUDIENCE ? { authorizationParams: { audience: AUTH0_AUDIENCE } } : undefined),
-    [AUTH0_AUDIENCE],
-  );
+  const tokenOptions = apiTokenOptions;
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
