@@ -5433,14 +5433,30 @@ export interface components {
         };
         /** HoleScore */
         HoleScore: {
+            /** Aardvark Ping Ponged */
+            aardvark_ping_ponged?: boolean | null;
+            /** Aardvark Requested Team */
+            aardvark_requested_team?: string | null;
+            /** Aardvark Solo */
+            aardvark_solo?: boolean | null;
+            /** Aardvark Tossed */
+            aardvark_tossed?: boolean | null;
+            /** Duncan Invoked */
+            duncan_invoked?: boolean | null;
+            /** Float Invoked By */
+            float_invoked_by?: string | null;
             /** Gross Scores */
             gross_scores?: {
                 [key: string]: number;
             } | null;
             /** Hole Number */
             hole_number: number;
+            /** Joes Special Wager */
+            joes_special_wager?: number | null;
             /** Notes */
             notes?: string | null;
+            /** Option Invoked By */
+            option_invoked_by?: string | null;
             /** Phase */
             phase?: string | null;
             /** Quarters */

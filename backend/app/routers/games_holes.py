@@ -37,6 +37,16 @@ class HoleScore(BaseModel):
     winner: str | None = None
     wager: float | None = None
     phase: str | None = None
+    # Betting / special-action flags — without these a reload loses float-once
+    # and Duncan/aardvark context the scorekeeper needs mid-round.
+    float_invoked_by: str | None = None
+    option_invoked_by: str | None = None
+    duncan_invoked: bool | None = None
+    joes_special_wager: int | float | None = None
+    aardvark_requested_team: str | None = None
+    aardvark_tossed: bool | None = None
+    aardvark_solo: bool | None = None
+    aardvark_ping_ponged: bool | None = None
 
 
 class ScoresRequest(BaseModel):
@@ -169,6 +179,14 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
                 "winner": h.winner,
                 "wager": h.wager,
                 "phase": h.phase,
+                "float_invoked_by": h.float_invoked_by,
+                "option_invoked_by": h.option_invoked_by,
+                "duncan_invoked": h.duncan_invoked,
+                "joes_special_wager": h.joes_special_wager,
+                "aardvark_requested_team": h.aardvark_requested_team,
+                "aardvark_tossed": h.aardvark_tossed,
+                "aardvark_solo": h.aardvark_solo,
+                "aardvark_ping_ponged": h.aardvark_ping_ponged,
             }
             for h in sorted(holes, key=lambda x: x.hole_number)
         ]

@@ -1716,6 +1716,72 @@
       },
       "HoleScore": {
         "properties": {
+          "aardvark_ping_ponged": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aardvark Ping Ponged"
+          },
+          "aardvark_requested_team": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aardvark Requested Team"
+          },
+          "aardvark_solo": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aardvark Solo"
+          },
+          "aardvark_tossed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aardvark Tossed"
+          },
+          "duncan_invoked": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duncan Invoked"
+          },
+          "float_invoked_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Float Invoked By"
+          },
           "gross_scores": {
             "anyOf": [
               {
@@ -1734,6 +1800,20 @@
             "title": "Hole Number",
             "type": "integer"
           },
+          "joes_special_wager": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Joes Special Wager"
+          },
           "notes": {
             "anyOf": [
               {
@@ -1744,6 +1824,17 @@
               }
             ],
             "title": "Notes"
+          },
+          "option_invoked_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Invoked By"
           },
           "phase": {
             "anyOf": [

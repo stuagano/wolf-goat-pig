@@ -124,6 +124,37 @@ class TestSaveScores:
         assert standings[slots[2]] == 0  # -1 + 1
         assert standings[slots[3]] == -2  # -1 + (-1)
 
+    def test_save_scores_persists_float_and_duncan_flags(self):
+        game_id, slots = _setup_started_game()
+        resp = _post_scores(
+            game_id,
+            {
+                "hole_quarters": {
+                    "1": {slots[0]: 3, slots[1]: -1, slots[2]: -1, slots[3]: -1},
+                },
+                "optional_details": {
+                    "1": {
+                        "teams": {
+                            "type": "solo",
+                            "captain": slots[0],
+                            "opponents": slots[1:],
+                        },
+                        "wager": 2,
+                        "float_invoked_by": slots[0],
+                        "duncan_invoked": True,
+                    },
+                },
+                "current_hole": 2,
+            },
+        )
+        assert resp.status_code == 200
+        state = client.get(f"/games/{game_id}/state").json()
+        blob = state.get("state", state)
+        hole = next(h for h in blob["hole_history"] if h["hole"] == 1)
+        assert hole["float_invoked_by"] == slots[0]
+        assert hole["duncan_invoked"] is True
+        assert hole["teams"]["type"] == "solo"
+
     def test_save_scores_zero_sum_validation_fails(self):
         game_id, slots = _setup_started_game()
         resp = _post_scores(

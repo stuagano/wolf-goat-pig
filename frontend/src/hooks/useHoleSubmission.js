@@ -16,6 +16,122 @@ const API_URL = apiConfig.baseUrl;
 const createPlayerMap = (players, getValue) =>
   Object.fromEntries(players.map((p) => [p.id, getValue(p)]));
 
+/** Rebuild standings from hole history — quarters plus usage counters. */
+export const standingsFromHistory = (players, history) => {
+  const standings = createPlayerMap(players, (p) => ({
+    quarters: 0,
+    name: p.name,
+    soloCount: 0,
+    floatCount: 0,
+    optionCount: 0,
+  }));
+
+  history.forEach((hole) => {
+    const delta = hole.points_delta || {};
+    Object.entries(delta).forEach(([playerId, points]) => {
+      if (standings[playerId]) {
+        standings[playerId].quarters += typeof points === "number" ? points : 0;
+      }
+    });
+    if (hole.teams?.type === "solo" && hole.teams?.captain) {
+      if (standings[hole.teams.captain]) {
+        standings[hole.teams.captain].soloCount += 1;
+      }
+    }
+    if (hole.float_invoked_by && standings[hole.float_invoked_by]) {
+      standings[hole.float_invoked_by].floatCount += 1;
+    }
+    if (hole.option_invoked_by && standings[hole.option_invoked_by]) {
+      standings[hole.option_invoked_by].optionCount += 1;
+    }
+  });
+
+  return standings;
+};
+
+/** Build the hole result + /scores optional_details payload for one hole. */
+export const buildHoleSubmitPayload = ({
+  players,
+  teamMode,
+  team1,
+  captain,
+  opponents,
+  currentHole,
+  currentWager,
+  phase,
+  rotationOrder,
+  captainIndex,
+  scores,
+  holeNotes,
+  effectiveQuarters,
+  floatInvokedBy = null,
+  optionInvokedBy = null,
+  duncanInvoked = false,
+  joesSpecialWager = null,
+  aardvarkRequestedTeam = null,
+  aardvarkTossed = false,
+  aardvarkSolo = false,
+  invisibleAardvarkTossed = false,
+}) => {
+  const teams =
+    teamMode === "partners"
+      ? {
+          type: "partners",
+          team1,
+          team2: players.filter((p) => !team1.includes(p.id)).map((p) => p.id),
+        }
+      : {
+          type: "solo",
+          captain,
+          opponents,
+        };
+
+  const pointsDelta = createPlayerMap(
+    players,
+    (p) => parseQuarter(effectiveQuarters[p.id]) ?? 0,
+  );
+
+  const holeResult = {
+    hole: currentHole,
+    points_delta: pointsDelta,
+    gross_scores: scores,
+    teams,
+    winner: null,
+    wager: currentWager,
+    phase,
+    rotation_order: rotationOrder,
+    captain_index: captainIndex,
+    quarters_only: true,
+    notes: holeNotes || null,
+    float_invoked_by: floatInvokedBy || null,
+    option_invoked_by: optionInvokedBy || null,
+    duncan_invoked: Boolean(duncanInvoked),
+    joes_special_wager: joesSpecialWager ?? null,
+    aardvark_requested_team: aardvarkRequestedTeam || null,
+    aardvark_tossed: Boolean(aardvarkTossed),
+    aardvark_solo: Boolean(aardvarkSolo),
+    invisible_aardvark_tossed: Boolean(invisibleAardvarkTossed),
+  };
+
+  const optionalDetails = {
+    teams: holeResult.teams,
+    winner: holeResult.winner,
+    wager: holeResult.wager,
+    gross_scores: holeResult.gross_scores,
+    phase: holeResult.phase,
+    notes: holeResult.notes,
+    float_invoked_by: holeResult.float_invoked_by,
+    option_invoked_by: holeResult.option_invoked_by,
+    duncan_invoked: holeResult.duncan_invoked,
+    joes_special_wager: holeResult.joes_special_wager,
+    aardvark_requested_team: holeResult.aardvark_requested_team,
+    aardvark_tossed: holeResult.aardvark_tossed,
+    aardvark_solo: holeResult.aardvark_solo,
+  };
+
+  return { holeResult, optionalDetails, teams, pointsDelta };
+};
+
 const useHoleSubmission = (ctx) => {
   const {
     gameId,
@@ -42,6 +158,14 @@ const useHoleSubmission = (ctx) => {
     syncHole,
     logBettingAction,
     checkAchievements,
+    floatInvokedBy,
+    optionInvokedBy,
+    duncanInvoked,
+    joesSpecialWager,
+    aardvarkRequestedTeam,
+    aardvarkTossed,
+    aardvarkSolo,
+    invisibleAardvarkTossed,
     setQuarters,
     setScores,
     setError,
@@ -178,45 +302,29 @@ const useHoleSubmission = (ctx) => {
     setError(null);
 
     try {
-      // For partners mode, Team 2 is always calculated as players not in Team 1
-      const teams =
-        teamMode === "partners"
-          ? {
-              type: "partners",
-              team1: team1,
-              team2: players
-                .filter((p) => !team1.includes(p.id))
-                .map((p) => p.id),
-            }
-          : {
-              type: "solo",
-              captain: captain,
-              opponents: opponents,
-            };
-
-      // QUARTERS-ONLY MODE: Use manually-entered quarters
-      // Build pointsDelta from user-entered quarters (supports decimals for split scoring)
-      const pointsDelta = createPlayerMap(
+      const { holeResult, optionalDetails: holeOptional } = buildHoleSubmitPayload({
         players,
-        (p) => parseFloat(effectiveQuarters[p.id]) || 0,
-      );
-
-      // Zero-sum validated earlier in this handler
-
-      // Build hole result object (local, no server needed for calculation)
-      const holeResult = {
-        hole: currentHole,
-        points_delta: pointsDelta,
-        gross_scores: scores,
-        teams: teams,
-        winner: null, // Winner not used - quarters entered manually
-        wager: currentWager,
-        phase: phase,
-        rotation_order: rotationOrder,
-        captain_index: captainIndex,
-        quarters_only: true,
-        notes: holeNotes || null,
-      };
+        teamMode,
+        team1,
+        captain,
+        opponents,
+        currentHole,
+        currentWager,
+        phase,
+        rotationOrder,
+        captainIndex,
+        scores,
+        holeNotes,
+        effectiveQuarters,
+        floatInvokedBy,
+        optionInvokedBy,
+        duncanInvoked,
+        joesSpecialWager,
+        aardvarkRequestedTeam,
+        aardvarkTossed,
+        aardvarkSolo,
+        invisibleAardvarkTossed,
+      });
 
       // Log hole completion to betting history
       logBettingAction("Hole Completed", {
@@ -224,6 +332,8 @@ const useHoleSubmission = (ctx) => {
         wager: currentWager,
         winner: null,
         scores: scores,
+        float_invoked_by: floatInvokedBy || null,
+        duncan_invoked: Boolean(duncanInvoked),
       });
 
       // Update local state first (optimistic update). upsertHole replaces any
@@ -242,42 +352,16 @@ const useHoleSubmission = (ctx) => {
       }
       setHoleHistory(updatedHistory);
 
-      // Recalculate all player standings from the updated history
-      const newStandings = createPlayerMap(players, (p) => ({
-        quarters: 0,
-        name: p.name,
-        soloCount: 0,
-        floatCount: 0,
-        optionCount: 0,
-      }));
-
-      updatedHistory.forEach((hole) => {
-        const delta = hole.points_delta || {};
-        Object.entries(delta).forEach(([playerId, points]) => {
-          if (newStandings[playerId]) {
-            newStandings[playerId].quarters +=
-              typeof points === "number" ? points : 0;
-          }
-        });
-        // Track solo usage
-        if (hole.teams?.type === "solo" && hole.teams?.captain) {
-          if (newStandings[hole.teams.captain]) {
-            newStandings[hole.teams.captain].soloCount += 1;
-          }
-        }
-      });
+      const newStandings = standingsFromHistory(players, updatedHistory);
       setPlayerStandings(newStandings);
 
       // Build scores payload for POST /scores
       const holeQuarters = {};
+      const optionalDetails = {};
       updatedHistory.forEach((hole) => {
         if (hole.points_delta) {
           holeQuarters[String(hole.hole)] = hole.points_delta;
         }
-      });
-
-      const optionalDetails = {};
-      updatedHistory.forEach((hole) => {
         optionalDetails[String(hole.hole)] = {
           teams: hole.teams,
           winner: hole.winner,
@@ -285,8 +369,20 @@ const useHoleSubmission = (ctx) => {
           gross_scores: hole.gross_scores,
           phase: hole.phase,
           notes: hole.notes || null,
+          float_invoked_by: hole.float_invoked_by || null,
+          option_invoked_by: hole.option_invoked_by || null,
+          duncan_invoked: hole.duncan_invoked || false,
+          joes_special_wager: hole.joes_special_wager ?? null,
+          aardvark_requested_team: hole.aardvark_requested_team || null,
+          aardvark_tossed: hole.aardvark_tossed || false,
+          aardvark_solo: hole.aardvark_solo || false,
         };
       });
+      // Ensure the hole we just built is present even if history was empty.
+      optionalDetails[String(holeResult.hole)] = {
+        ...optionalDetails[String(holeResult.hole)],
+        ...holeOptional,
+      };
 
       // Sync to backend using offline-first approach
       // This will queue the sync if offline or on slow connection
@@ -342,23 +438,7 @@ const useHoleSubmission = (ctx) => {
     );
     setHoleHistory(updatedHistory);
 
-    // Recalculate standings
-    const newStandings = createPlayerMap(players, (p) => ({
-      quarters: 0, name: p.name, soloCount: 0, floatCount: 0, optionCount: 0,
-    }));
-    updatedHistory.forEach((hole) => {
-      const delta = hole.points_delta || {};
-      Object.entries(delta).forEach(([playerId, points]) => {
-        if (newStandings[playerId]) {
-          newStandings[playerId].quarters += typeof points === "number" ? points : 0;
-        }
-      });
-      if (hole.teams?.type === "solo" && hole.teams?.captain) {
-        if (newStandings[hole.teams.captain]) {
-          newStandings[hole.teams.captain].soloCount += 1;
-        }
-      }
-    });
+    const newStandings = standingsFromHistory(players, updatedHistory);
     setPlayerStandings(newStandings);
 
     // Sync to backend
@@ -367,8 +447,19 @@ const useHoleSubmission = (ctx) => {
     updatedHistory.forEach((hole) => {
       if (hole.points_delta) holeQuarters[String(hole.hole)] = hole.points_delta;
       optionalDetails[String(hole.hole)] = {
-        teams: hole.teams, winner: hole.winner, wager: hole.wager,
-        gross_scores: hole.gross_scores, phase: hole.phase, notes: hole.notes || null,
+        teams: hole.teams,
+        winner: hole.winner,
+        wager: hole.wager,
+        gross_scores: hole.gross_scores,
+        phase: hole.phase,
+        notes: hole.notes || null,
+        float_invoked_by: hole.float_invoked_by || null,
+        option_invoked_by: hole.option_invoked_by || null,
+        duncan_invoked: hole.duncan_invoked || false,
+        joes_special_wager: hole.joes_special_wager ?? null,
+        aardvark_requested_team: hole.aardvark_requested_team || null,
+        aardvark_tossed: hole.aardvark_tossed || false,
+        aardvark_solo: hole.aardvark_solo || false,
       };
     });
     await syncHole(holeQuarters, optionalDetails, currentHole);
