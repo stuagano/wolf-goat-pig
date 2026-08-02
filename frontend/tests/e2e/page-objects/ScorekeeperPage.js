@@ -1,4 +1,5 @@
 import { waitForHoleCompletion } from '../utils/test-helpers.js';
+import { setAllQuarters } from '../tests/scenarios/quarters-helpers.js';
 
 export class ScorekeeperPage {
   constructor(page) {
@@ -18,30 +19,23 @@ export class ScorekeeperPage {
   }
 
   async playHole(holeNumber, scoreData) {
-    // Verify we're on the correct hole
-    await this.page.waitForSelector(`[data-testid="current-hole"]`, {
+    await this.page.waitForSelector('[data-testid="current-hole"]', {
       timeout: 5000
     });
 
     const currentHole = await this.page.locator('[data-testid="current-hole"]').textContent();
-    const holeNum = parseInt(currentHole.replace(/[^0-9]/g, ''));
+    const holeNum = parseInt(currentHole.replace(/[^0-9]/g, ''), 10);
     if (holeNum !== holeNumber) {
       throw new Error(`Expected hole ${holeNumber}, but on hole ${holeNum}`);
     }
 
-    // Enter scores for all players
-    for (const [playerId, score] of Object.entries(scoreData.scores)) {
-      await this.enterScore(playerId, score);
-    }
-
-    // Handle team formation
+    // Team formation (quarters-only flow — golf scores are optional)
     if (scoreData.solo) {
       await this.goSolo();
     } else if (scoreData.partnership) {
       await this.selectPartner(scoreData.partnership.partner);
     }
 
-    // Handle special rules
     if (scoreData.floatInvokedBy) {
       await this.invokeFloat(scoreData.floatInvokedBy);
     }
@@ -50,13 +44,37 @@ export class ScorekeeperPage {
       await this.setJoesSpecialWager(scoreData.joesSpecialWager);
     }
 
-    // Complete hole
+    if (scoreData.push) {
+      await this.page.click('[data-testid="push-hole-button"]');
+    } else if (scoreData.quarters) {
+      const entries = Object.entries(scoreData.quarters);
+      for (const [playerId, value] of entries) {
+        await this.page.fill(`[data-testid="quarters-input-${playerId}"]`, String(value));
+      }
+    } else if (scoreData.quartersList && scoreData.players) {
+      await setAllQuarters(this.page, scoreData.players, scoreData.quartersList);
+    }
+
+    // Optional golf scores (collapsed panel — expand if needed)
+    if (scoreData.scores) {
+      for (const [playerId, score] of Object.entries(scoreData.scores)) {
+        await this.enterScore(playerId, score);
+      }
+    }
+
     await this.clickCompleteHole();
     await waitForHoleCompletion(this.page, holeNumber);
   }
 
   async enterScore(playerId, score) {
     const selector = `[data-testid="score-input-${playerId}"]`;
+    const input = this.page.locator(selector);
+    if (!(await input.isVisible().catch(() => false))) {
+      const toggle = this.page.getByRole('button', { name: /golf scores/i });
+      if (await toggle.isVisible().catch(() => false)) {
+        await toggle.click();
+      }
+    }
     await this.page.fill(selector, score.toString());
   }
 
@@ -82,12 +100,12 @@ export class ScorekeeperPage {
 
   async verifyHoleCompleted(holeNumber) {
     const nextHole = holeNumber + 1;
-    await this.page.waitForSelector(`[data-testid="current-hole"]`, {
+    await this.page.waitForSelector('[data-testid="current-hole"]', {
       timeout: 5000
     });
 
     const currentHole = await this.page.locator('[data-testid="current-hole"]').textContent();
-    const holeNum = parseInt(currentHole.replace(/[^0-9]/g, ''));
+    const holeNum = parseInt(currentHole.replace(/[^0-9]/g, ''), 10);
     if (holeNum !== nextHole) {
       throw new Error(`Expected to advance to hole ${nextHole}, but on hole ${holeNum}`);
     }
@@ -95,11 +113,25 @@ export class ScorekeeperPage {
 
   async getCurrentHole() {
     const holeText = await this.page.locator('[data-testid="current-hole"]').textContent();
-    return parseInt(holeText.replace(/[^0-9]/g, ''));
+    return parseInt(holeText.replace(/[^0-9]/g, ''), 10);
+  }
+
+  async getCurrentWager() {
+    const wagerText = await this.page.locator('[data-testid="current-wager"]').textContent();
+    return parseInt(wagerText.replace(/[^0-9]/g, ''), 10);
+  }
+
+  async expectCarryOverBadge(visible) {
+    const badge = this.page.locator('[data-testid="carry-over-badge"]');
+    if (visible) {
+      await badge.waitFor({ state: 'visible', timeout: 5000 });
+    } else {
+      await badge.waitFor({ state: 'hidden', timeout: 5000 });
+    }
   }
 
   async getPlayerPoints(playerId) {
     const pointsText = await this.page.locator(`[data-testid="player-${playerId}-points"]`).textContent();
-    return parseInt(pointsText.replace(/[^0-9-]/g, ''));
+    return parseFloat(pointsText.replace(/[^0-9.-]/g, '')) || 0;
   }
 }

@@ -44,6 +44,7 @@ const SimpleScorekeeperPage = () => {
         baseWager: data.base_wager || 1,
         courseName: data.course_name,
       });
+      localStorage.setItem('wgp_current_game', gameId);
       setGameData(data);
       setLoading(false);
     } catch (err) {
@@ -52,6 +53,7 @@ const SimpleScorekeeperPage = () => {
       const local = syncManager.loadLocalGameState(gameId);
       if (local?.players?.length) {
         syncManager.ensureScoresQueued(gameId, { holeHistory: [] });
+        localStorage.setItem('wgp_current_game', gameId);
         setGameData({
           players: local.players,
           hole_history: local.holeHistory || [],

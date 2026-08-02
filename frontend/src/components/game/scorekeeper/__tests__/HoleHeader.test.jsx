@@ -69,6 +69,12 @@ describe('HoleHeader hitting order', () => {
     expect(screen.getByText(/1st = captain/i)).toBeInTheDocument();
   });
 
+  test('shows current hole and wager testids', () => {
+    render(<HoleHeader {...baseProps} currentWager={2} carryOver />);
+    expect(screen.getByTestId('current-hole')).toHaveTextContent('Hole 3');
+    expect(screen.getByTestId('current-wager')).toHaveTextContent('2q');
+  });
+
   test('shows Carry-Over badge when carryOver is active', () => {
     render(<HoleHeader {...baseProps} currentWager={2} carryOver />);
     expect(screen.getByTestId('carry-over-badge')).toHaveTextContent(/Carry-Over/i);
