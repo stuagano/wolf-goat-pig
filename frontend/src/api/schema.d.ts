@@ -4137,9 +4137,8 @@ export interface paths {
         put?: never;
         /**
          * Scan Scorecard Photo
-         * @description Upload a scorecard photo and extract running quarter totals via Gemini Vision.
-         *     Returns extracted running totals and computed per-hole quarter deltas.
-         *     Phase 1: no image persistence, process and return immediately.
+         * @description Upload a scorecard photo and extract running quarter totals.
+         *     Provider is selected by SCORECARD_VISION_PROVIDER (groq | agent).
          *
          *     Optional form field:
          *     - players: JSON array of player name strings (e.g. '["CK","SS","SG"]').
