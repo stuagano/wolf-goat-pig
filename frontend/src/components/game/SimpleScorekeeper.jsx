@@ -167,7 +167,7 @@ const SimpleScorekeeper = ({
 
   // Betting state (from reducer)
   const currentWager = bettingState.currentWager;
-  // eslint-disable-next-line no-unused-vars -- used in resetHole, exposed for future use
+  // eslint-disable-next-line no-unused-vars -- used in resetHole / sync wager path
   const nextHoleWager = bettingState.nextHoleWager;
   const floatInvokedBy = bettingState.floatInvokedBy;
   const optionInvokedBy = bettingState.optionInvokedBy;
@@ -176,7 +176,6 @@ const SimpleScorekeeper = ({
   // eslint-disable-next-line no-unused-vars -- betting state, exposed for future UI
   const optionTurnedOff = bettingState.optionTurnedOff;
   const duncanInvoked = bettingState.duncanInvoked;
-  // eslint-disable-next-line no-unused-vars -- betting state, exposed for future UI
   const carryOver = bettingState.carryOver;
   // eslint-disable-next-line no-unused-vars -- betting state, exposed for future UI
   const vinniesVariation = bettingState.vinniesVariation;
@@ -433,6 +432,7 @@ const SimpleScorekeeper = ({
       setPlayerStandings,
       setNextHoleWager,
       setCurrentWager,
+      setCarryOver,
     });
 
   // Post-hole achievement checking (badge notifications + failure banner)
@@ -480,6 +480,7 @@ const SimpleScorekeeper = ({
     aardvarkTossed,
     aardvarkSolo,
     invisibleAardvarkTossed,
+    carryOver,
     setQuarters,
     setScores,
     setError,
@@ -492,6 +493,7 @@ const SimpleScorekeeper = ({
     setEditingHole,
     setLocalPlayers,
     setCurrentWager,
+    setNextHoleWager,
     setTeam1,
     setTeam2,
     setCaptain,
@@ -501,6 +503,7 @@ const SimpleScorekeeper = ({
     setJoesSpecialWager,
     setOptionTurnedOff,
     setDuncanInvoked,
+    setCarryOver,
     setAardvarkRequestedTeam,
     setAardvarkTossed,
     setAardvarkSolo,
@@ -773,7 +776,7 @@ const SimpleScorekeeper = ({
       setEditModalHole(holeData);
     } else {
       setCurrentHole(holeNumber);
-      resetHole();
+      resetHole({ holeNumber, holeHistory });
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
@@ -883,6 +886,7 @@ const SimpleScorekeeper = ({
         rotationOrder={rotationOrder}
         captainIndex={captainIndex}
         currentWager={currentWager}
+        carryOver={carryOver}
         phase={phase}
         strokeAllocation={strokeAllocation}
         isHoepfinger={isHoepfinger}

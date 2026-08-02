@@ -1760,6 +1760,17 @@
             ],
             "title": "Aardvark Tossed"
           },
+          "carry_over_applied": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carry Over Applied"
+          },
           "duncan_invoked": {
             "anyOf": [
               {

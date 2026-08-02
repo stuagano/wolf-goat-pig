@@ -5441,6 +5441,8 @@ export interface components {
             aardvark_solo?: boolean | null;
             /** Aardvark Tossed */
             aardvark_tossed?: boolean | null;
+            /** Carry Over Applied */
+            carry_over_applied?: boolean | null;
             /** Duncan Invoked */
             duncan_invoked?: boolean | null;
             /** Float Invoked By */

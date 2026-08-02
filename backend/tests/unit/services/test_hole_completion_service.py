@@ -8,8 +8,10 @@ from app.services.hole_completion_service import (
     apply_multipliers,
     calculate_points_delta,
     process_complete_hole,
+    update_carry_over_state,
     validate_aardvark,
     validate_big_dick,
+    validate_carry_over_hole_18,
     validate_float,
     validate_joes_special,
 )
@@ -260,3 +262,53 @@ def test_hoepfinger_does_not_get_the_17_18_auto_double():
     after = apply_multipliers(dict(base), request, 17)
     assert after == base
     assert after["p1"] == pytest.approx(4.0)
+
+
+# ── Carry-over ───────────────────────────────────────────────────────────────
+
+
+def _push_request(*, hole_number=3, wager=1.0):
+    return CompleteHoleRequest(
+        hole_number=hole_number,
+        rotation_order=["p1", "p2", "p3", "p4"],
+        captain_index=0,
+        phase="normal",
+        teams=HoleTeams(type="partners", team1=["p1", "p2"], team2=["p3", "p4"]),
+        final_wager=wager,
+        winner="push",
+        scores={"p1": 4, "p2": 4, "p3": 4, "p4": 4},
+    )
+
+
+def test_push_sets_carry_over_wager_to_double():
+    game_state = _game_state()
+    update_carry_over_state(game_state, _push_request(hole_number=3, wager=1.0))
+    assert game_state["carry_over_wager"] == 2.0
+    assert game_state["carry_over_from_hole"] == 3
+    assert game_state["consecutive_push_block"] is False
+
+
+def test_consecutive_push_does_not_stack_carry_over():
+    game_state = _game_state()
+    update_carry_over_state(game_state, _push_request(hole_number=3, wager=1.0))
+    update_carry_over_state(game_state, _push_request(hole_number=4, wager=2.0))
+    assert game_state["carry_over_wager"] == 2.0  # unchanged — no stack
+    assert game_state["consecutive_push_block"] is True
+
+
+def test_win_clears_carry_over():
+    game_state = _game_state()
+    update_carry_over_state(game_state, _push_request(hole_number=3, wager=1.0))
+    update_carry_over_state(game_state, _partners_request(hole_number=4, wager=2.0))
+    assert "carry_over_wager" not in game_state
+    assert game_state["consecutive_push_block"] is False
+
+
+def test_hole_18_cannot_push_under_carry_over():
+    game_state = _game_state()
+    game_state["carry_over_wager"] = 2.0
+    request = _push_request(hole_number=18, wager=2.0)
+    with pytest.raises(HTTPException) as exc:
+        validate_carry_over_hole_18(request, game_state)
+    assert exc.value.status_code == 400
+    assert "hole 18" in str(exc.value.detail).lower()

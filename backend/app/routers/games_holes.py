@@ -47,6 +47,7 @@ class HoleScore(BaseModel):
     aardvark_tossed: bool | None = None
     aardvark_solo: bool | None = None
     aardvark_ping_ponged: bool | None = None
+    carry_over_applied: bool | None = None
 
 
 class ScoresRequest(BaseModel):
@@ -187,6 +188,7 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
                 "aardvark_tossed": h.aardvark_tossed,
                 "aardvark_solo": h.aardvark_solo,
                 "aardvark_ping_ponged": h.aardvark_ping_ponged,
+                "carry_over_applied": h.carry_over_applied,
             }
             for h in sorted(holes, key=lambda x: x.hole_number)
         ]

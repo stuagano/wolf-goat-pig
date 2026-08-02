@@ -10,6 +10,11 @@ import { apiConfig } from "../config/api.config";
 import { fetchJson } from "../services/fetchJson";
 import { upsertHole } from "../utils/holeHistory";
 import { parseQuarter } from "../utils/quarters";
+import {
+  blocksHole18Push,
+  isHolePush,
+  resolveCarryOverForHole,
+} from "../utils/carryOver";
 
 const API_URL = apiConfig.baseUrl;
 
@@ -72,6 +77,7 @@ export const buildHoleSubmitPayload = ({
   aardvarkTossed = false,
   aardvarkSolo = false,
   invisibleAardvarkTossed = false,
+  carryOverApplied = false,
 }) => {
   const teams =
     teamMode === "partners"
@@ -91,12 +97,14 @@ export const buildHoleSubmitPayload = ({
     (p) => parseQuarter(effectiveQuarters[p.id]) ?? 0,
   );
 
+  const push = isHolePush({ points_delta: pointsDelta });
+
   const holeResult = {
     hole: currentHole,
     points_delta: pointsDelta,
     gross_scores: scores,
     teams,
-    winner: null,
+    winner: push ? "push" : null,
     wager: currentWager,
     phase,
     rotation_order: rotationOrder,
@@ -111,6 +119,7 @@ export const buildHoleSubmitPayload = ({
     aardvark_tossed: Boolean(aardvarkTossed),
     aardvark_solo: Boolean(aardvarkSolo),
     invisible_aardvark_tossed: Boolean(invisibleAardvarkTossed),
+    carry_over_applied: Boolean(carryOverApplied),
   };
 
   const optionalDetails = {
@@ -127,6 +136,7 @@ export const buildHoleSubmitPayload = ({
     aardvark_requested_team: holeResult.aardvark_requested_team,
     aardvark_tossed: holeResult.aardvark_tossed,
     aardvark_solo: holeResult.aardvark_solo,
+    carry_over_applied: holeResult.carry_over_applied,
   };
 
   return { holeResult, optionalDetails, teams, pointsDelta };
@@ -166,6 +176,7 @@ const useHoleSubmission = (ctx) => {
     aardvarkTossed,
     aardvarkSolo,
     invisibleAardvarkTossed,
+    carryOver,
     setQuarters,
     setScores,
     setError,
@@ -178,6 +189,7 @@ const useHoleSubmission = (ctx) => {
     setEditingHole,
     setLocalPlayers,
     setCurrentWager,
+    setNextHoleWager,
     setTeam1,
     setTeam2,
     setCaptain,
@@ -187,6 +199,7 @@ const useHoleSubmission = (ctx) => {
     setJoesSpecialWager,
     setOptionTurnedOff,
     setDuncanInvoked,
+    setCarryOver,
     setAardvarkRequestedTeam,
     setAardvarkTossed,
     setAardvarkSolo,
@@ -197,13 +210,31 @@ const useHoleSubmission = (ctx) => {
     setAchievementCheckFailed,
   } = ctx;
 
+  const applyStartingWager = (holeNumber, history) => {
+    const resolved = resolveCarryOverForHole({
+      holeHistory: history,
+      baseWager,
+      holeNumber,
+    });
+    setCurrentWager(resolved.wager);
+    if (typeof setNextHoleWager === "function") {
+      setNextHoleWager(resolved.wager);
+    }
+    if (typeof setCarryOver === "function") {
+      setCarryOver(resolved.carryOver);
+    }
+  };
+
   // Reset hole state for new hole
-  const resetHole = () => {
+  const resetHole = (opts = {}) => {
     setTeam1([]);
     setTeam2([]);
     setCaptain(null);
     setOpponents([]);
-    setCurrentWager(baseWager);
+    applyStartingWager(
+      opts.holeNumber ?? currentHole,
+      opts.holeHistory ?? holeHistory,
+    );
     setScores({});
     setQuarters({});
     setHoleNotes("");
@@ -212,7 +243,6 @@ const useHoleSubmission = (ctx) => {
     setOptionInvokedBy(null);
     setError(null);
     setEditingHole(null);
-    // carryOverApplied state removed (was unused)
     setJoesSpecialWager(null); // Reset Joe's Special for next hole
     setOptionTurnedOff(false); // Reset Option for next hole
     setDuncanInvoked(false); // Reset Duncan for next hole
@@ -298,6 +328,25 @@ const useHoleSubmission = (ctx) => {
       return;
     }
 
+    const pushCheck = isHolePush({
+      points_delta: createPlayerMap(
+        players,
+        (p) => parseQuarter(effectiveQuarters[p.id]) ?? 0,
+      ),
+    });
+    if (
+      blocksHole18Push({
+        holeHistory,
+        holeNumber: currentHole,
+        isPush: pushCheck,
+      })
+    ) {
+      setError(
+        "Cannot push on hole 18 with a carry-over wager — someone must win this hole.",
+      );
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
 
@@ -324,6 +373,7 @@ const useHoleSubmission = (ctx) => {
         aardvarkTossed,
         aardvarkSolo,
         invisibleAardvarkTossed,
+        carryOverApplied: Boolean(carryOver),
       });
 
       // Log hole completion to betting history
@@ -376,6 +426,7 @@ const useHoleSubmission = (ctx) => {
           aardvark_requested_team: hole.aardvark_requested_team || null,
           aardvark_tossed: hole.aardvark_tossed || false,
           aardvark_solo: hole.aardvark_solo || false,
+          carry_over_applied: hole.carry_over_applied || false,
         };
       });
       // Ensure the hole we just built is present even if history was empty.
@@ -415,11 +466,13 @@ const useHoleSubmission = (ctx) => {
           updatedHistory.length > 0
             ? Math.max(...updatedHistory.map((h) => h.hole))
             : 0;
-        setCurrentHole(maxHole + 1);
-        resetHole();
+        const nextHole = maxHole + 1;
+        setCurrentHole(nextHole);
+        resetHole({ holeNumber: nextHole, holeHistory: updatedHistory });
       } else {
-        setCurrentHole(currentHole + 1);
-        resetHole();
+        const nextHole = currentHole + 1;
+        setCurrentHole(nextHole);
+        resetHole({ holeNumber: nextHole, holeHistory: updatedHistory });
       }
 
       // Check for achievement unlocks for all players
@@ -460,6 +513,7 @@ const useHoleSubmission = (ctx) => {
         aardvark_requested_team: hole.aardvark_requested_team || null,
         aardvark_tossed: hole.aardvark_tossed || false,
         aardvark_solo: hole.aardvark_solo || false,
+        carry_over_applied: hole.carry_over_applied || false,
       };
     });
     await syncHole(holeQuarters, optionalDetails, currentHole);

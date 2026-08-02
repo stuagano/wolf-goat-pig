@@ -104,6 +104,30 @@ describe('buildHoleSubmitPayload', () => {
     expect(optionalDetails.aardvark_tossed).toBe(true);
     expect(optionalDetails.aardvark_requested_team).toBe('team1');
   });
+
+  test('all-zero quarters mark a push and persist carry_over_applied', () => {
+    const { holeResult, optionalDetails } = buildHoleSubmitPayload({
+      players: PLAYERS,
+      teamMode: 'partners',
+      team1: ['p1', 'p2'],
+      captain: null,
+      opponents: [],
+      currentHole: 2,
+      currentWager: 2,
+      phase: 'normal',
+      rotationOrder: ['p1', 'p2', 'p3', 'p4'],
+      captainIndex: 0,
+      scores: {},
+      holeNotes: '',
+      effectiveQuarters: { p1: '0', p2: '0', p3: '0', p4: '0' },
+      carryOverApplied: true,
+    });
+
+    expect(holeResult.winner).toBe('push');
+    expect(holeResult.carry_over_applied).toBe(true);
+    expect(optionalDetails.carry_over_applied).toBe(true);
+    expect(optionalDetails.winner).toBe('push');
+  });
 });
 
 describe('standingsFromHistory', () => {

@@ -36,6 +36,7 @@ const HoleHeader = ({
   rotationOrder,
   captainIndex,
   currentWager,
+  carryOver = false,
   phase,
   strokeAllocation,
   isHoepfinger,
@@ -202,6 +203,25 @@ const HoleHeader = ({
           <div style={{ fontSize: "20px", fontWeight: "bold" }}>
             {currentWager}q
           </div>
+          {carryOver && (
+            <div
+              data-testid="carry-over-badge"
+              style={{
+                marginTop: "4px",
+                display: "inline-block",
+                fontSize: "10px",
+                fontWeight: "700",
+                letterSpacing: "0.4px",
+                textTransform: "uppercase",
+                background: "rgba(255, 255, 255, 0.22)",
+                border: "1px solid rgba(255, 255, 255, 0.45)",
+                borderRadius: "999px",
+                padding: "2px 8px",
+              }}
+            >
+              Carry-Over
+            </div>
+          )}
         </div>
       </div>
 
@@ -447,6 +467,7 @@ HoleHeader.propTypes = {
   rotationOrder: PropTypes.array.isRequired,
   captainIndex: PropTypes.number,
   currentWager: PropTypes.number.isRequired,
+  carryOver: PropTypes.bool,
   phase: PropTypes.string,
   strokeAllocation: PropTypes.object,
   isHoepfinger: PropTypes.bool,

@@ -12,6 +12,7 @@
 import { useState, useEffect } from "react";
 import { apiConfig } from "../config/api.config";
 import syncManager from "../services/syncManager";
+import { resolveCarryOverForHole } from "../utils/carryOver";
 
 const API_URL = apiConfig.baseUrl;
 
@@ -30,6 +31,7 @@ const useScorekeeperSync = ({
   setPlayerStandings,
   setNextHoleWager,
   setCurrentWager,
+  setCarryOver,
 }) => {
   const [courseDataError, setCourseDataError] = useState(null);
   const [courseDataLoading, setCourseDataLoading] = useState(false);
@@ -136,17 +138,24 @@ const useScorekeeperSync = ({
 
   // Rotation and per-hole wager are computed client-side (in the game reducer).
   // The old backend endpoints (/next-rotation, /next-hole-wager) were never
-  // implemented and 404'd on every hole, surfacing a spurious "Rotation/Wager
-  // Error" banner for every game. The fetch's only real effect in production was
-  // its error-fallback: resetting the wager to base on each hole change. Keep
-  // exactly that, drop the dead network calls, and the banner is gone.
+  // implemented and 404'd on every hole. Resolve carry-over from hole history
+  // instead of always resetting to base — a halved hole must double the next
+  // hole's start (unless consecutive pushes block stacking).
   // rotationError is retained (always null) so callers' destructuring is stable.
   const [rotationError] = useState(null);
 
   useEffect(() => {
     if (!gameId) return;
-    setNextHoleWager(baseWager);
-    setCurrentWager(baseWager);
+    const resolved = resolveCarryOverForHole({
+      holeHistory,
+      baseWager,
+      holeNumber: currentHole,
+    });
+    setNextHoleWager(resolved.wager);
+    setCurrentWager(resolved.wager);
+    if (typeof setCarryOver === "function") {
+      setCarryOver(resolved.carryOver);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- setters are stable (useCallback), only trigger on data changes
   }, [gameId, currentHole, holeHistory, baseWager]);
 

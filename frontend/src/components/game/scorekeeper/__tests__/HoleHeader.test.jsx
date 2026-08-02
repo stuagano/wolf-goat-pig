@@ -68,4 +68,15 @@ describe('HoleHeader hitting order', () => {
     );
     expect(screen.getByText(/1st = captain/i)).toBeInTheDocument();
   });
+
+  test('shows Carry-Over badge when carryOver is active', () => {
+    render(<HoleHeader {...baseProps} currentWager={2} carryOver />);
+    expect(screen.getByTestId('carry-over-badge')).toHaveTextContent(/Carry-Over/i);
+    expect(screen.getByText('2q')).toBeInTheDocument();
+  });
+
+  test('hides Carry-Over badge when inactive', () => {
+    render(<HoleHeader {...baseProps} carryOver={false} />);
+    expect(screen.queryByTestId('carry-over-badge')).toBeNull();
+  });
 });

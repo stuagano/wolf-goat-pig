@@ -26,6 +26,15 @@ function toScoresPayload({ hole_quarters, optional_details, current_hole }) {
       winner: details.winner || null,
       wager: details.wager || null,
       phase: details.phase || null,
+      float_invoked_by: details.float_invoked_by || null,
+      option_invoked_by: details.option_invoked_by || null,
+      duncan_invoked: details.duncan_invoked || false,
+      joes_special_wager: details.joes_special_wager ?? null,
+      aardvark_requested_team: details.aardvark_requested_team || null,
+      aardvark_tossed: details.aardvark_tossed || false,
+      aardvark_solo: details.aardvark_solo || false,
+      aardvark_ping_ponged: details.aardvark_ping_ponged || false,
+      carry_over_applied: details.carry_over_applied || false,
     };
   });
   return { holes, current_hole };

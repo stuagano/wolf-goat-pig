@@ -145,12 +145,6 @@ describe('SimpleScorekeeper - Betting Interface', () => {
   });
 
   describe('Active Modifiers Display', () => {
-    test('should show Carry-Over badge when active', () => {
-      // This would require setting up game state with carry-over
-      // For now, this is a placeholder for when we implement state management
-      expect(true).toBe(true);
-    });
-
     test('should show Vinnie\'s Variation badge on holes 13-16', () => {
       // This would require advancing to hole 13
       // Placeholder for future implementation
