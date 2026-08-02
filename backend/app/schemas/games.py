@@ -110,7 +110,9 @@ class GamePlayerResultResponse(BaseModel):
 # Join Game Schemas
 class JoinGameRequest(BaseModel):
     player_name: str
-    handicap: float = 18.0
+    # None means "look it up" — the roster handicap wins. Only send a number to
+    # deliberately override the roster for this round.
+    handicap: float | None = None
     user_id: str | None = None
     player_profile_id: int | None = None
 
@@ -126,6 +128,8 @@ class JoinGameRequest(BaseModel):
     @field_validator("handicap")
     @classmethod
     def validate_handicap(cls, v):
+        if v is None:
+            return v
         if v < 0:
             raise ValueError("Handicap cannot be negative")
         if v > 54:

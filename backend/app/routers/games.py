@@ -15,6 +15,7 @@ from ..badge_engine import BadgeEngine
 from ..services.game_lifecycle_service import get_game_lifecycle_service
 from ..services.notification_service import get_notification_service
 from ..state.course_manager import CourseManager
+from ..utils.handicap_resolve import resolve_player_handicap
 from ..utils.time import utc_now
 from ..wolf_goat_pig import Player, WolfGoatPigGame
 
@@ -371,46 +372,33 @@ async def join_game_with_code(  # type: ignore
         player_slot_id = f"p{len(current_players) + 1}"
         current_time = utc_now().isoformat()
 
-        # Look up player profile — prefer explicit ID, fall back to name match
-        # (strip punctuation/whitespace for fuzzy-ish matching).
-        player_handicap = request.handicap if request.handicap is not None else 18.0
-        resolved_profile_id = request.player_profile_id
-        profile = None
+        # Explicit handicap always wins. Otherwise fill from the roster — never
+        # let a silent 18 stand in for a rostered scratch player.
+        handicap_was_omitted = request.handicap is None
+        player_handicap, profile = resolve_player_handicap(
+            db,
+            name=request.player_name,
+            handicap=request.handicap,
+            player_profile_id=request.player_profile_id,
+        )
+        resolved_profile_id = int(profile.id) if profile is not None else request.player_profile_id
+        handicap_source = "manual" if not handicap_was_omitted else ("profile" if profile else "manual")
 
-        if request.player_profile_id:
-            profile = (
-                db.query(models.PlayerProfile).filter(models.PlayerProfile.id == request.player_profile_id).first()
-            )
+        # GHIN sync only when the client omitted a handicap — an explicit course
+        # handicap for the round must not be overwritten by a GHIN index.
+        if handicap_was_omitted and profile is not None and profile.ghin_id:
+            try:
+                from ..services.ghin_service import GHINService
 
-        if not profile:
-            # Case-insensitive exact match, then startswith fallback
-            name = request.player_name.strip()
-            profile = db.query(models.PlayerProfile).filter(models.PlayerProfile.name.ilike(name)).first()
-            if not profile:
-                # Try matching on first word (nickname vs full name)
-                first_word = name.split()[0]
-                profile = (
-                    db.query(models.PlayerProfile).filter(models.PlayerProfile.name.ilike(f"{first_word}%")).first()
-                )
-
-        if profile:
-            resolved_profile_id = int(profile.id)
-            # Use stored handicap as baseline even if GHIN sync is skipped
-            if profile.handicap is not None and request.handicap == 18.0:
-                player_handicap = float(profile.handicap)
-
-            if profile.ghin_id:
-                try:
-                    from ..services.ghin_service import GHINService
-
-                    ghin = GHINService(db)
-                    if await ghin.initialize():
-                        result = await ghin.sync_player_handicap(int(profile.id))
-                        if result and result.get("handicap_index") is not None:
-                            player_handicap = float(result["handicap_index"])
-                            logger.info("GHIN handicap for %s: %.1f", request.player_name, player_handicap)
-                except Exception as ghin_err:
-                    logger.warning("GHIN lookup failed for %s: %s", request.player_name, ghin_err)
+                ghin = GHINService(db)
+                if await ghin.initialize():
+                    result = await ghin.sync_player_handicap(int(profile.id))
+                    if result and result.get("handicap_index") is not None:
+                        player_handicap = float(result["handicap_index"])
+                        handicap_source = "ghin"
+                        logger.info("GHIN handicap for %s: %.1f", request.player_name, player_handicap)
+            except Exception as ghin_err:
+                logger.warning("GHIN lookup failed for %s: %s", request.player_name, ghin_err)
 
         # Create GamePlayer record
         game_player = models.GamePlayer(
@@ -435,7 +423,7 @@ async def join_game_with_code(  # type: ignore
                 "name": request.player_name,
                 "handicap": player_handicap,
                 "user_id": request.user_id,
-                "player_profile_id": request.player_profile_id,
+                "player_profile_id": resolved_profile_id,
             }
         )
         game.state["players"] = players
@@ -450,7 +438,7 @@ async def join_game_with_code(  # type: ignore
             "game_id": game.game_id,
             "player_slot_id": player_slot_id,
             "handicap": player_handicap,
-            "handicap_source": "ghin" if (profile and profile.ghin_id) else ("profile" if profile else "manual"),
+            "handicap_source": handicap_source,
             "player_profile_id": resolved_profile_id,
             "players_joined": len(current_players) + 1,
             "max_players": max_players,

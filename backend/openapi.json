@@ -1805,9 +1805,15 @@
       "JoinGameRequest": {
         "properties": {
           "handicap": {
-            "default": 18.0,
-            "title": "Handicap",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handicap"
           },
           "player_name": {
             "title": "Player Name",

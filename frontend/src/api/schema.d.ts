@@ -5456,11 +5456,8 @@ export interface components {
         };
         /** JoinGameRequest */
         JoinGameRequest: {
-            /**
-             * Handicap
-             * @default 18
-             */
-            handicap: number;
+            /** Handicap */
+            handicap?: number | null;
             /** Player Name */
             player_name: string;
             /** Player Profile Id */

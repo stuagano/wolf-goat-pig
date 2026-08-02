@@ -30,14 +30,17 @@ def _create_game(**kwargs):
     return resp
 
 
-def _join_game(join_code, player_name=None, handicap=18.0, user_id=None):
+def _join_game(join_code, player_name=None, handicap=18.0, user_id=None, omit_handicap=False, profile_id=None):
     """Join a game and return the response."""
     payload = {
         "player_name": player_name or f"Player-{_unique_id()}",
-        "handicap": handicap,
     }
+    if not omit_handicap:
+        payload["handicap"] = handicap
     if user_id:
         payload["user_id"] = user_id
+    if profile_id is not None:
+        payload["player_profile_id"] = profile_id
     return client.post(f"/games/join/{join_code}", json=payload)
 
 
@@ -142,6 +145,62 @@ class TestJoinGame:
         resp = _join_game(game["join_code"], player_name="Eve", user_id=user)
         data = resp.json()
         assert data.get("status") == "already_joined"
+
+
+class TestJoinGameHandicapResolution:
+    """Omitted handicap must come from the roster, never a silent 18."""
+
+    SCRATCH_NAME = "Zzz Join Scratch"
+    SCRATCH_HANDICAP = 0.2
+
+    @pytest.fixture
+    def scratch_profile(self):
+        from app.database import SessionLocal
+        from app.models import PlayerProfile
+
+        db = SessionLocal()
+        try:
+            db.query(PlayerProfile).filter(PlayerProfile.name == self.SCRATCH_NAME).delete()
+            profile = PlayerProfile(
+                name=self.SCRATCH_NAME,
+                handicap=self.SCRATCH_HANDICAP,
+                created_at="2026-01-01T00:00:00",
+            )
+            db.add(profile)
+            db.commit()
+            db.refresh(profile)
+            profile_id = profile.id
+        finally:
+            db.close()
+
+        yield {"id": profile_id, "name": self.SCRATCH_NAME, "handicap": self.SCRATCH_HANDICAP}
+
+        db = SessionLocal()
+        try:
+            db.query(PlayerProfile).filter(PlayerProfile.name == self.SCRATCH_NAME).delete()
+            db.commit()
+        finally:
+            db.close()
+
+    def test_omitted_handicap_uses_roster(self, scratch_profile):
+        game = _create_game().json()
+        resp = _join_game(game["join_code"], player_name=self.SCRATCH_NAME, omit_handicap=True)
+        assert resp.status_code == 200
+        assert resp.json()["handicap"] == pytest.approx(self.SCRATCH_HANDICAP)
+        assert resp.json()["handicap_source"] == "profile"
+
+    def test_explicit_handicap_overrides_roster(self, scratch_profile):
+        game = _create_game().json()
+        resp = _join_game(game["join_code"], player_name=self.SCRATCH_NAME, handicap=9.0)
+        assert resp.status_code == 200
+        assert resp.json()["handicap"] == pytest.approx(9.0)
+        assert resp.json()["handicap_source"] == "manual"
+
+    def test_unknown_name_falls_back_to_eighteen(self):
+        game = _create_game().json()
+        resp = _join_game(game["join_code"], player_name="Nobody Byname Zzq", omit_handicap=True)
+        assert resp.status_code == 200
+        assert resp.json()["handicap"] == pytest.approx(18.0)
 
 
 # ── GET /games/{game_id}/lobby ───────────────────────────────────────────────
