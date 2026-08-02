@@ -1,6 +1,6 @@
 """Commissioner chat endpoint — natural language queries over game history and rules.
 
-Uses Claude (Haiku) with the full WGP ruleset and live DB context as the system
+Uses Vertex Gemini with the full WGP ruleset and live DB context as the system
 prompt, so players can ask anything: rules clarifications, historical stats,
 leaderboard questions, head-to-head records.
 """
@@ -8,11 +8,9 @@ leaderboard questions, head-to-head records.
 from __future__ import annotations
 
 import logging
-import os
 import re
 from typing import Any
 
-import httpx
 import sqlglot
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -21,59 +19,12 @@ from sqlalchemy.orm import Session
 from sqlglot import exp
 
 from ..database import get_db
+from ..services.commissioner_llm_service import llm_generate
 from ..utils.api_helpers import ApiResponse, handle_api_errors
 
 logger = logging.getLogger("app.routers.commissioner")
 
 router = APIRouter(prefix="/api/commissioner", tags=["commissioner"])
-
-_GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-_GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-
-
-async def _llm_generate(
-    prompt: str,
-    system_instruction: str,
-) -> str:
-    """Call Groq API (OpenAI-compatible) for LLM generation."""
-    api_key = os.getenv("GROQ_API_KEY")
-    if not api_key:
-        raise ValueError("Commissioner AI is not configured (GROQ_API_KEY missing)")
-
-    payload = {
-        "model": _GROQ_MODEL,
-        "messages": [
-            {"role": "system", "content": system_instruction},
-            {"role": "user", "content": prompt},
-        ],
-        "temperature": 0.7,
-        "max_tokens": 2048,
-    }
-
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        resp = await client.post(
-            _GROQ_API_URL,
-            json=payload,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-        )
-        if resp.status_code == 429:
-            raise ValueError("Commissioner is getting too many questions right now. Try again in a minute.")
-        if resp.status_code != 200:
-            body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
-            err_msg = body.get("error", {}).get("message", "unknown error")
-            logger.error("Groq API %d: %s", resp.status_code, err_msg)
-            raise ValueError(f"LLM API error: {err_msg}")
-
-    data = resp.json()
-    choices = data.get("choices", [])
-    if not choices:
-        raise ValueError("LLM returned no choices")
-    return choices[0].get("message", {}).get("content", "")
-
-
 WGP_RULES = """
 You are the Wolf Goat Pig Commissioner — an authoritative, friendly rules expert and
 statistician for this private golf betting game played at Wing Point Golf & Country Club.
@@ -209,7 +160,7 @@ async def commissioner_chat(
         "If you don't have data to answer a stats question, say so honestly."
     )
 
-    response_text = await _llm_generate(request.message, system)
+    response_text = await llm_generate(request.message, system)
     return ApiResponse.success(data={"response": response_text})
 
 
@@ -511,7 +462,7 @@ Example queries:
 - "Best single round ever?" → SELECT member, score, date, location FROM legacy_rounds_official ORDER BY score DESC LIMIT 5
 - "Who goes solo the most?" → SELECT pp.name, ps.solo_attempts, ps.solo_wins FROM player_statistics ps JOIN player_profiles pp ON ps.player_id = pp.id WHERE ps.solo_attempts > 0 ORDER BY ps.solo_attempts DESC"""
 
-    step1_text = await _llm_generate(request.question, system)
+    step1_text = await llm_generate(request.question, system)
 
     # Step 2: Extract SQL from ```sql ... ``` blocks
     sql_match = re.search(r"```sql\s*(.*?)\s*```", step1_text, re.DOTALL)
@@ -572,7 +523,7 @@ Example queries:
     if results["truncated"]:
         narration_prompt += "\n(Results were truncated to 100 rows.)"
 
-    narration_text = await _llm_generate(narration_prompt, narration_system)
+    narration_text = await llm_generate(narration_prompt, narration_system)
 
     return ApiResponse.success(
         data={

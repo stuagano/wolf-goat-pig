@@ -41,9 +41,16 @@ async def _timed(name: str, coro) -> ServiceStatus:
         return ServiceStatus(name, "down", int((time.monotonic() - start) * 1000), f"{type(e).__name__}: {e}")
 
 
-async def check_groq() -> ServiceStatus:
+async def check_commissioner_llm() -> ServiceStatus:
+    provider = os.environ.get("COMMISSIONER_LLM_PROVIDER", "vertex").strip().lower()
+    if provider == "groq":
+        return await _check_commissioner_groq()
+    return await _check_commissioner_vertex()
+
+
+async def _check_commissioner_groq() -> ServiceStatus:
     if _missing("GROQ_API_KEY"):
-        return ServiceStatus("groq", "not_configured")
+        return ServiceStatus("commissioner_llm", "not_configured")
 
     async def probe() -> str:
         model = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
@@ -56,7 +63,31 @@ async def check_groq() -> ServiceStatus:
             resp.raise_for_status()
             return f"HTTP {resp.status_code}"
 
-    return await _timed("groq", probe())
+    return await _timed("commissioner_llm", probe())
+
+
+async def _check_commissioner_vertex() -> ServiceStatus:
+    if _missing("GCP_PROJECT_ID"):
+        return ServiceStatus("commissioner_llm", "not_configured")
+
+    async def probe() -> str:
+        from google import genai
+        from google.genai import types
+
+        project = os.environ["GCP_PROJECT_ID"]
+        location = os.environ.get("GCP_LOCATION", "global")
+        model = os.environ.get("COMMISSIONER_MODEL", "gemini-2.5-flash")
+        client = genai.Client(vertexai=True, project=project, location=location)
+        response = await client.aio.models.generate_content(
+            model=model,
+            contents="ping",
+            config=types.GenerateContentConfig(max_output_tokens=8),
+        )
+        if not (response.text or "").strip():
+            raise ValueError("Vertex returned empty response")
+        return model
+
+    return await _timed("commissioner_llm", probe())
 
 
 async def check_auth0() -> ServiceStatus:
@@ -227,7 +258,7 @@ async def check_google() -> ServiceStatus:
 async def check_all() -> list[ServiceStatus]:
     """Run all external checks concurrently and return their statuses."""
     return await asyncio.gather(
-        check_groq(),
+        check_commissioner_llm(),
         check_auth0(),
         check_google(),
         check_ghin(),

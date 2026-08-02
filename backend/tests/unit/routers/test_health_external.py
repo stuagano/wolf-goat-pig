@@ -29,7 +29,7 @@ def _stub(monkeypatch, statuses, counter=None):
 
 def test_all_ok_returns_200_healthy(monkeypatch):
     monkeypatch.delenv("MONITOR_KEY", raising=False)
-    _stub(monkeypatch, [ServiceStatus("groq", "ok", 10, "ok"), ServiceStatus("ghin", "not_configured")])
+    _stub(monkeypatch, [ServiceStatus("commissioner_llm", "ok", 10, "ok"), ServiceStatus("ghin", "not_configured")])
     resp = client.get("/health/external")
     assert resp.status_code == 200
     assert resp.json()["status"] == "healthy"
@@ -37,7 +37,7 @@ def test_all_ok_returns_200_healthy(monkeypatch):
 
 def test_one_down_returns_503_unhealthy(monkeypatch):
     monkeypatch.delenv("MONITOR_KEY", raising=False)
-    _stub(monkeypatch, [ServiceStatus("groq", "down", 10, "boom"), ServiceStatus("ghin", "not_configured")])
+    _stub(monkeypatch, [ServiceStatus("commissioner_llm", "down", 10, "boom"), ServiceStatus("ghin", "not_configured")])
     resp = client.get("/health/external")
     assert resp.status_code == 503
     assert resp.json()["status"] == "unhealthy"
@@ -45,7 +45,7 @@ def test_one_down_returns_503_unhealthy(monkeypatch):
 
 def test_not_configured_does_not_make_unhealthy(monkeypatch):
     monkeypatch.delenv("MONITOR_KEY", raising=False)
-    _stub(monkeypatch, [ServiceStatus("groq", "not_configured"), ServiceStatus("ghin", "not_configured")])
+    _stub(monkeypatch, [ServiceStatus("commissioner_llm", "not_configured"), ServiceStatus("ghin", "not_configured")])
     resp = client.get("/health/external")
     assert resp.status_code == 200
     assert resp.json()["status"] == "healthy"
@@ -53,7 +53,7 @@ def test_not_configured_does_not_make_unhealthy(monkeypatch):
 
 def test_guard_rejects_without_key(monkeypatch):
     monkeypatch.setenv("MONITOR_KEY", "secret")
-    _stub(monkeypatch, [ServiceStatus("groq", "ok", 10, "ok")])
+    _stub(monkeypatch, [ServiceStatus("commissioner_llm", "ok", 10, "ok")])
     assert client.get("/health/external").status_code == 403
     assert client.get("/health/external", headers={"X-Monitor-Key": "wrong"}).status_code == 403
     assert client.get("/health/external", headers={"X-Monitor-Key": "secret"}).status_code == 200
@@ -62,7 +62,7 @@ def test_guard_rejects_without_key(monkeypatch):
 def test_guard_accepts_query_param_key(monkeypatch):
     # Uptime tools that can't send custom headers can pass ?monitor_key=.
     monkeypatch.setenv("MONITOR_KEY", "secret")
-    _stub(monkeypatch, [ServiceStatus("groq", "ok", 10, "ok")])
+    _stub(monkeypatch, [ServiceStatus("commissioner_llm", "ok", 10, "ok")])
     assert client.get("/health/external?monitor_key=wrong").status_code == 403
     assert client.get("/health/external?monitor_key=secret").status_code == 200
 

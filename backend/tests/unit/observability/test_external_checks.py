@@ -15,35 +15,46 @@ def _no_proxy(monkeypatch):
 
 
 # --------------------------------------------------------------------------
-# groq
+# commissioner_llm
 # --------------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_groq_not_configured(monkeypatch):
+async def test_commissioner_vertex_not_configured(monkeypatch):
+    monkeypatch.setenv("COMMISSIONER_LLM_PROVIDER", "vertex")
+    monkeypatch.delenv("GCP_PROJECT_ID", raising=False)
+    s = await ec.check_commissioner_llm()
+    assert s.status == "not_configured"
+
+
+@pytest.mark.asyncio
+async def test_commissioner_groq_not_configured(monkeypatch):
+    monkeypatch.setenv("COMMISSIONER_LLM_PROVIDER", "groq")
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
-    s = await ec.check_groq()
+    s = await ec.check_commissioner_llm()
     assert s.status == "not_configured"
 
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_groq_ok(monkeypatch):
+async def test_commissioner_groq_ok(monkeypatch):
+    monkeypatch.setenv("COMMISSIONER_LLM_PROVIDER", "groq")
     monkeypatch.setenv("GROQ_API_KEY", "k")
     respx.post("https://api.groq.com/openai/v1/chat/completions").mock(
         return_value=httpx.Response(200, json={"choices": [{"message": {"content": "x"}}]})
     )
-    s = await ec.check_groq()
+    s = await ec.check_commissioner_llm()
     assert s.status == "ok"
     assert s.latency_ms is not None
 
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_groq_down_on_error(monkeypatch):
+async def test_commissioner_groq_down_on_error(monkeypatch):
+    monkeypatch.setenv("COMMISSIONER_LLM_PROVIDER", "groq")
     monkeypatch.setenv("GROQ_API_KEY", "k")
     respx.post("https://api.groq.com/openai/v1/chat/completions").mock(
         return_value=httpx.Response(500, json={"error": "boom"})
     )
-    s = await ec.check_groq()
+    s = await ec.check_commissioner_llm()
     assert s.status == "down"
 
 
@@ -344,6 +355,7 @@ async def test_tee_sheet_down_on_connect_error(monkeypatch):
 @respx.mock
 async def test_check_all_returns_all_eight(monkeypatch):
     for n in (
+        "GCP_PROJECT_ID",
         "GROQ_API_KEY",
         "AUTH0_DOMAIN",
         "RESEND_API_KEY",
@@ -365,8 +377,8 @@ async def test_check_all_returns_all_eight(monkeypatch):
 
     results = await ec.check_all()
     names = {r.name for r in results}
-    assert names == {"groq", "auth0", "google", "ghin", "groupme", "foretees", "resend", "tee_sheet"}
+    assert names == {"commissioner_llm", "auth0", "google", "ghin", "groupme", "foretees", "resend", "tee_sheet"}
     by = {r.name: r.status for r in results}
-    assert by["groq"] == "not_configured"
+    assert by["commissioner_llm"] == "not_configured"
     assert by["ghin"] == "not_configured"
     assert by["tee_sheet"] == "ok"

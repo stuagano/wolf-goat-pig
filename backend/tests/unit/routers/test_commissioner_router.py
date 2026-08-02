@@ -1,4 +1,4 @@
-"""Unit tests for commissioner router — AI-powered rules chat using Groq API."""
+"""Unit tests for commissioner router — AI-powered rules chat using Vertex Gemini."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -9,59 +9,34 @@ from app.main import app
 client = TestClient(app)
 
 
-def _groq_response(text: str = "Test response", status_code: int = 200) -> MagicMock:
-    """Build a mock httpx.Response shaped like Groq's chat/completions reply."""
-    resp = MagicMock()
-    resp.status_code = status_code
-    resp.headers = {"content-type": "application/json"}
-    if status_code == 200:
-        resp.json.return_value = {
-            "choices": [{"message": {"content": text}}],
-        }
-    else:
-        resp.json.return_value = {"error": {"message": f"HTTP {status_code}"}}
-    return resp
-
-
-def _patched_httpx_client(response: MagicMock) -> MagicMock:
-    """Build an AsyncMock httpx.AsyncClient context-manager that returns `response` from .post()."""
-    mock_client = AsyncMock()
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
-    mock_client.post = AsyncMock(return_value=response)
-    return mock_client
-
-
 # =============================================================================
-# POST /api/commissioner/chat — missing API key
+# POST /api/commissioner/chat — missing config
 # =============================================================================
 
 
-class TestCommissionerChatNoApiKey:
-    def test_returns_400_when_groq_key_missing(self):
-        # Stub os.getenv at the call site so we don't disturb other env vars
-        # (DATABASE_URL etc. are still needed by the test app).
-        with patch("app.routers.commissioner.os.getenv", return_value=None):
-            resp = client.post(
-                "/api/commissioner/chat",
-                json={"message": "What is the Wolf?"},
-            )
-        # handle_api_errors decorator converts ValueError -> 400
+class TestCommissionerChatNoConfig:
+    def test_returns_400_when_vertex_project_missing(self, monkeypatch):
+        monkeypatch.setenv("COMMISSIONER_LLM_PROVIDER", "vertex")
+        monkeypatch.delenv("GCP_PROJECT_ID", raising=False)
+        resp = client.post(
+            "/api/commissioner/chat",
+            json={"message": "What is the Wolf?"},
+        )
         assert resp.status_code == 400
-        assert "GROQ_API_KEY" in resp.json()["detail"]
+        assert "GCP_PROJECT_ID" in resp.json()["detail"]
 
 
 # =============================================================================
-# POST /api/commissioner/chat — happy path (Groq httpx mocked)
+# POST /api/commissioner/chat — happy path
 # =============================================================================
 
 
 class TestCommissionerChatHappyPath:
     def test_returns_200_with_response(self):
-        mock_client = _patched_httpx_client(_groq_response("The Wolf is the Captain who goes solo."))
-        with (
-            patch.dict("os.environ", {"GROQ_API_KEY": "fake-key"}, clear=False),
-            patch("httpx.AsyncClient", return_value=mock_client),
+        with patch(
+            "app.routers.commissioner.llm_generate",
+            new_callable=AsyncMock,
+            return_value="The Wolf is the Captain who goes solo.",
         ):
             resp = client.post(
                 "/api/commissioner/chat",
@@ -74,10 +49,10 @@ class TestCommissionerChatHappyPath:
         assert "response" in data["data"]
 
     def test_accepts_game_state(self):
-        mock_client = _patched_httpx_client(_groq_response("You are on hole 5."))
-        with (
-            patch.dict("os.environ", {"GROQ_API_KEY": "fake-key"}, clear=False),
-            patch("httpx.AsyncClient", return_value=mock_client),
+        with patch(
+            "app.routers.commissioner.llm_generate",
+            new_callable=AsyncMock,
+            return_value="You are on hole 5.",
         ):
             resp = client.post(
                 "/api/commissioner/chat",
@@ -96,10 +71,10 @@ class TestCommissionerChatHappyPath:
         assert resp.status_code == 200
 
     def test_accepts_null_game_state(self):
-        mock_client = _patched_httpx_client(_groq_response("Ask me anything."))
-        with (
-            patch.dict("os.environ", {"GROQ_API_KEY": "fake-key"}, clear=False),
-            patch("httpx.AsyncClient", return_value=mock_client),
+        with patch(
+            "app.routers.commissioner.llm_generate",
+            new_callable=AsyncMock,
+            return_value="Ask me anything.",
         ):
             resp = client.post(
                 "/api/commissioner/chat",
@@ -129,17 +104,16 @@ class TestCommissionerChatValidation:
 
 
 # =============================================================================
-# POST /api/commissioner/chat — Groq API errors
+# POST /api/commissioner/chat — LLM errors
 # =============================================================================
 
 
 class TestCommissionerChatApiErrors:
-    def test_returns_400_on_groq_non_200(self):
-        """Non-200 from Groq raises ValueError → handle_api_errors returns 400."""
-        mock_client = _patched_httpx_client(_groq_response(status_code=503))
-        with (
-            patch.dict("os.environ", {"GROQ_API_KEY": "fake-key"}, clear=False),
-            patch("httpx.AsyncClient", return_value=mock_client),
+    def test_returns_400_on_llm_error(self):
+        with patch(
+            "app.routers.commissioner.llm_generate",
+            new_callable=AsyncMock,
+            side_effect=ValueError("LLM API error: unavailable"),
         ):
             resp = client.post(
                 "/api/commissioner/chat",
@@ -149,12 +123,11 @@ class TestCommissionerChatApiErrors:
         assert resp.status_code == 400
         assert "LLM API error" in resp.json()["detail"]
 
-    def test_returns_400_on_groq_rate_limit(self):
-        """429 from Groq surfaces a friendly user-facing message."""
-        mock_client = _patched_httpx_client(_groq_response(status_code=429))
-        with (
-            patch.dict("os.environ", {"GROQ_API_KEY": "fake-key"}, clear=False),
-            patch("httpx.AsyncClient", return_value=mock_client),
+    def test_returns_400_on_rate_limit_message(self):
+        with patch(
+            "app.routers.commissioner.llm_generate",
+            new_callable=AsyncMock,
+            side_effect=ValueError("Commissioner is getting too many questions right now. Try again in a minute."),
         ):
             resp = client.post(
                 "/api/commissioner/chat",
@@ -227,7 +200,6 @@ class TestBuildDataContext:
         from app.routers.commissioner import _build_data_context
 
         mock_db = MagicMock()
-        # Make the query chain return empty results
         mock_query = MagicMock()
         mock_query.group_by.return_value.order_by.return_value.limit.return_value.all.return_value = []
         mock_query.order_by.return_value.all.return_value = []
@@ -240,7 +212,6 @@ class TestBuildDataContext:
 
         mock_db = MagicMock()
         mock_db.query.side_effect = Exception("DB connection lost")
-        # Should not raise — just returns what it can
         result = _build_data_context(mock_db)
         assert isinstance(result, str)
 
@@ -256,7 +227,6 @@ class TestDataSchemaGuidance:
 
         assert "legacy_rounds_official" in DATA_SCHEMA
         assert "ALWAYS use" in DATA_SCHEMA or "Default to" in DATA_SCHEMA
-        # Must warn that player_statistics is the sparse in-app table
         assert "In-app WGP game aggregates ONLY" in DATA_SCHEMA
         assert "Never use them for the club" in DATA_SCHEMA
         assert "season leaderboard" in DATA_SCHEMA
@@ -271,12 +241,10 @@ class TestDataSchemaGuidance:
 
         async def fake_llm(message: str, system: str) -> str:
             captured["system"] = system
-            # Rules-only answer so we don't hit SQL execution in this unit test
             return "Steve Sutorius leads the season."
 
         with (
-            patch.dict("os.environ", {"GROQ_API_KEY": "fake-key"}, clear=False),
-            patch.object(mod, "_llm_generate", side_effect=fake_llm),
+            patch.object(mod, "llm_generate", side_effect=fake_llm),
             patch.object(
                 mod,
                 "_build_data_context",
