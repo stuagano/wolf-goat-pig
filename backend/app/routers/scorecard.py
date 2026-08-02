@@ -1,7 +1,7 @@
 """
 Scorecard Router
 
-Scorecard photo scanning via Gemini Vision.
+Scorecard photo scanning via Groq Vision (default) or the Vertex scorecard agent.
 """
 
 import json as _json
@@ -21,16 +21,15 @@ async def scan_scorecard_photo(
     players: str | None = Form(None),
 ) -> dict[str, Any]:
     """
-    Upload a scorecard photo and extract running quarter totals via Gemini Vision.
-    Returns extracted running totals and computed per-hole quarter deltas.
-    Phase 1: no image persistence, process and return immediately.
+    Upload a scorecard photo and extract running quarter totals.
+    Provider is selected by SCORECARD_VISION_PROVIDER (groq | agent).
 
     Optional form field:
     - players: JSON array of player name strings (e.g. '["CK","SS","SG"]').
       When provided, passed to the scan service as expected_players to guide
       tiled/guided scanning.
     """
-    from ..services.scorecard_scan_service import scan_scorecard
+    from ..services.scorecard_scan_dispatcher import dispatch_scorecard_scan
 
     allowed_types = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
     content_type = file.content_type or "image/jpeg"
@@ -57,7 +56,7 @@ async def scan_scorecard_photo(
             expected_players = None
 
     try:
-        result = await scan_scorecard(image_bytes, content_type, expected_players=expected_players)
+        result = await dispatch_scorecard_scan(image_bytes, content_type, expected_players=expected_players)
         return result
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
