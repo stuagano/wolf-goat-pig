@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
-import { useNavigate } from 'react-router-dom';
 import '../../styles/mobile-touch.css';
 import { calculateCourseHandicap } from '../../utils';
 import { usePlayerProfile } from '../../hooks/usePlayerProfile';
@@ -8,18 +7,14 @@ import { acquireAccessToken, apiTokenOptions } from '../../services/authToken';
 import { api } from '../../api/client';
 import { errorDetail } from '../../api/http';
 
-const CLUB_PLAYER_ACCOUNT_PATH = '/account#club-player';
-
 function getSignupButtonLabel({
   confirmingSignup,
   defaultLabel,
   profileLoading,
-  signingUp,
-  signupProfileReady
+  signingUp
 }) {
   if (signingUp) return 'Signing up…';
   if (profileLoading) return 'Loading profile…';
-  if (!signupProfileReady) return 'Link club player in Account';
   if (confirmingSignup) return 'Confirm Sign Up';
   return defaultLabel;
 }
@@ -27,7 +22,6 @@ function getSignupButtonLabel({
 const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
   const { profile, loading: profileLoading } = usePlayerProfile();
-  const navigate = useNavigate();
   const [currentWeekStart, setCurrentWeekStart] = useState('');
   const [selectedDate, setSelectedDate] = useState(initialDate || '');
   const [weekData, setWeekData] = useState({ daily_summaries: [] });
@@ -39,7 +33,11 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   const [pairingsError, setPairingsError] = useState(null);
   const [confirmingSignup, setConfirmingSignup] = useState(false);
   const [signingUp, setSigningUp] = useState(false);
-  const signupName = profile?.legacy_name || '';
+  // Linking a club player is no longer required upfront: an unlinked golfer
+  // signs up under their profile name and the backend resolves/links the roster
+  // name (exact matches auto-link at login). Ready = we have a loaded profile
+  // with any name to sign up as.
+  const signupName = profile?.legacy_name || profile?.name || '';
   const signupProfileReady = Boolean(profile?.id && signupName);
   const signupDisabled = signingUp || profileLoading;
 
@@ -181,10 +179,6 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
 
   // Handle signup with confirmation step
   const handleSignupClick = () => {
-    if (!signupProfileReady) {
-      navigate(CLUB_PLAYER_ACCOUNT_PATH);
-      return;
-    }
     if (confirmingSignup) {
       handleSignup();
     } else {
@@ -198,11 +192,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
       return;
     }
     if (!signupProfileReady) {
-      setError(
-        profileLoading
-          ? 'Loading your profile…'
-          : 'Link your club player name in Account before signing up.'
-      );
+      setError(profileLoading ? 'Loading your profile…' : 'Add a name to your profile before signing up.');
       setConfirmingSignup(false);
       return;
     }
@@ -474,8 +464,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                   confirmingSignup,
                   defaultLabel: 'Sign Up',
                   profileLoading,
-                  signingUp,
-                  signupProfileReady
+                  signingUp
                 })}
               </button>
               {confirmingSignup && (
@@ -634,8 +623,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                         confirmingSignup,
                         defaultLabel: 'Be the first to sign up!',
                         profileLoading,
-                        signingUp,
-                        signupProfileReady
+                        signingUp
                       })}
                     </button>
                     {confirmingSignup && (

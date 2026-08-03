@@ -413,6 +413,20 @@ class AuthService:
                 player.preferences = prefs
                 update_needed = True
 
+            # Retroactively link the club (legacy tee-sheet) player on login when
+            # the profile name is an EXACT canonical roster match. This mirrors the
+            # new-profile branch: exact matches are deterministic and safe to
+            # auto-link, so a returning golfer who was created before their roster
+            # row existed (or before this logic) gets linked without any UI. Fuzzy
+            # matches are still never auto-persisted here (#322) — those stay a
+            # suggestion the user confirms in Account.
+            if not (player.legacy_name or "").strip():
+                canonical = get_canonical_name(player.name, db)
+                if canonical:
+                    player.legacy_name = canonical
+                    update_needed = True
+                    logger.info("Auto-linked existing player id=%s to legacy '%s'", player.id, canonical)
+
             if update_needed:
                 player.updated_at = utc_now().isoformat()
                 db.commit()

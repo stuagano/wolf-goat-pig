@@ -271,11 +271,19 @@ def create_signup(
     """Create a daily sign-up for the authenticated player."""
     try:
         db = database.SessionLocal()
-        player_name = current_user.legacy_name
+        # Prefer the confirmed club (legacy tee-sheet) name, but don't gate signup
+        # on it: an unlinked golfer signs up under their own profile name. The name
+        # is still server-derived from the authenticated profile (never client
+        # supplied), so this is not the #319 spoofing path — the only residual risk
+        # is a profile name that doesn't match a roster spelling, a data-quality
+        # issue the legacy sync surfaces, not a wrong-person write. Exact roster
+        # matches are auto-linked at login, so most users still sign up as their
+        # canonical club name.
+        player_name = (current_user.legacy_name or current_user.name or "").strip()
         if not player_name:
             raise HTTPException(
                 status_code=409,
-                detail="Link your club player name in Account before signing up",
+                detail="Add a name to your profile before signing up",
             )
 
         # Check if player already signed up for this date

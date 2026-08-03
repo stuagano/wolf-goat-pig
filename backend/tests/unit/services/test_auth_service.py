@@ -223,6 +223,52 @@ class TestPlayerProfileManagement:
         # Original preferences should be preserved
         assert player.preferences.get("ai_difficulty") == "easy"
 
+    def test_existing_unlinked_player_auto_links_exact_roster_match(self, db, monkeypatch):
+        """A returning unlinked player whose name is an EXACT roster match links on login."""
+        from app.services import auth_service as auth_service_module
+
+        player = PlayerProfile(
+            name="Stuart Gano",
+            email="stu@example.com",
+            legacy_name=None,
+            handicap=18.0,
+            created_at=datetime.now().isoformat(),
+            preferences={"auth0_id": "auth0|stu"},
+        )
+        db.add(player)
+        db.commit()
+
+        monkeypatch.setattr(
+            auth_service_module,
+            "get_canonical_name",
+            lambda name, db=None: "Stuart Gano" if name == "Stuart Gano" else None,
+        )
+
+        result = AuthService().get_or_create_player_profile(db, {"sub": "auth0|stu", "email": "stu@example.com"})
+        assert result.id == player.id
+        assert result.legacy_name == "Stuart Gano"
+
+    def test_existing_unlinked_player_not_linked_without_exact_match(self, db, monkeypatch):
+        """No exact roster match → legacy_name stays None (never fuzzy-auto-link, #322)."""
+        from app.services import auth_service as auth_service_module
+
+        player = PlayerProfile(
+            name="Stu Ganoo",
+            email="stu2@example.com",
+            legacy_name=None,
+            handicap=18.0,
+            created_at=datetime.now().isoformat(),
+            preferences={"auth0_id": "auth0|stu2"},
+        )
+        db.add(player)
+        db.commit()
+
+        monkeypatch.setattr(auth_service_module, "get_canonical_name", lambda name, db=None: None)
+
+        result = AuthService().get_or_create_player_profile(db, {"sub": "auth0|stu2", "email": "stu2@example.com"})
+        assert result.id == player.id
+        assert result.legacy_name is None
+
     def test_null_email_does_not_reclaim_seed_profile(self, db):
         """Missing email must not match seed rows with NULL email (Dave reclaim bug)."""
         seed = PlayerProfile(
