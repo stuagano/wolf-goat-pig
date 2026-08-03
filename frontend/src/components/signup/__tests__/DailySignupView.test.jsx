@@ -5,14 +5,8 @@ import { useAuth0 as mockUseAuth0 } from '@auth0/auth0-react';
 import { usePlayerProfile as mockUsePlayerProfile } from '../../../hooks/usePlayerProfile';
 import DailySignupView from '../DailySignupView';
 
-const mockNavigate = vi.fn();
-
 vi.mock('@auth0/auth0-react', () => ({
   useAuth0: vi.fn(),
-}));
-
-vi.mock('react-router-dom', () => ({
-  useNavigate: () => mockNavigate,
 }));
 
 vi.mock('../../../hooks/usePlayerProfile', () => ({
@@ -56,7 +50,6 @@ const weeklyResponse = (signups = []) => ({
 
 describe('DailySignupView', () => {
   beforeEach(() => {
-    mockNavigate.mockReset();
     mockUseAuth0.mockReturnValue({
       user: { name: 'Auth0 Display Name', email: 'stuart@example.com' },
       isAuthenticated: true,
@@ -128,29 +121,55 @@ describe('DailySignupView', () => {
     expect(screen.getByRole('button', { name: 'Cancel My Signup' })).toBeInTheDocument();
   });
 
-  test('sends an unlinked player to Account instead of leaving signup disabled', async () => {
+  test('lets an unlinked player sign up under their profile name', async () => {
+    // No club-player link: signup is no longer gated — the golfer signs up as
+    // their profile name and the backend resolves the roster name.
     mockUsePlayerProfile.mockReturnValue({
       profile: { ...playerProfile, legacy_name: null },
       loading: false,
     });
-    fetch.mockImplementation((request) => {
+    let createdSignup = null;
+    fetch.mockImplementation(async (request) => {
       const url = request.url;
       if (url.includes('/pairings/')) return jsonResponse({ exists: false });
       if (url.includes('/signups/weekly-with-messages')) {
-        return jsonResponse(weeklyResponse());
+        return jsonResponse(weeklyResponse(createdSignup ? [createdSignup] : []));
+      }
+      if (url.endsWith('/signups') && request.method === 'POST') {
+        const body = JSON.parse(await request.clone().text());
+        createdSignup = {
+          id: 202,
+          ...body,
+          player_profile_id: playerProfile.id,
+          player_name: 'Auth0 Display Name',
+          status: 'signed_up',
+          signup_time: '2099-01-01T00:00:00Z',
+          created_at: '2099-01-01T00:00:00Z',
+          updated_at: '2099-01-01T00:00:00Z',
+        };
+        return jsonResponse(createdSignup);
       }
       throw new Error(`Unexpected fetch: ${url}`);
     });
 
     render(<DailySignupView selectedDate={selectedDate} />);
 
-    const buttons = await screen.findAllByRole('button', {
-      name: 'Link club player in Account',
+    const firstSignupButton = await screen.findByRole('button', {
+      name: 'Be the first to sign up!',
     });
-    expect(buttons).not.toHaveLength(0);
-    buttons.forEach((button) => expect(button).toBeEnabled());
+    const emptyStateActions = firstSignupButton.parentElement;
+    fireEvent.click(firstSignupButton);
+    expect(
+      within(emptyStateActions).getByText('Signing up as: Auth0 Display Name'),
+    ).toBeInTheDocument();
+    fireEvent.click(within(emptyStateActions).getByRole('button', { name: 'Confirm Sign Up' }));
 
-    fireEvent.click(buttons[0]);
-    expect(mockNavigate).toHaveBeenCalledWith('/account#club-player');
+    await waitFor(() => {
+      expect(
+        fetch.mock.calls.some(([req]) => req.url.endsWith('/signups') && req.method === 'POST'),
+      ).toBe(true);
+    });
+
+    expect(await screen.findByText('Auth0 Display Name')).toBeInTheDocument();
   });
 });

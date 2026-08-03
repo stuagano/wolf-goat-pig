@@ -16,7 +16,6 @@ import { AuthProvider } from "./context/AuthContext";
 import { TutorialProvider } from "./context/TutorialContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import LoginButton from "./components/auth/LoginButton";
-import { OnboardingWrapper } from "./components/auth";
 import { HomePage, GameScorerPage, SimpleScorekeeperPage } from "./pages";
 import Navigation from "./components/ui/Navigation";
 import AppFooter from "./components/ui/AppFooter";
@@ -320,7 +319,6 @@ function App() {
   // Main application
   return (
     <ThemeProvider>
-      <OnboardingWrapper>
         <div
           style={{
             minHeight: "100vh",
@@ -442,7 +440,6 @@ function App() {
           </div>
           <AppFooter />
         </div>
-      </OnboardingWrapper>
     </ThemeProvider>
   );
 }

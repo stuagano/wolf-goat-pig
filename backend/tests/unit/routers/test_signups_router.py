@@ -174,15 +174,43 @@ class TestCreateSignup:
         resp = client.post("/signups", json={})
         assert resp.status_code == 422
 
-    def test_create_signup_requires_linked_club_player(self):
+    def test_create_signup_unlinked_uses_profile_name(self):
+        # Linking a club player is no longer required upfront: an unlinked golfer
+        # signs up under their own (server-derived) profile name.
         app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
             id=987655,
             name="Unlinked Test Player",
             legacy_name=None,
         )
+        signup_date = _unique_signup_date()
+        resp = client.post("/signups", json={"date": signup_date})
+        assert resp.status_code == 200
+        signup_id = resp.json()["id"]
+        persisted = _signups_for_week(signup_date)[signup_id]
+        assert persisted["player_name"] == "Unlinked Test Player"
+
+    def test_create_signup_prefers_legacy_name_over_profile_name(self):
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+            id=987656,
+            name="Casual Name",
+            legacy_name="Roster Canonical Name",
+        )
+        signup_date = _unique_signup_date()
+        resp = client.post("/signups", json={"date": signup_date})
+        assert resp.status_code == 200
+        persisted = _signups_for_week(signup_date)[resp.json()["id"]]
+        assert persisted["player_name"] == "Roster Canonical Name"
+
+    def test_create_signup_requires_a_name(self):
+        # The only remaining hard block: a profile with no name at all.
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+            id=987657,
+            name=None,
+            legacy_name=None,
+        )
         resp = client.post("/signups", json={"date": "2099-01-01"})
         assert resp.status_code == 409
-        assert "Link your club player name" in resp.json()["detail"]
+        assert "name to your profile" in resp.json()["detail"]
 
 
 # ── PUT /signups/{signup_id} ─────────────────────────────────────────────────
