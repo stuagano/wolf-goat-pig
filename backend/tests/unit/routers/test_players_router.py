@@ -101,6 +101,104 @@ class TestMyProfileComputedFields:
         # A fuzzy match is surfaced as a suggestion, never auto-linked.
         assert data["legacy_name_suggestion"] == "Jonathan Smith"
 
+    def test_claimed_name_is_not_surfaced_as_one_click_suggestion(self):
+        seed = _MeSession()
+        try:
+            legacy_svc.add_legacy_player("Shared Name", db=seed)
+            seed.add(
+                _make_user(
+                    id=1,
+                    name="Owner Account",
+                    email="owner@example.com",
+                    legacy_name="Shared Name",
+                )
+            )
+            seed.commit()
+        finally:
+            seed.close()
+
+        app.dependency_overrides[get_current_user] = lambda: _make_user(
+            id=2,
+            name="Shared Name",
+            email="claimant@example.com",
+            legacy_name=None,
+        )
+        resp = client.get("/players/me")
+
+        assert resp.status_code == 200
+        assert resp.json()["legacy_name_suggestion"] is None
+
+    def test_next_available_name_is_suggested_when_closest_match_is_claimed(self):
+        seed = _MeSession()
+        try:
+            legacy_svc.add_legacy_player("Jon Smith", db=seed)
+            legacy_svc.add_legacy_player("John Smith", db=seed)
+            seed.add(
+                _make_user(
+                    id=1,
+                    name="Owner Account",
+                    email="owner@example.com",
+                    legacy_name="Jon Smith",
+                )
+            )
+            seed.commit()
+        finally:
+            seed.close()
+
+        app.dependency_overrides[get_current_user] = lambda: _make_user(
+            id=2,
+            name="Jon Smith",
+            email="claimant@example.com",
+            legacy_name=None,
+        )
+        resp = client.get("/players/me")
+
+        assert resp.status_code == 200
+        assert resp.json()["legacy_name_suggestion"] == "John Smith"
+
+    def test_linking_name_claimed_by_another_profile_returns_conflict(self):
+        seed = _MeSession()
+        try:
+            legacy_svc.add_legacy_player("Shared Name", db=seed)
+            owner = _make_user(
+                id=1,
+                name="Owner Account",
+                email="owner@example.com",
+                legacy_name="Shared Name",
+            )
+            claimant = _make_user(
+                id=2,
+                name="Claimant Account",
+                email="claimant@example.com",
+                legacy_name=None,
+            )
+            seed.add_all([owner, claimant])
+            seed.commit()
+        finally:
+            seed.close()
+
+        app.dependency_overrides[get_current_user] = lambda: _make_user(
+            id=2,
+            name="Claimant Account",
+            email="claimant@example.com",
+            legacy_name=None,
+        )
+        resp = client.put(
+            "/players/me/legacy-name",
+            json={"legacy_name": "Shared Name"},
+        )
+
+        assert resp.status_code == 409
+        assert resp.json()["detail"] == "'Shared Name' is already linked to another account."
+
+        verify = _MeSession()
+        try:
+            unchanged_claimant = verify.get(PlayerProfile, 2)
+            assert unchanged_claimant is not None
+            assert unchanged_claimant.legacy_name is None
+        finally:
+            verify.close()
+
 
 def unique_name(prefix="Player"):
     """Generate a unique player name to avoid duplicate conflicts."""

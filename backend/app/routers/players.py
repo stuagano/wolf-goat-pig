@@ -26,7 +26,11 @@ from .. import models, schemas
 from ..database import get_db
 from ..services import media_storage_service
 from ..services.auth_service import get_current_auth0_user, get_current_user
-from ..services.legacy_player_service import find_similar_players
+from ..services.legacy_player_service import (
+    find_unclaimed_similar_players,
+    get_canonical_name,
+    link_profile_to_canonical_name,
+)
 from ..services.player_service import PlayerService
 from ..services.unified_data_service import get_unified_data_service
 from ..utils.admin_auth import is_super_admin_email
@@ -195,7 +199,12 @@ async def get_my_profile(
     profile = schemas.PlayerProfileResponse.model_validate(current_user)
 
     if not current_user.legacy_name:
-        suggestions = find_similar_players(current_user.name, max_results=1, db=db)
+        suggestions = find_unclaimed_similar_players(
+            cast("str", current_user.name),
+            cast("int", current_user.id),
+            max_results=1,
+            db=db,
+        )
         profile.legacy_name_suggestion = suggestions[0] if suggestions else None
 
     profile.is_super_admin = is_super_admin_email(auth0_user.get("email"))
@@ -216,25 +225,34 @@ async def update_my_legacy_name(
 
     The legacy_name must match a player in the thousand-cranes.com tee sheet system.
     """
-    from ..services.legacy_player_service import get_canonical_name
-
     legacy_name = legacy_name_update.get("legacy_name")
 
     if legacy_name:
         # Validate against legacy player list
-        canonical = get_canonical_name(legacy_name)
+        canonical = get_canonical_name(legacy_name, db)
         if not canonical:
-            from fastapi import HTTPException
-
             raise HTTPException(
                 status_code=400,
                 detail=f"'{legacy_name}' is not a valid legacy player name. Use /legacy-players to see valid names.",
             )
-        legacy_name = canonical  # Use canonical casing
+        link_result = link_profile_to_canonical_name(
+            db,
+            cast("int", current_user.id),
+            canonical,
+            allow_relink=True,
+        )
+        if not link_result["linked"]:
+            if link_result["status"] == "claimed":
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"'{canonical}' is already linked to another account.",
+                )
+            raise HTTPException(status_code=400, detail="Could not link this club player.")
+        legacy_name = canonical
+    else:
+        current_user.legacy_name = None
+        current_user.updated_at = utc_now().isoformat()
 
-    # Update the profile
-    current_user.legacy_name = legacy_name
-    current_user.updated_at = utc_now().isoformat()
     db.commit()
     db.refresh(current_user)
 

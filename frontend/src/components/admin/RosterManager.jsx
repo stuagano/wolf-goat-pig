@@ -117,7 +117,17 @@ const RosterManager = () => {
       if (!response.ok) {
         throw new Error(data.detail || `HTTP ${response.status}`);
       }
-      setFeedback(`✓ Promoted "${player.name}" to the canonical roster`);
+      let linkNote = "";
+      if (data.profile_linked) {
+        linkNote = " and linked the player's account";
+      } else if (data.profile_link_status === "claimed") {
+        linkNote = "; account not linked because that club player belongs to another account";
+      } else if (data.profile_link_status === "different_link") {
+        linkNote = "; account kept its existing club-player link";
+      } else if (data.profile_link_status === "missing_profile") {
+        linkNote = "; associated account no longer exists";
+      }
+      setFeedback(`✓ Promoted "${player.name}" to the canonical roster${linkNote}`);
       await fetchPending();
     } catch (err) {
       setError(`Could not promote "${player.name}": ${err.message}`);

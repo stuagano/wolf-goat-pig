@@ -29,10 +29,11 @@ from difflib import get_close_matches
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..database import SessionLocal
-from ..models import LegacyRosterPlayer, PendingLegacyPlayer
+from ..models import LegacyRosterPlayer, PendingLegacyPlayer, PlayerProfile
 from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
@@ -120,14 +121,106 @@ def get_canonical_name(name: str, db: Any = None) -> str | None:
     return None
 
 
+def is_canonical_name_claimed(
+    db: Any,
+    canonical_name: str,
+    *,
+    exclude_profile_id: int | None = None,
+) -> bool:
+    """Return whether another profile already owns a canonical identity."""
+    query = db.query(PlayerProfile).filter(
+        func.lower(PlayerProfile.legacy_name) == canonical_name.lower(),
+    )
+    if exclude_profile_id is not None:
+        query = query.filter(PlayerProfile.id != exclude_profile_id)
+    return query.first() is not None
+
+
+def link_profile_to_canonical_name(
+    db: Any,
+    player_profile_id: int,
+    canonical_name: str,
+    *,
+    allow_relink: bool = False,
+) -> dict:
+    """Safely link one profile to a canonical legacy identity.
+
+    A canonical identity can belong to only one profile even though the legacy
+    database column predates a uniqueness constraint. Existing different links
+    are preserved unless the authenticated user explicitly changes their own.
+    The caller owns the transaction.
+    """
+    profile = db.query(PlayerProfile).filter(PlayerProfile.id == player_profile_id).first()
+    if profile is None:
+        return {"linked": False, "status": "missing_profile"}
+
+    current_name = (profile.legacy_name or "").strip()
+    if current_name.casefold() == canonical_name.casefold():
+        return {"linked": True, "status": "already_linked"}
+
+    if is_canonical_name_claimed(
+        db,
+        canonical_name,
+        exclude_profile_id=player_profile_id,
+    ):
+        return {
+            "linked": False,
+            "status": "claimed",
+        }
+
+    if current_name and not allow_relink:
+        return {"linked": False, "status": "different_link"}
+
+    profile.legacy_name = canonical_name
+    profile.updated_at = utc_now().isoformat()
+    return {
+        "linked": True,
+        "status": "relinked" if current_name else "linked",
+    }
+
+
 def find_similar_players(name: str, max_results: int = 5, db: Any = None) -> list[str]:
     """Find canonical players with names similar to the given name."""
     players = _canonical_names(db)
+    return _find_similar_names(name, players, max_results)
+
+
+def find_unclaimed_similar_players(
+    name: str,
+    profile_id: int,
+    max_results: int = 5,
+    db: Any = None,
+) -> list[str]:
+    """Find similar canonical players not linked to another profile."""
+    own_session = db is None
+    if own_session:
+        db = SessionLocal()
+    try:
+        claimed_names = {
+            legacy_name.casefold()
+            for (legacy_name,) in (
+                db.query(PlayerProfile.legacy_name)
+                .filter(
+                    PlayerProfile.legacy_name.isnot(None),
+                    PlayerProfile.id != profile_id,
+                )
+                .all()
+            )
+            if legacy_name
+        }
+        available_players = [player for player in _canonical_names(db) if player.casefold() not in claimed_names]
+        return _find_similar_names(name, available_players, max_results)
+    finally:
+        if own_session:
+            db.close()
+
+
+def _find_similar_names(name: str, players: list[str], max_results: int) -> list[str]:
     if not players:
         return []
 
-    lower_to_original = {p.lower(): p for p in players}
-    matches = get_close_matches(name.lower(), list(lower_to_original.keys()), n=max_results, cutoff=0.6)
+    lower_to_original = {player.lower(): player for player in players}
+    matches = get_close_matches(name.lower(), lower_to_original, n=max_results, cutoff=0.6)
     return [lower_to_original[m] for m in matches]
 
 
@@ -281,7 +374,9 @@ def list_pending_players(status: str = "pending", db: Any = None) -> list[dict]:
 def promote_pending_player(pending_id: int, db: Any = None) -> dict:
     """Promote a pending capture into the canonical roster.
 
-    Call this once the player has been added to Jeff's legacy dropdown.
+    Call this once the player has been added to Jeff's legacy dropdown. When
+    the capture came from an authenticated profile, link that same profile to
+    the newly canonical name. Never overwrite a different existing link.
     """
     own_session = db is None
     if own_session:
@@ -293,12 +388,37 @@ def promote_pending_player(pending_id: int, db: Any = None) -> dict:
         if row.status != "pending":
             return {"promoted": False, "message": f"Pending player id={pending_id} is already {row.status}"}
 
-        add_legacy_player(row.name, source="promoted", db=db)
+        roster_result = add_legacy_player(row.name, source="promoted", db=db)
+        canonical_name = str(roster_result.get("canonical_name") or row.name)
+
+        profile_link_status = "no_profile"
+        if row.player_profile_id is not None:
+            link_result = link_profile_to_canonical_name(db, row.player_profile_id, canonical_name)
+            profile_link_status = link_result["status"]
+            if profile_link_status == "missing_profile":
+                logger.warning(
+                    "Promoted pending player '%s', but player profile id=%s no longer exists",
+                    row.name,
+                    row.player_profile_id,
+                )
+            elif not link_result["linked"]:
+                logger.warning(
+                    "Promoted pending player '%s' without linking profile id=%s (status=%s)",
+                    row.name,
+                    row.player_profile_id,
+                    profile_link_status,
+                )
+
         row.status = "promoted"
         row.resolved_at = utc_now().isoformat()
         db.commit()
         logger.info(f"Promoted pending player '{row.name}' (id={pending_id}) to canonical roster")
-        return {"promoted": True, "canonical_name": row.name}
+        return {
+            "promoted": True,
+            "canonical_name": canonical_name,
+            "profile_linked": profile_link_status in {"linked", "already_linked"},
+            "profile_link_status": profile_link_status,
+        }
     finally:
         if own_session:
             db.close()
@@ -360,7 +480,7 @@ def sync_roster_from_members(names: Any, db: Any = None) -> dict:
         skipped_format: list[str] = []
         resolved: list[str] = []
         seen_lower: set[str] = set()
-        confirmed_lower: set[str] = set()
+        confirmed_names: dict[str, str] = {}
 
         for raw in names:
             name = (raw or "").strip()
@@ -373,7 +493,7 @@ def sync_roster_from_members(names: Any, db: Any = None) -> dict:
 
             existing = get_canonical_name(name, db)
             if existing:
-                confirmed_lower.add(existing.lower())
+                confirmed_names[existing.lower()] = existing
                 continue
             if not _looks_like_dropdown_name(name):
                 skipped_format.append(name)
@@ -381,12 +501,26 @@ def sync_roster_from_members(names: Any, db: Any = None) -> dict:
 
             db.add(LegacyRosterPlayer(name=name, source="sheet_sync", added_at=utc_now().isoformat()))
             added.append(name)
-            confirmed_lower.add(low)
+            confirmed_names[low] = name
 
         # Resolve pending captures whose name is now confirmed canonical.
         pending = db.query(PendingLegacyPlayer).filter(PendingLegacyPlayer.status == "pending").all()
         for p in pending:
-            if (p.name or "").strip().lower() in confirmed_lower:
+            pending_name = (p.name or "").strip().lower()
+            if pending_name in confirmed_names:
+                if p.player_profile_id is not None:
+                    link_result = link_profile_to_canonical_name(
+                        db,
+                        p.player_profile_id,
+                        confirmed_names[pending_name],
+                    )
+                    if not link_result["linked"]:
+                        logger.warning(
+                            "Resolved pending player '%s' without linking profile id=%s (status=%s)",
+                            p.name,
+                            p.player_profile_id,
+                            link_result["status"],
+                        )
                 p.status = "promoted"
                 p.resolved_at = utc_now().isoformat()
                 resolved.append(p.name)

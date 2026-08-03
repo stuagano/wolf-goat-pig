@@ -26,7 +26,11 @@ function getSignupButtonLabel({
 
 const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
-  const { profile, loading: profileLoading } = usePlayerProfile();
+  const {
+    profile,
+    loading: profileLoading,
+    legacyNameSkipped,
+  } = usePlayerProfile();
   const navigate = useNavigate();
   const [currentWeekStart, setCurrentWeekStart] = useState('');
   const [selectedDate, setSelectedDate] = useState(initialDate || '');
@@ -310,6 +314,38 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
       boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
       overflow: 'hidden'
     }}>
+      {isAuthenticated && legacyNameSkipped && !signupProfileReady && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          padding: '12px 16px',
+          background: '#fffbeb',
+          borderBottom: '1px solid #f59e0b',
+          color: '#78350f',
+          fontSize: '14px',
+        }}>
+          <span>Link your club player before signing up.</span>
+          <button
+            type="button"
+            onClick={() => navigate(CLUB_PLAYER_ACCOUNT_PATH)}
+            style={{
+              flexShrink: 0,
+              padding: '8px 12px',
+              border: 0,
+              borderRadius: '6px',
+              background: '#2d5016',
+              color: 'white',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            Choose my player
+          </button>
+        </div>
+      )}
+
       {/* Week Navigation Bar */}
       <div style={{
         display: 'flex',

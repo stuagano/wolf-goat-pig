@@ -6,7 +6,7 @@ import logging
 import os
 import threading
 from collections.abc import Generator
-from typing import Any
+from typing import Any, cast
 
 import httpx as _httpx
 from fastapi import Depends, HTTPException
@@ -18,7 +18,12 @@ from ..database import SessionLocal, get_db
 from ..models import EmailPreferences, PlayerProfile
 from ..observability.report import report_exception, report_message
 from ..utils.time import utc_now
-from .legacy_player_service import capture_pending_player, find_similar_players, get_canonical_name
+from .legacy_player_service import (
+    capture_pending_player,
+    find_similar_players,
+    get_canonical_name,
+    link_profile_to_canonical_name,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -314,7 +319,7 @@ class AuthService:
             # Create new player profile
             player = PlayerProfile(
                 name=name,
-                legacy_name=legacy_name,  # Link to legacy tee sheet system
+                legacy_name=None,
                 email=email,
                 avatar_url=picture,
                 created_at=utc_now().isoformat(),
@@ -331,6 +336,20 @@ class AuthService:
                 },
             )
             db.add(player)
+            db.flush()
+            if legacy_name:
+                link_result = link_profile_to_canonical_name(db, cast("int", player.id), legacy_name)
+                if not link_result["linked"]:
+                    # An exact roster name already owned by another profile is
+                    # still an identity claim, not proof that these are the same
+                    # person. Leave this account unlinked for explicit recovery.
+                    logger.warning(
+                        "Did not auto-link new profile id=%s: legacy name '%s' belongs to another profile",
+                        player.id,
+                        legacy_name,
+                    )
+                    fuzzy_suggestion = legacy_name
+                    legacy_name = None
             db.commit()
             db.refresh(player)
 
@@ -370,6 +389,30 @@ class AuthService:
         else:
             # Update existing player with Auth0 info if needed
             update_needed = False
+
+            # A roster entry may have been added after this account's first
+            # login. Retry only the same exact, case-insensitive canonical
+            # match used for new accounts; fuzzy matches still require the
+            # user's explicit confirmation in onboarding.
+            if not player.legacy_name:
+                legacy_name = get_canonical_name(name, db)
+                if not legacy_name and player.name and player.name != name:
+                    legacy_name = get_canonical_name(cast("str", player.name), db)
+                if legacy_name:
+                    link_result = link_profile_to_canonical_name(db, cast("int", player.id), legacy_name)
+                    if link_result["linked"]:
+                        update_needed = link_result["status"] == "linked"
+                        logger.info(
+                            "Linked returning player profile id=%s to newly canonical legacy name '%s'",
+                            player.id,
+                            legacy_name,
+                        )
+                    elif link_result["status"] == "claimed":
+                        logger.warning(
+                            "Did not auto-link returning profile id=%s: legacy name '%s' belongs to another profile",
+                            player.id,
+                            legacy_name,
+                        )
 
             if email and not player.email:
                 conflict = (

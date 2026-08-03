@@ -7,6 +7,7 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import OnboardingWrapper from "../OnboardingWrapper";
+import usePlayerProfile from "../../../hooks/usePlayerProfile";
 
 vi.mock("@auth0/auth0-react", () => ({
   useAuth0: vi.fn(),
@@ -16,6 +17,16 @@ import { useAuth0 as mockUseAuth0 } from "@auth0/auth0-react";
 
 const SUGGESTION = "Stuart Gano";
 const LEGACY_PLAYERS = ["Alice Adams", "Bob Brown", "Stuart Gano", "Jane Smith"];
+
+const ProfileObserver = () => {
+  const { profile, legacyNameSkipped } = usePlayerProfile();
+  return (
+    <>
+      <span data-testid="skip-state">{String(legacyNameSkipped)}</span>
+      <span data-testid="linked-name">{profile?.legacy_name || ""}</span>
+    </>
+  );
+};
 
 const okJson = (body) =>
   Promise.resolve({
@@ -62,7 +73,7 @@ beforeEach(() => {
   mockUseAuth0.mockReturnValue({
     isAuthenticated: true,
     isLoading: false,
-    user: { name: "Auth0 Name", email: "stu@example.com" },
+    user: { sub: "auth0|stu", name: "Auth0 Name", email: "stu@example.com" },
     getAccessTokenSilently: vi.fn().mockResolvedValue("token-123"),
   });
   localStorage.clear();
@@ -83,7 +94,8 @@ describe("OnboardingWrapper fuzzy legacy-name flow", () => {
 
     // "Did you mean <suggestion>?" banner appears with the suggested name.
     expect(await screen.findByText(/Did you mean/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: SUGGESTION })).toBeInTheDocument();
+    expect(screen.getByText(SUGGESTION)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Yes, link this player/i })).toBeInTheDocument();
   });
 
   test("does not show the modal when the account already has a confirmed legacy_name", async () => {
@@ -100,6 +112,20 @@ describe("OnboardingWrapper fuzzy legacy-name flow", () => {
     await waitFor(() => {
       expect(screen.queryByText(/Link Your Account/i)).not.toBeInTheDocument();
     });
+  });
+
+  test("does not inherit another account's skip choice", async () => {
+    localStorage.setItem("legacy_name_skipped:auth0|someone-else", "true");
+    installFetch({ legacyName: null, suggestion: SUGGESTION });
+
+    render(
+      <OnboardingWrapper>
+        <div>App Content</div>
+      </OnboardingWrapper>,
+    );
+
+    expect(await screen.findByText(/Link Your Account/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Link your club player to sign up and post rounds/i)).not.toBeInTheDocument();
   });
 
   test("selecting a name from the dropdown PUTs it and persists (modal closes)", async () => {
@@ -132,22 +158,23 @@ describe("OnboardingWrapper fuzzy legacy-name flow", () => {
     });
   });
 
-  test("clicking the suggestion button and confirming PUTs the suggested name", async () => {
+  test("one click on the suggestion confirms and PUTs the suggested name", async () => {
     const putBodies = [];
     installFetch({ legacyName: null, suggestion: SUGGESTION, onPut: (b) => putBodies.push(b) });
 
     render(
       <OnboardingWrapper>
-        <div>App Content</div>
+        <ProfileObserver />
       </OnboardingWrapper>,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: SUGGESTION }));
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(`Confirm: ${SUGGESTION}`, "i") }));
+    fireEvent.click(await screen.findByRole("button", { name: /Yes, link this player/i }));
 
     await waitFor(() => {
       expect(putBodies).toEqual([{ legacy_name: SUGGESTION }]);
+      expect(screen.getByTestId("linked-name")).toHaveTextContent(SUGGESTION);
     });
+    expect(screen.queryByText(/Link Your Account/i)).not.toBeInTheDocument();
   });
 
   test("'Skip for now' sets the localStorage skip flag and never writes legacy_name", async () => {
@@ -155,7 +182,7 @@ describe("OnboardingWrapper fuzzy legacy-name flow", () => {
 
     render(
       <OnboardingWrapper>
-        <div>App Content</div>
+        <ProfileObserver />
       </OnboardingWrapper>,
     );
 
@@ -165,7 +192,8 @@ describe("OnboardingWrapper fuzzy legacy-name flow", () => {
 
     // Skip persists a local flag only.
     await waitFor(() => {
-      expect(localStorage.setItem).toHaveBeenCalledWith("legacy_name_skipped", "true");
+      expect(localStorage.setItem).toHaveBeenCalledWith("legacy_name_skipped:auth0|stu", "true");
+      expect(screen.getByTestId("skip-state")).toHaveTextContent("true");
     });
 
     // No PUT to legacy-name — the account stays unlinked.
@@ -178,5 +206,8 @@ describe("OnboardingWrapper fuzzy legacy-name flow", () => {
     await waitFor(() => {
       expect(screen.queryByText(/Link Your Account/i)).not.toBeInTheDocument();
     });
+
+    // Contextual recovery prompts live on Home and Signup, not over every page.
+    expect(screen.queryByText(/Link your club player to sign up and post rounds/i)).not.toBeInTheDocument();
   });
 });

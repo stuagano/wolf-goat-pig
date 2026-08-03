@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { LoginButton, AuthHealthCheck } from '../components/auth';
 import StaleGameBanner from '../components/game/StaleGameBanner';
+import usePlayerProfile from '../hooks/usePlayerProfile';
 import './HomePage.css';
 
 const ADVANCED_TOOLS = [
@@ -21,6 +22,7 @@ const ADVANCED_TOOLS = [
 function HomePage() {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth0();
+  const { profile, legacyNameSkipped } = usePlayerProfile();
   const [activeGameSession, setActiveGameSession] = useState(null);
 
   useEffect(() => {
@@ -76,6 +78,18 @@ function HomePage() {
             </p>
           )}
         </header>
+
+        {isAuthenticated && legacyNameSkipped && !profile?.legacy_name && (
+          <section className="wgp-home__club-link" aria-label="Club player setup">
+            <div>
+              <strong>Finish linking your club player</strong>
+              <span>Choose your Wing Point tee-sheet name to sign up and post rounds.</span>
+            </div>
+            <button type="button" onClick={() => navigate('/account#club-player')}>
+              Choose my player
+            </button>
+          </section>
+        )}
 
         <section className="wgp-home__pillars" aria-label="Primary actions">
           <button

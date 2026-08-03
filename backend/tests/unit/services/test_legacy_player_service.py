@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.models import Base, LegacyRosterPlayer, PendingLegacyPlayer
+from app.models import Base, LegacyRosterPlayer, PendingLegacyPlayer, PlayerProfile
 from app.services import legacy_player_service as svc
 
 TEST_DATABASE_URL = "sqlite:///./test_legacy_roster.db"
@@ -157,6 +157,79 @@ def test_promote_pending_player_makes_canonical(db):
     assert row.resolved_at is not None
 
 
+def test_promote_pending_player_links_captured_profile(db):
+    profile = PlayerProfile(name="promote and link", legacy_name=None)
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+    captured = svc.capture_pending_player(
+        "promote and link",
+        player_profile_id=profile.id,
+        db=db,
+    )
+    # The canonical roster may have gained the player before the admin resolves
+    # the pending row, including corrected capitalization.
+    svc.add_legacy_player("Promote And Link", db=db)
+
+    result = svc.promote_pending_player(captured["pending_id"], db=db)
+
+    db.refresh(profile)
+    assert result["profile_linked"] is True
+    assert result["profile_link_status"] == "linked"
+    assert profile.legacy_name == "Promote And Link"
+
+
+def test_promote_pending_player_never_overwrites_different_profile_link(db):
+    profile = PlayerProfile(name="Pending Name", legacy_name="Existing Link")
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+    captured = svc.capture_pending_player(
+        "Pending Name",
+        player_profile_id=profile.id,
+        db=db,
+    )
+
+    result = svc.promote_pending_player(captured["pending_id"], db=db)
+
+    db.refresh(profile)
+    assert result["profile_linked"] is False
+    assert result["profile_link_status"] == "different_link"
+    assert profile.legacy_name == "Existing Link"
+
+
+def test_link_profile_rejects_legacy_name_owned_by_another_profile(db):
+    owner = PlayerProfile(name="Owner", legacy_name="Taken Player")
+    claimant = PlayerProfile(name="Claimant", legacy_name=None)
+    db.add_all([owner, claimant])
+    db.commit()
+
+    result = svc.link_profile_to_canonical_name(db, claimant.id, "Taken Player")
+
+    db.refresh(claimant)
+    assert result["linked"] is False
+    assert result["status"] == "claimed"
+    assert claimant.legacy_name is None
+
+
+def test_link_profile_allows_explicit_relink_when_name_is_available(db):
+    profile = PlayerProfile(name="Claimant", legacy_name="Old Player")
+    db.add(profile)
+    db.commit()
+
+    result = svc.link_profile_to_canonical_name(
+        db,
+        profile.id,
+        "New Player",
+        allow_relink=True,
+    )
+    db.commit()
+
+    db.refresh(profile)
+    assert result == {"linked": True, "status": "relinked"}
+    assert profile.legacy_name == "New Player"
+
+
 def test_dismiss_pending_player(db):
     captured = svc.capture_pending_player("Dismiss Me", db=db)
     result = svc.dismiss_pending_player(captured["pending_id"], db=db)
@@ -206,7 +279,11 @@ def test_sync_dedups_within_batch(db):
 
 
 def test_sync_resolves_matching_pending(db):
-    svc.capture_pending_player("Returning Golfer", db=db)
+    profile = PlayerProfile(name="Returning Golfer", legacy_name=None)
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+    svc.capture_pending_player("Returning Golfer", player_profile_id=profile.id, db=db)
     assert svc.get_canonical_name("Returning Golfer", db) is None
 
     result = svc.sync_roster_from_members(["Returning Golfer"], db=db)
@@ -215,6 +292,8 @@ def test_sync_resolves_matching_pending(db):
 
     row = db.query(PendingLegacyPlayer).filter(PendingLegacyPlayer.name == "Returning Golfer").first()
     assert row.status == "promoted"
+    db.refresh(profile)
+    assert profile.legacy_name == "Returning Golfer"
 
 
 def test_sync_does_not_resolve_pending_for_format_divergent_member(db):

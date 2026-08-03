@@ -132,6 +132,7 @@ describe('DailySignupView', () => {
     mockUsePlayerProfile.mockReturnValue({
       profile: { ...playerProfile, legacy_name: null },
       loading: false,
+      legacyNameSkipped: true,
     });
     fetch.mockImplementation((request) => {
       const url = request.url;
@@ -143,6 +144,11 @@ describe('DailySignupView', () => {
     });
 
     render(<DailySignupView selectedDate={selectedDate} />);
+
+    const reminder = await screen.findByText(/Link your club player before signing up/i);
+    const reminderContainer = reminder.parentElement;
+    fireEvent.click(within(reminderContainer).getByRole('button', { name: /Choose my player/i }));
+    expect(mockNavigate).toHaveBeenCalledWith('/account#club-player');
 
     const buttons = await screen.findAllByRole('button', {
       name: 'Link club player in Account',

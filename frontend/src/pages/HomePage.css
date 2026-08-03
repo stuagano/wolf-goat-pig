@@ -85,6 +85,47 @@
   font-size: 0.95rem;
 }
 
+.wgp-home__club-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 12px 0 20px;
+  padding: 14px 16px;
+  border: 1px solid rgba(245, 158, 11, 0.7);
+  border-radius: 12px;
+  background: rgba(255, 251, 235, 0.96);
+  color: #78350f;
+}
+
+.wgp-home__club-link div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.wgp-home__club-link span {
+  font-size: 0.9rem;
+}
+
+.wgp-home__club-link button {
+  flex-shrink: 0;
+  padding: 9px 13px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--home-green-bright);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 560px) {
+  .wgp-home__club-link {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 .wgp-home__pillars {
   display: grid;
   grid-template-columns: 1fr;

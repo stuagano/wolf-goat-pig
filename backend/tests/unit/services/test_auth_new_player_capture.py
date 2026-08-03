@@ -82,6 +82,33 @@ def test_matched_returning_player_is_not_captured(db, notify_spy):
     notify_spy.assert_not_called()
 
 
+def test_exact_name_already_owned_by_another_profile_is_not_auto_linked(db, notify_spy):
+    svc.add_legacy_player("Shared Name", db=db)
+    owner = PlayerProfile(
+        name="Owner Account",
+        legacy_name="Shared Name",
+        email="owner@example.com",
+        preferences={"auth0_id": "auth0|owner"},
+    )
+    db.add(owner)
+    db.commit()
+
+    claimant = AuthService.get_or_create_player_profile(
+        db,
+        {
+            "sub": "auth0|claimant",
+            "email": "claimant@example.com",
+            "name": "Shared Name",
+            "picture": None,
+        },
+    )
+
+    assert claimant.id != owner.id
+    assert claimant.legacy_name is None
+    assert db.query(PendingLegacyPlayer).count() == 0
+    notify_spy.assert_not_called()
+
+
 def test_fuzzy_match_is_not_auto_linked(db, notify_spy):
     """A near-but-not-exact name is a GUESS: it must never be written to
     legacy_name automatically (issue #322). It is surfaced as a suggestion in
@@ -139,3 +166,43 @@ def test_existing_account_relogin_does_not_recapture(db, notify_spy):
     assert db.query(PendingLegacyPlayer).filter(PendingLegacyPlayer.name == "Brand New Golfer").count() == 1
     assert db.query(PlayerProfile).filter(PlayerProfile.email == "brandnew@example.com").count() == 1
     notify_spy.assert_not_called()
+
+
+def test_existing_unlinked_account_retries_exact_match_on_relogin(db, notify_spy):
+    svc.add_legacy_player("Anchor Player", db=db)
+    auth0_user = {
+        "sub": "auth0|later-match",
+        "email": "later@example.com",
+        "name": "Later Match",
+        "picture": None,
+    }
+    player = AuthService.get_or_create_player_profile(db, auth0_user)
+    assert player.legacy_name is None
+
+    # The golfer is added to the canonical tee-sheet roster after first login.
+    svc.add_legacy_player("Later Match", db=db)
+    notify_spy.reset_mock()
+
+    relinked = AuthService.get_or_create_player_profile(db, auth0_user)
+
+    assert relinked.id == player.id
+    assert relinked.legacy_name == "Later Match"
+    assert db.query(PlayerProfile).filter(PlayerProfile.email == "later@example.com").count() == 1
+    notify_spy.assert_not_called()
+
+
+def test_existing_unlinked_account_never_auto_links_fuzzy_match(db, notify_spy):
+    svc.add_legacy_player("Anchor Player", db=db)
+    auth0_user = {
+        "sub": "auth0|later-fuzzy",
+        "email": "jonathon@example.com",
+        "name": "Jonathon Smith",
+        "picture": None,
+    }
+    player = AuthService.get_or_create_player_profile(db, auth0_user)
+    assert player.legacy_name is None
+
+    svc.add_legacy_player("Jonathan Smith", db=db)
+    relogged = AuthService.get_or_create_player_profile(db, auth0_user)
+
+    assert relogged.legacy_name is None

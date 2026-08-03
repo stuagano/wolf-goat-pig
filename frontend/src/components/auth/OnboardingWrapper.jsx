@@ -24,8 +24,11 @@ const OnboardingWrapper = ({ children }) => {
     return children;
   }
 
-  // Only show for authenticated users who need to set legacy name
-  if (!isAuthenticated || !needsLegacyName) {
+  if (!isAuthenticated) {
+    return children;
+  }
+
+  if (!needsLegacyName) {
     return children;
   }
 

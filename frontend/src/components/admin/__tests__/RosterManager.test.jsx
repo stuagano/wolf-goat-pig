@@ -14,7 +14,7 @@ vi.mock("react-router-dom", () => ({
 
 // Mutable auth identity so individual tests can switch admin/non-admin.
 let mockAuth = {
-  user: { email: ADMIN_EMAIL },
+  user: { sub: "auth0|admin", email: ADMIN_EMAIL },
   isAuthenticated: true,
   isLoading: false,
   getAccessTokenSilently: vi.fn().mockResolvedValue(ACCESS_TOKEN),
@@ -50,7 +50,12 @@ function installAdminFetch(pending = PENDING) {
       return okJson({ count: pending.length, status: "pending", players: pending });
     }
     if (url.includes("/promote")) {
-      return okJson({ promoted: true, canonical_name: "Alice Adams" });
+      return okJson({
+        promoted: true,
+        canonical_name: "Alice Adams",
+        profile_linked: true,
+        profile_link_status: "linked",
+      });
     }
     if (url.includes("/dismiss")) {
       return okJson({ dismissed: true, name: "Bob Brown" });
@@ -69,7 +74,7 @@ function findCall(predicate) {
 
 beforeEach(() => {
   mockAuth = {
-    user: { email: ADMIN_EMAIL },
+    user: { sub: "auth0|admin", email: ADMIN_EMAIL },
     isAuthenticated: true,
     isLoading: false,
     getAccessTokenSilently: vi.fn().mockResolvedValue(ACCESS_TOKEN),
@@ -108,7 +113,9 @@ describe("RosterManager", () => {
       expect(call[1].headers["Content-Type"]).toBe("application/json");
     });
     // Success feedback shown.
-    expect(await screen.findByTestId("roster-feedback")).toHaveTextContent(/Promoted/i);
+    expect(await screen.findByTestId("roster-feedback")).toHaveTextContent(
+      /Promoted.*linked the player's account/i,
+    );
     // List must be re-fetched after promote (refresh-after-mutation).
     await waitFor(() => {
       const refreshCalls = global.fetch.mock.calls.filter(
@@ -171,7 +178,7 @@ describe("RosterManager", () => {
 
   test("non-admins see Access Denied and no roster fetch is made", async () => {
     mockAuth = {
-      user: { email: "random@nobody.com" },
+      user: { sub: "auth0|nobody", email: "random@nobody.com" },
       isAuthenticated: true,
       isLoading: false,
       getAccessTokenSilently: vi.fn().mockResolvedValue("normal-user-token"),
@@ -211,7 +218,7 @@ function installServerAdminFetch({ isSuperAdmin, pending = PENDING } = {}) {
 describe("RosterManager server-driven admin", () => {
   test("server super-admin role grants access regardless of browser email", async () => {
     mockAuth = {
-      user: { email: "random@nobody.com" },
+      user: { sub: "auth0|nobody", email: "random@nobody.com" },
       isAuthenticated: true,
       isLoading: false,
       getAccessTokenSilently: vi.fn().mockResolvedValue("token"),
@@ -226,7 +233,7 @@ describe("RosterManager server-driven admin", () => {
 
   test("server normal role denies access regardless of browser email", async () => {
     mockAuth = {
-      user: { email: ADMIN_EMAIL },
+      user: { sub: "auth0|admin", email: ADMIN_EMAIL },
       isAuthenticated: true,
       isLoading: false,
       getAccessTokenSilently: vi.fn().mockResolvedValue("token"),

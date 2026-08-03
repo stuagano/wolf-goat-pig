@@ -18,8 +18,8 @@ const LegacyNameSelector = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  // A fuzzy suggestion is SHOWN via the "Did you mean?" banner but is NOT
-  // pre-selected — the account stays unlinked until the user confirms a choice.
+  // A fuzzy suggestion is shown but never pre-selected or auto-persisted. The
+  // user explicitly confirms it by clicking the suggestion button.
   const [selectedName, setSelectedName] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const canSkip = Boolean(allowSkip && onSkip);
@@ -102,14 +102,14 @@ const LegacyNameSelector = ({
 
       {suggestedName && suggestedName !== selectedName && (
         <div className="suggestion-banner">
-          <span>Did you mean </span>
+          <span>Did you mean <strong>{suggestedName}</strong>?</span>
           <button
+            type="button"
             className="suggestion-button"
-            onClick={() => handleSelect(suggestedName)}
+            onClick={() => onSelect(suggestedName)}
           >
-            {suggestedName}
+            Yes, link this player
           </button>
-          <span>?</span>
         </div>
       )}
 
@@ -212,16 +212,19 @@ const LegacyNameSelector = ({
           border-radius: 4px;
           margin-bottom: 15px;
           text-align: center;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
         }
 
         .suggestion-button {
-          background: none;
+          background: #2d5a27;
           border: none;
-          color: #0066cc;
+          border-radius: 6px;
+          color: white;
           font-weight: bold;
           cursor: pointer;
-          text-decoration: underline;
-          padding: 0 4px;
+          padding: 10px 12px;
         }
 
         .search-container {
