@@ -1,20 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
+import { useAccessToken } from '../../hooks/useAccessToken';
 import { api } from '../../api/client';
 import { errorDetail } from '../../api/http';
 
 const EmailPreferences = () => {
   const { user } = useAuth0();
-  const [preferences, setPreferences] = useState({
-    daily_signups_enabled: true,
-    signup_confirmations_enabled: true,
-    signup_reminders_enabled: true,
-    game_invitations_enabled: true,
-    weekly_summary_enabled: true,
-    callout_list_enabled: false,
-    email_frequency: 'daily',
-    preferred_notification_time: '8:00 AM'
-  });
+  const { getToken } = useAccessToken();
+  const [preferences, setPreferences] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -32,16 +25,19 @@ const EmailPreferences = () => {
     '12:00 PM', '1:00 PM', '5:00 PM', '6:00 PM', '7:00 PM'
   ];
 
-  const loadPreferences = async () => {
+  const loadPreferences = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await api.GET('/players/me/email-preferences', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+      setPreferences(null);
+      const token = await getToken();
+      const { data, error: apiError } = await api.GET('/players/me/email-preferences', {
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (data) {
-        setPreferences(data);
+      if (!data) {
+        throw new Error(errorDetail(apiError) || 'Failed to load preferences');
       }
+      setPreferences(data);
       setError(null);
     } catch (err) {
       console.error('Error loading preferences:', err);
@@ -49,11 +45,11 @@ const EmailPreferences = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getToken]);
 
   useEffect(() => {
     loadPreferences();
-  }, [user]);
+  }, [user, loadPreferences]);
 
   const updatePreference = (key, value) => {
     setPreferences(prev => ({ ...prev, [key]: value }));
@@ -65,8 +61,9 @@ const EmailPreferences = () => {
       setSaving(true);
       setError(null);
 
+      const token = await getToken();
       const { data: updatedPreferences, error: apiError } = await api.PUT('/players/me/email-preferences', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+        headers: { Authorization: `Bearer ${token}` },
         body: preferences,
       });
 
@@ -134,6 +131,15 @@ const EmailPreferences = () => {
     );
   }
 
+  if (!preferences) {
+    return (
+      <div role="alert">
+        <p>{error || 'Failed to load preferences'}</p>
+        <button onClick={loadPreferences}>Retry</button>
+      </div>
+    );
+  }
+
   const notificationTypes = [
     { key: 'daily_signups_enabled', label: 'Daily Sign-up Summaries', desc: 'Who has signed up to play' },
     { key: 'signup_confirmations_enabled', label: 'Sign-up Confirmations', desc: 'When someone joins your day' },
@@ -185,6 +191,7 @@ const EmailPreferences = () => {
         ].map(preset => (
           <button
             key={preset.key}
+            disabled={saving}
             onClick={() => setPreset(preset.key)}
             style={{
               flex: 1,
@@ -246,6 +253,7 @@ const EmailPreferences = () => {
               </div>
               <input
                 type="checkbox"
+                disabled={saving}
                 checked={preferences[type.key]}
                 onChange={(e) => updatePreference(type.key, e.target.checked)}
                 style={{ width: '20px', height: '20px', accentColor: '#047857' }}
@@ -280,6 +288,7 @@ const EmailPreferences = () => {
               Frequency
             </label>
             <select
+              disabled={saving}
               value={preferences.email_frequency}
               onChange={(e) => updatePreference('email_frequency', e.target.value)}
               style={{
@@ -301,6 +310,7 @@ const EmailPreferences = () => {
               Notification Time
             </label>
             <select
+              disabled={saving}
               value={preferences.preferred_notification_time}
               onChange={(e) => updatePreference('preferred_notification_time', e.target.value)}
               style={{

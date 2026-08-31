@@ -287,7 +287,7 @@ const MyMatches = () => {
           background: '#f9fafb', borderRadius: 12,
         }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>🏌️</div>
-          <p style={{ margin: 0 }}>No {statusFilter || ''} matches yet</p>
+          <p style={{ margin: 0 }}>{statusFilter ? `No ${statusFilter} matches yet` : 'No matches yet'}</p>
           <p style={{ margin: '8px 0 0', fontSize: 13 }}>
             Set your availability and we'll find compatible groups automatically
           </p>
