@@ -3,6 +3,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { useSearchParams } from 'react-router-dom';
 import ForeTeesTeeSheet from '../components/foretees/ForeTeesTeeSheet';
 import DailySignupView from '../components/signup/DailySignupView';
+import { FORETEES_ENABLED } from '../config/features';
 // WgpSignupSheet is temporarily disconnected — it read/wrote the legacy
 // thousand-cranes.com tee sheet, which is disabled for now. Re-add the import,
 // the tab entry, and its render block below to bring it back.
@@ -10,7 +11,7 @@ import '../styles/mobile-touch.css';
 
 // Supported tab IDs. Anything else in the URL (e.g. the retired `wgp-signup`
 // tab) is normalized to the calendar view.
-const VALID_TABS = ['calendar', 'tee-times'];
+const VALID_TABS = FORETEES_ENABLED ? ['calendar', 'tee-times'] : ['calendar'];
 const normalizeTab = (tab) => (VALID_TABS.includes(tab) ? tab : 'calendar');
 
 const SignupPage = () => {
@@ -52,7 +53,7 @@ const SignupPage = () => {
 
   const tabs = [
     { id: 'calendar', label: '📅 Daily Sign-ups', icon: '📅' },
-    { id: 'tee-times', label: '🏌️ Book Tee Time', icon: '🏌️' },
+    ...(FORETEES_ENABLED ? [{ id: 'tee-times', label: '🏌️ Book Tee Time', icon: '🏌️' }] : []),
   ];
 
   if (!isAuthenticated) {

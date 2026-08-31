@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useTeeTimes from '../../hooks/useTeeTimes';
+import { FORETEES_ENABLED } from '../../config/features';
 import BookingModal from '../foretees/BookingModal';
 import { api } from '../../api/client';
 
@@ -247,7 +248,9 @@ const MatchmakingSuggestions = () => {
         fontSize: 13,
         color: '#065f46'
       }}>
-        Find your group, then book a tee time on ForeTees
+        {FORETEES_ENABLED
+          ? 'Find your group, then book a tee time on ForeTees'
+          : 'Find your group, then arrange a tee time directly with the club.'}
       </div>
 
       {/* Filters */}
@@ -470,7 +473,7 @@ const MatchmakingSuggestions = () => {
                 </div>
 
                 {/* Find Tee Times Button */}
-                <button
+                {FORETEES_ENABLED && <button
                   onClick={() => handleToggleTeeTimes(index, match)}
                   disabled={teeTimeLoading && expandedIdx === index}
                   style={{
@@ -491,7 +494,7 @@ const MatchmakingSuggestions = () => {
                     : isExpanded
                       ? 'Hide Tee Times'
                       : `Find Tee Times for ${formatDateDisplay(getNextDateForDay(match.day_of_week))}`}
-                </button>
+                </button>}
 
                 {/* Expanded Tee Times Section */}
                 {isExpanded && ttData && (
