@@ -40,13 +40,14 @@ const formatGhinFreshness = (iso) => {
 };
 
 const PlayerProfilePage = () => {
-  const { playerId } = useParams();
+  const { playerId: routePlayerId, playerName } = useParams();
   const navigate = useNavigate();
   const { getToken } = useAccessToken();
   const { profile: myProfile } = usePlayerProfile();
   const fileInputRef = useRef(null);
 
   const [profile, setProfile] = useState(null);
+  const playerId = profile?.id ?? routePlayerId;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [livsowTeam, setLivsowTeam] = useState(null);
@@ -60,14 +61,38 @@ const PlayerProfilePage = () => {
   const load = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/players/${playerId}/public-profile`);
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || `Player not found`);
+      let resolvedId = routePlayerId;
+      let p;
+      if (playerName) {
+        const encodedName = encodeURIComponent(playerName);
+        const lookup = await fetch(`${API_URL}/players/name/${encodedName}`);
+        if (lookup.ok) {
+          resolvedId = (await lookup.json()).id;
+        } else if (lookup.status === 404) {
+          // Sheet players can have recorded rounds without an app account.
+          const history = await fetch(`${API_URL}/data/player/${encodedName}`);
+          if (!history.ok) throw new Error('Failed to load player history');
+          const rounds = await history.json();
+          if (!rounds.length) throw new Error('Player not found');
+          p = {
+            id: null, name: playerName, available_days: [], badges: [], total_badges: 0,
+            game_history: rounds.map(r => ({ ...r, date: r.date_sortable })),
+          };
+        } else {
+          throw new Error('Failed to load player');
+        }
       }
-      const p = await res.json();
+      if (!p) {
+        const res = await fetch(`${API_URL}/players/${resolvedId}/public-profile`);
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.detail || 'Player not found');
+        }
+        p = await res.json();
+      }
       setProfile(p);
       setError(null);
+      if (!silent) setLivsowTeam(null);
       // Look up LivSow team by name (no auth needed). Best-effort — the
       // badge simply doesn't render if this fails.
       if (p?.name) {
@@ -86,7 +111,7 @@ const PlayerProfilePage = () => {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playerId]);
+  }, [routePlayerId, playerName]);
 
   const isOwnProfile = myProfile && String(myProfile.id) === String(playerId);
 
