@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Card } from '../ui';
 import { useSheetSync } from '../../context';
 import { api } from '../../api/client';
@@ -193,9 +194,14 @@ const Leaderboard = () => {
                               {(entry.member || '?').charAt(0).toUpperCase()}
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">
-                                {entry.member || 'Unknown Player'}
-                              </div>
+                              {entry.member ? (
+                                <Link
+                                  to={`/players/name/${encodeURIComponent(entry.member)}`}
+                                  className="text-sm font-medium text-blue-700 underline hover:text-blue-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                                >
+                                  {entry.member}
+                                </Link>
+                              ) : <span className="text-sm font-medium text-gray-900">Unknown Player</span>}
                               {teamMap[entry.member] && (
                                 <div className="text-xs text-blue-600 mt-0.5">
                                   ⛳ {teamMap[entry.member].team}
