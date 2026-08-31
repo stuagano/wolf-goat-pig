@@ -354,9 +354,11 @@ comment was sent in this turn.
 
 ## Repository delivery
 
-The user requested pushing this work. The change set includes the audit script,
-its regression tests, this report, the tee-sheet safety guide, and the two legacy
-integration flags in production YAML. The separate ForeTees toggle, booking UI,
-hosting, and other deployment edits are excluded. Pushing the feature branch
+The user requested pushing and then merging this work. The change set includes
+the audit script, its regression tests, this report, the tee-sheet safety guide,
+and the two legacy integration flags in production YAML. Merge preflight also
+includes `FORETEES_ENABLED=false` to preserve the already-disabled production
+booking integration when auto-deploy applies this YAML. Booking application code,
+UI, hosting, and other deployment edits are excluded. Pushing the feature branch
 does not update `main`; the live pause remains in effect, and the config must be
 integrated into the deployment branch before a later deployment from `main`.
