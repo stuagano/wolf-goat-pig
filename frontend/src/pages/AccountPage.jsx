@@ -8,8 +8,15 @@ import ClubPlayerSection from '../components/auth/ClubPlayerSection';
 import PlayerAvailability from '../components/signup/PlayerAvailability';
 import EmailPreferences from '../components/signup/EmailPreferences';
 import MyMatches from '../components/signup/MyMatches';
+import { FORETEES_ENABLED } from '../config/features';
 
 const STORAGE_KEY = 'wgp_account_settings';
+
+export const formatRoundDate = (value) => {
+  // Calendar dates have no timezone; timestamps still display in local time.
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value;
+  return new Date(date).toLocaleDateString();
+};
 
 const loadSettings = () => {
   try {
@@ -462,7 +469,7 @@ function AccountPage() {
                         {game.course || 'Round'}
                       </div>
                       <div style={{ fontSize: '12px', color: theme.colors.textSecondary }}>
-                        {new Date(game.date).toLocaleDateString()}
+                        {formatRoundDate(game.date)}
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
@@ -711,7 +718,9 @@ function AccountPage() {
         <div style={cardStyle}>
           <h3 style={{ ...sectionTitle, marginBottom: '4px' }}>My Matches</h3>
           <p style={{ fontSize: '14px', color: theme.colors.textSecondary, margin: '0 0 16px 0' }}>
-            Accept or decline match suggestions. Once everyone confirms, book a tee time together.
+            {FORETEES_ENABLED
+              ? 'Accept or decline match suggestions. Once everyone confirms, book a tee time together.'
+              : 'Accept or decline match suggestions. Once everyone confirms, arrange a tee time directly with the club.'}
           </p>
           <MyMatches />
         </div>
@@ -729,7 +738,7 @@ function AccountPage() {
       )}
 
       {/* ForeTees Integration */}
-      {isAuthenticated && (
+      {FORETEES_ENABLED && isAuthenticated && (
         <ForeteesSection cardStyle={cardStyle} sectionTitle={sectionTitle} inputStyle={inputStyle} labelStyle={labelStyle} theme={theme} />
       )}
 

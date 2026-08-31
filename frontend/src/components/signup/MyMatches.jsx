@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAccessToken } from '../../hooks/useAccessToken';
 import useTeeTimes from '../../hooks/useTeeTimes';
+import { FORETEES_ENABLED } from '../../config/features';
 import BookingModal from '../foretees/BookingModal';
 import { api } from '../../api/client';
 import { errorDetail } from '../../api/http';
@@ -100,12 +101,13 @@ const MyMatches = () => {
       if (!data) {
         setError(errorDetail(apiError) || `Failed to ${response}`);
       } else if (data.all_accepted) {
-        // All players accepted — switch to "accepted" filter so the user
-        // can see the "Book Tee Time" button that just became available.
+        // Show the newly confirmed group in the accepted filter.
         setStatusFilter('accepted');
         setBookingResult({
           type: 'success',
-          message: 'All players confirmed! You can now book a tee time.',
+          message: FORETEES_ENABLED
+            ? 'All players confirmed! You can now book a tee time.'
+            : 'All players confirmed! Arrange your tee time directly with the club.',
         });
         // Fetch with the new filter immediately (state hasn't updated yet)
         await fetchMatches('accepted');
@@ -242,7 +244,9 @@ const MyMatches = () => {
         borderRadius: 10, padding: 12, marginBottom: 20,
         fontSize: 13, color: '#065f46',
       }}>
-        Accept matches to confirm your group, then book a tee time together on ForeTees
+        {FORETEES_ENABLED
+          ? 'Accept matches to confirm your group, then book a tee time together on ForeTees'
+          : 'Accept matches to confirm your group. Arrange tee times directly with the club.'}
       </div>
 
       {/* Status Filter */}
@@ -294,7 +298,7 @@ const MyMatches = () => {
             const isExpanded = expandedMatchId === match.id;
             const ttData = teeTimeData[match.id];
             const allAccepted = match.players.every(p => p.response === 'accepted');
-            const canBook = match.status === 'accepted' && allAccepted;
+            const canBook = FORETEES_ENABLED && match.status === 'accepted' && allAccepted;
 
             return (
               <div

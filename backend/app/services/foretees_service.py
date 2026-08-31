@@ -1017,5 +1017,5 @@ def reset_foretees_service() -> None:
 
 def create_user_foretees_service(username: str, password: str) -> ForeteesService:
     """Create a request-scoped ForeteesService with per-user credentials."""
-    config = ForeteesConfig(enabled=True, username=username, password=password)
+    config = ForeteesConfig(enabled=ForeteesConfig.from_env().enabled, username=username, password=password)
     return ForeteesService(config)
