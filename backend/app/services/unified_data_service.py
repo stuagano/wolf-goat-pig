@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -232,17 +232,33 @@ class UnifiedDataService:
         return sorted(all_rounds.values(), key=lambda r: r.date_sortable, reverse=True)
 
     def get_unified_leaderboard(self) -> list[UnifiedLeaderboardEntry]:
-        """Get unified leaderboard aggregating all sources.
+        """Get the current season leaderboard, leaving all-time history intact.
 
         Returns:
             List of leaderboard entries sorted by total quarters (descending)
         """
         all_rounds = self.get_all_rounds()
 
+        dated_rounds = []
+        for round_data in all_rounds:
+            try:
+                dated_rounds.append((date.fromisoformat(round_data.date_sortable), round_data))
+            except ValueError:
+                logger.warning("Skipping leaderboard round with invalid date: %r", round_data.date_sortable)
+
+        # ponytail: the season sheet's first round defines the cutoff; use an
+        # explicit season calendar if app play must precede the first sheet round.
+        season_start = min((day for day, r in dated_rounds if r.source == "primary_sheet"), default=None)
+        if season_start is None:
+            logger.warning("No dated season sheet rounds; withholding the leaderboard")
+            return []
+
         # Aggregate by player
         player_stats: dict[str, UnifiedLeaderboardEntry] = {}
 
-        for round_data in all_rounds:
+        for day, round_data in dated_rounds:
+            if day < season_start:
+                continue
             member = round_data.member
             if member not in player_stats:
                 player_stats[member] = UnifiedLeaderboardEntry(member=member)

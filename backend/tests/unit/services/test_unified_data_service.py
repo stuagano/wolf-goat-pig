@@ -177,45 +177,41 @@ class TestParseSheetDate:
 
 
 class TestGetUnifiedLeaderboard:
-    def test_returns_list(self):
+    @pytest.mark.parametrize("year", [2026, 2027])
+    def test_season_cutoff_preserves_current_results_and_all_time_history(self, year):
         svc = make_service()
-        svc.primary_sheet = MagicMock()
-        svc.primary_sheet.get_all_rounds.return_value = []
-
-        db = MagicMock()
-        svc._db = db
-        db.query.return_value.all.return_value = []
-
-        try:
-            result = svc.get_unified_leaderboard()
-            assert isinstance(result, list)
-        except Exception:
-            pass  # DB connectivity issues in test env are OK
-
-    def test_aggregates_quarters_per_member(self):
-        """Two rounds for same member should sum quarters."""
-        svc = make_service()
-        svc.primary_sheet = MagicMock()
-
-        from app.services.spreadsheet_sync_service import RoundResult
-
-        rounds = [
-            RoundResult(date="06-Apr", group="A", member="Stuart", score=4, location="Wing Point"),
-            RoundResult(date="07-Apr", group="A", member="Stuart", score=8, location="Wing Point"),
-            RoundResult(date="06-Apr", group="A", member="Jeff", score=-4, location="Wing Point"),
+        rows = [
+            UnifiedRound("20-Jul", f"{year}-07-20", "A", "Stuart", -27, "Wing Point", source="primary_sheet"),
+            UnifiedRound("30-Aug", f"{year}-08-30", "A", "Stuart", 525, "Wing Point", source="primary_sheet"),
+            UnifiedRound("26-Jun", f"{year}-06-26", "A", "Stuart", -257, "Wing Point", source="database"),
+            UnifiedRound("19-Jul", f"{year}-07-19", "A", "Old Player", 999, "Wing Point", source="database"),
+            UnifiedRound("19-Jul", f"{year}-07-19", "A", "Old Member", 999, "Wing Point", source="member"),
+            UnifiedRound("20-Jul", f"{year}-07-20", "B", "Stuart", 2, "Wing Point", source="database"),
+            UnifiedRound("31-Aug", f"{year}-08-31", "A", "Stuart", 4, "Wing Point", source="member"),
+            UnifiedRound("1-Jan", f"{year + 1}-01-01", "A", "Stuart", 8, "Wing Point", source="database"),
+            UnifiedRound("30-Aug", f"{year}-08-30", "A", "Jeff", -10, "Wing Point", source="primary_sheet"),
+            UnifiedRound("bad", "not-a-date", "A", "Bad Sheet Date", 999, "Wing Point", source="primary_sheet"),
+            UnifiedRound("bad", "2026-99-99", "A", "Bad App Date", 999, "Wing Point", source="database"),
         ]
-        svc.primary_sheet.get_all_rounds.return_value = rounds
-        svc._db = MagicMock()
-        svc._db.query.return_value.all.return_value = []
-
-        try:
+        with patch.object(svc, "get_all_rounds", return_value=rows):
             leaderboard = svc.get_unified_leaderboard()
-            stuart = next((e for e in leaderboard if e.member == "Stuart"), None)
-            if stuart:
-                assert stuart.quarters == 12
-                assert stuart.rounds == 2
-        except Exception:
-            pass  # External deps; focus on pure logic elsewhere
+            assert [entry.member for entry in leaderboard] == ["Stuart", "Jeff"]
+            stuart = leaderboard[0]
+            assert (stuart.quarters, stuart.rounds, stuart.average) == (512, 5, 102.4)
+            assert (stuart.best_round, stuart.worst_round) == (525, -27)
+            assert stuart.sources == {"primary_sheet", "database", "member"}
+            # Season filtering must not change the all-time history API.
+            assert len(svc.get_player_history("Stuart")) == 6
+            assert svc.get_player_history("Old Player")[0].score == 999
+
+    @pytest.mark.parametrize("sheet_date", [None, "", "not-a-date"])
+    def test_missing_season_dates_does_not_fall_back_to_all_time(self, sheet_date):
+        svc = make_service()
+        rows = [UnifiedRound("26-Jun", "2026-06-26", "A", "Stuart", -257, "Wing Point", source="database")]
+        if sheet_date is not None:
+            rows.append(UnifiedRound("bad", sheet_date, "A", "Jeff", 257, "Wing Point", source="primary_sheet"))
+        with patch.object(svc, "get_all_rounds", return_value=rows):
+            assert svc.get_unified_leaderboard() == []
 
     def test_live_fetch_skips_writable_sheet(self):
         """Prior-season writable copy must not be merged into season-of-record data."""
