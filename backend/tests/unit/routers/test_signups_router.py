@@ -2,12 +2,18 @@
 
 import uuid
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
+from app.database import get_db
 from app.main import app
-from app.services.auth_service import get_current_user
+from app.models import Base, DailySignup, PlayerProfile
+from app.routers import signups as signups_module
+from app.services.auth_service import get_current_auth0_user, get_current_user
 
 client = TestClient(app)
 
@@ -37,6 +43,68 @@ def _signups_for_week(week_start):
     resp = client.get("/signups/weekly", params={"week_start": week_start})
     assert resp.status_code == 200
     return {signup["id"]: signup for day in resp.json()["daily_summaries"] for signup in day["signups"]}
+
+
+def test_issue_319_three_authenticated_players_stay_distinct(tmp_path, monkeypatch):
+    """Verified claims -> real profile lookup -> signup/readback/cancel; no live writes."""
+    engine = create_engine(f"sqlite:///{tmp_path / 'identities.db'}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    sessions = sessionmaker(bind=engine)
+    identities = ((9, "Brett Saks"), (11, "Jeff Green"), (8, "Steve Sutorius"))
+    with sessions() as db:
+        db.add_all(
+            PlayerProfile(
+                id=player_id,
+                name=name,
+                legacy_name=name,
+                email=f"player{player_id}@example.com",
+                preferences={"auth0_id": f"auth0|test-{player_id}"},
+                created_at="2026-07-24T00:00:00",
+            )
+            for player_id, name in identities
+        )
+        db.commit()
+
+    def local_db():
+        with sessions() as db:
+            yield db
+
+    monkeypatch.setattr(signups_module.database, "SessionLocal", sessions)
+    monkeypatch.setattr(signups_module, "get_legacy_signup_service", Mock(return_value=Mock()))
+    confirmation = Mock()
+    monkeypatch.setattr(signups_module, "_send_signup_confirmation", confirmation)
+    monkeypatch.delitem(app.dependency_overrides, get_current_user)
+    monkeypatch.setitem(app.dependency_overrides, get_db, local_db)
+    signup_ids = []
+    try:
+        for player_id, name in identities:
+            claims = {"sub": f"auth0|test-{player_id}", "email": f"player{player_id}@example.com", "name": name}
+            monkeypatch.setitem(app.dependency_overrides, get_current_auth0_user, lambda claims=claims: claims)
+            response = client.post(
+                "/signups",
+                json={"date": "2026-07-24", "player_profile_id": 8, "player_name": "Steve Sutorius"},
+            )
+            assert response.status_code == 200
+            signup_id = response.json()["id"]
+            signup_ids.append(signup_id)
+            persisted = _signups_for_week("2026-07-24")[signup_id]
+            assert (persisted["player_profile_id"], persisted["player_name"]) == (player_id, name)
+            confirmation.assert_called_with(signup_id, f"player{player_id}@example.com", name, "2026-07-24")
+
+        assert len(_signups_for_week("2026-07-24")) == 3
+        for signup_id, (player_id, name) in zip(signup_ids[:2], identities[:2], strict=True):
+            claims = {"sub": f"auth0|test-{player_id}", "email": f"player{player_id}@example.com", "name": name}
+            monkeypatch.setitem(app.dependency_overrides, get_current_auth0_user, lambda claims=claims: claims)
+            assert client.delete(f"/signups/{signup_id}").status_code == 200
+        remaining = _signups_for_week("2026-07-24")
+        assert list(remaining) == [signup_ids[2]]
+        assert remaining[signup_ids[2]]["player_name"] == "Steve Sutorius"
+        with sessions() as db:
+            assert db.query(PlayerProfile).count() == 3
+            assert db.get(PlayerProfile, 8).preferences["auth0_id"] == "auth0|test-8"
+            assert [db.get(DailySignup, key).status for key in signup_ids] == ["cancelled", "cancelled", "signed_up"]
+    finally:
+        engine.dispose()
 
 
 # ── GET /legacy-players ──────────────────────────────────────────────────────
