@@ -12,6 +12,12 @@ import { FORETEES_ENABLED } from '../config/features';
 
 const STORAGE_KEY = 'wgp_account_settings';
 
+export const formatRoundDate = (value) => {
+  // Calendar dates have no timezone; timestamps still display in local time.
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value;
+  return new Date(date).toLocaleDateString();
+};
+
 const loadSettings = () => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -463,7 +469,7 @@ function AccountPage() {
                         {game.course || 'Round'}
                       </div>
                       <div style={{ fontSize: '12px', color: theme.colors.textSecondary }}>
-                        {new Date(game.date).toLocaleDateString()}
+                        {formatRoundDate(game.date)}
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>

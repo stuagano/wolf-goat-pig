@@ -4,10 +4,23 @@
  * the panel shape (rounds, quarters, recent list).
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchClubHistory, mapClubHistoryToStats } from '../AccountPage';
+import { fetchClubHistory, formatRoundDate, mapClubHistoryToStats } from '../AccountPage';
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
+
+describe('round dates', () => {
+  it.each(['America/Los_Angeles', 'UTC', 'Pacific/Auckland'])(
+    'keeps calendar dates and local timestamp behavior in %s', (timezone) => {
+      vi.stubEnv('TZ', timezone);
+      expect(formatRoundDate('2026-08-30')).toBe(new Date(2026, 7, 30).toLocaleDateString());
+      expect(formatRoundDate('2026-01-01')).toBe(new Date(2026, 0, 1).toLocaleDateString());
+      const timestamp = '2026-08-30T01:00:00Z';
+      expect(formatRoundDate(timestamp)).toBe(new Date(timestamp).toLocaleDateString());
+    },
+  );
 });
 
 describe('mapClubHistoryToStats', () => {
