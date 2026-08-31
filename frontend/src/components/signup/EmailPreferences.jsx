@@ -191,6 +191,7 @@ const EmailPreferences = () => {
         ].map(preset => (
           <button
             key={preset.key}
+            disabled={saving}
             onClick={() => setPreset(preset.key)}
             style={{
               flex: 1,
@@ -252,6 +253,7 @@ const EmailPreferences = () => {
               </div>
               <input
                 type="checkbox"
+                disabled={saving}
                 checked={preferences[type.key]}
                 onChange={(e) => updatePreference(type.key, e.target.checked)}
                 style={{ width: '20px', height: '20px', accentColor: '#047857' }}
@@ -286,6 +288,7 @@ const EmailPreferences = () => {
               Frequency
             </label>
             <select
+              disabled={saving}
               value={preferences.email_frequency}
               onChange={(e) => updatePreference('email_frequency', e.target.value)}
               style={{
@@ -307,6 +310,7 @@ const EmailPreferences = () => {
               Notification Time
             </label>
             <select
+              disabled={saving}
               value={preferences.preferred_notification_time}
               onChange={(e) => updatePreference('preferred_notification_time', e.target.value)}
               style={{

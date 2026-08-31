@@ -69,3 +69,28 @@ test('preserves edits and reports a failed save without claiming success', async
   expect(screen.queryByText(/Preferences saved!/)).not.toBeInTheDocument();
   await waitFor(() => expect(screen.getByRole('button', { name: /Save Preferences/ })).toBeEnabled());
 });
+
+test('disables every preference control throughout token acquisition and saving', async () => {
+  let resolveToken;
+  let resolveSave;
+  fetch.mockResolvedValueOnce(createMockFetchResponse(savedPreferences))
+    .mockImplementationOnce(() => new Promise(resolve => { resolveSave = resolve; }));
+  render(<EmailPreferences />);
+  await screen.findByRole('checkbox', { name: /Daily Sign-up Summaries/ });
+  useAuth0().getAccessTokenSilently.mockImplementationOnce(
+    () => new Promise(resolve => { resolveToken = resolve; }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: /Save Preferences/ }));
+  const controls = [
+    ...screen.getAllByRole('checkbox'), ...screen.getAllByRole('combobox'),
+    ...['All Emails', 'Essential', 'Minimal'].map(name => screen.getByRole('button', { name })),
+  ];
+  controls.forEach(control => expect(control).toBeDisabled());
+  expect(fetch).toHaveBeenCalledTimes(1);
+  resolveToken('test-access-token');
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+  controls.forEach(control => expect(control).toBeDisabled());
+  resolveSave(await createMockFetchResponse(savedPreferences));
+  await screen.findByText(/Preferences saved!/);
+  controls.forEach(control => expect(control).toBeEnabled());
+});
