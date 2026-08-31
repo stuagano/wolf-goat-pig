@@ -9,6 +9,14 @@ issue #323.
 
 ## Which actions touch the live sheet
 
+**Current policy (August 30, 2026):** legacy sheet integration is paused at the
+user's request. Production configuration explicitly sets both
+`LEGACY_SIGNUP_SYNC_ENABLED=false` and `LEGACY_TEE_SHEET_ENABLED=false`.
+App signups and cancellations continue in the app database without mirroring
+to the external sheet. Existing external entries are left unchanged; July test
+entry reconciliation is deferred. The behavior below applies if integration
+is deliberately re-enabled.
+
 - `POST /tee-sheet/signup` (used by the **WGP Signup Sheet** UI) posts straight
   to the live CGI. This is the one that mutates the real, shared sheet.
 - `POST /signups` (the **Daily Signup** UI) writes to our own DB first and only
@@ -67,5 +75,10 @@ logged and reported to Sentry on failure rather than swallowed.
 Whoever performs a **live** test signup is responsible for removing the test
 row from the live tee sheet afterward (or asking the tee-sheet owner to). Test
 rows accidentally written under the wrong name — e.g. the July 2026 "everyone is
-Steve" incident — are audited and repaired with
-`scripts/diagnostics/audit_signup_identities.py` (see issue #319).
+Steve" incident — can be investigated with
+`scripts/diagnostics/audit_signup_identities.py` (see issue #319). The script
+repairs only a verified profile's `legacy_name`; it does **not** cancel database
+signups or remove live tee-sheet rows. A name mismatch alone does not prove a
+test booking. Reconcile exact rows with the sheet owner before cleanup; preserve
+genuine bookings and distinct accounts. See the
+[August 30 audit findings and remaining checks](issue-319-identity-audit.md).
