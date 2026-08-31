@@ -37,6 +37,7 @@ const renderPage = (playerId = '21') =>
   render(
     <MemoryRouter initialEntries={[`/players/${playerId}`]}>
       <Routes>
+        <Route path="/players/name/:playerName" element={<PlayerProfilePage />} />
         <Route path="/players/:playerId" element={<PlayerProfilePage />} />
       </Routes>
     </MemoryRouter>,
@@ -58,6 +59,53 @@ beforeEach(() => {
       return { ok: true, json: async () => ({ has_avatar_image: true }) };
     }
     return { ok: true, json: async () => ({}) };
+  });
+});
+
+describe('PlayerProfilePage leaderboard name links', () => {
+  test('resolves a roster name to its existing profile and preserves owner controls', async () => {
+    mockUsePlayerProfile.mockReturnValue({ profile: { id: 21 } });
+    global.fetch = vi.fn(async (url) => ({
+      ok: true,
+      json: async () => String(url).includes('/players/name/') ? { id: 21 } : baseProfile,
+    }));
+    renderPage('name/Kevin%20Gent');
+
+    expect(await screen.findByRole('heading', { name: 'Kevin Gent' })).toBeInTheDocument();
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/players/name/Kevin%20Gent'));
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/players/21/public-profile'));
+    expect(screen.getByTitle('Change photo')).toBeInTheDocument();
+  });
+
+  test('sheet-only players show recorded history without creating a profile', async () => {
+    mockUsePlayerProfile.mockReturnValue({ profile: { id: 21 } });
+    global.fetch = vi.fn(async (url) => {
+      if (String(url).includes('/players/name/')) return { ok: false, status: 404 };
+      if (String(url).includes('/data/player/')) return {
+        ok: true,
+        json: async () => [{ date_sortable: '2026-08-23', member: 'Dave Holt', score: 102, location: 'Wing Point' }],
+      };
+      return { ok: true, json: async () => ({}) };
+    });
+    renderPage('name/Dave%20Holt');
+
+    expect(await screen.findByRole('heading', { name: 'Dave Holt' })).toBeInTheDocument();
+    expect(screen.getByText('Wing Point')).toBeInTheDocument();
+    expect(screen.getAllByText('+102').length).toBeGreaterThan(0);
+    expect(screen.queryByTitle('Change photo')).toBeNull();
+    expect(global.fetch.mock.calls.every(([, options]) => !options?.method || options.method === 'GET')).toBe(true);
+  });
+
+  test.each([404, 500])('a failed name lookup (%s) does not invent a player', async (status) => {
+    mockUsePlayerProfile.mockReturnValue({ profile: null });
+    global.fetch = vi.fn(async (url) => String(url).includes('/players/name/')
+      ? { ok: false, status }
+      : { ok: true, json: async () => [] });
+    renderPage('name/Unknown');
+
+    expect(await screen.findByRole('button', { name: 'Go back' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Unknown' })).toBeNull();
+    if (status === 500) expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 });
 
