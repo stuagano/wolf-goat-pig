@@ -138,7 +138,7 @@ capabilities:
     deps:
     - backend/app/routers/commissioner.py
     check:
-      shell: cd backend && venv/bin/python -m pytest tests/contract/test_groq_contract.py
+      shell: cd backend && venv/bin/python -m pytest tests/contract/test_commissioner_llm_contract.py
         -q -p no:cacheprovider
   - id: tee-sheet-contract
     description: the thousand-cranes tee-sheet client upholds its read/signup contract

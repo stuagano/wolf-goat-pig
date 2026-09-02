@@ -26,15 +26,14 @@ _METHODS = {"GET", "POST", "PUT", "PATCH", "DELETE"}
 
 
 def operations() -> list[str]:
+    # app.routes contains _IncludedRouter wrappers in newer FastAPI; use the
+    # OpenAPI schema instead, which always reflects the full flattened surface.
+    schema = app.openapi()
     ops = set()
-    for route in app.routes:
-        methods = getattr(route, "methods", None) or set()
-        path = getattr(route, "path", None)
-        if not path:
-            continue
-        for m in methods:
-            if m in _METHODS:
-                ops.add(f"{m} {path}")
+    for path, methods_dict in schema.get("paths", {}).items():
+        for method in methods_dict:
+            if method.upper() in _METHODS:
+                ops.add(f"{method.upper()} {path}")
     return sorted(ops)
 
 

@@ -41,6 +41,10 @@ works now.
 
 ## After deploy
 
+- To put a public domain in front of Hosting, follow the
+  [custom-domain DNS handoff](CUSTOM_DOMAIN_DNS.md). It separates the Firebase
+  project-owner steps from the exact DNS changes that the DNS administrator
+  (Jeff) must make; do not guess or reuse DNS values from another Firebase site.
 - Set the backend's `FRONTEND_URL` (in `env.production.yaml`) to the Firebase
   Hosting URL and redeploy the backend so CORS + email links are correct.
 - Add the Firebase Hosting domain to the **Auth0 Allowed Callback/Logout/Web
