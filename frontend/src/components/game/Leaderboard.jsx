@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Card } from '../ui';
 import { useSheetSync } from '../../context';
 import { api } from '../../api/client';
@@ -194,7 +195,11 @@ const Leaderboard = () => {
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-medium text-gray-900">
-                                {entry.member || 'Unknown Player'}
+                                {entry.player_id ? (
+                                  <Link to={`/players/${entry.player_id}`} className="hover:text-blue-600 hover:underline">
+                                    {entry.member || 'Unknown Player'}
+                                  </Link>
+                                ) : (entry.member || 'Unknown Player')}
                               </div>
                               {teamMap[entry.member] && (
                                 <div className="text-xs text-blue-600 mt-0.5">
