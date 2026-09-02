@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useNavigate } from 'react-router-dom';
 import '../../styles/mobile-touch.css';
@@ -43,6 +43,9 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   const [pairingsError, setPairingsError] = useState(null);
   const [confirmingSignup, setConfirmingSignup] = useState(false);
   const [signingUp, setSigningUp] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState(null);
+  const [noteValue, setNoteValue] = useState('');
+  const noteInputRef = useRef(null);
   const signupName = profile?.legacy_name || '';
   const signupProfileReady = Boolean(profile?.id && signupName);
   const signupDisabled = signingUp || profileLoading;
@@ -277,6 +280,27 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     } catch (err) {
       console.error('Cancel error:', err);
       setError('Failed to cancel signup');
+    }
+  };
+
+  const handleNoteEdit = (player) => {
+    setEditingNoteId(player.id);
+    setNoteValue(player.notes || '');
+    setTimeout(() => noteInputRef.current?.focus(), 0);
+  };
+
+  const handleNoteSave = async (signupId) => {
+    setEditingNoteId(null);
+    try {
+      const token = await acquireAccessToken(getAccessTokenSilently, apiTokenOptions);
+      await api.PUT('/signups/{signup_id}', {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { path: { signup_id: signupId } },
+        body: { notes: noteValue || null },
+      });
+      loadWeeklyData(currentWeekStart);
+    } catch (err) {
+      console.error('Note save error:', err);
     }
   };
 
@@ -611,8 +635,28 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                             <span style={{ color: '#047857', fontSize: '12px', marginLeft: '6px' }}>(you)</span>
                           )}
                         </td>
-                        <td style={{ padding: '10px 8px', color: '#6b7280', fontSize: '13px' }}>
-                          {player.notes || player.preferred_start_time || ''}
+                        <td style={{ padding: '6px 8px', color: '#6b7280', fontSize: '13px' }}>
+                          {isCurrentUser && editingNoteId === player.id ? (
+                            <input
+                              ref={noteInputRef}
+                              value={noteValue}
+                              onChange={e => setNoteValue(e.target.value)}
+                              onBlur={() => handleNoteSave(player.id)}
+                              onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingNoteId(null); }}
+                              placeholder="Add a note…"
+                              style={{ border: '1px solid #d1d5db', borderRadius: '4px', padding: '3px 6px', fontSize: '13px', width: '100%', outline: 'none' }}
+                            />
+                          ) : isCurrentUser ? (
+                            <span
+                              onClick={() => handleNoteEdit(player)}
+                              title="Click to edit"
+                              style={{ cursor: 'text', borderBottom: '1px dashed #d1d5db', paddingBottom: '1px', color: player.notes ? '#6b7280' : '#9ca3af' }}
+                            >
+                              {player.notes || 'Add a note…'}
+                            </span>
+                          ) : (
+                            player.notes || player.preferred_start_time || ''
+                          )}
                         </td>
                         {isAuthenticated && (
                           <td style={{ padding: '10px 8px', textAlign: 'center' }}>
