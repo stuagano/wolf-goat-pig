@@ -70,6 +70,9 @@ function HomePage() {
                   fontWeight: 700,
                 }}
               />
+              <p className="wgp-home__first-time">
+                First time here? Create an account with one of the options below.
+              </p>
             </div>
           ) : (
             <p className="wgp-home__welcome">
