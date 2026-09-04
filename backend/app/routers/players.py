@@ -33,7 +33,7 @@ from ..services.legacy_player_service import (
 )
 from ..services.player_service import PlayerService
 from ..services.unified_data_service import get_unified_data_service
-from ..utils.admin_auth import is_super_admin_email
+from ..utils.admin_auth import is_super_admin_email, require_admin
 from ..utils.api_helpers import ApiResponse, handle_api_errors, require_not_none
 from ..utils.time import utc_now
 
@@ -654,6 +654,53 @@ def update_player_profile(
     result = require_not_none(updated_profile, "Player", player_id)
     logger.info(f"Updated player profile {player_id}")
     return result
+
+
+@router.post("/admin/relink-auth0", dependencies=[Depends(require_admin)])
+@handle_api_errors(operation_name="relink auth0 account")
+def relink_auth0_account(
+    body: dict[str, str],
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Admin: point a PlayerProfile's auth0_id to a new Auth0 sub.
+
+    Body: {"email": "user@example.com", "auth0_id": "auth0|abc123"}
+    Finds the profile whose preferences.auth0_id currently matches any account
+    with that email, clears duplicates, and sets auth0_id to the supplied value.
+    """
+    email = (body.get("email") or "").strip().lower()
+    new_auth0_id = (body.get("auth0_id") or "").strip()
+    if not email or not new_auth0_id:
+        raise HTTPException(status_code=422, detail="email and auth0_id are required")
+
+    # Find all profiles for this email
+    profiles = db.query(models.PlayerProfile).filter(models.PlayerProfile.email.ilike(email)).all()
+
+    if not profiles:
+        raise HTTPException(status_code=404, detail=f"No profile found for {email}")
+
+    # Pick the one with a legacy_name, or the first one if none
+    primary = next((p for p in profiles if p.legacy_name), profiles[0])
+
+    # Clear auth0_id from all profiles for this email, then set on primary
+    for p in profiles:
+        prefs = dict(p.preferences or {})
+        prefs.pop("auth0_id", None)
+        p.preferences = prefs
+
+    primary_prefs = dict(primary.preferences or {})
+    primary_prefs["auth0_id"] = new_auth0_id
+    primary.preferences = primary_prefs
+    db.commit()
+
+    logger.info(f"Relinked {email} → auth0_id={new_auth0_id} on player id={primary.id} ({primary.name})")
+    return {
+        "updated_player_id": primary.id,
+        "name": primary.name,
+        "legacy_name": primary.legacy_name,
+        "auth0_id": new_auth0_id,
+        "profiles_cleared": len(profiles),
+    }
 
 
 @router.delete("/{player_id}")
