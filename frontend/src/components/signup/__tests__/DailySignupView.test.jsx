@@ -128,9 +128,9 @@ describe('DailySignupView', () => {
     expect(screen.getByRole('button', { name: 'Cancel My Signup' })).toBeInTheDocument();
   });
 
-  test('sends an unlinked player to Account instead of leaving signup disabled', async () => {
+  test('unlinked player can sign up using their display name without being blocked', async () => {
     mockUsePlayerProfile.mockReturnValue({
-      profile: { ...playerProfile, legacy_name: null },
+      profile: { ...playerProfile, legacy_name: null, name: 'Kevin Gent' },
       loading: false,
       legacyNameSkipped: true,
     });
@@ -145,18 +145,14 @@ describe('DailySignupView', () => {
 
     render(<DailySignupView selectedDate={selectedDate} />);
 
-    const reminder = await screen.findByText(/Link your club player before signing up/i);
-    const reminderContainer = reminder.parentElement;
-    fireEvent.click(within(reminderContainer).getByRole('button', { name: /Choose my player/i }));
-    expect(mockNavigate).toHaveBeenCalledWith('/account#club-player');
-
-    const buttons = await screen.findAllByRole('button', {
-      name: 'Link club player in Account',
+    // No blocking banner
+    await waitFor(() => {
+      expect(screen.queryByText(/Link your club player before signing up/i)).not.toBeInTheDocument();
     });
+
+    // Signup buttons are present and enabled, labelled with their display name
+    const buttons = await screen.findAllByRole('button', { name: /Sign Up/i });
     expect(buttons).not.toHaveLength(0);
     buttons.forEach((button) => expect(button).toBeEnabled());
-
-    fireEvent.click(buttons[0]);
-    expect(mockNavigate).toHaveBeenCalledWith('/account#club-player');
   });
 });

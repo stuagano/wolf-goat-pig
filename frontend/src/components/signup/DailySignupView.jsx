@@ -19,7 +19,6 @@ function getSignupButtonLabel({
 }) {
   if (signingUp) return 'Signing up…';
   if (profileLoading) return 'Loading profile…';
-  if (!signupProfileReady) return 'Link club player in Account';
   if (confirmingSignup) return 'Confirm Sign Up';
   return defaultLabel;
 }
@@ -46,8 +45,8 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [noteValue, setNoteValue] = useState('');
   const noteInputRef = useRef(null);
-  const signupName = profile?.legacy_name || '';
-  const signupProfileReady = Boolean(profile?.id && signupName);
+  const signupName = profile?.legacy_name || profile?.name || user?.name || '';
+  const signupProfileReady = Boolean(profile?.id);
   const signupDisabled = signingUp || profileLoading;
 
   // Compute the Sunday that starts the week containing a given date
@@ -205,11 +204,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
       return;
     }
     if (!signupProfileReady) {
-      setError(
-        profileLoading
-          ? 'Loading your profile…'
-          : 'Link your club player name in Account before signing up.'
-      );
+      setError('Loading your profile…');
       setConfirmingSignup(false);
       return;
     }
@@ -338,37 +333,6 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
       boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
       overflow: 'hidden'
     }}>
-      {isAuthenticated && legacyNameSkipped && !signupProfileReady && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
-          padding: '12px 16px',
-          background: '#fffbeb',
-          borderBottom: '1px solid #f59e0b',
-          color: '#78350f',
-          fontSize: '14px',
-        }}>
-          <span>Link your club player before signing up.</span>
-          <button
-            type="button"
-            onClick={() => navigate(CLUB_PLAYER_ACCOUNT_PATH)}
-            style={{
-              flexShrink: 0,
-              padding: '8px 12px',
-              border: 0,
-              borderRadius: '6px',
-              background: '#2d5016',
-              color: 'white',
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            Choose my player
-          </button>
-        </div>
-      )}
 
       {/* Week Navigation Bar */}
       <div style={{
