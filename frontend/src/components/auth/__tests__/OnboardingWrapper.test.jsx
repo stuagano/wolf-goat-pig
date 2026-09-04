@@ -79,8 +79,10 @@ beforeEach(() => {
   localStorage.clear();
 });
 
+// Linking is now optional — needsLegacyName is permanently false.
+// The modal never blocks new users regardless of profile state.
 describe("OnboardingWrapper fuzzy legacy-name flow", () => {
-  test("shows the fuzzy suggestion when legacy_name_suggestion is set and legacy_name is null", async () => {
+  test("never shows the onboarding modal even when legacy_name is null", async () => {
     installFetch({ legacyName: null, suggestion: SUGGESTION });
 
     render(
@@ -89,16 +91,13 @@ describe("OnboardingWrapper fuzzy legacy-name flow", () => {
       </OnboardingWrapper>,
     );
 
-    // Children still render underneath the modal overlay.
-    expect(screen.getByText("App Content")).toBeInTheDocument();
-
-    // "Did you mean <suggestion>?" banner appears with the suggested name.
-    expect(await screen.findByText(/Did you mean/i)).toBeInTheDocument();
-    expect(screen.getByText(SUGGESTION)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Yes, link this player/i })).toBeInTheDocument();
+    expect(await screen.findByText("App Content")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText(/Link Your Account/i)).not.toBeInTheDocument();
+    });
   });
 
-  test("does not show the modal when the account already has a confirmed legacy_name", async () => {
+  test("does not show the modal when legacy_name is already set", async () => {
     installFetch({ legacyName: "Stuart Gano", suggestion: null });
 
     render(
@@ -108,13 +107,12 @@ describe("OnboardingWrapper fuzzy legacy-name flow", () => {
     );
 
     expect(await screen.findByText("App Content")).toBeInTheDocument();
-    // No onboarding modal when the user is already linked.
     await waitFor(() => {
       expect(screen.queryByText(/Link Your Account/i)).not.toBeInTheDocument();
     });
   });
 
-  test("does not inherit another account's skip choice", async () => {
+  test("does not show the modal even when another account has skipped", async () => {
     localStorage.setItem("legacy_name_skipped:auth0|someone-else", "true");
     installFetch({ legacyName: null, suggestion: SUGGESTION });
 
@@ -124,90 +122,9 @@ describe("OnboardingWrapper fuzzy legacy-name flow", () => {
       </OnboardingWrapper>,
     );
 
-    expect(await screen.findByText(/Link Your Account/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Link your club player to sign up and post rounds/i)).not.toBeInTheDocument();
-  });
-
-  test("selecting a name from the dropdown PUTs it and persists (modal closes)", async () => {
-    const putBodies = [];
-    installFetch({ legacyName: null, suggestion: SUGGESTION, onPut: (b) => putBodies.push(b) });
-
-    render(
-      <OnboardingWrapper>
-        <div>App Content</div>
-      </OnboardingWrapper>,
-    );
-
-    // Wait for the selector to load its player list.
-    const search = await screen.findByPlaceholderText(/Search for your name/i);
-    fireEvent.change(search, { target: { value: "Jane" } });
-
-    // Pick "Jane Smith" from the dropdown.
-    fireEvent.click(await screen.findByText("Jane Smith"));
-
-    // Confirm the selection.
-    fireEvent.click(screen.getByRole("button", { name: /Confirm: Jane Smith/i }));
-
-    await waitFor(() => {
-      expect(putBodies).toEqual([{ legacy_name: "Jane Smith" }]);
-    });
-
-    // After a successful link the onboarding modal closes.
+    expect(await screen.findByText("App Content")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.queryByText(/Link Your Account/i)).not.toBeInTheDocument();
     });
-  });
-
-  test("one click on the suggestion confirms and PUTs the suggested name", async () => {
-    const putBodies = [];
-    installFetch({ legacyName: null, suggestion: SUGGESTION, onPut: (b) => putBodies.push(b) });
-
-    render(
-      <OnboardingWrapper>
-        <ProfileObserver />
-      </OnboardingWrapper>,
-    );
-
-    fireEvent.click(await screen.findByRole("button", { name: /Yes, link this player/i }));
-
-    await waitFor(() => {
-      expect(putBodies).toEqual([{ legacy_name: SUGGESTION }]);
-      expect(screen.getByTestId("linked-name")).toHaveTextContent(SUGGESTION);
-    });
-    expect(screen.queryByText(/Link Your Account/i)).not.toBeInTheDocument();
-  });
-
-  test("'Skip for now' sets the localStorage skip flag and never writes legacy_name", async () => {
-    installFetch({ legacyName: null, suggestion: SUGGESTION });
-
-    render(
-      <OnboardingWrapper>
-        <ProfileObserver />
-      </OnboardingWrapper>,
-    );
-
-    // The main skip control in the selector.
-    const skip = await screen.findByRole("button", { name: /I'm not in the list/i });
-    fireEvent.click(skip);
-
-    // Skip persists a local flag only.
-    await waitFor(() => {
-      expect(localStorage.setItem).toHaveBeenCalledWith("legacy_name_skipped:auth0|stu", "true");
-      expect(screen.getByTestId("skip-state")).toHaveTextContent("true");
-    });
-
-    // No PUT to legacy-name — the account stays unlinked.
-    const putCall = global.fetch.mock.calls.find(
-      ([url, opts]) => url.endsWith("/players/me/legacy-name") && opts?.method === "PUT",
-    );
-    expect(putCall).toBeUndefined();
-
-    // Modal closes after skipping.
-    await waitFor(() => {
-      expect(screen.queryByText(/Link Your Account/i)).not.toBeInTheDocument();
-    });
-
-    // Contextual recovery prompts live on Home and Signup, not over every page.
-    expect(screen.queryByText(/Link your club player to sign up and post rounds/i)).not.toBeInTheDocument();
   });
 });

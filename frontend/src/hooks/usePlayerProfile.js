@@ -20,7 +20,8 @@ export const usePlayerProfile = () => {
   const [legacyNameSkipped, setLegacyNameSkipped] = useState(false);
   const profileRequestId = useRef(0);
   const isUnlinked = Boolean(profile && !profile.legacy_name);
-  const needsLegacyName = isUnlinked && !legacyNameSkipped;
+  // ponytail: linking is optional; never block new users with the onboarding modal
+  const needsLegacyName = false;
   const userSub = user?.sub || null;
   const legacyNameSkipKey = userSub ? `legacy_name_skipped:${userSub}` : null;
 
