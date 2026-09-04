@@ -9,6 +9,7 @@ import WGPAnalyticsDashboard from '../components/analytics/WGPAnalyticsDashboard
 import GHINIntegration from '../components/integration/GHINIntegration';
 import FoursomesManager from './admin/FoursomesManager';
 import DatabaseManager from './admin/DatabaseManager';
+import AccountLinkingManager from './admin/AccountLinkingManager';
 import { apiConfig } from '../config/api.config';
 
 const API_URL = apiConfig.baseUrl;
@@ -504,6 +505,16 @@ const AdminPage = () => {
             🎲 Foursomes
           </button>
           <button
+            onClick={() => setActiveTab('players')}
+            className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${
+              activeTab === 'players'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            👤 Players
+          </button>
+          <button
             onClick={() => navigate('/admin/roster')}
             className="flex-1 px-4 py-2 rounded-md font-medium transition-colors text-gray-600 hover:text-gray-900"
           >
@@ -971,6 +982,9 @@ const AdminPage = () => {
         {activeTab === 'foursomes' && (
           <FoursomesManager />
         )}
+
+        {/* Players Tab */}
+        {activeTab === 'players' && <AccountLinkingManager />}
 
         {/* Banners Tab */}
         {activeTab === 'banners' && (
