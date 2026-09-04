@@ -10,6 +10,7 @@ import GHINIntegration from '../components/integration/GHINIntegration';
 import FoursomesManager from './admin/FoursomesManager';
 import DatabaseManager from './admin/DatabaseManager';
 import AccountLinkingManager from './admin/AccountLinkingManager';
+import FeatureToggles from './admin/FeatureToggles';
 import { apiConfig } from '../config/api.config';
 
 const API_URL = apiConfig.baseUrl;
@@ -505,6 +506,16 @@ const AdminPage = () => {
             🎲 Foursomes
           </button>
           <button
+            onClick={() => setActiveTab('toggles')}
+            className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${
+              activeTab === 'toggles'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            🚦 Toggles
+          </button>
+          <button
             onClick={() => setActiveTab('players')}
             className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${
               activeTab === 'players'
@@ -982,6 +993,9 @@ const AdminPage = () => {
         {activeTab === 'foursomes' && (
           <FoursomesManager />
         )}
+
+        {/* Toggles Tab */}
+        {activeTab === 'toggles' && <FeatureToggles />}
 
         {/* Players Tab */}
         {activeTab === 'players' && <AccountLinkingManager />}

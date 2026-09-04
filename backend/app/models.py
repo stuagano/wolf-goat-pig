@@ -817,6 +817,17 @@ class LegacyRosterPlayer(Base):
     notes = Column(String, nullable=True)
 
 
+class AppConfig(Base):
+    """Single-row app-wide configuration, keyed by name.
+
+    The 'features' row stores a JSON dict of feature flags.
+    """
+
+    __tablename__ = "app_config"
+    name = Column(String, primary_key=True)
+    value = Column(MutableDict.as_mutable(JSON), nullable=False, default=dict)
+
+
 class PendingLegacyPlayer(Base):
     """Queue of self-signed-up golfers who have no match on the canonical
     roster yet.

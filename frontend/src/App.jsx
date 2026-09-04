@@ -26,6 +26,7 @@ import OfflineIndicator from "./components/ui/OfflineIndicator";
 import { initCacheManager } from "./services/cacheManager";
 import syncManager from "./services/syncManager";
 import { apiConfig } from "./config/api.config";
+import { useFeatureFlags } from "./hooks/useFeatureFlags";
 import "./styles/mobile-touch.css"; // Import mobile touch optimization styles
 
 // Lazy-loaded routes — reduces initial bundle by ~40-60%
@@ -69,6 +70,7 @@ function App() {
   const mockAuthEnabled = import.meta.env.VITE_USE_MOCK_AUTH === "true";
   const canUseApp = isAuthenticated || mockAuthEnabled || isScorekeeperRoute;
 
+  const features = useFeatureFlags();
   const [backendReady, setBackendReady] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
 
@@ -365,10 +367,10 @@ function App() {
                 }
               />
               <Route path="/leaderboard" element={<Leaderboard />} />
-              <Route path="/livsow" element={<LivSowLeaderboard />} />
-              <Route path="/livsow/teams/:teamSlug" element={<LivSowTeamPage />} />
-              <Route path="/chat" element={<GroupMeChat />} />
-              <Route path="/livsow/commissioner" element={<CommissionerMediaPage />} />
+              {features.livsow && <Route path="/livsow" element={<LivSowLeaderboard />} />}
+              {features.livsow && <Route path="/livsow/teams/:teamSlug" element={<LivSowTeamPage />} />}
+              {features.livsow && <Route path="/livsow/commissioner" element={<CommissionerMediaPage />} />}
+              {features.commissioner_chat && <Route path="/chat" element={<GroupMeChat />} />}
               <Route
                 path="/sheets"
                 element={
@@ -428,7 +430,7 @@ function App() {
               <Route path="/rounds/post" element={<ProtectedRoute><PostRoundPage /></ProtectedRoute>} />
               <Route path="/account" element={<AccountPage />} />
               <Route path="/badges" element={<BadgesPage />} />
-              <Route path="/scorecard-scan" element={<ScorecardScanPage />} />
+              {features.scorecard_scan && <Route path="/scorecard-scan" element={<ScorecardScanPage />} />}
               <Route path="/ask" element={<AskPage />} />
               <Route path="/tee-sheet" element={<Navigate to="/signup?tab=calendar" />} />
               <Route path="/find-a-game" element={<FindAGamePage />} />

@@ -28,6 +28,7 @@ from .routers import (
     admin_oauth,
     analytics,
     courses,
+    features,
     foretees,
     games,
     games_holes,
@@ -285,6 +286,7 @@ app.include_router(unified_data.router)
 
 # Include modular routers
 app.include_router(health.router)
+app.include_router(features.router)
 app.include_router(sheet_integration.router)
 app.include_router(tee_sheet.router)
 app.include_router(players.router)

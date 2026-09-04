@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { BrowserRouter } from "react-router-dom";
+import { FeaturesProvider } from "./hooks/useFeatureFlags";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 
 // Error boundary for catching React render errors
@@ -61,9 +62,11 @@ const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <FeaturesProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </FeaturesProvider>
     </ErrorBoundary>
   </React.StrictMode>
 );
