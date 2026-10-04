@@ -4,6 +4,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { useTheme } from '../../theme/Provider';
 import { usePlayerProfile } from '../../hooks/usePlayerProfile';
 import NotificationBell from './NotificationBell';
+import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 
 // Single source of truth for this component's stacking order. A child's
 // z-index only competes within its own parent's stacking context — it was
@@ -22,6 +23,7 @@ const Z_INDEX = {
 };
 
 const Navigation = () => {
+  const features = useFeatureFlags();
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
@@ -53,7 +55,7 @@ const Navigation = () => {
     { path: '/games/active', label: 'Active Games', icon: '🎮' },
     { path: '/games/completed', label: 'Game History', icon: '🏆' },
     { path: '/badges', label: 'Badges', icon: '🏅' },
-    { path: '/livsow', label: 'LivSow', icon: '⛳' },
+    ...(features.livsow ? [{ path: '/livsow', label: 'LivSow', icon: '⛳' }] : []),
     { path: '/chat', label: 'League Chat', icon: '💬' },
     { path: '/tutorial', label: 'Tutorial', icon: '🎓' },
     { path: '/rules', label: 'Rules', icon: '📋' },
@@ -78,7 +80,7 @@ const Navigation = () => {
     { path: '/join', label: '🔗 Join with Code', primary: false },
     { path: '/games/completed', label: '🏆 History', primary: false },
     { path: '/badges', label: '🏅 Badges', primary: false },
-    { path: '/livsow', label: '⛳ LivSow', primary: false },
+    ...(features.livsow ? [{ path: '/livsow', label: '⛳ LivSow', primary: false }] : []),
     { path: '/chat', label: '💬 Chat', primary: false },
     { path: '/tutorial', label: '🎓 Tutorial', primary: false },
     { path: '/find-a-game', label: '🤝 Find a Game', primary: false },

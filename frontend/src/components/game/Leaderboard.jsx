@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 import { Card } from '../ui';
 import { useSheetSync } from '../../context';
 import { api } from '../../api/client';
+import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 
 const Leaderboard = () => {
+  const features = useFeatureFlags();
   const { syncData: liveLeaderboardData, syncStatus, error: syncError, performLiveSync } = useSheetSync();
   const [leaderboard, setLeaderboard] = useState([]);
   const [selectedMetric, setSelectedMetric] = useState('overall');
@@ -12,15 +14,18 @@ const Leaderboard = () => {
   const [teamMap, setTeamMap] = useState({});
 
   useEffect(() => {
-    // Both fetches are best-effort decorations (spreadsheet link, LivSow team
-    // chips) — on failure the leaderboard renders fine without them.
+    // Decorations are best-effort; the leaderboard works without them.
     api.GET('/data/leaderboard-config')
       .then(({ data }) => { if (data?.sheet_url) setSheetUrl(data.sheet_url); })
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!features.livsow) return;
     api.GET('/data/livsow/team-map')
       .then(({ data }) => { if (data) setTeamMap(data); })
       .catch(() => {});
-  }, []);
+  }, [features.livsow]);
 
   useEffect(() => {
     let sortedData = [...liveLeaderboardData];
@@ -201,7 +206,7 @@ const Leaderboard = () => {
                                   </Link>
                                 ) : (entry.member || 'Unknown Player')}
                               </div>
-                              {teamMap[entry.member] && (
+                              {features.livsow && teamMap[entry.member] && (
                                 <div className="text-xs text-blue-600 mt-0.5">
                                   ⛳ {teamMap[entry.member].team}
                                 </div>

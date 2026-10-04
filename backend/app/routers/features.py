@@ -17,7 +17,7 @@ router = APIRouter(prefix="/config", tags=["config"])
 DEFAULTS: dict[str, bool] = {
     "foretees": False,
     "scorecard_scan": True,
-    "livsow": True,
+    "livsow": False,
     "commissioner_chat": True,
 }
 

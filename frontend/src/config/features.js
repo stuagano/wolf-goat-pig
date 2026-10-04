@@ -5,6 +5,6 @@ export const FORETEES_ENABLED = false;
 export const FEATURE_DEFAULTS = {
   foretees: false,
   scorecard_scan: true,
-  livsow: true,
+  livsow: false,
   commissioner_chat: true,
 };

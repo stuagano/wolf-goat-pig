@@ -4,6 +4,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { LoginButton, AuthHealthCheck } from '../components/auth';
 import StaleGameBanner from '../components/game/StaleGameBanner';
 import usePlayerProfile from '../hooks/usePlayerProfile';
+import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import './HomePage.css';
 
 const ADVANCED_TOOLS = [
@@ -20,6 +21,7 @@ const ADVANCED_TOOLS = [
 ];
 
 function HomePage() {
+  const features = useFeatureFlags();
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth0();
   const { profile, legacyNameSkipped } = usePlayerProfile();
@@ -229,7 +231,7 @@ function HomePage() {
         <details className="wgp-home__more">
           <summary>More tools — live games, scanning, history</summary>
           <div className="wgp-home__more-grid">
-            {ADVANCED_TOOLS.map((tool) => (
+            {ADVANCED_TOOLS.filter(tool => tool.path !== '/livsow' || features.livsow).map((tool) => (
               <button key={tool.path} type="button" onClick={() => navigate(tool.path)}>
                 {tool.label}
               </button>

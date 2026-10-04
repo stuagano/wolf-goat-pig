@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { apiConfig } from '../config/api.config';
 import { useAccessToken } from '../hooks/useAccessToken';
 import { usePlayerProfile } from '../hooks/usePlayerProfile';
+import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import '../styles/clubhouse-theme.css';
 import './PlayerProfilePage.css';
 
@@ -40,6 +41,7 @@ const formatGhinFreshness = (iso) => {
 };
 
 const PlayerProfilePage = () => {
+  const features = useFeatureFlags();
   const { playerId } = useParams();
   const navigate = useNavigate();
   const { getToken } = useAccessToken();
@@ -70,7 +72,7 @@ const PlayerProfilePage = () => {
       setError(null);
       // Look up LivSow team by name (no auth needed). Best-effort — the
       // badge simply doesn't render if this fails.
-      if (p?.name) {
+      if (features.livsow && p?.name) {
         fetch(`${API_URL}/data/livsow/team-map`)
           .then(r => r.ok ? r.json() : null)
           .then(map => { if (map?.[p.name]) setLivsowTeam(map[p.name]); })
@@ -86,7 +88,7 @@ const PlayerProfilePage = () => {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playerId]);
+  }, [playerId, features.livsow]);
 
   const isOwnProfile = myProfile && String(myProfile.id) === String(playerId);
 
@@ -237,7 +239,7 @@ const PlayerProfilePage = () => {
                     )}
                   </span>
                 )}
-                {livsowTeam && (
+                {features.livsow && livsowTeam && (
                   <span className="wgp-profile__livsow-pill">
                     ⛳ {livsowTeam.team} · {livsowTeam.role}
                   </span>
