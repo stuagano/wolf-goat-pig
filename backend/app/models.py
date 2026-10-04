@@ -416,9 +416,10 @@ class LegacyRound(Base):
     betting_history = Column(JSON, default=list)  # Detailed betting decisions
     performance_metrics = Column(JSON, default=dict)  # Advanced metrics
     created_at = Column(String)
-    # Member self-posting + peer attestation (member rows only; sheet/db rows
+    # Member results, including historical peer attestation (sheet/db rows
     # default to "attested" so existing reads are unchanged).
     player_profile_id = Column(Integer, ForeignKey("player_profiles.id"), nullable=True)
+    submitted_by_profile_id = Column(Integer, ForeignKey("player_profiles.id"), nullable=True)
     status = Column(String(16), nullable=False, default="attested", server_default="attested")
     attested_by_profile_id = Column(Integer, ForeignKey("player_profiles.id"), nullable=True)
     attested_at = Column(DateTime, nullable=True)

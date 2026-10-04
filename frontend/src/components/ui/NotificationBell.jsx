@@ -8,8 +8,7 @@ const API_URL = apiConfig.baseUrl;
 const POLL_INTERVAL_MS = 60_000;
 
 const MATCH_TYPES = new Set(['match_found', 'match_accepted', 'match_declined', 'match_confirmed']);
-const ATTESTATION_TYPES = new Set(['round_attestation']);
-const BELL_TYPES = new Set([...MATCH_TYPES, ...ATTESTATION_TYPES]);
+const BELL_TYPES = MATCH_TYPES;
 
 const relativeTime = (isoStr) => {
   if (!isoStr) return '';
@@ -89,10 +88,6 @@ const NotificationBell = () => {
     }
     setNotifications(prev => prev.filter(x => x.id !== n.id));
     setOpen(false);
-    if (ATTESTATION_TYPES.has(n.notification_type)) {
-      navigate('/rounds/post');
-      return;
-    }
     navigate('/account');
   }, [getToken, navigate]);
 
@@ -192,8 +187,7 @@ const NotificationBell = () => {
               >
                 <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                   <span style={{ fontSize: 20, flexShrink: 0 }}>
-                    {n.notification_type === 'round_attestation' ? '📝' :
-                     n.notification_type === 'match_found' ? '⛳' :
+                    {n.notification_type === 'match_found' ? '⛳' :
                      n.notification_type === 'match_confirmed' ? '✅' :
                      n.notification_type === 'match_accepted' ? '👍' : '📬'}
                   </span>
@@ -203,9 +197,7 @@ const NotificationBell = () => {
                     </div>
                     <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
                       {relativeTime(n.created_at)}
-                      {ATTESTATION_TYPES.has(n.notification_type)
-                        ? ' · tap to attest'
-                        : ' · tap to view in Account'}
+                      {' · tap to view in Account'}
                     </div>
                   </div>
                 </div>

@@ -1,14 +1,8 @@
-"""Member round-posting + peer attestation.
+"""Honor-system group results and historical peer-attestation endpoints.
 
-Members self-post their Wolf-Goat-Pig round result (quarters won/lost — the same
-quantity Jeff hand-enters into the Google Sheet), tied to their profile, one
-round per member per calendar day. A posted round is ``status='pending'`` and
-becomes authoritative (``status='attested'``) only after another member of the
-foursome attests it.
-
-These rows live in ``legacy_rounds`` with ``source='member'`` so they survive
-the restart-time sheet sync (which only wipes ``primary_sheet``/``writable_sheet``
-rows) and are excluded from leaderboards/standings/history until attested.
+One linked participant posts 2-4 player results in one transaction. New results
+use status='posted' and count immediately; historical pending records are left
+intact and can still be attested through the legacy API.
 """
 
 from __future__ import annotations
@@ -20,14 +14,13 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import LegacyRound, PlayerProfile
 from ..services.auth_service import get_current_user
-from ..services.email_service import get_email_service
 from ..services.legacy_player_service import get_canonical_name
-from ..services.notification_service import get_notification_service
 from ..services.unified_data_service import get_unified_data_service
 from ..utils.time import utc_now
 
@@ -36,18 +29,19 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["member-rounds"])
 
 
+class PlayerRoundResult(BaseModel):
+    member: str = Field(..., min_length=1, description="Canonical roster name")
+    score: int = Field(..., strict=True, ge=-2147483648, le=2147483647, description="Whole quarters won or lost")
+
+
 class PostRoundRequest(BaseModel):
-    """A member-posted round result (quarters won/lost)."""
+    """One participant submits the whole group's results on the honor system."""
 
     date: str = Field(..., description="Date in YYYY-MM-DD format")
-    score: int = Field(..., description="Quarters won (positive) or lost (negative)")
-    location: str | None = Field(None, description="Course name")
-    group: str | None = Field(None, description="Group letter")
-    duration: str | None = Field(None, description="Duration, e.g. 02:15:00")
-    foursome: list[str] = Field(
-        ...,
-        description="1-3 OTHER players' canonical roster names eligible to attest (must not include yourself)",
-    )
+    results: list[PlayerRoundResult] = Field(..., min_length=2, max_length=4)
+    location: str | None = None
+    group: str | None = None
+    duration: str | None = None
 
 
 def _serialize(r: LegacyRound) -> dict[str, Any]:
@@ -112,150 +106,84 @@ def _history_from_rounds(member: str, rounds: list[Any], *, recent_limit: int = 
     }
 
 
-def _notify_foursome(db: Session, round_row: LegacyRound, poster: PlayerProfile) -> None:
-    """Email + in-app notify each foursome member that can attest.
-
-    Best-effort: any notify failure must NOT fail the request.
-    """
-    try:
-        email_service = get_email_service()
-    except Exception as e:  # pragma: no cover - defensive
-        logger.warning("Could not get email service for attestation request: %s", e)
-        email_service = None
-
-    try:
-        notification_service = get_notification_service()
-    except Exception as e:  # pragma: no cover - defensive
-        logger.warning("Could not get notification service for attestation: %s", e)
-        notification_service = None
-
-    poster_name = poster.legacy_name or poster.name or "A member"
-    round_code = f"WGP-{round_row.id}"
-
-    for name in round_row.foursome or []:
-        try:
-            profile = db.query(PlayerProfile).filter(func.lower(PlayerProfile.legacy_name) == name.lower()).first()
-            if not profile:
-                continue
-
-            if email_service and profile.email:
-                email_service.send_attestation_request(
-                    to_email=profile.email,
-                    attester_name=profile.name or name,
-                    poster_name=poster_name,
-                    round_date=round_row.date,
-                    score=round_row.score,
-                )
-
-            if notification_service:
-                notification_service.send_notification(
-                    player_id=profile.id,
-                    notification_type="round_attestation",
-                    message=(
-                        f"{poster_name} posted round {round_code} for {round_row.date} "
-                        f"({round_row.score:+d} quarters). Tap to attest."
-                    ),
-                    db=db,
-                    data={
-                        "round_id": round_row.id,
-                        "round_code": round_code,
-                        "date": round_row.date,
-                        "poster": poster_name,
-                        "score": round_row.score,
-                    },
-                )
-        except Exception as e:
-            logger.warning("Failed to send attestation request to '%s': %s", name, e)
-
-
 @router.post("/players/me/round", status_code=201)
 def post_my_round(
     body: PostRoundRequest,
     current_user: PlayerProfile = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    """Post (or replace a still-pending) round result for the current member."""
+    """Post every participant's result atomically, without peer attestation."""
     if not current_user.legacy_name:
-        raise HTTPException(
-            status_code=400,
-            detail="Link your roster name first via PUT /players/me/legacy-name",
-        )
-
+        raise HTTPException(status_code=400, detail="Link your roster name before posting results")
     try:
-        datetime.strptime(body.date, "%Y-%m-%d")
+        parsed_date = datetime.strptime(body.date, "%Y-%m-%d")
+        if parsed_date.strftime("%Y-%m-%d") != body.date:
+            raise ValueError
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
 
-    if not 1 <= len(body.foursome) <= 3:
-        raise HTTPException(
-            status_code=400,
-            detail="foursome must list 1-3 other players' canonical roster names",
-        )
-
-    # Validate + canonicalize each foursome name; reject the poster.
-    canonical_foursome: list[str] = []
-    for name in body.foursome:
-        canonical = get_canonical_name(name, db)
+    results: dict[str, int] = {}
+    for result in body.results:
+        canonical = get_canonical_name(result.member.strip(), db)
         if not canonical:
-            raise HTTPException(
-                status_code=400,
-                detail=f"'{name}' is not a valid roster name. Use /players/legacy-players to see valid names.",
-            )
-        if canonical.lower() == current_user.legacy_name.lower():
-            raise HTTPException(status_code=400, detail="foursome must not include yourself")
-        if canonical not in canonical_foursome:
-            canonical_foursome.append(canonical)
+            raise HTTPException(status_code=400, detail=f"'{result.member}' is not a valid roster name")
+        if canonical in results:
+            raise HTTPException(status_code=400, detail="Each player must appear exactly once")
+        results[canonical] = result.score
+    if current_user.legacy_name.lower() not in {name.lower() for name in results}:
+        raise HTTPException(status_code=400, detail="Include your own result when posting for the group")
 
-    now = utc_now()
     existing = (
         db.query(LegacyRound)
         .filter(
             LegacyRound.source == "member",
-            LegacyRound.member == current_user.legacy_name,
+            func.lower(LegacyRound.member).in_([name.lower() for name in results]),
             LegacyRound.date == body.date,
         )
         .first()
     )
+    if existing:
+        raise HTTPException(status_code=409, detail=f"{existing.member} already has a posted result for that date")
 
-    if existing is not None:
-        if existing.status == "attested":
-            raise HTTPException(
-                status_code=409,
-                detail="You already posted an attested round for that date",
-            )
-        # Still pending — allow replace before attestation.
-        existing.score = body.score
-        existing.location = body.location
-        existing.group = body.group
-        existing.duration = body.duration
-        existing.foursome = canonical_foursome
-        existing.player_profile_id = current_user.id
-        existing.status = "pending"
-        existing.synced_at = now.isoformat()
-        row = existing
-    else:
-        row = LegacyRound(
+    profiles = (
+        db.query(PlayerProfile)
+        .filter(func.lower(PlayerProfile.legacy_name).in_([name.lower() for name in results]))
+        .all()
+    )
+    profile_ids = {p.legacy_name.lower(): p.id for p in profiles}
+    now = utc_now().isoformat()
+    rows = [
+        LegacyRound(
             date=body.date,
             group=body.group,
-            member=current_user.legacy_name,
-            score=body.score,
+            member=name,
+            score=score,
             location=body.location,
             duration=body.duration,
             source="member",
-            status="pending",
-            synced_at=now.isoformat(),
-            created_at=now.isoformat(),
-            player_profile_id=current_user.id,
-            foursome=canonical_foursome,
+            status="posted",
+            synced_at=now,
+            created_at=now,
+            player_profile_id=profile_ids.get(name.lower()),
+            submitted_by_profile_id=current_user.id,
+            foursome=[partner for partner in results if partner != name],
         )
-        db.add(row)
-
-    db.commit()
-    db.refresh(row)
-
-    _notify_foursome(db, row, current_user)
-
-    return _serialize(row)
+        for name, score in results.items()
+    ]
+    db.add_all(rows)
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        # A concurrent group submission may win after the preflight check.
+        if "ux_member_round_per_day" in str(
+            exc.orig
+        ) or "UNIQUE constraint failed: legacy_rounds.member, legacy_rounds.date" in str(exc.orig):
+            raise HTTPException(
+                status_code=409, detail="A result for this group was already posted for that date"
+            ) from exc
+        raise
+    return {"rounds": [_serialize(row) for row in rows]}
 
 
 @router.get("/players/me/rounds")
@@ -263,12 +191,12 @@ def get_my_rounds(
     current_user: PlayerProfile = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[dict[str, Any]]:
-    """List the current member's own posted rounds (pending and attested)."""
+    """List results credited to the linked roster player, whoever submitted them."""
     rows = (
         db.query(LegacyRound)
         .filter(
             LegacyRound.source == "member",
-            LegacyRound.player_profile_id == current_user.id,
+            func.lower(LegacyRound.member) == (current_user.legacy_name or "").lower(),
         )
         .order_by(LegacyRound.date.desc())
         .all()

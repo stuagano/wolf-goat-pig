@@ -2917,6 +2917,29 @@
         "title": "PlayerProfileWithStats",
         "type": "object"
       },
+      "PlayerRoundResult": {
+        "properties": {
+          "member": {
+            "description": "Canonical roster name",
+            "minLength": 1,
+            "title": "Member",
+            "type": "string"
+          },
+          "score": {
+            "description": "Whole quarters won or lost",
+            "maximum": 2147483647.0,
+            "minimum": -2147483648.0,
+            "title": "Score",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "member",
+          "score"
+        ],
+        "title": "PlayerRoundResult",
+        "type": "object"
+      },
       "PlayerScoreInput": {
         "description": "Input for a single player's score.",
         "properties": {
@@ -3210,7 +3233,7 @@
         "type": "object"
       },
       "PostRoundRequest": {
-        "description": "A member-posted round result (quarters won/lost).",
+        "description": "One participant submits the whole group's results on the honor system.",
         "properties": {
           "date": {
             "description": "Date in YYYY-MM-DD format",
@@ -3226,16 +3249,7 @@
                 "type": "null"
               }
             ],
-            "description": "Duration, e.g. 02:15:00",
             "title": "Duration"
-          },
-          "foursome": {
-            "description": "1-3 OTHER players' canonical roster names eligible to attest (must not include yourself)",
-            "items": {
-              "type": "string"
-            },
-            "title": "Foursome",
-            "type": "array"
           },
           "group": {
             "anyOf": [
@@ -3246,7 +3260,6 @@
                 "type": "null"
               }
             ],
-            "description": "Group letter",
             "title": "Group"
           },
           "location": {
@@ -3258,19 +3271,21 @@
                 "type": "null"
               }
             ],
-            "description": "Course name",
             "title": "Location"
           },
-          "score": {
-            "description": "Quarters won (positive) or lost (negative)",
-            "title": "Score",
-            "type": "integer"
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/PlayerRoundResult"
+            },
+            "maxItems": 4,
+            "minItems": 2,
+            "title": "Results",
+            "type": "array"
           }
         },
         "required": [
           "date",
-          "score",
-          "foursome"
+          "results"
         ],
         "title": "PostRoundRequest",
         "type": "object"
@@ -12194,7 +12209,7 @@
     },
     "/players/me/round": {
       "post": {
-        "description": "Post (or replace a still-pending) round result for the current member.",
+        "description": "Post every participant's result atomically, without peer attestation.",
         "operationId": "post_my_round_players_me_round_post",
         "requestBody": {
           "content": {
@@ -12243,7 +12258,7 @@
     },
     "/players/me/rounds": {
       "get": {
-        "description": "List the current member's own posted rounds (pending and attested).",
+        "description": "List results credited to the linked roster player, whoever submitted them.",
         "operationId": "get_my_rounds_players_me_rounds_get",
         "responses": {
           "200": {

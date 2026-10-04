@@ -3,7 +3,7 @@ import os
 from collections.abc import Generator
 from contextlib import contextmanager
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 logger = logging.getLogger(__name__)
@@ -165,6 +165,18 @@ def init_db():
 
         # Create all tables
         Base.metadata.create_all(bind=engine)
+        # Preserve existing local data when upgrading the group-posting audit field.
+        # Production PostgreSQL uses add_member_round_submitter_postgres.sql.
+        if engine.dialect.name == "sqlite":
+            columns = {column["name"] for column in inspect(engine).get_columns("legacy_rounds")}
+            if "submitted_by_profile_id" not in columns:
+                with engine.begin() as connection:
+                    connection.execute(
+                        text(
+                            "ALTER TABLE legacy_rounds ADD COLUMN submitted_by_profile_id "
+                            "INTEGER REFERENCES player_profiles(id)"
+                        )
+                    )
         # Filtered view used by Commissioner SQL reads (SQLite dev; Postgres gets
         # it from the attestation migration).
         ensure_legacy_rounds_official_view(engine)

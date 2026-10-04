@@ -3682,7 +3682,7 @@ export interface paths {
         put?: never;
         /**
          * Post My Round
-         * @description Post (or replace a still-pending) round result for the current member.
+         * @description Post every participant's result atomically, without peer attestation.
          */
         post: operations["post_my_round_players_me_round_post"];
         delete?: never;
@@ -3700,7 +3700,7 @@ export interface paths {
         };
         /**
          * Get My Rounds
-         * @description List the current member's own posted rounds (pending and attested).
+         * @description List results credited to the linked roster player, whoever submitted them.
          */
         get: operations["get_my_rounds_players_me_rounds_get"];
         put?: never;
@@ -5898,6 +5898,19 @@ export interface components {
             recent_achievements: components["schemas"]["PlayerAchievementResponse"][];
             statistics: components["schemas"]["PlayerStatisticsResponse"];
         };
+        /** PlayerRoundResult */
+        PlayerRoundResult: {
+            /**
+             * Member
+             * @description Canonical roster name
+             */
+            member: string;
+            /**
+             * Score
+             * @description Whole quarters won or lost
+             */
+            score: number;
+        };
         /**
          * PlayerScoreInput
          * @description Input for a single player's score.
@@ -6110,7 +6123,7 @@ export interface components {
         };
         /**
          * PostRoundRequest
-         * @description A member-posted round result (quarters won/lost).
+         * @description One participant submits the whole group's results on the honor system.
          */
         PostRoundRequest: {
             /**
@@ -6118,31 +6131,14 @@ export interface components {
              * @description Date in YYYY-MM-DD format
              */
             date: string;
-            /**
-             * Duration
-             * @description Duration, e.g. 02:15:00
-             */
+            /** Duration */
             duration?: string | null;
-            /**
-             * Foursome
-             * @description 1-3 OTHER players' canonical roster names eligible to attest (must not include yourself)
-             */
-            foursome: string[];
-            /**
-             * Group
-             * @description Group letter
-             */
+            /** Group */
             group?: string | null;
-            /**
-             * Location
-             * @description Course name
-             */
+            /** Location */
             location?: string | null;
-            /**
-             * Score
-             * @description Quarters won (positive) or lost (negative)
-             */
-            score: number;
+            /** Results */
+            results: components["schemas"]["PlayerRoundResult"][];
         };
         /**
          * RoundResultResponse

@@ -47,7 +47,7 @@ const Navigation = () => {
 
   // "More" sheet items
   const moreItems = [
-    { path: '/rounds/post', label: 'Post / Attest Round', icon: '📝' },
+    { path: '/rounds/post', label: 'Post foursome results', icon: '📝' },
     { path: '/game', label: 'Live Game', icon: '⚔️' },
     { path: '/players', label: 'Players', icon: '👥' },
     { path: '/scorecard-scan', label: 'Scan Scorecard', icon: '📷' },
