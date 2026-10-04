@@ -62,6 +62,15 @@ beforeEach(() => {
 });
 
 describe('PlayerProfilePage game history', () => {
+  test('does not fetch or display LivSow teams while disabled', async () => {
+    mockUsePlayerProfile.mockReturnValue({ profile: { id: 999 } });
+    renderPage();
+
+    expect(await screen.findByText(/Game History/)).toBeInTheDocument();
+    expect(global.fetch.mock.calls.some(([url]) => String(url).includes('/livsow/'))).toBe(false);
+    expect(document.querySelector('.wgp-profile__livsow-pill')).toBeNull();
+  });
+
   test('renders recorded rounds with date, location, and signed score', async () => {
     mockUsePlayerProfile.mockReturnValue({ profile: { id: 999 } }); // viewing someone else
     renderPage();

@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, createContext } from 'react';
+import { useState, useEffect, useContext, createContext, createElement } from 'react';
 import { apiConfig } from '../config/api.config';
 import { FEATURE_DEFAULTS } from '../config/features';
 
@@ -16,7 +16,7 @@ export function FeaturesProvider({ children }) {
       .catch(() => {}); // fall back to defaults silently
   }, []);
 
-  return <FeaturesContext.Provider value={flags}>{children}</FeaturesContext.Provider>;
+  return createElement(FeaturesContext.Provider, { value: flags }, children);
 }
 
 export function useFeatureFlags() {

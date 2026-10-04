@@ -6717,6 +6717,79 @@
         ]
       }
     },
+    "/config/features": {
+      "get": {
+        "operationId": "get_features_config_features_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Features Config Features Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Features",
+        "tags": [
+          "config"
+        ]
+      },
+      "post": {
+        "operationId": "set_features_config_features_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Set Features Config Features Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Features",
+        "tags": [
+          "config"
+        ]
+      }
+    },
     "/courses": {
       "get": {
         "description": "Get all available courses with robust fallback handling.\n\nReturns course data WITH holes information for each course.",
@@ -11595,6 +11668,59 @@
           }
         },
         "summary": "Create Player Profile",
+        "tags": [
+          "players"
+        ]
+      }
+    },
+    "/players/admin/relink-auth0": {
+      "post": {
+        "description": "Admin: point a PlayerProfile's auth0_id to a new Auth0 sub.\n\nBody: {\"email\": \"user@example.com\", \"auth0_id\": \"auth0|abc123\"}\nFinds the profile whose preferences.auth0_id currently matches any account\nwith that email, clears duplicates, and sets auth0_id to the supplied value.",
+        "operationId": "relink_auth0_account_players_admin_relink_auth0_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Relink Auth0 Account Players Admin Relink Auth0 Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Relink Auth0 Account",
         "tags": [
           "players"
         ]

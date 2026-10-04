@@ -1245,6 +1245,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/config/features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Features */
+        get: operations["get_features_config_features_get"];
+        put?: never;
+        /** Set Features */
+        post: operations["set_features_config_features_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/courses": {
         parameters: {
             query?: never;
@@ -3418,6 +3436,30 @@ export interface paths {
          * @description Create a new player profile.
          */
         post: operations["create_player_profile_players_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/players/admin/relink-auth0": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Relink Auth0 Account
+         * @description Admin: point a PlayerProfile's auth0_id to a new Auth0 sub.
+         *
+         *     Body: {"email": "user@example.com", "auth0_id": "auth0|abc123"}
+         *     Finds the profile whose preferences.auth0_id currently matches any account
+         *     with that email, clears duplicates, and sets auth0_id to the supplied value.
+         */
+        post: operations["relink_auth0_account_players_admin_relink_auth0_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8261,6 +8303,65 @@ export interface operations {
             };
         };
     };
+    get_features_config_features_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    set_features_config_features_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_courses_courses_get: {
         parameters: {
             query?: never;
@@ -11585,6 +11686,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlayerProfileResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    relink_auth0_account_players_admin_relink_auth0_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

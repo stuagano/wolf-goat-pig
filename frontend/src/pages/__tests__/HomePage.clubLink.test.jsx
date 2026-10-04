@@ -45,6 +45,8 @@ describe('HomePage club-player reminder', () => {
   test('shows a contextual recovery action after onboarding is skipped', () => {
     render(<HomePage />);
 
+    expect(screen.queryByRole('button', { name: 'LivSow' })).not.toBeInTheDocument();
+
     expect(screen.getByText(/Finish linking your club player/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Choose my player/i }));
     expect(navigate).toHaveBeenCalledWith('/account#club-player');
