@@ -3442,6 +3442,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/players/admin/account-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Account Links
+         * @description Search a bounded set of existing profiles by literal name or email.
+         */
+        get: operations["search_account_links_players_admin_account_links_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/players/admin/relink-auth0": {
         parameters: {
             query?: never;
@@ -3453,11 +3473,7 @@ export interface paths {
         put?: never;
         /**
          * Relink Auth0 Account
-         * @description Admin: point a PlayerProfile's auth0_id to a new Auth0 sub.
-         *
-         *     Body: {"email": "user@example.com", "auth0_id": "auth0|abc123"}
-         *     Finds the profile whose preferences.auth0_id currently matches any account
-         *     with that email, clears duplicates, and sets auth0_id to the supplied value.
+         * @description Link a selected existing profile; never merge, delete, or steal another identity.
          */
         post: operations["relink_auth0_account_players_admin_relink_auth0_post"];
         delete?: never;
@@ -3682,7 +3698,7 @@ export interface paths {
         put?: never;
         /**
          * Post My Round
-         * @description Post (or replace a still-pending) round result for the current member.
+         * @description Post every participant's result atomically, without peer attestation.
          */
         post: operations["post_my_round_players_me_round_post"];
         delete?: never;
@@ -3700,7 +3716,7 @@ export interface paths {
         };
         /**
          * Get My Rounds
-         * @description List the current member's own posted rounds (pending and attested).
+         * @description List results credited to the linked roster player, whoever submitted them.
          */
         get: operations["get_my_rounds_players_me_rounds_get"];
         put?: never;
@@ -4847,6 +4863,19 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccountLinkRequest */
+        AccountLinkRequest: {
+            /** Auth0 Id */
+            auth0_id?: string | null;
+            /** Email */
+            email: string;
+            /** Expected Updated At */
+            expected_updated_at: string | null;
+            /** Legacy Name */
+            legacy_name: string;
+            /** Player Id */
+            player_id: number;
+        };
         /** AddLegacyPlayerRequest */
         AddLegacyPlayerRequest: {
             /** Name */
@@ -5898,6 +5927,19 @@ export interface components {
             recent_achievements: components["schemas"]["PlayerAchievementResponse"][];
             statistics: components["schemas"]["PlayerStatisticsResponse"];
         };
+        /** PlayerRoundResult */
+        PlayerRoundResult: {
+            /**
+             * Member
+             * @description Canonical roster name
+             */
+            member: string;
+            /**
+             * Score
+             * @description Whole quarters won or lost
+             */
+            score: number;
+        };
         /**
          * PlayerScoreInput
          * @description Input for a single player's score.
@@ -6110,7 +6152,7 @@ export interface components {
         };
         /**
          * PostRoundRequest
-         * @description A member-posted round result (quarters won/lost).
+         * @description One participant submits the whole group's results on the honor system.
          */
         PostRoundRequest: {
             /**
@@ -6118,31 +6160,14 @@ export interface components {
              * @description Date in YYYY-MM-DD format
              */
             date: string;
-            /**
-             * Duration
-             * @description Duration, e.g. 02:15:00
-             */
+            /** Duration */
             duration?: string | null;
-            /**
-             * Foursome
-             * @description 1-3 OTHER players' canonical roster names eligible to attest (must not include yourself)
-             */
-            foursome: string[];
-            /**
-             * Group
-             * @description Group letter
-             */
+            /** Group */
             group?: string | null;
-            /**
-             * Location
-             * @description Course name
-             */
+            /** Location */
             location?: string | null;
-            /**
-             * Score
-             * @description Quarters won (positive) or lost (negative)
-             */
-            score: number;
+            /** Results */
+            results: components["schemas"]["PlayerRoundResult"][];
         };
         /**
          * RoundResultResponse
@@ -11699,6 +11724,39 @@ export interface operations {
             };
         };
     };
+    search_account_links_players_admin_account_links_get: {
+        parameters: {
+            query: {
+                query: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     relink_auth0_account_players_admin_relink_auth0_post: {
         parameters: {
             query?: never;
@@ -11708,9 +11766,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: string;
-                };
+                "application/json": components["schemas"]["AccountLinkRequest"];
             };
         };
         responses: {

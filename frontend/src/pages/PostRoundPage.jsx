@@ -1,13 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
 import PostRoundForm from "../components/rounds/PostRoundForm";
 import { useAccessToken } from "../hooks/useAccessToken";
-import {
-  attestRound,
-  fetchMyRounds,
-  fetchPendingAttestations,
-} from "../services/rounds";
+import { fetchMyRounds } from "../services/rounds";
 
-const statusLabel = (status) => (status === "attested" ? "Attested" : "Pending");
+const statusLabel = (status) => (status === "pending" ? "Previously pending" : "Posted");
 
 const scoreClass = (score) => {
   const numericScore = Number(score);
@@ -17,7 +13,7 @@ const scoreClass = (score) => {
 };
 
 const RoundStatusBadge = ({ status }) => (
-  <span className={`round-status-badge ${status === "attested" ? "attested" : "pending"}`}>
+  <span className={`round-status-badge ${status === "pending" ? "pending" : "posted"}`}>
     {statusLabel(status)}
   </span>
 );
@@ -49,7 +45,6 @@ const RoundList = ({ rounds, loading, error, onRefresh }) => {
             <th>Quarters</th>
             <th>Status</th>
             <th>Foursome</th>
-            <th>Attested By</th>
           </tr>
         </thead>
         <tbody>
@@ -61,51 +56,10 @@ const RoundList = ({ rounds, loading, error, onRefresh }) => {
               </td>
               <td><RoundStatusBadge status={round.status} /></td>
               <td>{round.foursome?.join(", ") || "—"}</td>
-              <td>{round.attested_by || "—"}</td>
             </tr>
           ))}
         </tbody>
       </table>
-    </div>
-  );
-};
-
-const AttestationQueue = ({ rounds, loading, error, attestingId, onAttest, onRefresh }) => {
-  if (loading) {
-    return <p className="muted">Loading attestation queue...</p>;
-  }
-
-  if (error) {
-    return (
-      <div className="round-alert error">
-        <p>{error}</p>
-        <button type="button" onClick={onRefresh}>Try again</button>
-      </div>
-    );
-  }
-
-  if (!rounds.length) {
-    return <p className="muted">No rounds are awaiting your attestation.</p>;
-  }
-
-  return (
-    <div className="attestation-list">
-      {rounds.map((round) => (
-        <article className="attestation-card" key={round.id}>
-          <div>
-            <h3>{round.member || "Member"}</h3>
-            <p className="muted">{round.date} · WGP quarters {Number(round.score) > 0 ? "+" : ""}{round.score}</p>
-            <p><strong>Foursome:</strong> {round.foursome?.join(", ") || "—"}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => onAttest(round.id)}
-            disabled={attestingId === round.id}
-          >
-            {attestingId === round.id ? "Attesting..." : "Attest"}
-          </button>
-        </article>
-      ))}
     </div>
   );
 };
@@ -115,11 +69,6 @@ const PostRoundPage = () => {
 
   const [myRounds, setMyRounds] = useState([]);
   const [myRoundsState, setMyRoundsState] = useState({ loading: true, error: "" });
-  const [pendingRounds, setPendingRounds] = useState([]);
-  const [pendingState, setPendingState] = useState({ loading: true, error: "" });
-  const [attestingId, setAttestingId] = useState(null);
-  const [attestState, setAttestState] = useState({ error: "", success: "" });
-
   const loadMyRounds = useCallback(async () => {
     setMyRoundsState({ loading: true, error: "" });
     try {
@@ -131,36 +80,7 @@ const PostRoundPage = () => {
     }
   }, [getToken]);
 
-  const loadPendingRounds = useCallback(async () => {
-    setPendingState({ loading: true, error: "" });
-    try {
-      const rounds = await fetchPendingAttestations(getToken);
-      setPendingRounds(rounds);
-      setPendingState({ loading: false, error: "" });
-    } catch (error) {
-      setPendingState({ loading: false, error: error.message });
-    }
-  }, [getToken]);
-
-  useEffect(() => {
-    loadMyRounds();
-    loadPendingRounds();
-  }, [loadMyRounds, loadPendingRounds]);
-
-  const handleAttest = async (roundId) => {
-    setAttestingId(roundId);
-    setAttestState({ error: "", success: "" });
-    try {
-      const updatedRound = await attestRound(getToken, roundId);
-      setPendingRounds((rounds) => rounds.filter((round) => round.id !== roundId));
-      setMyRounds((rounds) => rounds.map((round) => (round.id === updatedRound.id ? updatedRound : round)));
-      setAttestState({ error: "", success: "Round attested." });
-    } catch (error) {
-      setAttestState({ error: error.message, success: "" });
-    } finally {
-      setAttestingId(null);
-    }
-  };
+  useEffect(() => { loadMyRounds(); }, [loadMyRounds]);
 
   return (
     <main className="post-round-page">
@@ -168,8 +88,8 @@ const PostRoundPage = () => {
         <p className="eyebrow">Member totals</p>
         <h1>Post a Round</h1>
         <p>
-          Enter the Wolf-Goat-Pig round result that goes into the sheet today:
-          total quarters won or lost, plus the other members in your foursome.
+          Enter quarters won or lost for everyone in your foursome. One person submits
+          the results, and they count immediately on the honor system.
         </p>
       </section>
 
@@ -179,19 +99,6 @@ const PostRoundPage = () => {
           <PostRoundForm onPosted={loadMyRounds} />
         </div>
 
-        <div className="round-card">
-          <h2>Awaiting Your Attestation</h2>
-          {attestState.error && <div className="round-alert error">{attestState.error}</div>}
-          {attestState.success && <div className="round-alert success">{attestState.success}</div>}
-          <AttestationQueue
-            rounds={pendingRounds}
-            loading={pendingState.loading}
-            error={pendingState.error}
-            attestingId={attestingId}
-            onAttest={handleAttest}
-            onRefresh={loadPendingRounds}
-          />
-        </div>
       </section>
 
       <section className="round-card my-rounds-card">
@@ -227,8 +134,7 @@ const PostRoundPage = () => {
         }
 
         .hero-card h1,
-        .round-card h2,
-        .attestation-card h3 {
+        .round-card h2 {
           margin: 0;
           color: #1f3b1b;
         }
@@ -250,7 +156,7 @@ const PostRoundPage = () => {
 
         .round-layout {
           display: grid;
-          grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+          grid-template-columns: minmax(0, 1fr);
           gap: 24px;
           align-items: start;
         }
@@ -293,42 +199,6 @@ const PostRoundPage = () => {
           background: #dcfce7;
           color: #166534;
           border: 1px solid #bbf7d0;
-        }
-
-        .attestation-list {
-          display: grid;
-          gap: 12px;
-          margin-top: 16px;
-        }
-
-        .attestation-card {
-          display: flex;
-          justify-content: space-between;
-          gap: 16px;
-          align-items: center;
-          border: 1px solid #e5e7eb;
-          border-radius: 12px;
-          padding: 16px;
-          background: #f9fafb;
-        }
-
-        .attestation-card button {
-          background: #2d5a27;
-          color: #ffffff;
-          border: none;
-          border-radius: 10px;
-          padding: 11px 16px;
-          font-weight: 700;
-          cursor: pointer;
-        }
-
-        .attestation-card button:disabled {
-          opacity: 0.55;
-          cursor: not-allowed;
-        }
-
-        .attestation-card p {
-          margin: 6px 0 0;
         }
 
         .round-table-wrap {
@@ -379,7 +249,7 @@ const PostRoundPage = () => {
           color: #92400e;
         }
 
-        .round-status-badge.attested {
+        .round-status-badge.posted {
           background: #dcfce7;
           color: #166534;
         }
@@ -400,10 +270,6 @@ const PostRoundPage = () => {
             padding: 18px;
           }
 
-          .attestation-card {
-            align-items: stretch;
-            flex-direction: column;
-          }
         }
       `}</style>
     </main>

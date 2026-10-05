@@ -27,14 +27,3 @@ export const fetchMyRounds = (getAccessToken) => roundFetchJson(
   "/players/me/rounds",
   getAccessToken,
 );
-
-export const fetchPendingAttestations = (getAccessToken) => roundFetchJson(
-  "/rounds/pending-attestation",
-  getAccessToken,
-);
-
-export const attestRound = (getAccessToken, roundId) => roundFetchJson(
-  `/rounds/${roundId}/attest`,
-  getAccessToken,
-  { method: "POST" },
-);

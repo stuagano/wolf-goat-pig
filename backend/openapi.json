@@ -1,6 +1,60 @@
 {
   "components": {
     "schemas": {
+      "AccountLinkRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "auth0_id": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "pattern": "^[^\\s|]+\\|[^\\s|]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auth0 Id"
+          },
+          "email": {
+            "maxLength": 320,
+            "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+            "title": "Email",
+            "type": "string"
+          },
+          "expected_updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Updated At"
+          },
+          "legacy_name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Legacy Name",
+            "type": "string"
+          },
+          "player_id": {
+            "exclusiveMinimum": 0.0,
+            "title": "Player Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "player_id",
+          "legacy_name",
+          "email",
+          "expected_updated_at"
+        ],
+        "title": "AccountLinkRequest",
+        "type": "object"
+      },
       "AddLegacyPlayerRequest": {
         "properties": {
           "name": {
@@ -2917,6 +2971,29 @@
         "title": "PlayerProfileWithStats",
         "type": "object"
       },
+      "PlayerRoundResult": {
+        "properties": {
+          "member": {
+            "description": "Canonical roster name",
+            "minLength": 1,
+            "title": "Member",
+            "type": "string"
+          },
+          "score": {
+            "description": "Whole quarters won or lost",
+            "maximum": 2147483647.0,
+            "minimum": -2147483648.0,
+            "title": "Score",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "member",
+          "score"
+        ],
+        "title": "PlayerRoundResult",
+        "type": "object"
+      },
       "PlayerScoreInput": {
         "description": "Input for a single player's score.",
         "properties": {
@@ -3210,7 +3287,7 @@
         "type": "object"
       },
       "PostRoundRequest": {
-        "description": "A member-posted round result (quarters won/lost).",
+        "description": "One participant submits the whole group's results on the honor system.",
         "properties": {
           "date": {
             "description": "Date in YYYY-MM-DD format",
@@ -3226,16 +3303,7 @@
                 "type": "null"
               }
             ],
-            "description": "Duration, e.g. 02:15:00",
             "title": "Duration"
-          },
-          "foursome": {
-            "description": "1-3 OTHER players' canonical roster names eligible to attest (must not include yourself)",
-            "items": {
-              "type": "string"
-            },
-            "title": "Foursome",
-            "type": "array"
           },
           "group": {
             "anyOf": [
@@ -3246,7 +3314,6 @@
                 "type": "null"
               }
             ],
-            "description": "Group letter",
             "title": "Group"
           },
           "location": {
@@ -3258,19 +3325,21 @@
                 "type": "null"
               }
             ],
-            "description": "Course name",
             "title": "Location"
           },
-          "score": {
-            "description": "Quarters won (positive) or lost (negative)",
-            "title": "Score",
-            "type": "integer"
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/PlayerRoundResult"
+            },
+            "maxItems": 4,
+            "minItems": 2,
+            "title": "Results",
+            "type": "array"
           }
         },
         "required": [
           "date",
-          "score",
-          "foursome"
+          "results"
         ],
         "title": "PostRoundRequest",
         "type": "object"
@@ -11673,19 +11742,68 @@
         ]
       }
     },
+    "/players/admin/account-links": {
+      "get": {
+        "description": "Search a bounded set of existing profiles by literal name or email.",
+        "operationId": "search_account_links_players_admin_account_links_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "query",
+            "required": true,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 2,
+              "title": "Query",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Search Account Links Players Admin Account Links Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Search Account Links",
+        "tags": [
+          "players",
+          "players"
+        ]
+      }
+    },
     "/players/admin/relink-auth0": {
       "post": {
-        "description": "Admin: point a PlayerProfile's auth0_id to a new Auth0 sub.\n\nBody: {\"email\": \"user@example.com\", \"auth0_id\": \"auth0|abc123\"}\nFinds the profile whose preferences.auth0_id currently matches any account\nwith that email, clears duplicates, and sets auth0_id to the supplied value.",
+        "description": "Link a selected existing profile; never merge, delete, or steal another identity.",
         "operationId": "relink_auth0_account_players_admin_relink_auth0_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "title": "Body",
-                "type": "object"
+                "$ref": "#/components/schemas/AccountLinkRequest"
               }
             }
           },
@@ -11722,6 +11840,7 @@
         ],
         "summary": "Relink Auth0 Account",
         "tags": [
+          "players",
           "players"
         ]
       }
@@ -12194,7 +12313,7 @@
     },
     "/players/me/round": {
       "post": {
-        "description": "Post (or replace a still-pending) round result for the current member.",
+        "description": "Post every participant's result atomically, without peer attestation.",
         "operationId": "post_my_round_players_me_round_post",
         "requestBody": {
           "content": {
@@ -12243,7 +12362,7 @@
     },
     "/players/me/rounds": {
       "get": {
-        "description": "List the current member's own posted rounds (pending and attested).",
+        "description": "List results credited to the linked roster player, whoever submitted them.",
         "operationId": "get_my_rounds_players_me_rounds_get",
         "responses": {
           "200": {

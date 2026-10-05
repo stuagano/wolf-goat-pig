@@ -523,7 +523,7 @@ const AdminPage = () => {
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            👤 Players
+            👤 Account links
           </button>
           <button
             onClick={() => navigate('/admin/roster')}

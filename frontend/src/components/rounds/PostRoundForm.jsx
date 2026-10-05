@@ -85,7 +85,7 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
 
   const [form, setForm] = useState({
     date: todayLocalDate(),
-    score: "",
+    scores: {},
     location: "",
     group: "",
     duration: "",
@@ -121,10 +121,15 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
       return;
     }
 
-    if (!String(form.score).trim() || Number.isNaN(Number(form.score))) {
+    const members = [legacyName, ...form.foursome];
+    const missingOrInvalidScore = members.some(name => (
+      form.scores[name] == null || String(form.scores[name]).trim() === "" ||
+      !Number.isInteger(Number(form.scores[name]))
+    ));
+    if (!legacyName || missingOrInvalidScore) {
       setSubmitState({
         loading: false,
-        error: "Enter WGP quarters won/lost as a number.",
+        error: "Enter whole quarters won/lost for every player, including zero.",
         success: "",
         canRetry: false,
         needsReauth: false,
@@ -135,25 +140,21 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
     try {
       const posted = await postMyRound(getToken, {
         date: form.date,
-        score: Number(form.score),
+        results: members.map(member => ({ member, score: Number(form.scores[member]) })),
         location: form.location.trim() || undefined,
         group: form.group.trim() || undefined,
         duration: form.duration.trim() || undefined,
-        foursome: form.foursome,
       });
-      const roundCode = posted?.round_code || (posted?.id != null ? `WGP-${posted.id}` : null);
       setSubmitState({
         loading: false,
         error: "",
-        success: roundCode
-          ? `Round ${roundCode} posted for attestation. Your partners will get a notification to confirm.`
-          : "Round posted for attestation. Your partners will get a notification to confirm.",
+        success: `Results posted for all ${posted.rounds.length} players. They count immediately on the honor system.`,
         canRetry: false,
         needsReauth: false,
       });
       setForm((current) => ({
         ...current,
-        score: "",
+        scores: {},
         location: "",
         group: "",
         duration: "",
@@ -172,19 +173,19 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
         });
         return;
       }
-      const message = error.status === 409 ? "already posted for that date" : error.message;
+      const message = error.message;
       setSubmitState({
         loading: false,
         error: message,
         success: "",
-        canRetry: error.status !== 400,
+        canRetry: error.status !== 400 && error.status !== 409,
         needsReauth: false,
       });
-      if (error.status === 400) {
+      if (error.status === 400 && /link your roster/i.test(error.message)) {
         setShowLinkFlow(true);
       }
     }
-  }, [form, getToken, isRecoverableAuthError, onPosted]);
+  }, [form, legacyName, getToken, isRecoverableAuthError, onPosted]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -224,19 +225,6 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
               type="date"
               value={form.date}
               onChange={(event) => updateForm("date", event.target.value)}
-              required
-            />
-          </label>
-
-          <label>
-            WGP quarters won/lost
-            <input
-              type="number"
-              step="1"
-              inputMode="numeric"
-              value={form.score}
-              onChange={(event) => updateForm("score", event.target.value)}
-              placeholder="Example: -3 or 8"
               required
             />
           </label>
@@ -292,6 +280,20 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
           )}
         </div>
 
+        <fieldset className="pr-field-row" disabled={submitState.loading}>
+          <legend>Everyone's quarters won/lost</legend>
+          {[legacyName, ...form.foursome].filter(Boolean).map(name => (
+            <label key={name}>
+              {name} — quarters won/lost
+              <input type="number" step="1" min="-2147483648" max="2147483647" inputMode="numeric"
+                value={form.scores[name] ?? ""} required placeholder="Example: -3, 0, or 8"
+                onChange={event => setForm(current => ({ ...current, scores: { ...current.scores, [name]: event.target.value } }))}
+              />
+            </label>
+          ))}
+        </fieldset>
+        <p className="pr-muted">One person posts for the group. Results count immediately on the honor system.</p>
+
         {submitState.error && (
           <div className="pr-alert error">
             <p>{submitState.error}</p>
@@ -313,8 +315,8 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
         )}
         {submitState.success && <div className="pr-alert success">{submitState.success}</div>}
 
-        <button type="submit" className="pr-submit" disabled={submitState.loading || rosterLoading}>
-          {submitState.loading ? "Posting..." : "Post Round"}
+        <button type="submit" className="pr-submit" disabled={submitState.loading || rosterLoading || !legacyName}>
+          {submitState.loading ? "Posting..." : "Post foursome results"}
         </button>
       </form>
 

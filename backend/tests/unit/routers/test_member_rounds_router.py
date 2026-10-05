@@ -1,10 +1,7 @@
-"""Unit tests for member round-posting + peer attestation.
+"""Unit tests for honor-system group posting and historical peer attestation.
 
-Covers the pinned contract: post → pending; overwrite-while-pending; 409 when
-already attested; attest flips pending→attested; self/non-foursome attest 403;
-attest-non-pending 409; pending excluded from leaderboard reads (both the
-spreadsheet_sync router AND unified_data_service); missing legacy_name 400; and
-the one-per-day partial unique index.
+Covers atomic group posting, immediate standings/history, participant identity,
+duplicate rejection, and legacy pending records without rewriting old results.
 """
 
 from __future__ import annotations
@@ -77,11 +74,11 @@ def client(db_session, monkeypatch):
     # No real emails / in-app notifications.
     fake_email = MagicMock()
     fake_email.send_attestation_request.return_value = True
-    monkeypatch.setattr(member_rounds_module, "get_email_service", lambda: fake_email)
+    monkeypatch.setattr("app.services.email_service.get_email_service", lambda: fake_email)
 
     fake_notify = MagicMock()
     fake_notify.send_notification.return_value = {"id": 1}
-    monkeypatch.setattr(member_rounds_module, "get_notification_service", lambda: fake_notify)
+    monkeypatch.setattr("app.services.notification_service.get_notification_service", lambda: fake_notify)
 
     test_client = TestClient(app)
     test_client.fake_email = fake_email  # type: ignore[attr-defined]
@@ -110,123 +107,145 @@ STUART, JEFF, BOB, ALICE = 1, 2, 3, 4
 # ── POST /players/me/round ───────────────────────────────────────────────────
 
 
-def test_post_creates_pending_round(client):
+def group_payload(names=ROSTER, scores=(5, -3, -2, 0)):
+    return {
+        "date": "2026-06-15",
+        "results": [{"member": name, "score": score} for name, score in zip(names, scores)],
+        "location": "Wing Point",
+    }
+
+
+def test_one_person_posts_all_players_immediately_without_notifications(client, db_session):
+    from app.models import LegacyRound
+    from app.services.unified_data_service import UnifiedDataService
+
     _login(STUART, "Stuart Gano")
-    resp = client.post(
-        "/players/me/round",
-        json={"date": "2026-06-15", "score": 5, "foursome": ["Jeff Smith", "Bob Jones"]},
-    )
-    assert resp.status_code == 201, resp.text
-    data = resp.json()
-    assert data["status"] == "pending"
-    assert data["member"] == "Stuart Gano"
-    assert data["score"] == 5
-    assert data["foursome"] == ["Jeff Smith", "Bob Jones"]
-    assert data["attested_by"] is None
-    assert data["attested_at"] is None
-    assert data["round_code"] == f"WGP-{data['id']}"
-    client.fake_email.send_attestation_request.assert_called()
-    assert client.fake_notify.send_notification.call_count == 2
+    response = client.post("/players/me/round", json=group_payload())
+    assert response.status_code == 201, response.text
+    posted = response.json()["rounds"]
+    assert {r["member"]: r["score"] for r in posted} == dict(zip(ROSTER, (5, -3, -2, 0)))
+    assert all(r["status"] == "posted" and r["attested_by"] is None for r in posted)
+    session, _ = db_session
+    rows = session.query(LegacyRound).all()
+    assert len(rows) == 4
+    assert {r.player_profile_id for r in rows} == {STUART, JEFF, BOB, ALICE}
+    assert all(r.submitted_by_profile_id == STUART for r in rows)
+    client.fake_email.send_attestation_request.assert_not_called()
+    client.fake_notify.send_notification.assert_not_called()
+    for player_id, name in enumerate(ROSTER, 1):
+        _login(player_id, name)
+        mine = client.get("/players/me/rounds").json()
+        assert len(mine) == 1 and mine[0]["member"] == name
+        assert client.get("/rounds/pending-attestation").json() == []
+    assert len(UnifiedDataService(db=session).get_all_rounds(include_database=False)) == 4
+    board = client.get("/admin/spreadsheet/leaderboard").json()
+    assert {r["member"]: r["quarters"] for r in board} == dict(zip(ROSTER, (5, -3, -2, 0)))
 
 
-def test_post_without_legacy_name_returns_400(client):
+@pytest.mark.parametrize(
+    "names,scores",
+    [
+        (["Stuart Gano"], [0]),
+        (["Jeff Smith", "Bob Jones"], [1, -1]),
+        (["Stuart Gano", "stuart gano"], [1, -1]),
+        (["Stuart Gano", "Unknown Person"], [1, -1]),
+        (ROSTER + ["Jeff Smith"], [1, -1, 0, 0, 0]),
+        (["Stuart Gano", "Jeff Smith"], [1.5, -1.5]),
+        (["Stuart Gano", "Jeff Smith"], [True, -1]),
+        (["Stuart Gano", "Jeff Smith"], [2147483648, 0]),
+    ],
+)
+def test_invalid_group_saves_nothing(client, db_session, names, scores):
+    from app.models import LegacyRound
+
+    _login(STUART, "Stuart Gano")
+    response = client.post("/players/me/round", json=group_payload(names, scores))
+    assert response.status_code in (400, 422), response.text
+    assert db_session[0].query(LegacyRound).count() == 0
+
+
+def test_missing_score_or_unlinked_submitter_rejected(client):
     _login(STUART, None)
-    resp = client.post(
-        "/players/me/round",
-        json={"date": "2026-06-15", "score": 1, "foursome": ["Jeff Smith"]},
-    )
-    assert resp.status_code == 400
-    assert "roster name" in resp.json()["detail"].lower()
-
-
-def test_post_negative_score_allowed(client):
+    assert client.post("/players/me/round", json=group_payload()).status_code == 400
     _login(STUART, "Stuart Gano")
-    resp = client.post(
-        "/players/me/round",
-        json={"date": "2026-06-15", "score": -7, "foursome": ["Jeff Smith"]},
-    )
-    assert resp.status_code == 201
-    assert resp.json()["score"] == -7
+    payload = group_payload()
+    del payload["results"][1]["score"]
+    assert client.post("/players/me/round", json=payload).status_code == 422
 
 
-def test_post_foursome_including_self_returns_400(client):
-    _login(STUART, "Stuart Gano")
-    resp = client.post(
-        "/players/me/round",
-        json={"date": "2026-06-15", "score": 1, "foursome": ["stuart gano"]},
-    )
-    assert resp.status_code == 400
-    assert "yourself" in resp.json()["detail"].lower()
-
-
-def test_post_invalid_foursome_name_returns_400(client):
-    _login(STUART, "Stuart Gano")
-    resp = client.post(
-        "/players/me/round",
-        json={"date": "2026-06-15", "score": 1, "foursome": ["Nobody McGhost"]},
-    )
-    assert resp.status_code == 400
-
-
-def test_post_empty_foursome_returns_400(client):
-    _login(STUART, "Stuart Gano")
-    resp = client.post(
-        "/players/me/round",
-        json={"date": "2026-06-15", "score": 1, "foursome": []},
-    )
-    assert resp.status_code == 400
-
-
-def test_post_bad_date_returns_400(client):
-    _login(STUART, "Stuart Gano")
-    resp = client.post(
-        "/players/me/round",
-        json={"date": "06/15/2026", "score": 1, "foursome": ["Jeff Smith"]},
-    )
-    assert resp.status_code == 400
-
-
-def test_second_post_same_day_while_pending_overwrites(client):
-    _login(STUART, "Stuart Gano")
-    first = client.post(
-        "/players/me/round",
-        json={"date": "2026-06-15", "score": 5, "foursome": ["Jeff Smith"]},
-    )
-    assert first.status_code == 201
-    first_id = first.json()["id"]
-
-    second = client.post(
-        "/players/me/round",
-        json={"date": "2026-06-15", "score": 9, "foursome": ["Bob Jones"]},
-    )
-    assert second.status_code == 201
-    body = second.json()
-    assert body["id"] == first_id  # same row, overwritten
-    assert body["score"] == 9
-    assert body["foursome"] == ["Bob Jones"]
-
-    # Only one member row exists for that day.
-    mine = client.get("/players/me/rounds").json()
-    assert len([r for r in mine if r["date"] == "2026-06-15"]) == 1
-
-
-def test_second_post_when_attested_returns_409(client):
-    _login(STUART, "Stuart Gano")
-    posted = client.post(
-        "/players/me/round",
-        json={"date": "2026-06-15", "score": 5, "foursome": ["Jeff Smith"]},
-    ).json()
+def test_duplicate_from_any_partner_rejects_entire_group(client, db_session):
+    from app.models import LegacyRound
 
     _login(JEFF, "Jeff Smith")
-    attest = client.post(f"/rounds/{posted['id']}/attest")
-    assert attest.status_code == 200
+    assert client.post("/players/me/round", json=group_payload(ROSTER[1:3], [3, -3])).status_code == 201
+    _login(STUART, "Stuart Gano")
+    response = client.post("/players/me/round", json=group_payload())
+    assert response.status_code == 409
+    assert any(name in response.json()["detail"] for name in ("Jeff Smith", "Bob Jones"))
+    rows = db_session[0].query(LegacyRound).all()
+    assert {r.member: r.score for r in rows} == {"Jeff Smith": 3, "Bob Jones": -3}
+
+
+def test_partner_without_account_can_see_result_after_linking(client, db_session):
+    session, _ = db_session
+    session.query(PlayerProfile).filter(PlayerProfile.id == JEFF).delete()
+    session.commit()
+    _login(STUART, "Stuart Gano")
+    assert client.post("/players/me/round", json=group_payload()).status_code == 201
+    _login(99, "Jeff Smith")
+    mine = client.get("/players/me/rounds").json()
+    assert len(mine) == 1 and mine[0]["score"] == -3
+
+
+def test_unique_conflict_rolls_back_every_result(client, db_session, monkeypatch):
+    from sqlalchemy.orm import Session
+
+    from app.models import LegacyRound
+
+    def conflict_on_commit(db):
+        db.flush()
+        raise IntegrityError(
+            "INSERT", {}, Exception("UNIQUE constraint failed: legacy_rounds.member, legacy_rounds.date")
+        )
 
     _login(STUART, "Stuart Gano")
-    resp = client.post(
-        "/players/me/round",
-        json={"date": "2026-06-15", "score": 99, "foursome": ["Bob Jones"]},
+    monkeypatch.setattr(Session, "commit", conflict_on_commit)
+    response = client.post("/players/me/round", json=group_payload())
+    assert response.status_code == 409
+    assert db_session[0].query(LegacyRound).count() == 0
+
+
+@pytest.mark.parametrize("date", ["06/15/2026", "2026-02-30", "2026-6-15"])
+def test_invalid_date_saves_nothing(client, db_session, date):
+    from app.models import LegacyRound
+
+    _login(STUART, "Stuart Gano")
+    payload = group_payload()
+    payload["date"] = date
+    assert client.post("/players/me/round", json=payload).status_code == 400
+    assert db_session[0].query(LegacyRound).count() == 0
+
+
+def _legacy_pending(client, payload):
+    """Historical pending records remain supported; new posts no longer create them."""
+    from app.models import LegacyRound
+
+    db = next(app.dependency_overrides[get_db]())
+    row = LegacyRound(
+        member="Stuart Gano",
+        player_profile_id=STUART,
+        source="member",
+        status="pending",
+        synced_at="2026-06-15T00:00:00",
+        created_at="2026-06-15T00:00:00",
+        **payload,
     )
-    assert resp.status_code == 409
+    db.add(row)
+    db.commit()
+    response = MagicMock()
+    response.json.return_value = member_rounds_module._serialize(row)
+    db.close()
+    return response
 
 
 # ── POST /rounds/{id}/attest ─────────────────────────────────────────────────
@@ -234,9 +253,9 @@ def test_second_post_when_attested_returns_409(client):
 
 def test_attest_by_foursome_member_flips_to_attested(client):
     _login(STUART, "Stuart Gano")
-    posted = client.post(
-        "/players/me/round",
-        json={"date": "2026-06-15", "score": 5, "foursome": ["Jeff Smith", "Bob Jones"]},
+    posted = _legacy_pending(
+        client,
+        {"date": "2026-06-15", "score": 5, "foursome": ["Jeff Smith", "Bob Jones"]},
     ).json()
 
     _login(BOB, "Bob Jones")
@@ -250,9 +269,9 @@ def test_attest_by_foursome_member_flips_to_attested(client):
 
 def test_self_attest_returns_403(client):
     _login(STUART, "Stuart Gano")
-    posted = client.post(
-        "/players/me/round",
-        json={"date": "2026-06-15", "score": 5, "foursome": ["Jeff Smith"]},
+    posted = _legacy_pending(
+        client,
+        {"date": "2026-06-15", "score": 5, "foursome": ["Jeff Smith"]},
     ).json()
     resp = client.post(f"/rounds/{posted['id']}/attest")  # still Stuart
     assert resp.status_code == 403
@@ -260,9 +279,9 @@ def test_self_attest_returns_403(client):
 
 def test_non_foursome_attest_returns_403(client):
     _login(STUART, "Stuart Gano")
-    posted = client.post(
-        "/players/me/round",
-        json={"date": "2026-06-15", "score": 5, "foursome": ["Jeff Smith"]},
+    posted = _legacy_pending(
+        client,
+        {"date": "2026-06-15", "score": 5, "foursome": ["Jeff Smith"]},
     ).json()
 
     _login(ALICE, "Alice Park")  # not in foursome
@@ -278,9 +297,9 @@ def test_attest_nonexistent_returns_404(client):
 
 def test_attest_already_attested_returns_409(client):
     _login(STUART, "Stuart Gano")
-    posted = client.post(
-        "/players/me/round",
-        json={"date": "2026-06-15", "score": 5, "foursome": ["Jeff Smith"]},
+    posted = _legacy_pending(
+        client,
+        {"date": "2026-06-15", "score": 5, "foursome": ["Jeff Smith"]},
     ).json()
 
     _login(JEFF, "Jeff Smith")
@@ -295,9 +314,9 @@ def test_attest_already_attested_returns_409(client):
 
 def test_pending_attestation_lists_for_foursome_member_only(client):
     _login(STUART, "Stuart Gano")
-    client.post(
-        "/players/me/round",
-        json={"date": "2026-06-15", "score": 5, "foursome": ["Jeff Smith"]},
+    _legacy_pending(
+        client,
+        {"date": "2026-06-15", "score": 5, "foursome": ["Jeff Smith"]},
     )
 
     _login(JEFF, "Jeff Smith")  # in foursome → sees it
@@ -315,9 +334,9 @@ def test_pending_attestation_lists_for_foursome_member_only(client):
 
 def test_pending_excluded_from_spreadsheet_leaderboard_then_included(client):
     _login(STUART, "Stuart Gano")
-    posted = client.post(
-        "/players/me/round",
-        json={"date": "2026-06-15", "score": 5, "foursome": ["Jeff Smith"]},
+    posted = _legacy_pending(
+        client,
+        {"date": "2026-06-15", "score": 5, "foursome": ["Jeff Smith"]},
     ).json()
 
     # While pending, Stuart absent from the leaderboard.
@@ -340,9 +359,9 @@ def test_pending_excluded_from_unified_get_all_rounds(client, db_session):
     from app.services.unified_data_service import UnifiedDataService
 
     _login(STUART, "Stuart Gano")
-    posted = client.post(
-        "/players/me/round",
-        json={"date": "2026-06-15", "score": 5, "foursome": ["Jeff Smith"]},
+    posted = _legacy_pending(
+        client,
+        {"date": "2026-06-15", "score": 5, "foursome": ["Jeff Smith"]},
     ).json()
 
     service = UnifiedDataService(db=session)

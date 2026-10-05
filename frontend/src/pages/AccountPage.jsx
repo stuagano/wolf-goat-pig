@@ -9,6 +9,7 @@ import PlayerAvailability from '../components/signup/PlayerAvailability';
 import EmailPreferences from '../components/signup/EmailPreferences';
 import MyMatches from '../components/signup/MyMatches';
 import { FORETEES_ENABLED } from '../config/features';
+import { playerDisplayName } from '../utils/playerDisplayName';
 
 const STORAGE_KEY = 'wgp_account_settings';
 
@@ -177,7 +178,7 @@ function AccountPage() {
     if (stored) {
       setSettings(prev => ({ ...prev, ...stored }));
     } else if (user?.name) {
-      setSettings(prev => ({ ...prev, displayName: user.name }));
+      setSettings(prev => ({ ...prev, displayName: playerDisplayName(null, user) }));
     }
     setStats(gatherStats());
 
@@ -189,6 +190,8 @@ function AccountPage() {
           });
           if (!profileResp.ok) throw new Error(`HTTP ${profileResp.status}`);
           const profile = await profileResp.json();
+
+          setSettings(prev => ({ ...prev, displayName: playerDisplayName(profile, user) }));
 
           setDescriptionSyncError(null);
           if (profile?.description != null) {

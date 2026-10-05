@@ -12,6 +12,7 @@ import httpx as _httpx
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..database import SessionLocal, get_db
@@ -271,7 +272,7 @@ class AuthService:
 
         # Extract user info from Auth0 payload
         auth0_id = auth0_user.get("sub")
-        email = (auth0_user.get("email") or "").strip() or None
+        email = (auth0_user.get("email") or "").strip().lower() or None
         name = auth0_user.get("name") or (email.split("@")[0] if email else None) or "Unknown Player"
         picture = auth0_user.get("picture")
 
@@ -283,7 +284,19 @@ class AuthService:
         player = AuthService._find_player_by_auth0_id(db, auth0_id)
 
         if not player and email:
-            player = db.query(PlayerProfile).filter(PlayerProfile.email == email).first()
+            matches = db.query(PlayerProfile).filter(func.lower(PlayerProfile.email) == email).all()
+            if len(matches) > 1:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Multiple profiles use this email. Ask an admin to review the account link.",
+                )
+            player = matches[0] if matches else None
+            linked_subject = (player.preferences or {}).get("auth0_id") if player else None
+            if linked_subject and linked_subject != auth0_id:
+                raise HTTPException(
+                    status_code=409,
+                    detail="This email is linked to a different login. Ask an admin to review the account link.",
+                )
 
         if not player and not email:
             # Creating a brand-new profile with no email would also persist NULL
@@ -416,7 +429,9 @@ class AuthService:
 
             if email and not player.email:
                 conflict = (
-                    db.query(PlayerProfile).filter(PlayerProfile.email == email, PlayerProfile.id != player.id).first()
+                    db.query(PlayerProfile)
+                    .filter(func.lower(PlayerProfile.email) == email, PlayerProfile.id != player.id)
+                    .first()
                 )
                 if conflict:
                     conflict_prefs = dict(conflict.preferences) if conflict.preferences else {}

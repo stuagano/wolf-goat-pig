@@ -5,6 +5,7 @@ import { LoginButton, AuthHealthCheck } from '../components/auth';
 import StaleGameBanner from '../components/game/StaleGameBanner';
 import usePlayerProfile from '../hooks/usePlayerProfile';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
+import { playerDisplayName } from '../utils/playerDisplayName';
 import './HomePage.css';
 
 const ADVANCED_TOOLS = [
@@ -78,7 +79,7 @@ function HomePage() {
             </div>
           ) : (
             <p className="wgp-home__welcome">
-              Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}. Pick what you need —
+              Welcome back, {playerDisplayName(profile, user).split(' ')[0]}. Pick what you need —
               the rest stays out of the way.
             </p>
           )}
@@ -129,7 +130,7 @@ function HomePage() {
             <span className="wgp-home__pillar-kicker">After the round</span>
             <h2 className="wgp-home__pillar-title">Record a score</h2>
             <p className="wgp-home__pillar-copy">
-              One person posts for the group; partners attest from their accounts.
+              One person posts everyone’s results on the honor system.
             </p>
           </button>
         </section>
@@ -137,9 +138,8 @@ function HomePage() {
         <section className="wgp-home__panel">
           <h2>How scoring works</h2>
           <p>
-            You are not creating throwaway players. Pick real Wing Point profiles, post the
-            group result once, and give everyone a shareable round link. Partners get notified
-            to attest.
+            Pick the players from the club roster and enter each person’s quarters won or lost.
+            Submit once for the whole group; results count immediately.
           </p>
           <ol className="wgp-home__steps">
             <li>
@@ -148,27 +148,27 @@ function HomePage() {
                 <strong>Post for the group</strong>
                 <span>
                   Stuart plays with Terry, Steve, and Brett — select their existing profiles and
-                  enter the quarters result.
+                  enter each person’s quarters won or lost.
                 </span>
               </div>
             </li>
             <li>
               <span className="wgp-home__step-num" aria-hidden="true">2</span>
               <div>
-                <strong>Get a round ID</strong>
+                <strong>Submit everyone’s results</strong>
                 <span>
-                  Each post gets a unique round ID so the result is findable and shareable —
-                  same idea as a join code for live games.
+                  One submission saves a result for each player. The other players do not need
+                  to sign in or confirm.
                 </span>
               </div>
             </li>
             <li>
               <span className="wgp-home__step-num" aria-hidden="true">3</span>
               <div>
-                <strong>Partners attest</strong>
+                <strong>See updated standings</strong>
                 <span>
-                  Terry, Steve, and Brett see a notification when they open the app and confirm
-                  the round from earlier today.
+                  Everyone’s results appear in their history and the standings right away,
+                  on the honor system.
                 </span>
               </div>
             </li>
@@ -180,7 +180,7 @@ function HomePage() {
                 className="wgp-home__btn wgp-home__btn--primary"
                 onClick={() => navigate('/rounds/post')}
               >
-                Post or attest a round
+                Post foursome results
               </button>
             ) : (
               <LoginButton
