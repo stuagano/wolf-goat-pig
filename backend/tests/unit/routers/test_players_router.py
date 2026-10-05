@@ -189,7 +189,7 @@ class TestMyProfileComputedFields:
         )
 
         assert resp.status_code == 409
-        assert resp.json()["detail"] == "'Shared Name' is already linked to another account."
+        assert "Ask a club admin" in resp.json()["detail"]
 
         verify = _MeSession()
         try:

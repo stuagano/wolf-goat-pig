@@ -29,7 +29,7 @@ from difflib import get_close_matches
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..database import SessionLocal
@@ -129,7 +129,10 @@ def is_canonical_name_claimed(
 ) -> bool:
     """Return whether another profile already owns a canonical identity."""
     query = db.query(PlayerProfile).filter(
-        func.lower(PlayerProfile.legacy_name) == canonical_name.lower(),
+        or_(
+            func.lower(PlayerProfile.legacy_name) == canonical_name.lower(),
+            func.lower(PlayerProfile.name) == canonical_name.lower(),
+        ),
     )
     if exclude_profile_id is not None:
         query = query.filter(PlayerProfile.id != exclude_profile_id)

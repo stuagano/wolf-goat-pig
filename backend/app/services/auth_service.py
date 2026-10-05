@@ -12,7 +12,8 @@ import httpx as _httpx
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
-from sqlalchemy import func
+from sqlalchemy import func, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..database import SessionLocal, get_db
@@ -189,12 +190,7 @@ class AuthService:
 
     @staticmethod
     def _find_player_by_auth0_id(db: Session, auth0_id: str) -> PlayerProfile | None:
-        """Look up a profile by preferences.auth0_id.
-
-        If historical bugs left the same Auth0 subject on multiple seed rows,
-        prefer a profile that already has a club ``legacy_name``, then the
-        lowest id — never an arbitrary heap-ordered ``.first()``.
-        """
+        """Resolve a stable subject without silently choosing between accounts."""
         if not auth0_id:
             return None
         matches = (
@@ -205,43 +201,21 @@ class AuthService:
         )
         if not matches:
             return None
-        if len(matches) == 1:
-            return matches[0]
-
-        # Deterministic pick among duplicates, then strip auth0_id from the rest
-        # so the next login cannot reclaim a seed roster row again.
-        ranked = sorted(
-            matches,
-            key=lambda p: (
-                0 if (p.legacy_name or "").strip() else 1,
-                0 if (p.email or "").strip() else 1,
-                p.id or 0,
-            ),
-        )
-        winner = ranked[0]
-        for loser in ranked[1:]:
-            prefs = dict(loser.preferences) if loser.preferences else {}
-            if prefs.pop("auth0_id", None) is not None:
-                loser.preferences = prefs
-                loser.updated_at = utc_now().isoformat()
-                logger.warning(
-                    "Cleared duplicate auth0_id from player_profiles.id=%s (%s); keeping id=%s",
-                    loser.id,
-                    loser.name,
-                    winner.id,
-                )
-        db.commit()
-        return winner
+        if len(matches) > 1:
+            raise HTTPException(
+                status_code=409,
+                detail="This login matches multiple profiles. Ask a club admin to review Account links.",
+            )
+        if not matches[0].is_active:
+            raise HTTPException(
+                status_code=403, detail="This player profile is inactive. Ask a club admin to review Account links."
+            )
+        return matches[0]
 
     @staticmethod
     def enrich_user_from_userinfo(auth0_user: dict[str, Any], access_token: str) -> dict[str, Any]:
-        """Fill email/name/picture from Auth0 /userinfo when the access token omits them.
-
-        Auth0 access tokens for a custom API audience often only contain `sub`.
-        Email/profile claims live on the ID token unless an Action copies them.
-        /userinfo still returns them when the token was issued with those scopes.
-        """
-        if auth0_user.get("email") and auth0_user.get("name"):
+        """Fill missing verified profile claims from subject-matched Auth0 /userinfo."""
+        if auth0_user.get("email") and auth0_user.get("name") and isinstance(auth0_user.get("email_verified"), bool):
             return auth0_user
         if not AUTH0_DOMAIN or not access_token:
             return auth0_user
@@ -260,17 +234,20 @@ class AuthService:
             logger.warning("Auth0 /userinfo failed: %s", exc)
             return auth0_user
 
+        if info.get("sub") != auth0_user.get("sub"):
+            raise HTTPException(status_code=401, detail="Your sign-in could not be verified. Please sign in again.")
         enriched = dict(auth0_user)
         for key in ("email", "name", "picture", "nickname"):
             if not enriched.get(key) and info.get(key):
                 enriched[key] = info[key]
+        if (info.get("email") or "").strip().lower() == (enriched.get("email") or "").strip().lower():
+            enriched["email_verified"] = info.get("email_verified") is True
         return enriched
 
     @staticmethod
     def get_or_create_player_profile(db: Session, auth0_user: dict[str, Any]) -> PlayerProfile:
         """Get or create a PlayerProfile based on Auth0 user data"""
 
-        # Extract user info from Auth0 payload
         auth0_id = auth0_user.get("sub")
         email = (auth0_user.get("email") or "").strip().lower() or None
         name = auth0_user.get("name") or (email.split("@")[0] if email else None) or "Unknown Player"
@@ -279,12 +256,19 @@ class AuthService:
         if not auth0_id:
             raise HTTPException(status_code=401, detail="Token missing subject")
 
-        # Prefer stable Auth0 subject over email. Never query email IS NULL —
-        # that reclaim the first seed roster row with a null email (Dave, etc.).
         player = AuthService._find_player_by_auth0_id(db, auth0_id)
+        # Lock only first-login claims; returning requests should not serialize.
+        if not player and db.get_bind().dialect.name == "postgresql":
+            identities = [f"auth0:{auth0_id}"] + ([f"email:{email}"] if email else [])
+            for identity in sorted(identities):
+                db.execute(
+                    text("SELECT pg_advisory_xact_lock(hashtext(:identity))"), {"identity": f"account-link:{identity}"}
+                )
+            # Another request may have linked this subject while we waited.
+            player = AuthService._find_player_by_auth0_id(db, auth0_id)
 
         if not player and email:
-            matches = db.query(PlayerProfile).filter(func.lower(PlayerProfile.email) == email).all()
+            matches = db.query(PlayerProfile).filter(func.lower(PlayerProfile.email) == email).with_for_update().all()
             if len(matches) > 1:
                 raise HTTPException(
                     status_code=409,
@@ -297,26 +281,25 @@ class AuthService:
                     status_code=409,
                     detail="This email is linked to a different login. Ask an admin to review the account link.",
                 )
+            if player and auth0_user.get("email_verified") is not True:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Verify your email address, then sign in again to connect your existing player profile.",
+                )
+            if player and not player.is_active:
+                raise HTTPException(
+                    status_code=403, detail="This player profile is inactive. Ask a club admin to review Account links."
+                )
 
         if not player and not email:
-            # Creating a brand-new profile with no email would also persist NULL
-            # and poison future logins. Fail closed until /userinfo (or Auth0
-            # Actions) supplies an email claim.
+            # Unknown subjects need an email; established subject links do not.
             raise HTTPException(
                 status_code=401,
                 detail="Token missing email claim — re-login with email scope or add email to the API token",
             )
 
         if not player:
-            # Match name to the legacy tee sheet system (same session as the
-            # profile write so the whole flow is transactionally consistent).
-            #
-            # Only an EXACT canonical match auto-links: case-folding a name to
-            # its roster spelling is deterministic and safe. A *fuzzy* match is a
-            # guess — writing it to legacy_name would faithfully sign the golfer
-            # up as the wrong person (issue #322). So we never persist a fuzzy
-            # hit here; we leave legacy_name unset and surface the suggestion in
-            # onboarding (GET /players/me) for the authenticated user to confirm.
+            # Suggest fuzzy matches; only unused exact roster names can link here.
             legacy_name = get_canonical_name(name, db)
             fuzzy_suggestion: str | None = None
             if not legacy_name:
@@ -328,6 +311,13 @@ class AuthService:
                         name,
                         fuzzy_suggestion,
                     )
+
+            # A display name is not proof of roster identity. Preserve the seed
+            # row and let an admin link it rather than hitting its unique name.
+            if db.query(PlayerProfile.id).filter(func.lower(PlayerProfile.name) == name.lower()).first():
+                fuzzy_suggestion = legacy_name or fuzzy_suggestion
+                legacy_name = None
+                name = email
 
             # Create new player profile
             player = PlayerProfile(
@@ -353,9 +343,7 @@ class AuthService:
             if legacy_name:
                 link_result = link_profile_to_canonical_name(db, cast("int", player.id), legacy_name)
                 if not link_result["linked"]:
-                    # An exact roster name already owned by another profile is
-                    # still an identity claim, not proof that these are the same
-                    # person. Leave this account unlinked for explicit recovery.
+                    # A name alone cannot claim another profile's roster identity.
                     logger.warning(
                         "Did not auto-link new profile id=%s: legacy name '%s' belongs to another profile",
                         player.id,
@@ -363,9 +351,6 @@ class AuthService:
                     )
                     fuzzy_suggestion = legacy_name
                     legacy_name = None
-            db.commit()
-            db.refresh(player)
-
             # Create default email preferences
             email_prefs = EmailPreferences(
                 player_profile_id=player.id,
@@ -374,24 +359,18 @@ class AuthService:
             )
             db.add(email_prefs)
             db.commit()
+            db.refresh(player)
 
             logger.info(f"Created new player profile for {name} ({email})")
 
-            # Welcome email — fires ONLY on this new-profile branch, never on a
-            # returning login. Best-effort and wrapped so even dispatching it can
-            # never add latency to or break first login; failures go to Sentry.
+            # Welcome mail only on creation, never on returning sign-in.
             try:
                 _send_welcome_email(name, email, player.id)
             except Exception as exc:
                 logger.warning(f"Failed to dispatch welcome email for '{name}': {exc}")
                 report_exception(exc)
 
-            # No legacy link → decide between "confirm a suggestion" and "brand
-            # new golfer". If there's a plausible fuzzy suggestion, onboarding
-            # will surface it for the user to accept/reject, so we don't add them
-            # to the pending roster yet. Only a truly unknown golfer (no exact
-            # match, no suggestion) is captured into the pending queue with an
-            # admin alert. Best-effort: never block account creation.
+            # Only genuinely unknown golfers enter the pending roster queue.
             if not legacy_name and not fuzzy_suggestion:
                 try:
                     result = capture_pending_player(name, email=email, player_profile_id=player.id, db=db)
@@ -403,14 +382,11 @@ class AuthService:
             # Update existing player with Auth0 info if needed
             update_needed = False
 
-            # A roster entry may have been added after this account's first
-            # login. Retry only the same exact, case-insensitive canonical
-            # match used for new accounts; fuzzy matches still require the
-            # user's explicit confirmation in onboarding.
+            # Retry exact unclaimed roster matches added since first sign-in.
             if not player.legacy_name:
-                legacy_name = get_canonical_name(name, db)
-                if not legacy_name and player.name and player.name != name:
-                    legacy_name = get_canonical_name(cast("str", player.name), db)
+                legacy_name = get_canonical_name(cast("str", player.name), db) if player.name else None
+                if not legacy_name:
+                    legacy_name = get_canonical_name(name, db)
                 if legacy_name:
                     link_result = link_profile_to_canonical_name(db, cast("int", player.id), legacy_name)
                     if link_result["linked"]:
@@ -427,33 +403,13 @@ class AuthService:
                             legacy_name,
                         )
 
-            if email and not player.email:
+            if email and not player.email and auth0_user.get("email_verified") is True:
                 conflict = (
                     db.query(PlayerProfile)
                     .filter(func.lower(PlayerProfile.email) == email, PlayerProfile.id != player.id)
                     .first()
                 )
-                if conflict:
-                    conflict_prefs = dict(conflict.preferences) if conflict.preferences else {}
-                    if not conflict_prefs.get("auth0_id"):
-                        # Ghost row from a prior buggy login — reclaim the email.
-                        logger.warning(
-                            "Reclaiming email %s from ghost profile id=%s for id=%s",
-                            email,
-                            conflict.id,
-                            player.id,
-                        )
-                        conflict.email = None
-                        player.email = email
-                        update_needed = True
-                    else:
-                        logger.warning(
-                            "Email %s already on profile id=%s; skipping backfill for id=%s",
-                            email,
-                            conflict.id,
-                            player.id,
-                        )
-                else:
+                if not conflict:
                     player.email = email
                     update_needed = True
 
@@ -528,6 +484,13 @@ def get_current_user(
     """Dependency to get the current authenticated user"""
 
     # Get or create player profile
-    player = auth_service.get_or_create_player_profile(db, auth0_user)
+    try:
+        player = auth_service.get_or_create_player_profile(db, auth0_user)
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Your account could not be linked uniquely. Ask a club admin to review Account links.",
+        ) from exc
 
     return player

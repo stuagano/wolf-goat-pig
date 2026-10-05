@@ -19,9 +19,8 @@ export const usePlayerProfile = () => {
   const [legacyNameSuggestion, setLegacyNameSuggestion] = useState(null);
   const [legacyNameSkipped, setLegacyNameSkipped] = useState(false);
   const profileRequestId = useRef(0);
-  const isUnlinked = Boolean(profile && !profile.legacy_name);
-  // ponytail: linking is optional; never block new users with the onboarding modal
-  const needsLegacyName = false;
+  const isUnlinked = Boolean(profile && (!profile.legacy_name || profile.legacy_name.includes('@')));
+  const needsLegacyName = isUnlinked && !legacyNameSkipped;
   const userSub = user?.sub || null;
   const legacyNameSkipKey = userSub ? `legacy_name_skipped:${userSub}` : null;
 
@@ -49,7 +48,8 @@ export const usePlayerProfile = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch profile: ${response.status}`);
+        const body = await response.json().catch(() => ({}));
+        throw new Error(typeof body.detail === 'string' ? body.detail : 'Your player profile could not be loaded. Try again or sign in again.');
       }
 
       const data = await response.json();
@@ -58,7 +58,7 @@ export const usePlayerProfile = () => {
       setProfile(data);
 
       const skipped = Boolean(localStorage.getItem(legacyNameSkipKey));
-      setLegacyNameSkipped(!data.legacy_name && skipped);
+      setLegacyNameSkipped((!data.legacy_name || data.legacy_name.includes('@')) && skipped);
 
       // Fuzzy legacy-name match to SUGGEST during onboarding. This is NOT an
       // auto-link — the account stays unlinked until the user confirms it.
@@ -67,7 +67,8 @@ export const usePlayerProfile = () => {
       setError(null);
     } catch (err) {
       if (requestId !== profileRequestId.current) return;
-
+      setProfile(null);
+      setLegacyNameSuggestion(null);
       console.error("Error fetching profile:", err);
       setError(err.message);
     } finally {
