@@ -838,12 +838,6 @@ const SimpleScorekeeper = ({
       className="thumb-zone-container"
       style={{ padding: "20px", maxWidth: "800px", margin: "0 auto" }}
     >
-      <StuartModeToggle
-        assistMode={assistMode}
-        setAssistMode={setAssistMode}
-        theme={theme}
-      />
-
       {/* Sync Status Banner - Shows when offline or pending uploads */}
       <SyncStatusBanner />
 
@@ -861,23 +855,6 @@ const SimpleScorekeeper = ({
         holeHistory={holeHistory}
       />
 
-      <ScorecardSection
-        theme={theme}
-        players={players}
-        localPlayers={localPlayers}
-        holeHistory={holeHistory}
-        setHoleHistory={setHoleHistory}
-        setPlayerStandings={setPlayerStandings}
-        currentHole={currentHole}
-        setCurrentHole={setCurrentHole}
-        editingHole={editingHole}
-        scorecardCourseHoles={scorecardCourseHoles}
-        strokeAllocation={strokeAllocation}
-        isEditingCompleteGame={isEditingCompleteGame}
-        handleEditHoleFromScorecard={handleEditHoleFromScorecard}
-        jumpToHole={jumpToHole}
-        resetHole={resetHole}
-      />
       {/* Enhanced Hole Title Section - Combines hole info, hitting order, and strokes */}
       <HoleHeader
         currentHole={currentHole}
@@ -899,6 +876,41 @@ const SimpleScorekeeper = ({
         onRedoOrder={() => setShowTeeToss(true)}
         jumpToHole={jumpToHole}
         movePlayerInOrder={movePlayerInOrder}
+      />
+
+      <QuartersPanel
+        players={players}
+        quarters={quarters}
+        setQuarters={setQuarters}
+        theme={theme}
+      />
+
+      <ErrorBanner error={error} setError={setError} theme={theme} />
+      <HoleNavigation
+        currentHole={currentHole}
+        editingHole={editingHole}
+        submitting={submitting}
+        holeHistory={holeHistory}
+        jumpToHole={jumpToHole}
+        handleSubmitHole={handleSubmitHole}
+      />
+
+      <ScorecardSection
+        theme={theme}
+        players={players}
+        localPlayers={localPlayers}
+        holeHistory={holeHistory}
+        setHoleHistory={setHoleHistory}
+        setPlayerStandings={setPlayerStandings}
+        currentHole={currentHole}
+        setCurrentHole={setCurrentHole}
+        editingHole={editingHole}
+        scorecardCourseHoles={scorecardCourseHoles}
+        strokeAllocation={strokeAllocation}
+        isEditingCompleteGame={isEditingCompleteGame}
+        handleEditHoleFromScorecard={handleEditHoleFromScorecard}
+        jumpToHole={jumpToHole}
+        resetHole={resetHole}
       />
 
       {/* Running totals — always visible for live scorekeeping and E2E */}
@@ -964,6 +976,12 @@ const SimpleScorekeeper = ({
           onOrderComplete={handleTeeTossComplete}
         />
       )}
+
+      <StuartModeToggle
+        assistMode={assistMode}
+        setAssistMode={setAssistMode}
+        theme={theme}
+      />
 
       <HolePhaseStrip
         stuartMode={stuartMode}
@@ -1049,14 +1067,6 @@ const SimpleScorekeeper = ({
         theme={theme}
       />
 
-      {/* Quarters Entry (Primary) - Enhanced Player Cards */}
-      <QuartersPanel
-        players={players}
-        quarters={quarters}
-        setQuarters={setQuarters}
-        theme={theme}
-      />
-
       <OptionalEntryPanels
         theme={theme}
         players={players}
@@ -1072,19 +1082,6 @@ const SimpleScorekeeper = ({
         setShowCommissioner={setShowCommissioner}
         showNotes={showNotes}
         setShowNotes={setShowNotes}
-      />
-
-      <ErrorBanner error={error} setError={setError} theme={theme} />
-      {/* Old submit button removed - now in thumb zone below */}
-
-      {/* Sticky Bottom Thumb Zone - Primary Actions */}
-      <HoleNavigation
-        currentHole={currentHole}
-        editingHole={editingHole}
-        submitting={submitting}
-        holeHistory={holeHistory}
-        jumpToHole={jumpToHole}
-        handleSubmitHole={handleSubmitHole}
       />
 
       {/* Strategy panel shows in both Coach (real round, manual scoring) and Auto

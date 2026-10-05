@@ -4,7 +4,7 @@ import React from "react";
 import PropTypes from "prop-types";
 
 /**
- * HoleNavigation — sticky bottom thumb zone with prev/next hole and complete/update button
+ * HoleNavigation — inline prev/next hole and complete/update controls below quarters
  */
 const HoleNavigation = ({
   currentHole,
@@ -15,7 +15,10 @@ const HoleNavigation = ({
   handleSubmitHole,
 }) => {
   return (
-    <div className="thumb-zone">
+    <div
+      className="thumb-zone"
+      style={{ position: "relative", padding: "12px 0", marginBottom: "16px" }}
+    >
       <div className="thumb-zone-inner">
         {/* Previous Hole Navigation */}
         <button

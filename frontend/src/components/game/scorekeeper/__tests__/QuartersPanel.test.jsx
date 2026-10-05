@@ -35,41 +35,59 @@ function Harness({ initial = {} }) {
   );
 }
 
-const signToggle = () =>
-  screen.getByLabelText('Set sign for Stuart (negative or positive)');
+const lost = () => screen.getByRole('button', { name: 'Stuart lost quarters' });
+const won = () => screen.getByRole('button', { name: 'Stuart won quarters' });
 const amountInput = () => screen.getAllByPlaceholderText('0')[0];
 const value = () => screen.getByTestId('q-p1').textContent;
 
-describe('QuartersPanel sign toggle', () => {
-  test('tapping the sign FIRST arms a negative so typed digits go negative', () => {
+describe('QuartersPanel outcome and amount', () => {
+  test('Lost survives blur and clearing so unsigned digits always record a loss', () => {
     render(<Harness />);
-    fireEvent.click(signToggle());
-    expect(value()).toBe('-'); // armed
-    // user now types 3 on the numeric keypad -> field becomes "-3"
-    fireEvent.change(amountInput(), { target: { value: '-3' } });
-    expect(value()).toBe('-3');
-  });
-
-  test('tapping the sign again disarms it', () => {
-    render(<Harness />);
-    fireEvent.click(signToggle());
-    expect(value()).toBe('-');
-    fireEvent.click(signToggle());
-    expect(value()).toBe('');
-  });
-
-  test('type-then-tap also flips a positive to negative', () => {
-    render(<Harness />);
-    fireEvent.change(amountInput(), { target: { value: '2' } });
-    expect(value()).toBe('2');
-    fireEvent.click(signToggle());
-    expect(value()).toBe('-2');
-  });
-
-  test('blur normalizes a dangling minus back to empty', () => {
-    render(<Harness />);
-    fireEvent.click(signToggle()); // arms "-"
+    fireEvent.click(lost());
     fireEvent.blur(amountInput());
-    expect(value()).toBe('');
+    expect(lost()).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.change(amountInput(), { target: { value: '12' } });
+    expect(value()).toBe('-12');
+    expect(amountInput()).toHaveValue('12');
+    fireEvent.change(amountInput(), { target: { value: '' } });
+    fireEvent.blur(amountInput());
+    fireEvent.change(amountInput(), { target: { value: '2.5' } });
+    fireEvent.blur(amountInput());
+    expect(value()).toBe('-2.5');
+  });
+
+  test('editing a saved loss displays its magnitude and Won changes only its sign', () => {
+    render(<Harness initial={{ p1: -12, p2: 12 }} />);
+    expect(amountInput()).toHaveValue('12');
+    expect(lost()).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('zero-sum-validation')).toHaveTextContent('Balanced');
+    fireEvent.click(won());
+    expect(value()).toBe('12');
+    expect(screen.getByTestId('zero-sum-validation')).toHaveTextContent('Off by +24.0');
+    fireEvent.click(lost());
+    expect(value()).toBe('-12');
+    expect(screen.getByTestId('zero-sum-validation')).toHaveTextContent('Balanced');
+  });
+
+  test('Push resets losses to zero and Clear starts fresh', () => {
+    render(<Harness initial={{ p1: '-12', p2: '12' }} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Push (all 0)' }));
+    expect(value()).toBe('0');
+    expect(screen.getByTestId('zero-sum-validation')).toHaveTextContent('Balanced');
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    expect(amountInput()).toHaveValue('');
+    expect(lost()).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('rejects invalid amounts and preserves loss when editing zero', () => {
+    render(<Harness />);
+    fireEvent.click(lost());
+    fireEvent.change(amountInput(), { target: { value: '0' } });
+    fireEvent.blur(amountInput());
+    expect(lost()).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.change(amountInput(), { target: { value: '4' } });
+    expect(value()).toBe('-4');
+    fireEvent.change(amountInput(), { target: { value: '4.5.6' } });
+    expect(value()).toBe('-4');
   });
 });

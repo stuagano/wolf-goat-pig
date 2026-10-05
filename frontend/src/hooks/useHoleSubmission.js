@@ -311,7 +311,7 @@ const useHoleSubmission = (ctx) => {
         effectiveQuarters[id] === null,
     );
     if (malformed) {
-      validationError = `Enter a valid number for ${malformed.name} (use the +/- or ± buttons for negatives).`;
+      validationError = `Enter a quarters amount for ${malformed.name}, and choose Won or Lost.`;
     } else if (missing) {
       validationError = "Please enter quarters for all players";
     } else {
