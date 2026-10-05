@@ -3,6 +3,7 @@
  * Extracted from SimpleScorekeeper to reduce complexity
  */
 import { useState, useCallback } from 'react';
+import { useFeatureFlags } from './useFeatureFlags';
 
 /**
  * useUIState - Manages UI toggles and visual state
@@ -10,6 +11,7 @@ import { useState, useCallback } from 'react';
  * @returns {Object} UI state and toggle functions
  */
 export function useUIState() {
+  const { stuart_mode: stuartModeEnabled } = useFeatureFlags();
   // Collapsible sections state
   const [showTeamSelection, setShowTeamSelection] = useState(true);
   const [showGolfScores, setShowGolfScores] = useState(false);
@@ -22,12 +24,13 @@ export function useUIState() {
   //  - auto  → full AI takeover (plays opponents) + strategy tips  (== legacy Stuart Mode ON)
   //  - coach → real round, everyone scores manually, but strategy tips still show
   //  - off   → nothing
-  const [assistMode, setAssistModeState] = useState(() => {
+  const [savedAssistMode, setAssistModeState] = useState(() => {
     const m = localStorage.getItem('wgp_assist_mode');
     if (m === 'off' || m === 'coach' || m === 'auto') return m;
     // Backward compat: CreateGamePage and older sessions only set the boolean flag.
     return localStorage.getItem('wgp_stuart_mode') === 'true' ? 'auto' : 'off';
   });
+  const assistMode = stuartModeEnabled ? savedAssistMode : 'off';
   const stuartMode = assistMode === 'auto';
   const coachMode = assistMode === 'coach';
   
@@ -97,21 +100,23 @@ export function useUIState() {
   }, []);
 
   const setAssistMode = useCallback((mode) => {
+    if (!stuartModeEnabled) return;
     setAssistModeState(mode);
     localStorage.setItem('wgp_assist_mode', mode);
     // Keep the legacy boolean in sync — CreateGamePage and tests read it.
     localStorage.setItem('wgp_stuart_mode', String(mode === 'auto'));
-  }, []);
+  }, [stuartModeEnabled]);
 
   // Keyboard shortcut (Cmd/Ctrl+Shift+S in useStuartMode) flips full AI on/off.
   const toggleStuartMode = useCallback(() => {
+    if (!stuartModeEnabled) return;
     setAssistModeState(prev => {
       const next = prev === 'auto' ? 'off' : 'auto';
       localStorage.setItem('wgp_assist_mode', next);
       localStorage.setItem('wgp_stuart_mode', String(next === 'auto'));
       return next;
     });
-  }, []);
+  }, [stuartModeEnabled]);
 
   /**
    * Set error with optional auto-clear
@@ -170,6 +175,7 @@ export function useUIState() {
     setIsGameMarkedComplete,
     
     // Stuart Mode
+    stuartModeEnabled,
     stuartMode,
     coachMode,
     assistMode,

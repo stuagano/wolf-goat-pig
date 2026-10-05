@@ -18,6 +18,7 @@ import {
 } from "../utils/stuartModeAiDecisions";
 
 const useStuartMode = ({
+  enabled,
   stuartMode,
   toggleStuartMode,
   gameId,
@@ -52,6 +53,7 @@ const useStuartMode = ({
   //     part of the page. Pointermove > 10px cancels so a scroll doesn't
   //     trigger it.
   useEffect(() => {
+    if (!enabled) return;
     const INTERACTIVE_SELECTOR =
       'button, input, select, textarea, a, label, [role="button"], [contenteditable="true"]';
 
@@ -99,7 +101,7 @@ const useStuartMode = ({
       document.removeEventListener("pointercancel", cancelPress);
       document.removeEventListener("pointermove", handlePointerMove);
     };
-  }, [toggleStuartMode]);
+  }, [enabled, toggleStuartMode]);
 
   // Stuart Mode score pre-fill: when on, generate plausible gross scores for
   // any non-authenticated player who hasn't been scored yet on this hole.

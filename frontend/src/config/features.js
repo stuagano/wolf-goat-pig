@@ -7,4 +7,5 @@ export const FEATURE_DEFAULTS = {
   scorecard_scan: true,
   livsow: false,
   commissioner_chat: true,
+  stuart_mode: false,
 };

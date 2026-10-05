@@ -10,6 +10,7 @@ const FLAG_LABELS = {
   scorecard_scan: { label: 'Scorecard scanning', description: 'Post-round photo-to-score flow' },
   livsow: { label: 'LivSow', description: 'LivSow leaderboard and team pages' },
   commissioner_chat: { label: 'Commissioner chat', description: 'League chat (GroupMe bridge)' },
+  stuart_mode: { label: 'Stuart Mode', description: 'AI coaching, automatic opponents, and ghost players' },
 };
 
 export default function FeatureToggles() {

@@ -3,9 +3,12 @@
 // nothing. Covers: toggle render, phase strip render, and the tee-phase AI
 // captain decision (an aiMoves entry appears after the 800ms timer).
 import React from 'react';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import SimpleScorekeeper from '../SimpleScorekeeper';
+import { useFeatureFlags } from '../../../hooks/useFeatureFlags';
+
+vi.mock('../../../hooks/useFeatureFlags', () => ({ useFeatureFlags: vi.fn() }));
 
 // Same mock set as SimpleScorekeeper.betting.test.jsx
 vi.mock('../../../theme/Provider', async () => {
@@ -69,6 +72,26 @@ const renderScorekeeper = () =>
 describe('Stuart Mode characterization', () => {
   beforeEach(() => {
     localStorage.clear();
+    useFeatureFlags.mockReturnValue({ stuart_mode: true });
+  });
+
+  test('admin off hides controls and ignores saved mode, keyboard, and long press', () => {
+    useFeatureFlags.mockReturnValue({ stuart_mode: false });
+    localStorage.setItem('wgp_assist_mode', 'auto');
+    localStorage.setItem('wgp_stuart_mode', 'true');
+    vi.useFakeTimers();
+    try {
+      renderScorekeeper();
+      fireEvent.keyDown(window, { key: 'S', ctrlKey: true, shiftKey: true });
+      fireEvent.pointerDown(document.body, { clientX: 0, clientY: 0 });
+      act(() => vi.advanceTimersByTime(2500));
+      expect(screen.queryByTestId('stuart-mode-toggle')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('hole-phase-strip')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('whisperer-toggle')).not.toBeInTheDocument();
+      expect(screen.getByTestId('quarters-input-p1')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   test('toggle renders and is OFF by default (no phase strip)', () => {
