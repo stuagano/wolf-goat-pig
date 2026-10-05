@@ -197,7 +197,6 @@ class AuthService:
             db.query(PlayerProfile)
             .filter(PlayerProfile.preferences["auth0_id"].as_string() == auth0_id)
             .order_by(PlayerProfile.id.asc())
-            .with_for_update()
             .all()
         )
         if not matches:
@@ -257,18 +256,16 @@ class AuthService:
         if not auth0_id:
             raise HTTPException(status_code=401, detail="Token missing subject")
 
-        # Concurrent first-login requests must not create duplicate subjects or
-        # claim the same email. Match the locks used by the admin linking route.
-        if db.get_bind().dialect.name == "postgresql":
+        player = AuthService._find_player_by_auth0_id(db, auth0_id)
+        # Lock only first-login claims; returning requests should not serialize.
+        if not player and db.get_bind().dialect.name == "postgresql":
             identities = [f"auth0:{auth0_id}"] + ([f"email:{email}"] if email else [])
             for identity in sorted(identities):
                 db.execute(
                     text("SELECT pg_advisory_xact_lock(hashtext(:identity))"), {"identity": f"account-link:{identity}"}
                 )
-
-        # Prefer stable Auth0 subject over email. Never query email IS NULL —
-        # that reclaim the first seed roster row with a null email (Dave, etc.).
-        player = AuthService._find_player_by_auth0_id(db, auth0_id)
+            # Another request may have linked this subject while we waited.
+            player = AuthService._find_player_by_auth0_id(db, auth0_id)
 
         if not player and email:
             matches = db.query(PlayerProfile).filter(func.lower(PlayerProfile.email) == email).with_for_update().all()
