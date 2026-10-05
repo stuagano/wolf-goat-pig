@@ -19,6 +19,7 @@ DEFAULTS: dict[str, bool] = {
     "scorecard_scan": True,
     "livsow": False,
     "commissioner_chat": True,
+    "stuart_mode": False,
 }
 
 

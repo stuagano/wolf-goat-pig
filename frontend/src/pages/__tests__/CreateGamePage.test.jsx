@@ -64,6 +64,17 @@ const submittedPlayers = () => {
 };
 
 describe('CreateGamePage handicaps', () => {
+  test('with Stuart Mode disabled, games contain real players and never enable AI', async () => {
+    await renderPage();
+    await fillRoster();
+    expect(screen.queryByRole('button', { name: /Ghost/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Stuart Mode/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Start Game/ }));
+    await waitFor(() => expect(submittedPlayers()).toHaveLength(4));
+    expect(submittedPlayers().every((p) => p.is_ghost === false)).toBe(true);
+    await waitFor(() => expect(localStorage.getItem('wgp_assist_mode')).toBe('off'));
+  });
+
   test('a rostered name pulls its real handicap instead of the 18 default', async () => {
     await renderPage();
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/games/roster-suggestions')));

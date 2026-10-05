@@ -301,6 +301,7 @@ const SimpleScorekeeper = ({
     setIsGameMarkedComplete,
     startEditingPlayerName,
     cancelEditingPlayerName: handleCancelPlayerNameEdit,
+    stuartModeEnabled,
     stuartMode,
     coachMode,
     assistMode,
@@ -393,6 +394,7 @@ const SimpleScorekeeper = ({
   // order is preserved from the pre-extraction component.
   const { aiMoves, setAiMoves, holePhase, setHolePhase, stuartTeamInfo } =
     useStuartMode({
+      enabled: stuartModeEnabled,
       stuartMode,
       toggleStuartMode,
       gameId,
@@ -977,11 +979,11 @@ const SimpleScorekeeper = ({
         />
       )}
 
-      <StuartModeToggle
+      {stuartModeEnabled && <StuartModeToggle
         assistMode={assistMode}
         setAssistMode={setAssistMode}
         theme={theme}
-      />
+      />}
 
       <HolePhaseStrip
         stuartMode={stuartMode}

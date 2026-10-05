@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../theme/Provider';
 import { useAuth0 } from '@auth0/auth0-react';
 import { apiConfig } from '../config/api.config';
+import { useFeatureFlags } from '../hooks/useFeatureFlags';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -23,6 +24,7 @@ function CreateGamePage() {
   const theme = useTheme();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth0();
+  const { stuart_mode: stuartModeEnabled } = useFeatureFlags();
 
   const [loading, setLoading] = useState(false);
   const [creatingEmpty, setCreatingEmpty] = useState(false);
@@ -107,7 +109,7 @@ function CreateGamePage() {
   const addPlayer = () => players.length < 6 && setPlayers((p) => [...p, emptyPlayer()]);
   const removePlayer = (i) => players.length > 4 && setPlayers((p) => p.filter((_, idx) => idx !== i));
 
-  const ghostCount = players.filter((p) => p.isGhost).length;
+  const ghostCount = stuartModeEnabled ? players.filter((p) => p.isGhost).length : 0;
 
   const startGame = async () => {
     setError('');
@@ -128,9 +130,9 @@ function CreateGamePage() {
             // null lets the server use the roster handicap; only an explicitly
             // typed number overrides it.
             handicap: p.handicapTouched ? (Number(p.handicap) || 0) : null,
-            is_ghost: p.isGhost,
+            is_ghost: Boolean(stuartModeEnabled && p.isGhost),
             player_profile_id: p.player_profile_id,
-            user_id: !p.isGhost && p.name === user?.name && isAuthenticated ? user?.sub : null,
+            user_id: !(stuartModeEnabled && p.isGhost) && p.name === user?.name && isAuthenticated ? user?.sub : null,
           })),
         }),
       });
@@ -142,9 +144,9 @@ function CreateGamePage() {
       // Auto-enable Stuart Mode (full AI) when ghosts are in the game so the AI
       // plays them. Write the canonical assist-mode key — the scorekeeper reads
       // it first; also keep the legacy boolean in sync for older readers.
-      const mode = data.has_ghosts ? 'auto' : 'off';
+      const mode = stuartModeEnabled && data.has_ghosts ? 'auto' : 'off';
       localStorage.setItem('wgp_assist_mode', mode);
-      localStorage.setItem('wgp_stuart_mode', String(data.has_ghosts));
+      localStorage.setItem('wgp_stuart_mode', String(mode === 'auto'));
       navigate(`/game/${data.game_id}`);
     } catch (err) {
       setError(err.message || 'Failed to start game.');
@@ -187,7 +189,9 @@ function CreateGamePage() {
       <div style={theme.cardStyle}>
         <h1 style={{ color: theme.colors.primary, marginBottom: 8 }}>🎮 New Game</h1>
         <p style={{ color: theme.colors.textSecondary, marginBottom: 24 }}>
-          Add real players or 👻 ghosts (AI plays as them). Any ghost turns on Stuart Mode automatically.
+          {stuartModeEnabled
+            ? 'Add real players or 👻 ghosts (AI plays as them). Any ghost turns on Stuart Mode automatically.'
+            : 'Add the players in your group to start scoring.'}
         </p>
 
         {/* Course */}
@@ -212,8 +216,8 @@ function CreateGamePage() {
           {players.map((p, i) => (
             <div key={i} style={{
               padding: 10, borderRadius: 10,
-              border: `1px solid ${p.isGhost ? '#f0abfc' : theme.colors.border}`,
-              background: p.isGhost ? 'rgba(217,70,239,0.05)' : theme.colors.paper,
+              border: `1px solid ${stuartModeEnabled && p.isGhost ? '#f0abfc' : theme.colors.border}`,
+              background: stuartModeEnabled && p.isGhost ? 'rgba(217,70,239,0.05)' : theme.colors.paper,
             }}>
              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <input
@@ -234,7 +238,7 @@ function CreateGamePage() {
                 aria-label={`Player ${i + 1} handicap`}
                 title="Handicap"
               />
-              <button
+              {stuartModeEnabled && <button
                 type="button"
                 onClick={() => updatePlayer(i, { isGhost: !p.isGhost })}
                 aria-pressed={p.isGhost}
@@ -246,7 +250,7 @@ function CreateGamePage() {
                 }}
               >
                 {p.isGhost ? '👻 Ghost' : '🧑 Real'}
-              </button>
+              </button>}
               {players.length > 4 && (
                 <button
                   type="button"
