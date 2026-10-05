@@ -4,6 +4,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ def _int_env(name: str, default: int) -> int:
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Check if we're using PostgreSQL or SQLite
-is_postgresql = DATABASE_URL and (DATABASE_URL.startswith("postgres://") or DATABASE_URL.startswith("postgresql://"))
+is_postgresql = DATABASE_URL and DATABASE_URL.startswith(("postgres://", "postgresql://", "postgresql+psycopg2://"))
 
 if is_postgresql and DATABASE_URL:
     # Production database (PostgreSQL)
@@ -36,9 +37,9 @@ if is_postgresql and DATABASE_URL:
     # Pool sizing is env-tunable. Bump DB_POOL_SIZE/DB_MAX_OVERFLOW via env
     # without a code change. The Cloud SQL Auth Proxy / Unix-socket form
     # (postgresql://user:pass@/db?host=/cloudsql/CONN) works unchanged here:
-    # it stays on the postgresql:// branch and psycopg2 reads host from the query.
+    # Explicitly select the installed psycopg2 driver; SQLAlchemy's default can change.
     engine = create_engine(
-        DATABASE_URL,
+        make_url(DATABASE_URL).set(drivername="postgresql+psycopg2"),
         pool_pre_ping=True,  # Verify connections before use
         pool_recycle=_int_env("DB_POOL_RECYCLE", 300),  # Recycle connections every 5 minutes
         pool_size=_int_env("DB_POOL_SIZE", 5),  # Maximum persistent pool size
