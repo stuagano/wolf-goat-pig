@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import LegacyNameSelector from './LegacyNameSelector';
 
@@ -15,6 +15,15 @@ const OnboardingModal = ({
   const { user } = useAuth0();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const dialogRef = useRef(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    // Native dialog contains keyboard focus and returns it to the opener.
+    if (dialog.showModal) dialog.showModal();
+    else dialog.setAttribute('open', '');
+    return () => dialog.close?.();
+  }, []);
 
   const handleSelect = async (legacyName) => {
     setSaving(true);
@@ -35,16 +44,16 @@ const OnboardingModal = ({
   };
 
   return (
-    <div className="onboarding-overlay">
-      <div className="onboarding-modal">
+    <dialog ref={dialogRef} onCancel={(event) => { event.preventDefault(); if (!saving) handleSkip(); }} className="onboarding-modal" aria-labelledby="history-link-title">
         <div className="modal-header">
           <div className="welcome-icon">⛳</div>
-          <h2>Welcome to Wolf Goat Pig!</h2>
-          <p className="subtitle">One quick step to get you set up</p>
+          <h2 id="history-link-title">Find my player history</h2>
+          <p className="subtitle">Connect your club name to your sign-in.</p>
+          <button type="button" onClick={handleSkip} disabled={saving}>Close</button>
         </div>
 
         {error && (
-          <div className="error-banner">
+          <div className="error-banner" role="alert">
             {error}
           </div>
         )}
@@ -62,8 +71,6 @@ const OnboardingModal = ({
             suggestedName={suggestedName}
           />
         )}
-      </div>
-
       <style jsx>{`
         .onboarding-overlay {
           position: fixed;
@@ -80,6 +87,9 @@ const OnboardingModal = ({
         }
 
         .onboarding-modal {
+          border: 0;
+          padding: 0;
+          width: min(480px, calc(100vw - 40px));
           background: white;
           border-radius: 16px;
           max-width: 480px;
@@ -88,6 +98,8 @@ const OnboardingModal = ({
           overflow-y: auto;
           box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
+
+        .onboarding-modal::backdrop { background: rgba(0, 0, 0, 0.7); }
 
         .modal-header {
           text-align: center;
@@ -145,7 +157,7 @@ const OnboardingModal = ({
           margin: 0;
         }
       `}</style>
-    </div>
+    </dialog>
   );
 };
 

@@ -90,8 +90,8 @@ const LegacyNameSelector = ({
       <div className="selector-header">
         <h3>Link Your Account</h3>
         <p>
-          Select your name from the Wing Point Golf tee sheet to sync your signups
-          with the existing system.
+          Select your club name to connect your history and signups. If that player
+          already has a profile, ask a club admin to connect your login in Account links.
         </p>
         {currentName && (
           <p className="current-name">
@@ -116,6 +116,7 @@ const LegacyNameSelector = ({
       <div className="search-container">
         <input
           type="text"
+          aria-label="Search for your club name"
           placeholder="Search for your name..."
           value={searchQuery}
           onChange={(e) => {
@@ -136,9 +137,8 @@ const LegacyNameSelector = ({
               <li
                 key={name}
                 className={`player-option ${name === selectedName ? 'selected' : ''}`}
-                onClick={() => handleSelect(name)}
               >
-                {name}
+                <button type="button" onClick={() => handleSelect(name)}>{name}</button>
               </li>
             ))}
             {filteredPlayers.length > 10 && (

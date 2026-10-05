@@ -247,7 +247,7 @@ async def update_my_legacy_name(
             if link_result["status"] == "claimed":
                 raise HTTPException(
                     status_code=409,
-                    detail=f"'{canonical}' is already linked to another account.",
+                    detail=f"'{canonical}' already has a player profile. Ask a club admin to connect your sign-in to that player in Account links.",
                 )
             raise HTTPException(status_code=400, detail="Could not link this club player.")
         legacy_name = canonical

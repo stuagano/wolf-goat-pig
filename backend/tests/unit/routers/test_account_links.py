@@ -166,6 +166,7 @@ def test_email_only_link_resolves_same_profile_on_case_insensitive_login(account
             db,
             {
                 "sub": "auth0|new-email-login",
+                "email_verified": True,
                 "email": "KEVIN@EXAMPLE.COM",
                 "name": "kevin@example.com",
             },

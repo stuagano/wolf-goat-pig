@@ -82,6 +82,38 @@ beforeEach(() => {
 // Linking is now optional — needsLegacyName is permanently false.
 // The modal never blocks new users regardless of profile state.
 describe("OnboardingWrapper fuzzy legacy-name flow", () => {
+  test("offers optional history linking and honors skip for this login", async () => {
+    installFetch();
+    render(<OnboardingWrapper><div>App Content</div></OnboardingWrapper>);
+    expect(await screen.findByRole("button", { name: "Find my player history" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Not now" }));
+    expect(screen.queryByRole("button", { name: "Find my player history" })).not.toBeInTheDocument();
+    expect(screen.getByText("App Content")).toBeInTheDocument();
+  });
+
+  test("opens the existing selector only on request and shows an admin conflict", async () => {
+    installFetch();
+    const fetchNormal = global.fetch.getMockImplementation();
+    global.fetch.mockImplementation((url, options) => {
+      if (options?.method === "PUT") return Promise.resolve({ ok: false, status: 409, json: async () => ({ detail: "Ask a club admin to review Account links." }) });
+      return fetchNormal(url, options);
+    });
+    render(<OnboardingWrapper><div>App Content</div></OnboardingWrapper>);
+    fireEvent.click(await screen.findByRole("button", { name: "Find my player history" }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Yes, link this player" }));
+    expect(await screen.findByText("Ask a club admin to review Account links.")).toBeInTheDocument();
+  });
+
+  test("shows the server's profile error with retry and sign-in actions", async () => {
+    global.fetch.mockResolvedValue({ ok: false, status: 403, json: async () => ({ detail: "Verify your email address, then sign in again." }) });
+    render(<OnboardingWrapper><div>App Content</div></OnboardingWrapper>);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Verify your email address");
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in again" })).toBeInTheDocument();
+  });
+
   test("never shows the onboarding modal even when legacy_name is null", async () => {
     installFetch({ legacyName: null, suggestion: SUGGESTION });
 

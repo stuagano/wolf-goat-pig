@@ -13,6 +13,7 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 
 import pytest
+from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -171,6 +172,7 @@ class TestPlayerProfileManagement:
         # Modify mock_auth0_user to use existing player's email
         auth0_user = {
             "sub": "auth0|new_auth0_id",
+            "email_verified": True,
             "email": "existing@example.com",  # Same as existing_player
             "name": "Different Name",
             "picture": "https://new-picture.com/img.jpg",
@@ -199,6 +201,7 @@ class TestPlayerProfileManagement:
         service = AuthService()
         auth0_user = {
             "sub": "auth0|avatar_update",
+            "email_verified": True,
             "email": "noavatar@example.com",
             "picture": "https://new-avatar.com/img.jpg",
         }
@@ -214,6 +217,7 @@ class TestPlayerProfileManagement:
         # existing_player has preferences but no auth0_id
         auth0_user = {
             "sub": "auth0|new_id_for_existing",
+            "email_verified": True,
             "email": "existing@example.com",
         }
 
@@ -274,8 +278,8 @@ class TestPlayerProfileManagement:
         assert player.name == "Stuart Gano"
         assert player.legacy_name == "Stuart Gano"
 
-    def test_duplicate_auth0_ids_prefer_legacy_linked_profile(self, db):
-        """When the same Auth0 sub is on multiple rows, keep the club-linked one."""
+    def test_duplicate_auth0_ids_require_admin_review(self, db):
+        """Ambiguous subjects must not silently reassign a profile."""
         seed = PlayerProfile(
             name="Chris Exarhos",
             email=None,
@@ -296,17 +300,17 @@ class TestPlayerProfileManagement:
         db.commit()
 
         service = AuthService()
-        player = service.get_or_create_player_profile(
-            db,
-            {"sub": "google-oauth2|stuart", "email": "stuart@example.com", "name": "Stuart Gano"},
-        )
-        assert player.id == real.id
-        assert player.legacy_name == "Stuart Gano"
+        with pytest.raises(HTTPException) as error:
+            service.get_or_create_player_profile(
+                db,
+                {"sub": "google-oauth2|stuart", "email": "stuart@example.com", "name": "Stuart Gano"},
+            )
+        assert error.value.status_code == 409
         db.refresh(seed)
-        assert seed.preferences.get("auth0_id") is None
+        assert seed.preferences.get("auth0_id") == real.preferences.get("auth0_id") == "google-oauth2|stuart"
 
-    def test_email_backfill_reclaims_from_ghost_profile(self, db):
-        """Backfilling email must not 500 when a ghost row already owns it."""
+    def test_email_backfill_preserves_other_profiles(self, db):
+        """Backfilling must not silently remove another profile's email."""
         ghost = PlayerProfile(
             name="Stuart Gano Ghost",
             email="stuart@example.com",
@@ -332,9 +336,9 @@ class TestPlayerProfileManagement:
             {"sub": "google-oauth2|stuart", "email": "stuart@example.com", "name": "Stuart Gano"},
         )
         assert player.id == real.id
-        assert player.email == "stuart@example.com"
+        assert player.email is None
         db.refresh(ghost)
-        assert ghost.email is None
+        assert ghost.email == "stuart@example.com"
 
     def test_email_backfill_skips_when_other_profile_is_linked(self, db):
         """Do not steal email from another Auth0-linked profile."""
@@ -586,6 +590,7 @@ class TestUpdatedAtTimestamp:
         service = AuthService()
         auth0_user = {
             "sub": "auth0|timestamp_update",
+            "email_verified": True,
             "email": "timestamp@example.com",
             "picture": "https://new.com/img.jpg",  # Triggers update
         }
