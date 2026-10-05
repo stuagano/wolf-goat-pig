@@ -62,4 +62,12 @@ describe('HomePage club-player reminder', () => {
 
     expect(screen.queryByText(/Finish linking your club player/i)).not.toBeInTheDocument();
   });
+
+  test('greets the linked roster player instead of the Auth0 email', () => {
+    useAuth0.mockReturnValue({ isAuthenticated: true, user: { name: 'kevin@example.com' } });
+    usePlayerProfile.mockReturnValue({ profile: { legacy_name: 'Kevin Gent', name: 'kevin@example.com' } });
+    render(<HomePage />);
+    expect(screen.getByText(/Welcome back, Kevin\./)).toBeInTheDocument();
+    expect(screen.queryByText(/Welcome back, kevin@example.com/)).not.toBeInTheDocument();
+  });
 });

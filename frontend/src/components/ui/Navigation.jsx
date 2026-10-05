@@ -5,6 +5,7 @@ import { useTheme } from '../../theme/Provider';
 import { usePlayerProfile } from '../../hooks/usePlayerProfile';
 import NotificationBell from './NotificationBell';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
+import { playerDisplayName } from '../../utils/playerDisplayName';
 
 // Single source of truth for this component's stacking order. A child's
 // z-index only competes within its own parent's stacking context — it was
@@ -33,7 +34,7 @@ const Navigation = () => {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   const { isAuthenticated, user, loginWithRedirect, logout } = useAuth0();
-  const { isSuperAdmin } = usePlayerProfile();
+  const { isSuperAdmin, profile } = usePlayerProfile();
 
   const showAdminLink = isAuthenticated && isSuperAdmin === true;
 
@@ -449,7 +450,7 @@ const Navigation = () => {
                       }}
                       onClick={() => handleNavigate('/account')}
                     >
-                      👤 {user?.name || 'Account'}
+                      👤 {playerDisplayName(profile, user)}
                     </button>
                     <button
                       style={{...navButtonStyle, fontSize: 14, borderColor: 'rgba(255,255,255,0.5)'}}

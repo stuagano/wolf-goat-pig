@@ -5,6 +5,7 @@ import { LoginButton, AuthHealthCheck } from '../components/auth';
 import StaleGameBanner from '../components/game/StaleGameBanner';
 import usePlayerProfile from '../hooks/usePlayerProfile';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
+import { playerDisplayName } from '../utils/playerDisplayName';
 import './HomePage.css';
 
 const ADVANCED_TOOLS = [
@@ -78,7 +79,7 @@ function HomePage() {
             </div>
           ) : (
             <p className="wgp-home__welcome">
-              Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}. Pick what you need —
+              Welcome back, {playerDisplayName(profile, user).split(' ')[0]}. Pick what you need —
               the rest stays out of the way.
             </p>
           )}
