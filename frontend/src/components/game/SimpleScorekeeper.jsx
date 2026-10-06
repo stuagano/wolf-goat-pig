@@ -445,7 +445,6 @@ const SimpleScorekeeper = ({
   // object IS the closure surface of the original inline handlers.
   const {
     resetHole,
-    getEffectiveQuarters,
     handleSubmitHole,
     handleEditModalSave,
     handleEditHoleFromScorecard,
@@ -857,7 +856,35 @@ const SimpleScorekeeper = ({
         holeHistory={holeHistory}
       />
 
-      {/* Enhanced Hole Title Section - Combines hole info, hitting order, and strokes */}
+      <h2 data-testid="scoring-hole-heading" style={{ margin: "0 0 16px", color: theme.colors.textPrimary }}>
+        {currentHole > 18 ? "Round complete" : `${editingHole ? "Editing hole" : "Hole"} ${currentHole} of 18`}
+      </h2>
+
+      <QuartersPanel
+        players={players}
+        quarters={quarters}
+        setQuarters={setQuarters}
+        theme={theme}
+      />
+
+      <ErrorBanner error={error} setError={setError} theme={theme} />
+      <HoleNavigation
+        currentHole={currentHole}
+        editingHole={editingHole}
+        submitting={submitting}
+        holeHistory={holeHistory}
+        jumpToHole={jumpToHole}
+        handleSubmitHole={handleSubmitHole}
+      />
+
+      <details
+        open={isEditingCompleteGame || undefined}
+        style={{ background: theme.colors.paper, border: `1px solid ${theme.colors.border}`, borderRadius: "10px" }}
+      >
+        <summary style={{ padding: "14px 16px", cursor: "pointer", color: theme.colors.textPrimary }}>
+          <strong>Optional hole details</strong>
+        </summary>
+        <div style={{ padding: "0 12px 12px" }}>
       <HoleHeader
         currentHole={currentHole}
         courseData={courseData}
@@ -880,23 +907,6 @@ const SimpleScorekeeper = ({
         movePlayerInOrder={movePlayerInOrder}
       />
 
-      <QuartersPanel
-        players={players}
-        quarters={quarters}
-        setQuarters={setQuarters}
-        theme={theme}
-      />
-
-      <ErrorBanner error={error} setError={setError} theme={theme} />
-      <HoleNavigation
-        currentHole={currentHole}
-        editingHole={editingHole}
-        submitting={submitting}
-        holeHistory={holeHistory}
-        jumpToHole={jumpToHole}
-        handleSubmitHole={handleSubmitHole}
-      />
-
       <ScorecardSection
         theme={theme}
         players={players}
@@ -915,7 +925,7 @@ const SimpleScorekeeper = ({
         resetHole={resetHole}
       />
 
-      {/* Running totals — always visible for live scorekeeping and E2E */}
+      {/* Running totals and scorecard remain available in optional details. */}
       <div
         data-testid="running-totals"
         style={{
@@ -971,14 +981,6 @@ const SimpleScorekeeper = ({
         })}
       </div>
 
-      {showTeeToss && (
-        <TeeTossModal
-          players={localPlayers}
-          onClose={() => setShowTeeToss(false)}
-          onOrderComplete={handleTeeTossComplete}
-        />
-      )}
-
       {stuartModeEnabled && <StuartModeToggle
         assistMode={assistMode}
         setAssistMode={setAssistMode}
@@ -992,18 +994,6 @@ const SimpleScorekeeper = ({
         theme={theme}
       />
 
-      <SpecialActionsPanel
-        theme={theme}
-        players={players}
-        playerStandings={playerStandings}
-        floatInvokedBy={floatInvokedBy}
-        setFloatInvokedBy={setFloatInvokedBy}
-        optionInvokedBy={optionInvokedBy}
-        setOptionInvokedBy={setOptionInvokedBy}
-        showSpecialActions={showSpecialActions}
-        setShowSpecialActions={setShowSpecialActions}
-      />
-
       <UsageStatsPanel
         theme={theme}
         players={players}
@@ -1014,7 +1004,7 @@ const SimpleScorekeeper = ({
         setShowUsageStats={setShowUsageStats}
       />
 
-      <AnalysisPanels
+      {stuartModeEnabled && <AnalysisPanels
         theme={theme}
         players={players}
         scores={scores}
@@ -1030,9 +1020,20 @@ const SimpleScorekeeper = ({
         setShowBettingOdds={setShowBettingOdds}
         showShotAnalysis={showShotAnalysis}
         setShowShotAnalysis={setShowShotAnalysis}
-      />
+      />}
 
-      {/* Team Mode Selection + Team Selection */}
+      <section style={{ marginBottom: "16px" }}>
+        <h3 style={{ fontSize: "16px", color: theme.colors.textPrimary }}>
+          <strong>Teams &amp; bets</strong>
+          <span data-testid="team-details-summary" style={{ display: "block", marginTop: "4px", fontSize: "13px", color: theme.colors.textSecondary }}>
+            {teamMode === "solo"
+              ? `Solo · ${captain ? getPlayerName(captain) : "Choose captain"}`
+              : `Partners · ${team1.length ? team1.map(getPlayerName).join(" & ") : "Choose players"}`}
+            {duncanInvoked && " · Duncan"}
+            {floatInvokedBy && ` · Float: ${getPlayerName(floatInvokedBy)}`}
+            {optionInvokedBy && ` · Option: ${getPlayerName(optionInvokedBy)}`}
+          </span>
+        </h3>
       <TeamSelector
         players={players}
         teamMode={teamMode}
@@ -1056,18 +1057,18 @@ const SimpleScorekeeper = ({
         invisibleAardvarkTossed={invisibleAardvarkTossed}
         setInvisibleAardvarkTossed={setInvisibleAardvarkTossed}
       />
-
-      <DoubleOfferControl
-        stuartMode={stuartMode}
-        stuartTeamInfo={stuartTeamInfo}
-        pendingOffer={pendingOffer}
-        currentWager={currentWager}
-        getPlayerName={getPlayerName}
-        respondToOffer={respondToOffer}
-        createOffer={createOffer}
-        setAiMoves={setAiMoves}
+      <SpecialActionsPanel
         theme={theme}
+        players={players}
+        playerStandings={playerStandings}
+        floatInvokedBy={floatInvokedBy}
+        setFloatInvokedBy={setFloatInvokedBy}
+        optionInvokedBy={optionInvokedBy}
+        setOptionInvokedBy={setOptionInvokedBy}
+        showSpecialActions={showSpecialActions}
+        setShowSpecialActions={setShowSpecialActions}
       />
+      </section>
 
       <OptionalEntryPanels
         theme={theme}
@@ -1101,7 +1102,29 @@ const SimpleScorekeeper = ({
         />
       )}
 
-      {/* Old scorecard removed - now showing golf-style scorecard at top */}
+        </div>
+      </details>
+
+      {/* Pending offers and dialogs must remain visible outside collapsed details. */}
+      <DoubleOfferControl
+        stuartMode={stuartMode}
+        stuartTeamInfo={stuartTeamInfo}
+        pendingOffer={pendingOffer}
+        currentWager={currentWager}
+        getPlayerName={getPlayerName}
+        respondToOffer={respondToOffer}
+        createOffer={createOffer}
+        setAiMoves={setAiMoves}
+        theme={theme}
+      />
+
+      {showTeeToss && (
+        <TeeTossModal
+          players={localPlayers}
+          onClose={() => setShowTeeToss(false)}
+          onOrderComplete={handleTeeTossComplete}
+        />
+      )}
 
       {/* Edit Player Name Modal */}
       {editingPlayerName && (

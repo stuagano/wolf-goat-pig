@@ -81,32 +81,3 @@ describe('isNegativeInput', () => {
     expect(isNegativeInput(0)).toBe(false);
   });
 });
-
-// Mirrors the auto-balance + sum logic in useHoleSubmission's getEffectiveQuarters,
-// proving that a half-typed "-" no longer silently zeroes a player.
-describe('quarters auto-balance using parseQuarter', () => {
-  const autoBalance = (players, quarters) => {
-    const effective = { ...quarters };
-    const entered = [];
-    const empty = [];
-    players.forEach((p) => {
-      const n = parseQuarter(effective[p.id]);
-      if (n === null) empty.push(p.id);
-      else entered.push({ id: p.id, value: n });
-    });
-    if (empty.length === 1 && entered.length >= 1) {
-      const sum = entered.reduce((acc, e) => acc + e.value, 0);
-      effective[empty[0]] = String(-sum);
-    }
-    return effective;
-  };
-
-  const players = [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }];
-
-  test('a lone half-typed "-" is treated as the empty slot and auto-filled', () => {
-    const result = autoBalance(players, { a: '2', b: '1', c: '-1', d: '-' });
-    expect(result.d).toBe('-2'); // -(2 + 1 - 1)
-    const sum = players.reduce((s, p) => s + parseQuarter(result[p.id]), 0);
-    expect(sum).toBe(0);
-  });
-});

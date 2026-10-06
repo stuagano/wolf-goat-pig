@@ -88,6 +88,8 @@ describe('Stuart Mode characterization', () => {
       expect(screen.queryByTestId('stuart-mode-toggle')).not.toBeInTheDocument();
       expect(screen.queryByTestId('hole-phase-strip')).not.toBeInTheDocument();
       expect(screen.queryByTestId('whisperer-toggle')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Real-Time Odds/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Shot Recommendations/)).not.toBeInTheDocument();
       expect(screen.getByTestId('quarters-input-p1')).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
@@ -97,6 +99,8 @@ describe('Stuart Mode characterization', () => {
   test('toggle renders and is OFF by default (no phase strip)', () => {
     renderScorekeeper();
     expect(screen.getByTestId('stuart-mode-toggle')).toBeInTheDocument();
+    expect(screen.getByText(/Real-Time Odds/)).toBeInTheDocument();
+    expect(screen.getByText(/Shot Recommendations/)).toBeInTheDocument();
     expect(screen.queryByTestId('hole-phase-strip')).not.toBeInTheDocument();
   });
 

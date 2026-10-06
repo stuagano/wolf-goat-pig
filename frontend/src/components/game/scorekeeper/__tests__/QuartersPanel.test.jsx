@@ -20,17 +20,18 @@ const players = [
 ];
 
 // Controlled wrapper so we can observe what QuartersPanel writes back.
-function Harness({ initial = {} }) {
+function Harness({ initial = {}, roster = players }) {
   const [quarters, setQuarters] = useState(initial);
   return (
     <>
       <QuartersPanel
-        players={players}
+        players={roster}
         quarters={quarters}
         setQuarters={setQuarters}
         theme={theme}
       />
       <output data-testid="q-p1">{quarters.p1 ?? ''}</output>
+      <output data-testid="quarters-state">{JSON.stringify(quarters)}</output>
     </>
   );
 }
@@ -41,6 +42,31 @@ const amountInput = () => screen.getAllByPlaceholderText('0')[0];
 const value = () => screen.getByTestId('q-p1').textContent;
 
 describe('QuartersPanel outcome and amount', () => {
+  test.each([
+    [{ p1: '12', p2: '-4', p3: '-4' }, 'Lost 4', '-4'],
+    [{ p1: '-12', p2: '4', p3: '4', p4: '-' }, 'Won 4', '4'],
+    [{ p1: '4', p2: '-4', p3: '0' }, '0 (push)', '0'],
+    [{ p1: '0.1', p2: '0.2', p3: '0' }, 'Lost 0.3', '-0.3'],
+  ])('fills only after confirmation, including losses, wins, pushes and fractions', (initial, label, expected) => {
+    const roster = [...players, { id: 'p3', name: 'Casey' }, { id: 'p4', name: 'Kevin' }];
+    render(<Harness initial={initial} roster={roster} />);
+    expect(screen.getByTestId('zero-sum-validation')).toHaveTextContent('1 player left');
+    expect(JSON.parse(screen.getByTestId('quarters-state').textContent)).toEqual(initial);
+    fireEvent.click(screen.getByRole('button', { name: `Fill remaining for Kevin: ${label}` }));
+    expect(JSON.parse(screen.getByTestId('quarters-state').textContent)).toEqual({ ...initial, p4: expected });
+    expect(screen.getByTestId('zero-sum-validation')).toHaveTextContent('Balanced');
+    expect(screen.queryByRole('button', { name: /Fill remaining/ })).not.toBeInTheDocument();
+  });
+
+  test('does not suggest a fill with multiple blanks or report an incomplete zero sum as balanced', () => {
+    render(<Harness />);
+    expect(screen.queryByRole('button', { name: /Fill remaining/ })).not.toBeInTheDocument();
+    fireEvent.change(amountInput(), { target: { value: '0' } });
+    expect(screen.getByTestId('zero-sum-validation')).not.toHaveTextContent('Balanced');
+    fireEvent.change(screen.getByTestId('quarters-input-p2'), { target: { value: '0' } });
+    expect(screen.getByTestId('zero-sum-validation')).toHaveTextContent('Balanced');
+  });
+
   test('Lost survives blur and clearing so unsigned digits always record a loss', () => {
     render(<Harness />);
     fireEvent.click(lost());
