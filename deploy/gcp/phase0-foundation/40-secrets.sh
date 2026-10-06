@@ -26,6 +26,7 @@ SECRETS=(
   BOOKING_SERVICE_SECRET
   FORETEES_ENCRYPTION_KEY  # Fernet key for per-user ForeTees creds — do not lose
   INTERNAL_JOB_TOKEN       # Phase 4: guards POST /internal/jobs/* (Cloud Scheduler)
+  WGP_FEEDBACK_GITHUB_TOKEN # stuagano credential for in-app feedback issues
 )
 
 for name in "${SECRETS[@]}"; do
