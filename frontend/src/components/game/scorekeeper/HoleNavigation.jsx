@@ -54,12 +54,14 @@ const HoleNavigation = ({
               disabled={submitting || pastRound}
             >
               {submitting
-                ? "Submitting..."
+                ? "Saving..."
                 : editingHole
-                  ? `Update Hole ${editingHole}`
+                  ? `Save changes to hole ${editingHole}`
                   : pastRound
                     ? "Round complete"
-                    : `\u2713 Complete Hole ${currentHole}`}
+                    : currentHole === 18
+                      ? "Save & finish round"
+                      : "Save & next hole"}
             </button>
           );
         })()}

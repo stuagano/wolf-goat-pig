@@ -26,7 +26,12 @@ const QuartersPanel = ({
       setQuarters({ ...quarters, [playerId]: clean });
     }
   };
-  const hasAnyValue = Object.values(quarters).some((v) => parseQuarter(v) !== null);
+  const missingPlayers = players.filter((p) => parseQuarter(quarters[p.id]) === null);
+  const remainingPlayer = missingPlayers.length === 1 && players.length > 1 && Number.isFinite(totalSum)
+    ? missingPlayers[0] : null;
+  const remaining = Number((-totalSum).toFixed(10));
+  const remainingLabel = remaining === 0 ? "0 (push)"
+    : `${remaining < 0 ? "Lost" : "Won"} ${Math.abs(remaining)}`;
 
   const handlePush = () => {
     const allZero = {};
@@ -40,8 +45,9 @@ const QuartersPanel = ({
     setQuarters(cleared);
   };
 
-  const isBalanced = hasAnyValue && Math.abs(totalSum) < 0.001;
-  const isUnbalanced = hasAnyValue && Math.abs(totalSum) > 0.001;
+  const allEntered = players.length > 0 && missingPlayers.length === 0;
+  const isBalanced = allEntered && Math.abs(totalSum) < 0.001;
+  const isUnbalanced = allEntered && !isBalanced;
 
   return (
     <div style={{ marginBottom: "20px" }}>
@@ -77,7 +83,9 @@ const QuartersPanel = ({
           transition: "all 0.2s ease",
         }}
       >
-        {isBalanced
+        {missingPlayers.length > 0
+          ? `${missingPlayers.length} player${missingPlayers.length === 1 ? "" : "s"} left — enter quarters${remainingPlayer ? " or use Fill remaining" : ""}`
+          : isBalanced
           ? "Balanced"
           : isUnbalanced
             ? `Off by ${totalSum > 0 ? "+" : ""}${totalSum.toFixed(1)} — must equal zero`
@@ -151,6 +159,21 @@ const QuartersPanel = ({
                 }}
               />
               </div>
+              {remainingPlayer?.id === player.id && (
+                <button
+                  type="button"
+                  aria-label={`Fill remaining for ${player.name}: ${remainingLabel}`}
+                  onClick={() => setQuarters({ ...quarters, [player.id]: String(remaining) })}
+                  style={{
+                    flexBasis: "100%", minHeight: "44px", padding: "8px 12px",
+                    border: `1px solid ${theme.colors.border}`, borderRadius: "8px",
+                    background: theme.colors.backgroundSecondary, color: theme.colors.textPrimary,
+                    fontWeight: "bold", cursor: "pointer",
+                  }}
+                >
+                  Fill remaining: {remainingLabel}
+                </button>
+              )}
             </div>
           );
         })}

@@ -1,7 +1,8 @@
 // frontend/src/components/game/__tests__/SimpleScorekeeper.betting.test.js
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import SimpleScorekeeper from '../SimpleScorekeeper';
+import syncManager from '../../../services/syncManager';
 import {
   createMockTheme,
   createMockPlayers,
@@ -165,6 +166,40 @@ describe('SimpleScorekeeper - Betting Interface', () => {
   });
 
   describe('Team Mode Display', () => {
+    test('Teams & bets starts closed, summarizes edits, and preserves them when reopened', () => {
+      render(<SimpleScorekeeper {...defaultProps} />);
+      const summary = screen.getByText('Optional hole details').closest('summary');
+      const section = summary.closest('details');
+      const teamSummary = screen.getByTestId('team-details-summary');
+      expect(section).not.toHaveAttribute('open');
+      expect(teamSummary).toHaveTextContent('Partners · Choose players');
+      expect(screen.getByTestId('go-solo-button')).not.toBeVisible();
+      expect(screen.getByText('Special Actions')).not.toBeVisible();
+      expect(screen.getByTestId('quarters-input-p1')).toBeVisible();
+
+      fireEvent.click(summary);
+      expect(screen.getByTestId('go-solo-button')).toBeVisible();
+      expect(screen.getByText('Special Actions')).toBeVisible();
+      fireEvent.click(screen.getByTestId('partner-p1'));
+      fireEvent.click(screen.getByTestId('partner-p2'));
+      expect(teamSummary).toHaveTextContent('Partners · Alice & Bob');
+      const specialActions = screen.getByText('Special Actions');
+      fireEvent.click(specialActions);
+      const specialPanel = specialActions.closest('div').parentElement;
+      fireEvent.click(within(specialPanel).getAllByRole('button', { name: 'Alice' })[0]);
+      expect(teamSummary).toHaveTextContent('Float: Alice');
+
+      fireEvent.click(summary);
+      expect(section).not.toHaveAttribute('open');
+      expect(teamSummary).toHaveTextContent('Partners · Alice & Bob');
+      fireEvent.click(summary);
+      expect(teamSummary).toHaveTextContent('Partners · Alice & Bob');
+      expect(teamSummary).toHaveTextContent('Float: Alice');
+      fireEvent.click(screen.getByTestId('go-solo-button'));
+      expect(teamSummary).toHaveTextContent('Solo');
+      expect(screen.getByText(/Call The Duncan/i)).toBeVisible();
+    });
+
     test('should show Partners or Solo indicator', () => {
       render(<SimpleScorekeeper {...defaultProps} />);
 
@@ -215,6 +250,31 @@ describe('SimpleScorekeeper - Betting Interface', () => {
   });
 
   describe('Integration with Game Flow', () => {
+    test('records quarters and advances without opening optional details or choosing teams', async () => {
+      const sync = vi.spyOn(syncManager, 'syncHoleData').mockResolvedValue({ success: true });
+      render(<SimpleScorekeeper {...defaultProps} />);
+      const details = screen.getByText('Optional hole details').closest('details');
+      expect(details).not.toHaveAttribute('open');
+      expect(screen.getByText(/^Wager$/i)).not.toBeVisible();
+      expect(screen.getByTestId('running-totals')).not.toBeVisible();
+      expect(screen.getByTestId('mock-scorecard')).not.toBeVisible();
+      expect(screen.getByTestId('scoring-hole-heading')).toHaveTextContent('Hole 1');
+      fireEvent.change(screen.getByTestId('quarters-input-p1'), { target: { value: '12' } });
+      for (const [id, name] of [['p2', 'Bob'], ['p3', 'Charlie']]) {
+        fireEvent.click(screen.getByRole('button', { name: `${name} lost quarters` }));
+        fireEvent.change(screen.getByTestId(`quarters-input-${id}`), { target: { value: '4' } });
+      }
+      fireEvent.click(screen.getByRole('button', { name: 'Fill remaining for Diana: Lost 4' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save & next hole' }));
+      await waitFor(() => expect(sync).toHaveBeenCalledWith(
+        'test-game-123', { '1': { p1: 12, p2: -4, p3: -4, p4: -4 } }, expect.any(Object), 2,
+      ));
+      await waitFor(() => expect(screen.getByTestId('scoring-hole-heading')).toHaveTextContent('Hole 2'));
+      expect(details).not.toHaveAttribute('open');
+      expect(screen.getByTestId('quarters-input-p1')).toHaveValue('');
+      sync.mockRestore();
+    });
+
     test('betting interface should be present in scorekeeper', () => {
       const { container } = render(<SimpleScorekeeper {...defaultProps} />);
 

@@ -13,10 +13,12 @@ const baseProps = {
 };
 
 describe('HoleNavigation — 18-hole round cap', () => {
-  test('shows an active "Complete Hole N" button during the round', () => {
-    render(<HoleNavigation {...baseProps} currentHole={18} />);
+  test('offers Save & next hole during the round and Save & finish round on hole 18', () => {
+    const { rerender } = render(<HoleNavigation {...baseProps} />);
+    expect(screen.getByTestId('complete-hole-button')).toHaveTextContent('Save & next hole');
+    rerender(<HoleNavigation {...baseProps} currentHole={18} />);
     const btn = screen.getByTestId('complete-hole-button');
-    expect(btn).toHaveTextContent('Complete Hole 18');
+    expect(btn).toHaveTextContent('Save & finish round');
     expect(btn).not.toBeDisabled();
   });
 
@@ -33,7 +35,7 @@ describe('HoleNavigation — 18-hole round cap', () => {
   test('editing an existing hole still works regardless of currentHole sentinel', () => {
     render(<HoleNavigation {...baseProps} currentHole={19} editingHole={7} />);
     const btn = screen.getByTestId('complete-hole-button');
-    expect(btn).toHaveTextContent('Update Hole 7');
+    expect(btn).toHaveTextContent('Save changes to hole 7');
     expect(btn).not.toBeDisabled();
   });
 });

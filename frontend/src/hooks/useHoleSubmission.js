@@ -1,6 +1,6 @@
 // frontend/src/hooks/useHoleSubmission.js
 // Hole submission/edit lifecycle for SimpleScorekeeper — moved verbatim:
-// resetHole, getEffectiveQuarters (auto-balance), handleSubmitHole,
+// resetHole, handleSubmitHole,
 // handleEditModalSave, handleEditHoleFromScorecard.
 //
 // Takes one ctx object (the closure surface is ~50 identifiers); destructured
@@ -256,28 +256,6 @@ const useHoleSubmission = (ctx) => {
     setCurrentHoleBettingEvents([]);
   };
 
-  // Compute effective quarters with auto-balance applied
-  const getEffectiveQuarters = () => {
-    const effective = { ...quarters };
-    const entered = [];
-    const empty = [];
-    players.forEach((p) => {
-      // A half-typed "-"/"." parses to null and counts as empty (not 0), so
-      // auto-balance can fill it and a partial entry never silently zeroes.
-      const val = parseQuarter(effective[p.id]);
-      if (val === null) {
-        empty.push(p.id);
-      } else {
-        entered.push({ id: p.id, value: val });
-      }
-    });
-    if (empty.length === 1 && entered.length >= 1) {
-      const sum = entered.reduce((acc, e) => acc + e.value, 0);
-      effective[empty[0]] = (-sum).toString();
-    }
-    return effective;
-  };
-
   // Submit hole to backend
   const handleSubmitHole = async () => {
     // A round is 18 holes — there is no hole 19+. Without this guard,
@@ -288,9 +266,8 @@ const useHoleSubmission = (ctx) => {
       return;
     }
 
-    // Apply auto-balance before validation
-    const effectiveQuarters = getEffectiveQuarters();
-    setQuarters(effectiveQuarters);
+    // Save only amounts the scorekeeper entered or explicitly confirmed.
+    const effectiveQuarters = { ...quarters };
 
     // Validate with effective quarters
     const allPlayers = players.map((p) => p.id);
@@ -547,7 +524,6 @@ const useHoleSubmission = (ctx) => {
 
   return {
     resetHole,
-    getEffectiveQuarters,
     handleSubmitHole,
     handleEditModalSave,
     handleEditHoleFromScorecard,

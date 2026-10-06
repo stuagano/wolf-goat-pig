@@ -3,8 +3,9 @@
  * survive into hole history and the /scores optional_details blob. Without
  * that, float-once UI never arms and money rules can't be reconstructed.
  */
-import { describe, test, expect } from 'vitest';
-import {
+import { describe, test, expect, vi } from 'vitest';
+import { renderHook } from '@testing-library/react';
+import useHoleSubmission, {
   buildHoleSubmitPayload,
   standingsFromHistory,
 } from '../useHoleSubmission';
@@ -20,6 +21,24 @@ const FIVE = [
   ...PLAYERS,
   { id: 'p5', name: 'Eve' },
 ];
+
+test.each(['', '-', '.'])('saving does not silently fill an unconfirmed amount %j', async (blank) => {
+  const quarters = { p1: '12', p2: '-4', p3: '-4', p4: blank };
+  const setError = vi.fn();
+  const setQuarters = vi.fn();
+  const setSubmitting = vi.fn();
+  const syncHole = vi.fn();
+  const { result } = renderHook(() => useHoleSubmission({
+    players: PLAYERS, quarters, currentHole: 1, holeHistory: [],
+    setError, setQuarters, setSubmitting, syncHole,
+  }));
+  await result.current.handleSubmitHole();
+  expect(setError).toHaveBeenCalledWith(expect.stringMatching(/enter.*quarters/i));
+  expect(setQuarters).not.toHaveBeenCalled();
+  expect(setSubmitting).not.toHaveBeenCalled();
+  expect(syncHole).not.toHaveBeenCalled();
+  expect(quarters.p4).toBe(blank);
+});
 
 describe('buildHoleSubmitPayload', () => {
   test('partners mode fills team2 as everyone not on team1', () => {
