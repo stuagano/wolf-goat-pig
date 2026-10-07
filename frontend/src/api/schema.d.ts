@@ -1950,6 +1950,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit Feedback */
+        post: operations["submit_feedback_feedback_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/game-results": {
         parameters: {
             query?: never;
@@ -5269,6 +5286,30 @@ export interface components {
             signup_reminders_enabled?: boolean | null;
             /** Weekly Summary Enabled */
             weekly_summary_enabled?: boolean | null;
+        };
+        /** FeedbackRequest */
+        FeedbackRequest: {
+            /** Description */
+            description: string;
+            /**
+             * Steps
+             * @default
+             */
+            steps: string;
+            /** Title */
+            title: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "bug" | "feature" | "general";
+        };
+        /** FeedbackResponse */
+        FeedbackResponse: {
+            /** Number */
+            number: number;
+            /** Url */
+            url: string;
         };
         /** ForeteesCredentials */
         ForeteesCredentials: {
@@ -9363,6 +9404,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_feedback_feedback_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackResponse"];
                 };
             };
             /** @description Validation Error */

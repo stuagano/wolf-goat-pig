@@ -64,6 +64,7 @@ const Navigation = () => {
     { path: '/ask', label: 'Ask Commissioner', icon: '⚖️' },
     { path: '/analytics', label: 'Analytics', icon: '📈' },
     { path: '/about', label: 'About', icon: 'ℹ️' },
+    { path: '/feedback', label: 'Feedback', icon: '✉️' },
     { href: 'https://docs.google.com/spreadsheets/d/141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ', label: 'Legacy Standings', icon: '📊', external: true },
     ...(showAdminLink ? [{ path: '/admin', label: 'Admin', icon: '🔧' }] : [])
   ];
@@ -88,6 +89,7 @@ const Navigation = () => {
     { path: '/ask', label: '⚖️ Ask Commissioner', primary: false },
     { path: '/analytics', label: '📈 Analytics', primary: false },
     { path: '/about', label: 'ℹ️ About', primary: false },
+    { path: '/feedback', label: '✉️ Feedback', primary: false },
     { path: '/rules', label: '📋 Rules', primary: false },
     { href: 'https://docs.google.com/spreadsheets/d/141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ', label: '📊 Legacy Standings', primary: false, external: true },
     ...(showAdminLink ? [{ path: '/admin', label: '🔧 Admin', primary: true }] : [])
