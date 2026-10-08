@@ -8346,7 +8346,9 @@ export interface operations {
                 /** @description YYYY-MM-DD to evaluate; defaults to the upcoming Sunday */
                 game_date?: string | null;
             };
-            header?: never;
+            header?: {
+                "x-internal-job-token"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };

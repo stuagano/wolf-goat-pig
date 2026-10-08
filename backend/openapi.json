@@ -4739,6 +4739,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Ensure Schema Endpoint",
         "tags": [
           "health"
@@ -5003,6 +5008,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Seed Course Holes",
         "tags": [
           "health"
@@ -6769,6 +6779,22 @@
               ],
               "description": "YYYY-MM-DD to evaluate; defaults to the upcoming Sunday",
               "title": "Game Date"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-job-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Job-Token"
             }
           }
         ],

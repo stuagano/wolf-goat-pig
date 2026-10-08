@@ -51,3 +51,5 @@ jobs:
       url: https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/callouts/run?window=${{ needs.determine-window.outputs.window }}
       headers: 'Content-Type: application/json'
       max-time: 60
+    secrets:
+      INTERNAL_JOB_TOKEN: ${{ secrets.INTERNAL_JOB_TOKEN }}
