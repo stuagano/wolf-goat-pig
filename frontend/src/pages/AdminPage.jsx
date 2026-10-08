@@ -10,6 +10,7 @@ import GHINIntegration from '../components/integration/GHINIntegration';
 import FoursomesManager from './admin/FoursomesManager';
 import DatabaseManager from './admin/DatabaseManager';
 import AccountLinkingManager from './admin/AccountLinkingManager';
+import AdminManager from './admin/AdminManager';
 import FeatureToggles from './admin/FeatureToggles';
 import { apiConfig } from '../config/api.config';
 
@@ -526,6 +527,16 @@ const AdminPage = () => {
             👤 Account links
           </button>
           <button
+            onClick={() => setActiveTab('admins')}
+            className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${
+              activeTab === 'admins'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            🔑 Admins
+          </button>
+          <button
             onClick={() => navigate('/admin/roster')}
             className="flex-1 px-4 py-2 rounded-md font-medium transition-colors text-gray-600 hover:text-gray-900"
           >
@@ -999,6 +1010,9 @@ const AdminPage = () => {
 
         {/* Players Tab */}
         {activeTab === 'players' && <AccountLinkingManager />}
+
+        {/* Admins Tab */}
+        {activeTab === 'admins' && <AdminManager />}
 
         {/* Banners Tab */}
         {activeTab === 'banners' && (
