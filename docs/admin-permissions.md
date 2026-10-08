@@ -8,8 +8,7 @@ Markers: ⚠️ destructive, ✉️ sends email or touches an outside system.
 
 ## Who is an admin
 
-There are two ways to be an admin. Both have exactly the same powers, with one
-exception (see [LivSOW team pages](#livsow-team-page-edit-override)).
+There are two ways to be an admin. Both have exactly the same powers.
 
 | Kind | Where it is set | Who can change it |
 |---|---|---|
@@ -37,7 +36,7 @@ Rules:
 | Action | Where | Notes |
 |---|---|---|
 | Search accounts and their Auth0 links | **Account links** tab (`GET /players/admin/account-links`) | |
-| Relink a login to a different profile | **Account links** tab (`POST /players/admin/relink-auth0`) | |
+| Relink a login to a different profile | **Account links** tab (`POST /players/admin/relink-auth0`) | Relinking a profile to a different login removes its admin access; re-grant it in the Admins tab. |
 | Read any profile | `GET /players/{id}` | Includes email and Auth0 ID. |
 | Edit any profile | `PUT /players/{id}` | |
 | ⚠️ Retire a profile | `DELETE /players/{id}` | Deactivates it and clears its email, Auth0 link, GHIN ID, and admin access. |
@@ -99,12 +98,7 @@ Rules:
 | Seed team starters | `POST /data/livsow/teams/seed-starters` | |
 | Set official team logos | `POST /data/livsow/teams/set-official-logos` | |
 | Delete a transaction | `DELETE /data/livsow/transactions/{id}` | Soft delete. |
-
-#### LivSOW team-page edit override
-
-Editing a team's franchise page (`PUT /data/livsow/teams/{slug}/content`) is allowed for that
-team's captain or for an admin. For this one check, "admin" means a config admin
-(`SUPER_ADMIN_EMAILS`) only. In-app admins do not get the override.
+| Edit any team's franchise page | `PUT /data/livsow/teams/{slug}/content` | Also allowed for that team's captain. |
 
 ### Database & system
 

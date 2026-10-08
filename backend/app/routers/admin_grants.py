@@ -56,6 +56,13 @@ def grant_admin(
             status_code=400,
             detail="This profile needs to sign in (and be linked) before it can be made an admin.",
         )
+    auth0_id = player.preferences["auth0_id"]
+    shared = db.query(PlayerProfile).filter(PlayerProfile.preferences["auth0_id"].as_string() == auth0_id).count()
+    if shared > 1:
+        raise HTTPException(
+            status_code=400,
+            detail="This login matches multiple profiles. Fix it in Account links before making it an admin.",
+        )
     if not player.admin_granted:
         player.admin_granted = 1
         player.admin_granted_by = actor.get("email")

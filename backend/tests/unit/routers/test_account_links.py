@@ -246,3 +246,31 @@ def test_retiring_a_stray_profile_frees_its_login_for_the_original(accounts):
     linked = client.post("/players/admin/relink-auth0", json=link_payload(player_id=3))
     assert linked.status_code == 200, linked.text
     assert linked.json()["auth0_id"] == "auth0|test-kevin"
+
+
+def _flag_admin(sessions):
+    with sessions() as db:
+        player = db.get(PlayerProfile, 1)
+        player.admin_granted = 1
+        player.admin_granted_by = "admin@example.com"
+        player.admin_granted_at = "2026-10-01T00:00:00"
+        db.commit()
+
+
+def test_relink_to_different_login_clears_admin_flag(accounts):
+    client, sessions = accounts
+    _flag_admin(sessions)
+    assert client.post("/players/admin/relink-auth0", json=link_payload(auth0_id="auth0|new-kevin")).status_code == 200
+    with sessions() as db:
+        player = db.get(PlayerProfile, 1)
+        assert (player.admin_granted, player.admin_granted_by, player.admin_granted_at) == (0, None, None)
+
+
+def test_relink_keeping_same_login_keeps_admin_flag(accounts):
+    client, sessions = accounts
+    _flag_admin(sessions)
+    assert client.post("/players/admin/relink-auth0", json=link_payload()).status_code == 200
+    with sessions() as db:
+        player = db.get(PlayerProfile, 1)
+        assert player.admin_granted == 1
+        assert player.admin_granted_by == "admin@example.com"

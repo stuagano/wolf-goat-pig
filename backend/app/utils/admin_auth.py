@@ -1,4 +1,9 @@
-"""Super-admin authorization dependencies for FastAPI routes."""
+"""Admin authorization dependencies for FastAPI routes.
+
+A caller is an admin if their login email is on the ``SUPER_ADMIN_EMAILS`` env
+allowlist, or if their linked player profile carries an in-app admin grant
+(``player_profiles.is_admin``). Both kinds have the same powers.
+"""
 
 import os
 from typing import Any, Literal
@@ -61,7 +66,7 @@ def require_admin(
 ) -> dict[str, Any]:
     """Require an env-allowlisted email or an in-app admin grant."""
     if admin_role(db, auth0_user) == "normal":
-        raise HTTPException(status_code=403, detail="Super-admin access required")
+        raise HTTPException(status_code=403, detail="Admin access required")
     return auth0_user
 
 

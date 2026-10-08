@@ -233,6 +233,7 @@ class TestTeamContentEditing:
         from app.services.auth_service import get_current_user
 
         app.dependency_overrides.pop(get_current_user, None)
+        self._clear()
 
     def test_captain_can_edit_their_team(self):
         # High Beta captain is "Gregg Colburn" per the live sheet; create a
@@ -294,6 +295,30 @@ class TestTeamContentEditing:
                 headers={"X-Admin-Email": "stuagano@gmail.com"},
             )
             assert response.json() == {"can_edit": True}
+
+    def test_in_app_admin_can_edit_any_team(self):
+        from app import models
+        from app.database import SessionLocal
+        from app.utils.time import utc_now
+
+        pid = self._make_profile("Some Rando", "rando@example.com")
+        db = SessionLocal()
+        db.query(models.PlayerProfile).filter(models.PlayerProfile.id == pid).update(
+            {
+                "admin_granted": 1,
+                "is_active": 1,
+                "preferences": {"auth0_id": "auth0|admin-test"},
+                "updated_at": utc_now().isoformat(),
+            }
+        )
+        db.commit()
+        db.close()
+        with patch(PATCH_TARGET, return_value=_leaderboard()):
+            self._override_user(pid)
+            headers = {"X-Admin-Email": "normal@example.com"}
+            assert client.get("/data/livsow/teams/high-beta/can-edit", headers=headers).json() == {"can_edit": True}
+            resp = client.put("/data/livsow/teams/high-beta/content", json={"motto": "Admins rule"}, headers=headers)
+            assert resp.status_code == 200, resp.text
 
     def test_mutable_profile_email_cannot_grant_admin(self):
         pid = self._make_profile("Some Rando", "stuagano@gmail.com")

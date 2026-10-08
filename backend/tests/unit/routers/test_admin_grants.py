@@ -139,3 +139,36 @@ def test_retiring_a_profile_clears_admin(grants):
     with sessions() as db:
         player = db.get(PlayerProfile, 2)
         assert (player.admin_granted, player.admin_granted_by, player.admin_granted_at) == (0, None, None)
+
+
+def test_grant_rejects_login_shared_by_several_profiles(grants):
+    client, sessions = grants
+    with sessions() as db:
+        db.add(
+            PlayerProfile(
+                id=5,
+                name="Dupe",
+                email="dupe@example.com",
+                preferences={"auth0_id": "auth0|linked"},
+                created_at="2026-01-01",
+            )
+        )
+        db.commit()
+    resp = client.post("/players/admin/admins/2")
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == (
+        "This login matches multiple profiles. Fix it in Account links before making it an admin."
+    )
+    with sessions() as db:
+        assert not db.get(PlayerProfile, 2).admin_granted
+
+
+def test_non_admin_403_uses_admin_wording_and_is_not_logged_as_db_error(grants, caplog):
+    client, _ = grants
+    app.dependency_overrides[get_current_auth0_user] = lambda: {"sub": "auth0|linked", "email": "linked@example.com"}
+    app.dependency_overrides.pop(get_db, None)  # exercise the real get_db
+    with caplog.at_level("ERROR"):
+        resp = client.get("/players/admin/admins")
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "Admin access required"
+    assert not [r for r in caplog.records if "Database error" in r.getMessage()]
