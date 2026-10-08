@@ -43,7 +43,7 @@ def is_profile_admin(db: Session, auth0_sub: str | None) -> bool:
     matches = (
         db.query(PlayerProfile).filter(PlayerProfile.preferences["auth0_id"].as_string() == auth0_sub).limit(2).all()
     )
-    return len(matches) == 1 and bool(matches[0].is_active) and bool(matches[0].is_admin)
+    return len(matches) == 1 and bool(matches[0].is_active) and bool(matches[0].admin_granted)
 
 
 def admin_role(db: Session, auth0_user: dict[str, Any]) -> Literal["super_admin", "admin", "normal"]:

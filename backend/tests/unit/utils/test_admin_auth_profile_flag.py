@@ -25,7 +25,7 @@ def env(monkeypatch):
                     id=1,
                     name="Flagged",
                     email="flagged@example.com",
-                    is_admin=1,
+                    admin_granted=1,
                     preferences={"auth0_id": "auth0|flagged"},
                     created_at="2026-01-01",
                 ),
@@ -40,7 +40,7 @@ def env(monkeypatch):
                     id=3,
                     name="Retired",
                     email=None,
-                    is_admin=1,
+                    admin_granted=1,
                     is_active=0,
                     preferences={"auth0_id": "auth0|retired"},
                     created_at="2026-01-01",
@@ -97,7 +97,7 @@ def test_subject_matching_two_profiles_is_forbidden(env):
     with sessions() as db:
         db.add(
             PlayerProfile(
-                id=4, name="Dupe", is_admin=1, preferences={"auth0_id": "auth0|flagged"}, created_at="2026-01-01"
+                id=4, name="Dupe", admin_granted=1, preferences={"auth0_id": "auth0|flagged"}, created_at="2026-01-01"
             )
         )
         db.commit()
@@ -110,7 +110,7 @@ def test_revoke_takes_effect_on_next_request(env):
     login("auth0|flagged", "flagged@example.com")
     assert client.get(ADMIN_ONLY).status_code == 200
     with sessions() as db:
-        db.get(PlayerProfile, 1).is_admin = 0
+        db.get(PlayerProfile, 1).admin_granted = 0
         db.commit()
     assert client.get(ADMIN_ONLY).status_code == 403
 
@@ -120,3 +120,11 @@ def test_me_reports_admin_role_for_flagged_profile(env):
     login("auth0|flagged", "flagged@example.com")
     body = client.get("/players/me").json()
     assert (body["role"], body["is_admin"], body["is_super_admin"]) == ("admin", True, False)
+
+
+def test_stored_flag_does_not_leak_into_profile_responses(env):
+    client, _ = env
+    login("auth0|plain", "plain@example.com")
+    resp = client.get("/players/name/Flagged")
+    assert resp.status_code == 200
+    assert resp.json()["is_admin"] is False

@@ -243,7 +243,7 @@ class PlayerProfile(Base):
     is_ai = Column(Integer, default=0)
     # In-app admin grant (in addition to the SUPER_ADMIN_EMAILS env floor).
     # Only honored on an active profile uniquely linked to the login's Auth0 ID.
-    is_admin = Column(Integer, default=0, nullable=False)
+    admin_granted = Column("is_admin", Integer, default=0, nullable=False)
     admin_granted_by = Column(String, nullable=True)  # email of the granting admin
     admin_granted_at = Column(String, nullable=True)  # ISO timestamp
     venmo_handle = Column(String, nullable=True)  # e.g. "@stuart-gano"
