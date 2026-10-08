@@ -58,6 +58,11 @@ Rules:
 | Action | Where | Notes |
 |---|---|---|
 | ⚠️ ✉️ Sync from Google Sheets | `POST /data/sync-sheets` | Empties and reloads `legacy_rounds`. |
+| ✉️ Queue a finished round for the Google Sheet | `POST /admin/spreadsheet/sync-round` | Adds the round to a queue; a background job (every 5 minutes) writes new or changed rounds to the sheet and skips duplicates. |
+| ⚠️ ✉️ Re-sync legacy rounds from the sheets | `POST /admin/spreadsheet/sync-legacy-rounds` | Deletes all `legacy_rounds` rows from the primary and writable sheets and reloads them from Google Sheets. |
+| ✉️ Copy missing rounds, primary sheet to writable sheet | `POST /admin/spreadsheet/reconcile/primary-to-writable` | Previews only unless `dry_run=false`; then writes to the writable sheet. |
+| ✉️ Copy missing rounds, writable sheet to primary sheet | `POST /admin/spreadsheet/reconcile/writable-to-primary` | Previews only unless `dry_run=false`; then writes to the primary sheet. |
+| Read-only spreadsheet views | `GET /admin/spreadsheet/` `leaderboard`, `rounds`, `rounds/by-date/{date}`, `player/{name}`, `sync-status`, `config`, `reconcile/status`, `reconcile/diff` | Leaderboard, rounds and player history come from the database; status, config and diff show the sheet queue and primary-vs-writable comparison. |
 
 ### Email & comms
 
