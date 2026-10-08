@@ -33,7 +33,7 @@ from ..services.legacy_player_service import (
 )
 from ..services.player_service import PlayerService
 from ..services.unified_data_service import get_unified_data_service
-from ..utils.admin_auth import is_super_admin_email
+from ..utils.admin_auth import is_super_admin_email, require_admin
 from ..utils.api_helpers import ApiResponse, handle_api_errors, require_not_none
 from ..utils.time import utc_now
 from .account_links import router as account_links_router
@@ -634,7 +634,7 @@ def get_public_player_profile(
     }
 
 
-@router.get("/{player_id}", response_model=schemas.PlayerProfileResponse)
+@router.get("/{player_id}", response_model=schemas.PlayerProfileResponse, dependencies=[Depends(require_admin)])
 @handle_api_errors(operation_name="get player profile")
 def get_player_profile(player_id: int, db: Session = Depends(get_db)) -> schemas.PlayerProfileResponse:
     """Get a specific player profile."""
@@ -643,7 +643,7 @@ def get_player_profile(player_id: int, db: Session = Depends(get_db)) -> schemas
     return require_not_none(profile, "Player", player_id)
 
 
-@router.put("/{player_id}", response_model=schemas.PlayerProfileResponse)
+@router.put("/{player_id}", response_model=schemas.PlayerProfileResponse, dependencies=[Depends(require_admin)])
 @handle_api_errors(operation_name="update player profile")
 def update_player_profile(
     player_id: int,
@@ -658,7 +658,7 @@ def update_player_profile(
     return result
 
 
-@router.delete("/{player_id}")
+@router.delete("/{player_id}", dependencies=[Depends(require_admin)])
 @handle_api_errors(operation_name="delete player profile")
 def delete_player_profile(player_id: int, db: Session = Depends(get_db)) -> dict[str, str]:
     """Delete (deactivate) a player profile."""

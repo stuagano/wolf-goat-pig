@@ -227,3 +227,22 @@ def test_ambiguous_case_variants_of_email_do_not_choose_an_arbitrary_profile(acc
         assert error.value.status_code == 409
         assert not db.get(PlayerProfile, 1).preferences.get("auth0_id")
         assert not db.get(PlayerProfile, 3).preferences.get("auth0_id")
+
+
+def test_retiring_a_stray_profile_frees_its_login_for_the_original(accounts):
+    """The Crowley/McFadden case: a sign-in created a stray profile (#1) holding the
+    email + Auth0 ID, while the history lives on an older unlinked profile (#3)."""
+    client, sessions = accounts
+    with sessions() as db:
+        db.add(PlayerProfile(id=3, name="Kevin G", created_at="2025-01-01"))
+        db.commit()
+
+    blocked = client.post("/players/admin/relink-auth0", json=link_payload(player_id=3))
+    assert blocked.status_code == 409, blocked.text
+
+    assert client.delete("/players/1").status_code == 200
+    assert client.get("/players/admin/account-links", params={"query": "kevin@"}).json()["players"] == []
+
+    linked = client.post("/players/admin/relink-auth0", json=link_payload(player_id=3))
+    assert linked.status_code == 200, linked.text
+    assert linked.json()["auth0_id"] == "auth0|test-kevin"

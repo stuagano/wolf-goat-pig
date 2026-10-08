@@ -63,6 +63,18 @@ export default function AccountLinkingManager() {
     finally { setBusy(false); }
   };
 
+  const retire = async () => {
+    if (!window.confirm(`Retire profile #${selected.id}? It is hidden from search and its email and Auth0 login are released so they can be linked to the player's real profile.`)) return;
+    setBusy(true); setError('');
+    try {
+      await jsonRequest(`/players/${selected.id}`, { method: 'DELETE' });
+      setPlayers(current => current.filter(player => player.id !== selected.id));
+      setSuccess(`Profile #${selected.id} retired. Its email and login can now be linked to another profile.`);
+      setSelected(null); setReviewing(false);
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  };
+
   return (
     <Card className="p-6 space-y-6">
       <div>
@@ -115,6 +127,10 @@ export default function AccountLinkingManager() {
           <button type="button" className={buttonClass} onClick={save} disabled={busy}>Save account link</button>
           <button type="button" className="ml-3 underline" onClick={() => setReviewing(false)} disabled={busy}>Back to editing</button>
         </div>}
+        <div className="border-t pt-4">
+          <p className="text-sm text-gray-500">Duplicate profile with no history (for example, one named after an email)? Retire it to free its email and login.</p>
+          <button type="button" className="mt-2 text-red-700 underline" onClick={retire} disabled={busy}>Retire this duplicate profile</button>
+        </div>
       </form>}
     </Card>
   );
