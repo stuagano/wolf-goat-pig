@@ -207,6 +207,10 @@ class PlayerService:
 
             player.is_active = 0
             player.ghin_id = None  # Release GHIN ID so it can be assigned elsewhere
+            # Release the login identity too: an inactive profile that still holds an
+            # email/Auth0 ID blocks that person's sign-in and any relink to their real profile.
+            player.email = None
+            player.preferences = {k: v for k, v in (player.preferences or {}).items() if k != "auth0_id"}
             self.db.commit()
 
             logger.info(f"Deleted (deactivated) player profile {player_id}")

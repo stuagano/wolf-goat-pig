@@ -12,6 +12,7 @@ from app.main import app
 from app.models import Base, PlayerProfile
 from app.services import legacy_player_service as legacy_svc
 from app.services.auth_service import get_current_auth0_user, get_current_user
+from app.utils.admin_auth import require_admin
 
 client = TestClient(app)
 
@@ -265,7 +266,17 @@ class TestCreatePlayer:
 # ── GET /players/{player_id} ──────────────────────────────────────────────────
 
 
-class TestGetPlayerById:
+class _AsAdmin:
+    """Per-player GET/PUT/DELETE are admin-only; run these as an admin."""
+
+    def setup_method(self):
+        app.dependency_overrides[require_admin] = lambda: {"sub": "auth0|admin", "email": "admin@example.com"}
+
+    def teardown_method(self):
+        app.dependency_overrides.pop(require_admin, None)
+
+
+class TestGetPlayerById(_AsAdmin):
     def test_get_nonexistent_player_returns_404(self):
         resp = client.get("/players/999999")
         assert resp.status_code == 404
@@ -347,7 +358,7 @@ class TestPublicProfile:
 # ── PUT /players/{player_id} ──────────────────────────────────────────────────
 
 
-class TestUpdatePlayer:
+class TestUpdatePlayer(_AsAdmin):
     def _create_player(self, prefix="UpdateTarget"):
         resp = client.post(
             "/players", json={"name": unique_name(prefix), "email": unique_email(prefix.lower()), "handicap": 18.0}
@@ -379,7 +390,7 @@ class TestUpdatePlayer:
 # ── DELETE /players/{player_id} ───────────────────────────────────────────────
 
 
-class TestDeletePlayer:
+class TestDeletePlayer(_AsAdmin):
     def test_delete_nonexistent_player_returns_404(self):
         resp = client.delete("/players/999999")
         assert resp.status_code == 404
@@ -393,6 +404,46 @@ class TestDeletePlayer:
             del_resp = client.delete(f"/players/{pid}")
             assert del_resp.status_code == 200
             assert "deleted" in str(del_resp.json()).lower() or "success" in str(del_resp.json()).lower()
+
+    def test_delete_releases_email_and_auth0_login(self):
+        """A retired duplicate must not keep blocking the person's sign-in or relink."""
+        email = unique_email("dupe")
+        resp = client.post("/players", json={"name": unique_name("Dupe"), "email": email, "handicap": 18.0})
+        pid = resp.json()["id"]
+        db = next(app.dependency_overrides.get(get_db, get_db)())
+        try:
+            player = db.get(PlayerProfile, pid)
+            player.preferences = {"auth0_id": "auth0|dupe-login", "display_hints": True}
+            db.commit()
+
+            assert client.delete(f"/players/{pid}").status_code == 200
+
+            db.expire_all()
+            player = db.get(PlayerProfile, pid)
+            assert not player.is_active
+            assert player.email is None
+            assert player.preferences == {"display_hints": True}
+        finally:
+            db.close()
+
+
+class TestPerPlayerEndpointsRequireAdmin:
+    """Unauthenticated callers must not read, edit, or deactivate any profile."""
+
+    @pytest.mark.parametrize(
+        ("method", "kwargs"),
+        [("get", {}), ("put", {"json": {"handicap": 1.0}}), ("delete", {})],
+    )
+    def test_unauthenticated_request_is_rejected(self, method, kwargs):
+        resp = getattr(client, method)("/players/1", **kwargs)
+        assert resp.status_code in (401, 403)
+
+    def test_non_admin_is_rejected(self):
+        app.dependency_overrides[get_current_auth0_user] = lambda: {"sub": "auth0|x", "email": "player@example.com"}
+        try:
+            assert client.delete("/players/1").status_code == 403
+        finally:
+            app.dependency_overrides.pop(get_current_auth0_user, None)
 
 
 # ── GET /players/{player_id}/statistics ──────────────────────────────────────

@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../theme/Provider';
 import { apiConfig } from '../../config/api.config';
 import { calculateCourseHandicap } from '../../utils';
+import { useAuthenticatedFetch } from '../../hooks/useAuthenticatedFetch';
 
 const API_URL = apiConfig.baseUrl;
 
 const GHINIntegration = () => {
   const theme = useTheme();
+  const authFetch = useAuthenticatedFetch();
   const [players, setPlayers] = useState([]);
   const [selectedPlayer, setSelectedPlayer] = useState('');
   const [ghinId, setGhinId] = useState('');
@@ -70,7 +72,7 @@ const GHINIntegration = () => {
       setLoading(true);
       const player = players.find(p => p.id.toString() === selectedPlayer);
       
-      const response = await fetch(`${API_URL}/players/${selectedPlayer}`, {
+      const response = await authFetch(`${API_URL}/players/${selectedPlayer}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

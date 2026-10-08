@@ -12637,6 +12637,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Delete Player Profile",
         "tags": [
           "players"
@@ -12678,6 +12683,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Player Profile",
         "tags": [
           "players"
@@ -12729,6 +12739,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Update Player Profile",
         "tags": [
           "players"

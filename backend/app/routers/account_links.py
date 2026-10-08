@@ -63,11 +63,12 @@ def search_account_links(
     players = (
         db.query(PlayerProfile)
         .filter(
+            PlayerProfile.is_active == 1,
             or_(
                 func.lower(PlayerProfile.name).contains(term, autoescape=True),
                 func.lower(PlayerProfile.legacy_name).contains(term, autoescape=True),
                 func.lower(PlayerProfile.email).contains(term, autoescape=True),
-            )
+            ),
         )
         .order_by(PlayerProfile.id)
         .limit(51)

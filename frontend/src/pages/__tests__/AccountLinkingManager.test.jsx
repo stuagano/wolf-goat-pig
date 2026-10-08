@@ -47,3 +47,18 @@ test('shows conflict and preserves edits without silently moving another account
   expect(screen.getByLabelText('Roster player')).toHaveValue('Casey McFarland');
   await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
 });
+
+test('retires a duplicate profile after confirmation and drops it from results', async () => {
+  vi.spyOn(window, 'confirm').mockReturnValue(true);
+  request.mockResolvedValueOnce(response({ players: [kevin] }));
+  render(<AccountLinkingManager />);
+  fireEvent.change(screen.getByLabelText('Search name or email'), { target: { value: 'kevin@' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Search profiles' }));
+  fireEvent.click(await screen.findByRole('button', { name: /Select profile 1/ }));
+  request.mockResolvedValueOnce(response({ message: 'Player 1 has been deleted' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Retire this duplicate profile' }));
+  await screen.findByText(/Profile #1 retired/);
+  expect(request.mock.calls[1][0]).toMatch(/\/players\/1$/);
+  expect(request.mock.calls[1][1]).toEqual({ method: 'DELETE' });
+  expect(screen.queryByRole('button', { name: /Select profile 1/ })).not.toBeInTheDocument();
+});
