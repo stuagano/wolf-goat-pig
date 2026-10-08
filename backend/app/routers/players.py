@@ -37,6 +37,7 @@ from ..utils.admin_auth import admin_role, require_admin
 from ..utils.api_helpers import ApiResponse, handle_api_errors, require_not_none
 from ..utils.time import utc_now
 from .account_links import router as account_links_router
+from .admin_grants import router as admin_grants_router
 
 AVATAR_ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
 AVATAR_MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # 8MB raw upload; we downscale server-side
@@ -80,6 +81,7 @@ logger = logging.getLogger("app.routers.players")
 
 router = APIRouter(prefix="/players", tags=["players"])
 router.include_router(account_links_router)
+router.include_router(admin_grants_router)
 
 
 # ============================================================================

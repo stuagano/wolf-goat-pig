@@ -2875,6 +2875,7 @@
             "default": "normal",
             "enum": [
               "normal",
+              "admin",
               "super_admin"
             ],
             "title": "Role",
@@ -11894,6 +11895,133 @@
           }
         ],
         "summary": "Search Account Links",
+        "tags": [
+          "players",
+          "players"
+        ]
+      }
+    },
+    "/players/admin/admins": {
+      "get": {
+        "operationId": "list_admins_players_admin_admins_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response List Admins Players Admin Admins Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Admins",
+        "tags": [
+          "players",
+          "players"
+        ]
+      }
+    },
+    "/players/admin/admins/{player_id}": {
+      "delete": {
+        "operationId": "revoke_admin_players_admin_admins__player_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "player_id",
+            "required": true,
+            "schema": {
+              "title": "Player Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Revoke Admin Players Admin Admins  Player Id  Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revoke Admin",
+        "tags": [
+          "players",
+          "players"
+        ]
+      },
+      "post": {
+        "operationId": "grant_admin_players_admin_admins__player_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "player_id",
+            "required": true,
+            "schema": {
+              "title": "Player Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Grant Admin Players Admin Admins  Player Id  Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Grant Admin",
         "tags": [
           "players",
           "players"
