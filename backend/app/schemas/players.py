@@ -89,10 +89,16 @@ class PlayerProfileResponse(PlayerProfileBase):
     # never auto-persisted to legacy_name. See issue #322.
     legacy_name_suggestion: str | None = None
     # Computed authorization fields returned only by GET /players/me.
-    role: Literal["normal", "super_admin"] = "normal"
+    role: Literal["normal", "admin", "super_admin"] = "normal"
     is_super_admin: bool = False
     # Backwards-compatible alias while older clients still read is_admin.
     is_admin: bool = False
+
+    @field_validator("is_admin", mode="before")
+    @classmethod
+    def _coerce_stored_flag(cls, v: Any) -> bool:
+        # The ORM column is nullable until first flush; /me overwrites this anyway.
+        return bool(v)
 
 
 # Player Statistics Schemas

@@ -1,0 +1,3 @@
+ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS is_admin INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS admin_granted_by VARCHAR;
+ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS admin_granted_at VARCHAR;

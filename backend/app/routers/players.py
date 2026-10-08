@@ -33,7 +33,7 @@ from ..services.legacy_player_service import (
 )
 from ..services.player_service import PlayerService
 from ..services.unified_data_service import get_unified_data_service
-from ..utils.admin_auth import is_super_admin_email, require_admin
+from ..utils.admin_auth import admin_role, require_admin
 from ..utils.api_helpers import ApiResponse, handle_api_errors, require_not_none
 from ..utils.time import utc_now
 from .account_links import router as account_links_router
@@ -209,9 +209,9 @@ async def get_my_profile(
         )
         profile.legacy_name_suggestion = suggestions[0] if suggestions else None
 
-    profile.is_super_admin = is_super_admin_email(auth0_user.get("email"))
-    profile.is_admin = profile.is_super_admin
-    profile.role = "super_admin" if profile.is_super_admin else "normal"
+    profile.role = admin_role(db, auth0_user)
+    profile.is_super_admin = profile.role == "super_admin"
+    profile.is_admin = profile.role != "normal"
     return profile
 
 
