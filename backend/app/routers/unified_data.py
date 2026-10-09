@@ -22,7 +22,7 @@ from ..services.livsow_service import get_livsow_leaderboard, get_livsow_team_ma
 from ..services.livsow_transactions import LIVSOW_SEASON, check_and_record_snapshot, describe_transaction
 from ..services.spreadsheet_sync_service import PRIMARY_SHEET_ID, PRIMARY_SHEET_TAB_GID
 from ..services.unified_data_service import get_unified_data_service
-from ..utils.admin_auth import is_super_admin_email, require_admin
+from ..utils.admin_auth import admin_role, require_admin
 from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
@@ -339,7 +339,7 @@ def can_edit_livsow_team(
             db,
             slug,
             current_user,
-            is_super_admin=is_super_admin_email(auth0_user.get("email")),
+            is_super_admin=admin_role(db, auth0_user) != "normal",
         )
     }
 
@@ -357,7 +357,7 @@ def update_livsow_team_content(
         db,
         slug,
         current_user,
-        is_super_admin=is_super_admin_email(auth0_user.get("email")),
+        is_super_admin=admin_role(db, auth0_user) != "normal",
     ):
         raise HTTPException(status_code=403, detail="Only this team's captain can edit its page")
 

@@ -211,6 +211,9 @@ class PlayerService:
             # email/Auth0 ID blocks that person's sign-in and any relink to their real profile.
             player.email = None
             player.preferences = {k: v for k, v in (player.preferences or {}).items() if k != "auth0_id"}
+            player.admin_granted = 0
+            player.admin_granted_by = None
+            player.admin_granted_at = None
             self.db.commit()
 
             logger.info(f"Deleted (deactivated) player profile {player_id}")

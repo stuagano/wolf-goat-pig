@@ -89,7 +89,7 @@ class PlayerProfileResponse(PlayerProfileBase):
     # never auto-persisted to legacy_name. See issue #322.
     legacy_name_suggestion: str | None = None
     # Computed authorization fields returned only by GET /players/me.
-    role: Literal["normal", "super_admin"] = "normal"
+    role: Literal["normal", "admin", "super_admin"] = "normal"
     is_super_admin: bool = False
     # Backwards-compatible alias while older clients still read is_admin.
     is_admin: bool = False

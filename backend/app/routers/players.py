@@ -33,10 +33,11 @@ from ..services.legacy_player_service import (
 )
 from ..services.player_service import PlayerService
 from ..services.unified_data_service import get_unified_data_service
-from ..utils.admin_auth import is_super_admin_email, require_admin
+from ..utils.admin_auth import admin_role, require_admin
 from ..utils.api_helpers import ApiResponse, handle_api_errors, require_not_none
 from ..utils.time import utc_now
 from .account_links import router as account_links_router
+from .admin_grants import router as admin_grants_router
 
 AVATAR_ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
 AVATAR_MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # 8MB raw upload; we downscale server-side
@@ -80,6 +81,7 @@ logger = logging.getLogger("app.routers.players")
 
 router = APIRouter(prefix="/players", tags=["players"])
 router.include_router(account_links_router)
+router.include_router(admin_grants_router)
 
 
 # ============================================================================
@@ -209,9 +211,9 @@ async def get_my_profile(
         )
         profile.legacy_name_suggestion = suggestions[0] if suggestions else None
 
-    profile.is_super_admin = is_super_admin_email(auth0_user.get("email"))
-    profile.is_admin = profile.is_super_admin
-    profile.role = "super_admin" if profile.is_super_admin else "normal"
+    profile.role = admin_role(db, auth0_user)
+    profile.is_super_admin = profile.role == "super_admin"
+    profile.is_admin = profile.role != "normal"
     return profile
 
 

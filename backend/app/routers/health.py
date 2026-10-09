@@ -13,7 +13,7 @@ import os
 import time as _time
 from typing import Any, cast
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
@@ -21,6 +21,7 @@ from .. import models
 from ..observability.external_checks import check_all
 from ..observability.report import report_message
 from ..state.course_manager import CourseManager
+from ..utils.admin_auth import require_admin
 from ..utils.api_helpers import handle_api_errors, managed_session
 from ..utils.time import utc_now
 
@@ -248,7 +249,7 @@ def readiness_check():
     return {"status": "ready", "timestamp": utc_now().isoformat()}
 
 
-@router.post("/admin/ensure-schema")
+@router.post("/admin/ensure-schema", dependencies=[Depends(require_admin)])
 @handle_api_errors(operation_name="ensure schema")
 def ensure_schema_endpoint() -> dict[str, Any]:
     """Run schema sync on demand."""
@@ -267,7 +268,7 @@ def ensure_schema_endpoint() -> dict[str, Any]:
     return {"results": results}
 
 
-@router.post("/admin/seed-course-holes")
+@router.post("/admin/seed-course-holes", dependencies=[Depends(require_admin)])
 @handle_api_errors(operation_name="seed course holes")
 def seed_course_holes() -> dict[str, Any]:
     """

@@ -34,9 +34,9 @@ const Navigation = () => {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   const { isAuthenticated, user, loginWithRedirect, logout } = useAuth0();
-  const { isSuperAdmin, profile } = usePlayerProfile();
+  const { isAdmin, profile } = usePlayerProfile();
 
-  const showAdminLink = isAuthenticated && isSuperAdmin === true;
+  const showAdminLink = isAuthenticated && isAdmin === true;
 
   // Bottom tab bar items (always visible on mobile)
   const bottomTabItems = [

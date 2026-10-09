@@ -44,6 +44,7 @@ function installAdminFetch(pending = PENDING) {
         name: "Admin",
         role: "super_admin",
         is_super_admin: true,
+        is_admin: true,
       });
     }
     if (url.includes("/legacy-players/pending") && !url.includes("/promote") && !url.includes("/dismiss")) {
@@ -203,6 +204,7 @@ function installServerAdminFetch({ isSuperAdmin, pending = PENDING } = {}) {
         name: "Someone",
         role: isSuperAdmin ? "super_admin" : "normal",
         is_super_admin: isSuperAdmin,
+        is_admin: isSuperAdmin,
       });
     }
     if (url.includes("/legacy-players/pending")) {

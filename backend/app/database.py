@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from starlette.exceptions import HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,10 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
+    except HTTPException:
+        # Expected client errors (e.g. a 403 from require_admin) are not DB failures.
+        db.rollback()
+        raise
     except Exception as e:
         logger.error(f"Database error: {e}")
         db.rollback()

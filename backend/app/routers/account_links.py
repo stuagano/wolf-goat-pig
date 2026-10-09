@@ -130,8 +130,14 @@ def relink_auth0_account(
         raise HTTPException(status_code=409, detail="This roster player is already linked to another profile")
     player.name = canonical
     player.email = body.email
+    previous_auth0 = (player.preferences or {}).get("auth0_id")
     if body.auth0_id:
         player.preferences = {**(player.preferences or {}), "auth0_id": body.auth0_id}
+        if previous_auth0 and previous_auth0 != body.auth0_id:
+            player.admin_granted = 0
+            player.admin_granted_by = None
+            player.admin_granted_at = None
+            logger.info("Admin cleared on profile %s: login changed by relink", player.id)
     player.updated_at = utc_now().isoformat()
     try:
         db.commit()

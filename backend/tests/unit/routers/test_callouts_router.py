@@ -6,12 +6,19 @@ dispatch, and response shape — with the service layer stubbed (its own logic i
 covered in test_callout_service.py).
 """
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app import routers
 from app.main import app
 
-client = TestClient(app)
+TOKEN = "test-job-token"
+client = TestClient(app, headers={"X-Internal-Job-Token": TOKEN})
+
+
+@pytest.fixture(autouse=True)
+def _job_token(monkeypatch):
+    monkeypatch.setenv("INTERNAL_JOB_TOKEN", TOKEN)
 
 
 def test_invalid_window_returns_422():

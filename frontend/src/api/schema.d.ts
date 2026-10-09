@@ -3479,6 +3479,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/players/admin/admins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Admins */
+        get: operations["list_admins_players_admin_admins_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/players/admin/admins/{player_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Grant Admin */
+        post: operations["grant_admin_players_admin_admins__player_id__post"];
+        /** Revoke Admin */
+        delete: operations["revoke_admin_players_admin_admins__player_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/players/admin/relink-auth0": {
         parameters: {
             query?: never;
@@ -5931,7 +5966,7 @@ export interface components {
              * @default normal
              * @enum {string}
              */
-            role: "normal" | "super_admin";
+            role: "normal" | "admin" | "super_admin";
             /** Updated At */
             updated_at?: string | null;
             /** Venmo Handle */
@@ -8311,7 +8346,9 @@ export interface operations {
                 /** @description YYYY-MM-DD to evaluate; defaults to the upcoming Sunday */
                 game_date?: string | null;
             };
-            header?: never;
+            header?: {
+                "x-internal-job-token"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -11805,6 +11842,94 @@ export interface operations {
             };
             header?: never;
             path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_admins_players_admin_admins_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    grant_admin_players_admin_admins__player_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                player_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_admin_players_admin_admins__player_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                player_id: number;
+            };
             cookie?: never;
         };
         requestBody?: never;

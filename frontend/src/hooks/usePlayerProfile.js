@@ -188,7 +188,7 @@ export const usePlayerProfile = () => {
     role: profile?.role || null,
     isSuperAdmin: profile ? !!profile.is_super_admin : null,
     // Compatibility alias for existing admin screens.
-    isAdmin: profile ? !!profile.is_super_admin : null,
+    isAdmin: profile ? !!profile.is_admin : null,
     updateLegacyName,
     skipLegacyName,
     resetSkip,
