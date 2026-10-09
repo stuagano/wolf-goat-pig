@@ -19,6 +19,8 @@ export const usePlayerProfile = () => {
   const [legacyNameSuggestion, setLegacyNameSuggestion] = useState(null);
   const [legacyNameSkipped, setLegacyNameSkipped] = useState(false);
   const profileRequestId = useRef(0);
+  const profileRef = useRef(null);
+  profileRef.current = profile;
   const isUnlinked = Boolean(profile && (!profile.legacy_name || profile.legacy_name.includes('@')));
   const pendingClaim = profile?.pending_claim || null;
   const needsLegacyName = isUnlinked && !legacyNameSkipped && !pendingClaim;
@@ -100,9 +102,17 @@ export const usePlayerProfile = () => {
 
         if (response.status === 202) {
           const claim = await response.json();
-          setProfile((current) => (current
-            ? { ...current, pending_claim: { canonical_name: claim.canonical_name, created_at: new Date().toISOString() } }
-            : current));
+          const current = profileRef.current;
+          if (current) {
+            const merged = {
+              ...current,
+              pending_claim: { canonical_name: claim.canonical_name, created_at: new Date().toISOString() },
+            };
+            setProfile(merged);
+            window.dispatchEvent(new CustomEvent(PROFILE_UPDATED_EVENT, {
+              detail: { userSub, profile: merged },
+            }));
+          }
           return claim;
         }
 

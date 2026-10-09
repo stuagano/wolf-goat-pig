@@ -262,7 +262,7 @@ async def update_my_legacy_name(
                     db,
                     current_user,
                     canonical,
-                    email=(auth0_user.get("email") or current_user.email),
+                    email=((auth0_user.get("email") or current_user.email or "").strip().lower() or None),
                     email_verified=auth0_user.get("email_verified"),
                 )
                 if outcome["status"] == "unverified":
@@ -292,6 +292,12 @@ async def update_my_legacy_name(
     else:
         current_user.legacy_name = None
         current_user.updated_at = utc_now().isoformat()
+
+    stale_claim = account_claim_service.pending_claim_for(db, cast("int", current_user.id))
+    if stale_claim:
+        stale_claim.status = "dismissed"
+        stale_claim.resolved_at = utc_now().isoformat()
+        stale_claim.resolved_by = "superseded"
 
     db.commit()
     db.refresh(current_user)

@@ -154,4 +154,27 @@ describe("usePlayerProfile synchronization", () => {
     expect(result.current.pendingClaim.canonical_name).toBe("Player One");
     expect(result.current.needsLegacyName).toBe(false);
   });
+
+  test("a 202 claim_pending response broadcasts the merged profile to other hook instances", async () => {
+    const { result } = renderHook(() => usePlayerProfile());
+    const { result: other } = renderHook(() => usePlayerProfile());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(other.current.loading).toBe(false));
+    const events = [];
+    const listener = (event) => events.push(event.detail);
+    window.addEventListener(PROFILE_UPDATED_EVENT, listener);
+
+    global.fetch.mockImplementationOnce(() => Promise.resolve({
+      ok: true,
+      status: 202,
+      json: () => Promise.resolve({ status: "claim_pending", canonical_name: "Player One", message: "m" }),
+    }));
+    await act(async () => { await result.current.updateLegacyName("Player One"); });
+    window.removeEventListener(PROFILE_UPDATED_EVENT, listener);
+
+    expect(events).toHaveLength(1);
+    expect(events[0].userSub).toBe("auth0|one");
+    expect(events[0].profile.pending_claim.canonical_name).toBe("Player One");
+    expect(other.current.pendingClaim.canonical_name).toBe("Player One");
+  });
 });

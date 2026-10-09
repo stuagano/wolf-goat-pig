@@ -22,7 +22,7 @@ def env(monkeypatch):
     Base.metadata.create_all(engine)
     sessions = sessionmaker(bind=engine)
     with sessions() as db:
-        for name in ["Gregg Colburn", "Kevin Gent"]:
+        for name in ["Gregg Colburn", "Kevin Gent", "Pat Open"]:
             db.add(LegacyRosterPlayer(name=name, source="seed", added_at="2026-01-01"))
         db.add_all(
             [
@@ -120,3 +120,40 @@ def test_other_profile_responses_never_carry_pending_claim(env):
     client, _, _ = env
     pick(client, "Gregg Colburn")
     assert client.get("/players/name/gregg@example.com").json().get("pending_claim") is None
+
+
+def test_linking_another_name_dismisses_the_stale_pending_claim(env):
+    client, sessions, _ = env
+    assert pick(client, "Gregg Colburn").status_code == 202
+    resp = pick(client, "Pat Open")
+    assert resp.status_code == 200, resp.text
+    with sessions() as db:
+        claim = db.query(AccountClaim).one()
+        assert claim.status == "dismissed"
+        assert claim.resolved_by == "superseded"
+        assert claim.resolved_at
+    assert client.get("/players/me").json()["pending_claim"] is None
+
+
+def test_clearing_the_name_dismisses_the_pending_claim(env):
+    client, sessions, _ = env
+    assert pick(client, "Gregg Colburn").status_code == 202
+    resp = client.put("/players/me/legacy-name", json={"legacy_name": None})
+    assert resp.status_code == 200, resp.text
+    with sessions() as db:
+        claim = db.query(AccountClaim).one()
+        assert claim.status == "dismissed"
+        assert claim.resolved_by == "superseded"
+    assert client.get("/players/me").json()["pending_claim"] is None
+
+
+def test_claim_email_escapes_html(monkeypatch):
+    from app.services.email_service import EmailService
+
+    service = EmailService.__new__(EmailService)
+    sent = {}
+    monkeypatch.setattr(service, "_send_email", lambda **kw: sent.update(kw) or True)
+    service.send_account_claim_notification("a@x.com", "O<b>Bad</b>", "<script>x</script>@e.com")
+    assert "<script>" not in sent["html_body"]
+    assert "&lt;script&gt;" in sent["html_body"]
+    assert "<b>Bad</b>" not in sent["html_body"]
