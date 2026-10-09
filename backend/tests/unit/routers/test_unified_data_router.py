@@ -118,6 +118,75 @@ class TestGetUnifiedLeaderboard:
         assert resp.json() == []
 
 
+# ── GET /data/leaderboard/scores ───────────────────────────────────────────
+
+
+class TestSeasonExtremeScores:
+    @patch("app.routers.unified_data.get_unified_data_service")
+    def test_best_scores_are_descending(self, mock_get_service):
+        mock_service = MagicMock()
+        mock_service.get_season_rounds.return_value = [
+            _make_mock_round("1-Aug", "Alice", 4),
+            _make_mock_round("2-Aug", "Bob", 20),
+            _make_mock_round("3-Aug", "Cara", -8),
+        ]
+        mock_get_service.return_value = mock_service
+
+        resp = client.get("/data/leaderboard/scores", params={"kind": "best", "limit": 2})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert [row["member"] for row in data] == ["Bob", "Alice"]
+        assert data[0]["quarters"] == 20
+        assert data[0]["date"] == "2-Aug"
+        assert "location" in data[0]
+
+    @patch("app.routers.unified_data.get_unified_data_service")
+    def test_worst_scores_are_ascending(self, mock_get_service):
+        mock_service = MagicMock()
+        mock_service.get_season_rounds.return_value = [
+            _make_mock_round("1-Aug", "Alice", 4),
+            _make_mock_round("2-Aug", "Bob", -30),
+            _make_mock_round("3-Aug", "Cara", -8),
+        ]
+        mock_get_service.return_value = mock_service
+
+        resp = client.get("/data/leaderboard/scores", params={"kind": "worst", "limit": 5})
+        assert [row["member"] for row in resp.json()] == ["Bob", "Cara", "Alice"]
+
+    def test_scores_require_kind(self):
+        resp = client.get("/data/leaderboard/scores")
+        assert resp.status_code == 422
+
+    def test_scores_reject_unknown_kind(self):
+        resp = client.get("/data/leaderboard/scores", params={"kind": "median"})
+        assert resp.status_code == 422
+
+
+class TestSeasonRoundDetails:
+    @patch("app.routers.unified_data.get_unified_data_service")
+    def test_groups_players_and_keeps_newest_first(self, mock_get_service):
+        newer = _make_mock_round("2-Aug", "Bob", -3, group="A")
+        newer.date_sortable = "2026-08-02"
+        newer.location = "Gold Mountain"
+        same = _make_mock_round("2-Aug", "Alice", 3, group="A")
+        same.date_sortable = "2026-08-02"
+        same.location = "Gold Mountain"
+        older = _make_mock_round("1-Aug", "Cara", 1, group="B")
+        older.date_sortable = "2026-08-01"
+        mock_service = MagicMock()
+        mock_service.get_season_rounds.return_value = [newer, same, older]
+        mock_get_service.return_value = mock_service
+
+        resp = client.get("/data/leaderboard/rounds")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 2
+        assert data[0]["date_sortable"] == "2026-08-02"
+        assert data[0]["location"] == "Gold Mountain"
+        assert [(p["member"], p["quarters"]) for p in data[0]["players"]] == [("Bob", -3), ("Alice", 3)]
+        assert data[1]["players"][0]["member"] == "Cara"
+
+
 # ── GET /data/rounds ───────────────────────────────────────────────────────
 
 

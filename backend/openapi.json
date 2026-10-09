@@ -3665,6 +3665,100 @@
         "title": "ScoresRequest",
         "type": "object"
       },
+      "SeasonGamePlayerResponse": {
+        "properties": {
+          "member": {
+            "title": "Member",
+            "type": "string"
+          },
+          "quarters": {
+            "title": "Quarters",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "member",
+          "quarters"
+        ],
+        "title": "SeasonGamePlayerResponse",
+        "type": "object"
+      },
+      "SeasonGameResponse": {
+        "description": "A foursome (or group) on one day at one course.",
+        "properties": {
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "date_sortable": {
+            "title": "Date Sortable",
+            "type": "string"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "location": {
+            "title": "Location",
+            "type": "string"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/SeasonGamePlayerResponse"
+            },
+            "title": "Players",
+            "type": "array"
+          }
+        },
+        "required": [
+          "date",
+          "date_sortable",
+          "location",
+          "group",
+          "players"
+        ],
+        "title": "SeasonGameResponse",
+        "type": "object"
+      },
+      "SeasonScoreResponse": {
+        "description": "One player's result in a single current-season round.",
+        "properties": {
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "date_sortable": {
+            "title": "Date Sortable",
+            "type": "string"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "location": {
+            "title": "Location",
+            "type": "string"
+          },
+          "member": {
+            "title": "Member",
+            "type": "string"
+          },
+          "quarters": {
+            "title": "Quarters",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "date_sortable",
+          "member",
+          "quarters",
+          "location",
+          "group"
+        ],
+        "title": "SeasonScoreResponse",
+        "type": "object"
+      },
       "SeriesResponse": {
         "properties": {
           "badge_count": {
@@ -7412,6 +7506,99 @@
           }
         },
         "summary": "Get Leaderboard Config",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/data/leaderboard/rounds": {
+      "get": {
+        "description": "Current-season rounds grouped by date, group, and location.\n\nNewest rounds come first. Each row lists every player in that group and\ntheir quarter total, so the client can filter by player, date, score, or location.",
+        "operationId": "get_season_round_details_data_leaderboard_rounds_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SeasonGameResponse"
+                  },
+                  "title": "Response Get Season Round Details Data Leaderboard Rounds Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Season Round Details",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/data/leaderboard/scores": {
+      "get": {
+        "description": "Largest or smallest single-game quarter totals for the current season.\n\nBest is descending (biggest win first). Worst is ascending (biggest loss first).\nPrior-season rounds are excluded using the same cutoff as /data/leaderboard.",
+        "operationId": "get_season_extreme_scores_data_leaderboard_scores_get",
+        "parameters": [
+          {
+            "description": "best = largest single-game winnings",
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "description": "best = largest single-game winnings",
+              "enum": [
+                "best",
+                "worst"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          },
+          {
+            "description": "How many scores to return",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "description": "How many scores to return",
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SeasonScoreResponse"
+                  },
+                  "title": "Response Get Season Extreme Scores Data Leaderboard Scores Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Season Extreme Scores",
         "tags": [
           "data"
         ]

@@ -9,7 +9,7 @@ Data is automatically deduplicated based on date/group/member/score.
 """
 
 import logging
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -57,6 +57,32 @@ class UnifiedLeaderboardEntryResponse(BaseModel):
     best_round: int
     worst_round: int
     sources: list[str]
+
+
+class SeasonScoreResponse(BaseModel):
+    """One player's result in a single current-season round."""
+
+    date: str
+    date_sortable: str
+    member: str
+    quarters: int
+    location: str
+    group: str
+
+
+class SeasonGamePlayerResponse(BaseModel):
+    member: str
+    quarters: int
+
+
+class SeasonGameResponse(BaseModel):
+    """A foursome (or group) on one day at one course."""
+
+    date: str
+    date_sortable: str
+    location: str
+    group: str
+    players: list[SeasonGamePlayerResponse]
 
 
 class DataSourceStatus(BaseModel):
@@ -108,6 +134,59 @@ def get_unified_leaderboard(
         )
         for i, entry in enumerate(leaderboard[:limit])
     ]
+
+
+@router.get("/leaderboard/scores", response_model=list[SeasonScoreResponse])
+def get_season_extreme_scores(
+    kind: Literal["best", "worst"] = Query(..., description="best = largest single-game winnings"),
+    limit: int = Query(5, ge=1, le=50, description="How many scores to return"),
+    db: Session = Depends(get_db),
+) -> Any:
+    """Largest or smallest single-game quarter totals for the current season.
+
+    Best is descending (biggest win first). Worst is ascending (biggest loss first).
+    Prior-season rounds are excluded using the same cutoff as /data/leaderboard.
+    """
+    service = get_unified_data_service(db=db)
+    ranked = sorted(service.get_season_rounds(), key=lambda r: r.score, reverse=kind == "best")
+    return [
+        SeasonScoreResponse(
+            date=r.date,
+            date_sortable=r.date_sortable,
+            member=r.member,
+            quarters=r.score,
+            location=r.location,
+            group=r.group,
+        )
+        for r in ranked[:limit]
+    ]
+
+
+@router.get("/leaderboard/rounds", response_model=list[SeasonGameResponse])
+def get_season_round_details(db: Session = Depends(get_db)) -> Any:
+    """Current-season rounds grouped by date, group, and location.
+
+    Newest rounds come first. Each row lists every player in that group and
+    their quarter total, so the client can filter by player, date, score, or location.
+    """
+    service = get_unified_data_service(db=db)
+    games: dict[tuple[str, str, str], SeasonGameResponse] = {}
+    order: list[tuple[str, str, str]] = []
+    for r in service.get_season_rounds():
+        key = (r.date_sortable, r.group, r.location)
+        game = games.get(key)
+        if game is None:
+            game = SeasonGameResponse(
+                date=r.date,
+                date_sortable=r.date_sortable,
+                location=r.location,
+                group=r.group,
+                players=[],
+            )
+            games[key] = game
+            order.append(key)
+        game.players.append(SeasonGamePlayerResponse(member=r.member, quarters=r.score))
+    return [games[key] for key in order]
 
 
 @router.get("/leaderboard-config")

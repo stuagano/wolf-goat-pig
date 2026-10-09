@@ -237,14 +237,7 @@ class UnifiedDataService:
         Returns:
             List of leaderboard entries sorted by total quarters (descending)
         """
-        all_rounds = self.get_all_rounds()
-
-        dated_rounds = []
-        for round_data in all_rounds:
-            try:
-                dated_rounds.append((date.fromisoformat(round_data.date_sortable), round_data))
-            except ValueError:
-                logger.warning("Skipping leaderboard round with invalid date: %r", round_data.date_sortable)
+        dated_rounds = self._dated_rounds()
 
         # ponytail: the season sheet's first round defines the cutoff; use an
         # explicit season calendar if app play must precede the first sheet round.
@@ -281,6 +274,26 @@ class UnifiedDataService:
         # Sort by total quarters (descending)
         sorted_leaderboard = sorted(player_stats.values(), key=lambda e: e.quarters, reverse=True)
         return sorted_leaderboard
+
+    def _dated_rounds(self) -> list[tuple[date, UnifiedRound]]:
+        """Rounds with a parseable ISO date, in the order get_all_rounds returns them."""
+        dated: list[tuple[date, UnifiedRound]] = []
+        for round_data in self.get_all_rounds():
+            try:
+                dated.append((date.fromisoformat(round_data.date_sortable), round_data))
+            except ValueError:
+                logger.warning("Skipping round with invalid date: %r", round_data.date_sortable)
+        return dated
+
+    def get_season_rounds(self) -> list[UnifiedRound]:
+        """Current-season rounds, newest first. Empty when the season start is unknown."""
+        dated = self._dated_rounds()
+        start = min((day for day, r in dated if r.source == "primary_sheet"), default=None)
+        if start is None:
+            return []
+        # get_all_rounds is newest-first, but callers may pass unsorted rows.
+        season = [r for day, r in dated if day >= start]
+        return sorted(season, key=lambda r: r.date_sortable, reverse=True)
 
     def get_player_history(self, member_name: str) -> list[UnifiedRound]:
         """Get all rounds for a specific player across all sources.

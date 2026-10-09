@@ -1463,6 +1463,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/data/leaderboard/rounds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Season Round Details
+         * @description Current-season rounds grouped by date, group, and location.
+         *
+         *     Newest rounds come first. Each row lists every player in that group and
+         *     their quarter total, so the client can filter by player, date, score, or location.
+         */
+        get: operations["get_season_round_details_data_leaderboard_rounds_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/data/leaderboard/scores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Season Extreme Scores
+         * @description Largest or smallest single-game quarter totals for the current season.
+         *
+         *     Best is descending (biggest win first). Worst is ascending (biggest loss first).
+         *     Prior-season rounds are excluded using the same cutoff as /data/leaderboard.
+         */
+        get: operations["get_season_extreme_scores_data_leaderboard_scores_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/data/livsow/leaderboard": {
         parameters: {
             query?: never;
@@ -6426,6 +6472,47 @@ export interface components {
             /** Holes */
             holes: components["schemas"]["HoleScore"][];
         };
+        /** SeasonGamePlayerResponse */
+        SeasonGamePlayerResponse: {
+            /** Member */
+            member: string;
+            /** Quarters */
+            quarters: number;
+        };
+        /**
+         * SeasonGameResponse
+         * @description A foursome (or group) on one day at one course.
+         */
+        SeasonGameResponse: {
+            /** Date */
+            date: string;
+            /** Date Sortable */
+            date_sortable: string;
+            /** Group */
+            group: string;
+            /** Location */
+            location: string;
+            /** Players */
+            players: components["schemas"]["SeasonGamePlayerResponse"][];
+        };
+        /**
+         * SeasonScoreResponse
+         * @description One player's result in a single current-season round.
+         */
+        SeasonScoreResponse: {
+            /** Date */
+            date: string;
+            /** Date Sortable */
+            date_sortable: string;
+            /** Group */
+            group: string;
+            /** Location */
+            location: string;
+            /** Member */
+            member: string;
+            /** Quarters */
+            quarters: number;
+        };
         /** SeriesResponse */
         SeriesResponse: {
             /** Badge Count */
@@ -8903,6 +8990,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_season_round_details_data_leaderboard_rounds_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeasonGameResponse"][];
+                };
+            };
+        };
+    };
+    get_season_extreme_scores_data_leaderboard_scores_get: {
+        parameters: {
+            query: {
+                /** @description best = largest single-game winnings */
+                kind: "best" | "worst";
+                /** @description How many scores to return */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeasonScoreResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
