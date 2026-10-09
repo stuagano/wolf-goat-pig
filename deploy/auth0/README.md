@@ -4,7 +4,9 @@ Tenant: `dev-jm88n088hpt7oe48.us.auth0.com`. Changes here are applied by hand in
 
 ## Action: link accounts by email
 
-`actions/link-accounts-by-email.js` stops one player ending up with two Auth0 accounts (e.g. email + password, then later "Continue with Google"). On a new account's **first** login it links it into the existing account with the same **verified** email and switches the session to that account, so the app keeps seeing the user id its player profile is tied to.
+`actions/link-accounts-by-email.js` stops one player ending up with two Auth0 accounts (e.g. email + password, then later "Continue with Google"). When a **newer** account signs in and an **older** account has the same **verified** email, it links the newer one into the older one and switches the session to it, so the app keeps seeing the user id its player profile is tied to. It never links the other way. An email + password sign-up isn't verified on its first login, so it links on the player's first login after clicking the verification email.
+
+Example: Kevin already uses "Continue with Google". He also signs up with email + password, verifies his email, and signs in — the Action folds the password login into his Google account and he lands on his own profile either way.
 
 It does nothing for logins with no email (some Facebook accounts) — link those by hand (below). If linking fails, the login still goes through.
 

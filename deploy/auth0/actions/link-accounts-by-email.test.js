@@ -28,10 +28,22 @@ test('picks the oldest when several accounts share the email', () => {
   assert.equal(pickPrimary(fresh, [existing, older, fresh]).user_id, 'facebook|older');
 });
 
-test('only acts on the first login and never on already-linked users', async () => {
+test('never folds an older account into a newer one', () => {
+  // Signing in with the original account while a newer duplicate exists: no link.
+  const newer = { ...fresh, created_at: '2026-11-01T00:00:00Z' };
+  assert.equal(pickPrimary({ ...existing, identities: [{}] }, [existing, newer]), null);
+});
+
+test('links on a later login once a password sign-up has verified its email', () => {
+  // First login (unverified) is skipped; a later, verified login links.
+  assert.equal(pickPrimary({ ...fresh, email_verified: false }, [existing]), null);
+  assert.equal(pickPrimary({ ...fresh, email_verified: true }, [existing]).user_id, 'auth0|old');
+});
+
+test('does nothing for unverified or already-linked users', async () => {
   let called = false;
   const api = { authentication: { setPrimaryUser: () => { called = true; } } };
-  await onExecutePostLogin({ user: fresh, stats: { logins_count: 2 }, secrets: {} }, api);
-  await onExecutePostLogin({ user: { ...fresh, identities: [{}, {}] }, stats: { logins_count: 1 }, secrets: {} }, api);
+  await onExecutePostLogin({ user: { ...fresh, email_verified: false }, secrets: {} }, api);
+  await onExecutePostLogin({ user: { ...fresh, identities: [{}, {}] }, secrets: {} }, api);
   assert.equal(called, false);
 });

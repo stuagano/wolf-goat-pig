@@ -9,11 +9,14 @@
  * switches the session to it, so the app always sees the original user id.
  *
  * Safety rules:
- * - Only runs on the new account's first login (it is the one being folded in).
+ * - Only folds a NEWER account into the OLDEST account with the same email, so
+ *   the account the app already knows stays primary. Signing in with the older
+ *   account never triggers a link.
  * - Both accounts must share the same VERIFIED email (no takeover by an
- *   unverified sign-up). Logins with no email (e.g. some Facebook accounts) are
+ *   unverified sign-up). An email + password sign-up is unverified on its first
+ *   login, so it links on the first login after the player clicks the
+ *   verification email. Logins with no email (e.g. some Facebook accounts) are
  *   skipped and must be linked manually.
- * - If several existing accounts share the email, links into the oldest one.
  *
  * Setup: see deploy/auth0/README.md.
  *
@@ -29,12 +32,14 @@ function pickPrimary(user, candidates) {
     c => c.user_id !== user.user_id && c.email_verified === true && (c.email || '').toLowerCase() === email,
   );
   if (others.length === 0) return null;
-  return [...others].sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)))[0];
+  const oldest = [...others].sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)))[0];
+  // Never fold an older account into a newer one.
+  return String(oldest.created_at) < String(user.created_at) ? oldest : null;
 }
 
 exports.onExecutePostLogin = async (event, api) => {
   const { user } = event;
-  if (event.stats?.logins_count !== 1) return; // only fold in brand-new accounts
+  if (user.email_verified !== true) return; // nothing to link until verified
   if ((user.identities || []).length !== 1) return; // already linked
 
   const { ManagementClient } = require('auth0');
