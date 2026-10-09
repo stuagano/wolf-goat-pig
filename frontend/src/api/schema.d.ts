@@ -3490,7 +3490,7 @@ export interface paths {
          * Generate And Save Pairings
          * @description Generate and save random pairings for a specific date.
          *
-         *     This is the endpoint to call manually or from a cron job.
+         *     Admin only. ``force=true`` overwrites official pairings already saved for the day.
          */
         post: operations["generate_and_save_pairings_pairings__date__generate_post"];
         delete?: never;

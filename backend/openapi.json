@@ -11977,7 +11977,7 @@
     },
     "/pairings/{date}/generate": {
       "post": {
-        "description": "Generate and save random pairings for a specific date.\n\nThis is the endpoint to call manually or from a cron job.",
+        "description": "Generate and save random pairings for a specific date.\n\nAdmin only. ``force=true`` overwrites official pairings already saved for the day.",
         "operationId": "generate_and_save_pairings_pairings__date__generate_post",
         "parameters": [
           {
@@ -12036,6 +12036,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Generate And Save Pairings",
         "tags": [
           "team-formation"

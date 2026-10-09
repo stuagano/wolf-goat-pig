@@ -63,8 +63,9 @@ describe('DailySignupView', () => {
       getAccessTokenSilently: vi.fn().mockResolvedValue('signup-token'),
     });
     mockUsePlayerProfile.mockReturnValue({
-      profile: playerProfile,
+      profile: { ...playerProfile, is_admin: false },
       loading: false,
+      isAdmin: false,
     });
   });
 
@@ -126,6 +127,67 @@ describe('DailySignupView', () => {
     expect(await screen.findByText('Stuart')).toBeInTheDocument();
     expect(screen.getByText('(you)')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancel My Signup' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Generate pairings' })).not.toBeInTheDocument();
+  });
+
+  test('admin can overwrite the selected day pairings', async () => {
+    mockUsePlayerProfile.mockReturnValue({
+      profile: { ...playerProfile, is_admin: true },
+      loading: false,
+      isAdmin: true,
+    });
+    let overwritten = false;
+
+    fetch.mockImplementation(async (request) => {
+      const url = request.url;
+      if (url.includes('/pairings/') && url.includes('/generate') && request.method === 'POST') {
+        overwritten = true;
+        return jsonResponse({
+          success: true,
+          message: 'Generated 1 teams from 4 players',
+          pairings: { teams: [] },
+        });
+      }
+      if (url.includes('/pairings/')) {
+        return jsonResponse(
+          overwritten
+            ? {
+                exists: true,
+                generated_at: '2099-01-04T15:00:00Z',
+                pairings: {
+                  teams: [{ players: [{ player_name: 'Redrawn Player', handicap: 10 }] }],
+                },
+              }
+            : { exists: false },
+        );
+      }
+      if (url.includes('/signups/weekly-with-messages')) {
+        return jsonResponse(weeklyResponse());
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    render(<DailySignupView selectedDate={selectedDate} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate pairings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm overwrite' }));
+
+    await waitFor(() => {
+      expect(
+        fetch.mock.calls.some(
+          ([req]) => req.url.includes('/pairings/') && req.url.includes('/generate') && req.method === 'POST',
+        ),
+      ).toBe(true);
+    });
+
+    const generateRequest = fetch.mock.calls.find(
+      ([req]) => req.url.includes('/generate') && req.method === 'POST',
+    )[0];
+    expect(generateRequest.url).toContain('force=true');
+    expect(generateRequest.url).toContain('send_notifications=false');
+    expect(generateRequest.headers.get('Authorization')).toBe('Bearer signup-token');
+    expect(await screen.findAllByText('Redrawn Player')).not.toHaveLength(0);
+    expect(screen.getByRole('button', { name: 'Overwrite pairings' })).toBeInTheDocument();
   });
 
   test('unlinked player can sign up using their display name without being blocked', async () => {
