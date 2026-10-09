@@ -10608,6 +10608,35 @@
         ]
       }
     },
+    "/legacy-players/drift": {
+      "get": {
+        "description": "What's on Jeff's dropdown vs. the app roster (reads the old site live, read-only).",
+        "operationId": "get_roster_drift_legacy_players_drift_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Roster Drift Legacy Players Drift Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Roster Drift",
+        "tags": [
+          "legacy-players"
+        ]
+      }
+    },
     "/legacy-players/pending": {
       "get": {
         "description": "List golfers captured at sign-up who have no canonical match yet (admin only).",
@@ -10830,6 +10859,56 @@
         "summary": "Validate Legacy Player",
         "tags": [
           "signups"
+        ]
+      }
+    },
+    "/legacy-players/{name}": {
+      "delete": {
+        "description": "Remove a roster entry no active profile uses (e.g. an email that was promoted by mistake).",
+        "operationId": "delete_roster_name_legacy_players__name__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Delete Roster Name Legacy Players  Name  Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Roster Name",
+        "tags": [
+          "legacy-players"
         ]
       }
     },

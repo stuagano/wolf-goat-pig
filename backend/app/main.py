@@ -319,6 +319,7 @@ from .routers import (
     email_routes,
     legacy_scoring,
     messages,
+    roster_admin,
     signups,
     team_formation,
 )
@@ -326,6 +327,7 @@ from .routers import (
 app.include_router(messages.router)
 app.include_router(email_routes.router)
 app.include_router(signups.router)
+app.include_router(roster_admin.router)
 app.include_router(admin_oauth.router)
 app.include_router(admin.router)
 app.include_router(betting_odds.router)
