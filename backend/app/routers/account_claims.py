@@ -48,8 +48,11 @@ def _row(db: Session, claim: AccountClaim) -> dict[str, Any]:
     }
 
 
-def _pending(db: Session, claim_id: int) -> AccountClaim:
-    claim = db.query(AccountClaim).filter(AccountClaim.id == claim_id).with_for_update().first()
+def _pending(db: Session, claim_id: int, lock: bool = True) -> AccountClaim:
+    query = db.query(AccountClaim).filter(AccountClaim.id == claim_id)
+    if lock:
+        query = query.with_for_update().populate_existing()
+    claim = query.first()
     if claim is None:
         raise HTTPException(status_code=404, detail="Claim not found")
     if claim.status != "pending":
@@ -68,6 +71,14 @@ def list_claims(
     return {"claims": [_row(db, claim) for claim in claims]}
 
 
+def _lock_identities(db: Session, identities: list[str]) -> None:
+    """Take sorted transaction-scoped advisory locks (PostgreSQL only), as relink-auth0 does."""
+    if db.get_bind().dialect.name != "postgresql":
+        return
+    for identity in sorted(identities):
+        db.execute(text("SELECT pg_advisory_xact_lock(hashtext(:identity))"), {"identity": f"account-link:{identity}"})
+
+
 @router.post("/{claim_id}/approve")
 def approve_claim(
     claim_id: int, admin: dict[str, Any] = Depends(require_admin), db: Session = Depends(get_db)
@@ -75,7 +86,7 @@ def approve_claim(
     """Move the requester's login onto the original profile and retire the stray, atomically."""
     # Read without row locks first: the advisory locks must come before any row lock
     # (relink-auth0's order), or two admins touching the same profile can deadlock.
-    claim = _pending(db, claim_id)
+    claim = _pending(db, claim_id, lock=False)
     peek = db.get(PlayerProfile, claim.requester_profile_id)
     peek_subject = (peek.preferences or {}).get("auth0_id") if peek else None
     peek_email = (peek.email if peek else None) or claim.requester_email
@@ -83,24 +94,33 @@ def approve_claim(
 
     # Serialize against relink-auth0 and other approvals touching the same identities.
     # Lock keys match relink-auth0's; sorted so lock order is consistent across callers.
-    if db.get_bind().dialect.name == "postgresql":
-        identities = [f"roster:{canonical.lower()}"]
-        if peek_subject:
-            identities.append(f"auth0:{peek_subject}")
-        if peek_email:
-            identities.append(f"email:{peek_email.lower()}")
-        for identity in sorted(identities):
-            db.execute(
-                text("SELECT pg_advisory_xact_lock(hashtext(:identity))"), {"identity": f"account-link:{identity}"}
-            )
+    identities = [f"roster:{canonical.lower()}"]
+    if peek_subject:
+        identities.append(f"auth0:{peek_subject}")
+    if peek_email:
+        identities.append(f"email:{peek_email.lower()}")
+    _lock_identities(db, identities)
 
     # Now take row locks and re-validate: what we locked on must still be true.
     claim = _pending(db, claim_id)
-    requester = db.query(PlayerProfile).filter(PlayerProfile.id == claim.requester_profile_id).with_for_update().first()
-    target = db.query(PlayerProfile).filter(PlayerProfile.id == claim.target_profile_id).with_for_update().first()
+    # populate_existing: with_for_update alone returns stale identity-map objects.
+    requester = (
+        db.query(PlayerProfile)
+        .filter(PlayerProfile.id == claim.requester_profile_id)
+        .with_for_update()
+        .populate_existing()
+        .first()
+    )
+    target = (
+        db.query(PlayerProfile)
+        .filter(PlayerProfile.id == claim.target_profile_id)
+        .with_for_update()
+        .populate_existing()
+        .first()
+    )
     subject = (requester.preferences or {}).get("auth0_id") if requester else None
     email = (requester.email if requester else None) or claim.requester_email
-    if subject != peek_subject or email != peek_email:
+    if requester is None or not requester.is_active or subject != peek_subject or email != peek_email:
         raise HTTPException(status_code=409, detail="This claim changed while approving. Try again.")
 
     if target is None or not target.is_active:

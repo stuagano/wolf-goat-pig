@@ -173,3 +173,20 @@ def test_approve_refused_when_a_third_profile_holds_the_login(env):
         db.commit()
     resp = client.post("/players/admin/claims/10/approve")
     assert resp.status_code == 409 and "profile #3" in resp.json()["detail"]
+
+
+def test_approve_detects_requester_changed_between_read_and_locks(env, monkeypatch):
+    client, sessions = env
+
+    def concurrent_relink(db, identities):
+        with sessions() as other:
+            other.get(PlayerProfile, 2).preferences = {"auth0_id": "auth0|someone-else"}
+            other.commit()
+
+    monkeypatch.setattr("app.routers.account_claims._lock_identities", concurrent_relink)
+    resp = client.post("/players/admin/claims/10/approve")
+    assert resp.status_code == 409
+    assert "changed while approving" in resp.json()["detail"]
+    with sessions() as db:
+        assert (db.get(PlayerProfile, 1).preferences or {}).get("auth0_id") is None
+        assert db.get(PlayerProfile, 2).is_active and db.get(AccountClaim, 10).status == "pending"
