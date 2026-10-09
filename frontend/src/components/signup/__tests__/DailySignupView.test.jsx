@@ -156,3 +156,84 @@ describe('DailySignupView', () => {
     buttons.forEach((button) => expect(button).toBeEnabled());
   });
 });
+
+
+describe('DailySignupView admin sign-up controls', () => {
+  const other = {
+    id: 201, date: selectedDate, player_profile_id: 7, player_name: 'Gregg Colburn', status: 'signed_up',
+    notes: null, preferred_start_time: null, signup_time: '2099-01-01T00:00:00Z',
+    created_at: '2099-01-01T00:00:00Z', updated_at: '2099-01-01T00:00:00Z',
+  };
+
+  beforeEach(() => {
+    mockUseAuth0.mockReturnValue({
+      user: { name: 'Admin', email: 'admin@example.com' },
+      isAuthenticated: true,
+      getAccessTokenSilently: vi.fn().mockResolvedValue('admin-token'),
+    });
+  });
+
+  const installFetch = (signups, extra = () => null) => {
+    fetch.mockImplementation(async (request) => {
+      const url = request.url;
+      const handled = await extra(request);
+      if (handled) return handled;
+      if (url.includes('/pairings/')) return jsonResponse({ exists: false });
+      if (url.includes('/signups/weekly-with-messages')) return jsonResponse(weeklyResponse(signups));
+      if (url.endsWith('/signups/admin/players')) {
+        return jsonResponse({ players: [{ id: 7, legacy_name: 'Gregg Colburn' }, { id: 8, legacy_name: 'Terry Fuerst' }] });
+      }
+      throw new Error(`Unexpected fetch: ${request.method} ${url}`);
+    });
+  };
+
+  test('admin adds a player to an upcoming day', async () => {
+    mockUsePlayerProfile.mockReturnValue({ profile: playerProfile, loading: false, isAdmin: true });
+    installFetch([other], async (request) => {
+      if (request.url.endsWith('/signups/admin') && request.method === 'POST') {
+        return jsonResponse({ ...other, id: 202, player_profile_id: 8, player_name: 'Terry Fuerst' });
+      }
+      return null;
+    });
+    render(<DailySignupView selectedDate={selectedDate} />);
+
+    const picker = await screen.findByLabelText('Player to add');
+    await waitFor(() => expect(within(picker).getAllByRole('option')).toHaveLength(2));
+    expect(within(picker).queryByRole('option', { name: 'Gregg Colburn' })).not.toBeInTheDocument();
+    fireEvent.change(picker, { target: { value: '8' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+
+    expect(await screen.findByText('Added Terry Fuerst.')).toBeInTheDocument();
+    const post = fetch.mock.calls.map(([r]) => r).find(r => r.url.endsWith('/signups/admin') && r.method === 'POST');
+    expect(JSON.parse(await post.clone().text())).toEqual({ date: selectedDate, player_profile_id: 8 });
+    expect(post.headers.get('Authorization')).toBe('Bearer admin-token');
+  });
+
+  test('admin can remove someone else after confirming, with the auth token', async () => {
+    mockUsePlayerProfile.mockReturnValue({ profile: playerProfile, loading: false, isAdmin: true });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    installFetch([other], async (request) => {
+      if (request.url.endsWith('/signups/201') && request.method === 'DELETE') return jsonResponse({ message: 'ok' });
+      return null;
+    });
+    render(<DailySignupView selectedDate={selectedDate} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove Gregg Colburn' }));
+    await waitFor(() => expect(fetch.mock.calls.some(([r]) => r.method === 'DELETE')).toBe(true));
+    const del = fetch.mock.calls.map(([r]) => r).find(r => r.method === 'DELETE');
+    expect(del.url).toMatch(/\/signups\/201$/);
+    expect(del.headers.get('Authorization')).toBe('Bearer admin-token');
+    expect(confirm).toHaveBeenCalled();
+    confirm.mockRestore();
+  });
+
+  test('non-admins see neither the picker nor Remove on other players', async () => {
+    mockUsePlayerProfile.mockReturnValue({ profile: playerProfile, loading: false, isAdmin: false });
+    installFetch([other]);
+    render(<DailySignupView selectedDate={selectedDate} />);
+
+    expect(await screen.findByText('Gregg Colburn')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Player to add')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove Gregg Colburn' })).not.toBeInTheDocument();
+  });
+});

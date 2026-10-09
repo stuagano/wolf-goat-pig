@@ -1,6 +1,15 @@
 """Time helpers."""
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
+from zoneinfo import ZoneInfo
+
+# The club plays on Bainbridge Island, WA; "today" for sign-ups is Pacific time.
+CLUB_TZ = ZoneInfo("America/Los_Angeles")
+
+
+def club_today() -> date:
+    """Today's date at the club (Pacific), not the UTC server's date."""
+    return datetime.now(CLUB_TZ).date()
 
 
 def utc_now() -> datetime:

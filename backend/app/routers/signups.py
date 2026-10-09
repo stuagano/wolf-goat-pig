@@ -23,7 +23,7 @@ from ..services.legacy_player_service import (
     validate_player_for_legacy,
 )
 from ..services.legacy_signup_service import get_legacy_signup_service
-from ..utils.admin_auth import require_admin
+from ..utils.admin_auth import is_admin_profile, require_admin
 from ..utils.time import utc_now
 
 logger = logging.getLogger("app.routers.signups")
@@ -339,15 +339,26 @@ def create_signup(
         db.close()
 
 
+def _require_owner_or_admin(db_signup: models.DailySignup, current_user: models.PlayerProfile) -> None:
+    """Only the player who owns a sign-up, or an admin, may change it."""
+    if db_signup.player_profile_id != current_user.id and not is_admin_profile(current_user):
+        raise HTTPException(status_code=403, detail="You can only change your own sign-up.")
+
+
 @router.put("/signups/{signup_id}", response_model=schemas.DailySignupResponse)
-def update_signup(signup_id: int, signup_update: schemas.DailySignupUpdate):  # type: ignore
-    """Update a daily sign-up."""
+def update_signup(
+    signup_id: int,
+    signup_update: schemas.DailySignupUpdate,
+    current_user: models.PlayerProfile = Depends(get_current_user),
+):  # type: ignore
+    """Update a daily sign-up (owner or admin)."""
     try:
         db = database.SessionLocal()
 
         db_signup = db.query(models.DailySignup).filter(models.DailySignup.id == signup_id).first()
         if not db_signup:
             raise HTTPException(status_code=404, detail="Sign-up not found")
+        _require_owner_or_admin(db_signup, current_user)
 
         # Update fields
         if signup_update.preferred_start_time is not None:
@@ -383,14 +394,18 @@ def update_signup(signup_id: int, signup_update: schemas.DailySignupUpdate):  # 
 
 
 @router.delete("/signups/{signup_id}")
-def cancel_signup(signup_id: int):  # type: ignore
-    """Cancel a daily sign-up."""
+def cancel_signup(
+    signup_id: int,
+    current_user: models.PlayerProfile = Depends(get_current_user),
+):  # type: ignore
+    """Cancel a daily sign-up (owner or admin)."""
     try:
         db = database.SessionLocal()
 
         db_signup = db.query(models.DailySignup).filter(models.DailySignup.id == signup_id).first()
         if not db_signup:
             raise HTTPException(status_code=404, detail="Sign-up not found")
+        _require_owner_or_admin(db_signup, current_user)
 
         db_signup.status = "cancelled"  # type: ignore
         db_signup.updated_at = utc_now().isoformat()  # type: ignore

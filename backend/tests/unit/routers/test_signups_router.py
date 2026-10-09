@@ -300,6 +300,52 @@ class TestCancelSignup:
         assert "cancelled" in resp.json()["message"].lower()
 
 
+class TestChangingSomeoneElsesSignup:
+    """Only the player who owns a sign-up, or an admin, may cancel or edit it."""
+
+    def _signup_as_owner(self):
+        resp = client.post("/signups", json={"date": _unique_signup_date()})
+        assert resp.status_code == 200, resp.text
+        return resp.json()["id"]
+
+    def test_signed_out_cannot_cancel_or_edit(self, authenticated_signup_player):
+        signup_id = self._signup_as_owner()
+        app.dependency_overrides.pop(get_current_user, None)
+        try:
+            assert client.delete(f"/signups/{signup_id}").status_code in (401, 403)
+            assert client.put(f"/signups/{signup_id}", json={"notes": "x"}).status_code in (401, 403)
+        finally:
+            app.dependency_overrides[get_current_user] = lambda: authenticated_signup_player
+
+    def test_another_player_gets_403(self, authenticated_signup_player):
+        signup_id = self._signup_as_owner()
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+            id=111, legacy_name="Someone Else", email="else@example.com", admin_granted=0, is_active=1
+        )
+        try:
+            assert client.delete(f"/signups/{signup_id}").status_code == 403
+            assert client.put(f"/signups/{signup_id}", json={"notes": "x"}).status_code == 403
+        finally:
+            app.dependency_overrides[get_current_user] = lambda: authenticated_signup_player
+
+    @pytest.mark.parametrize(
+        "admin",
+        [
+            SimpleNamespace(id=222, legacy_name="Env Admin", email="admin@example.com", admin_granted=0, is_active=1),
+            SimpleNamespace(id=333, legacy_name="App Admin", email="app@example.com", admin_granted=1, is_active=1),
+        ],
+    )
+    def test_admin_can_edit_and_cancel_anyones(self, authenticated_signup_player, monkeypatch, admin):
+        monkeypatch.setenv("SUPER_ADMIN_EMAILS", "admin@example.com")
+        signup_id = self._signup_as_owner()
+        app.dependency_overrides[get_current_user] = lambda: admin
+        try:
+            assert client.put(f"/signups/{signup_id}", json={"notes": "Moved by admin"}).status_code == 200
+            assert client.delete(f"/signups/{signup_id}").status_code == 200
+        finally:
+            app.dependency_overrides[get_current_user] = lambda: authenticated_signup_player
+
+
 # ── GET /signups/weekly ──────────────────────────────────────────────────────
 
 

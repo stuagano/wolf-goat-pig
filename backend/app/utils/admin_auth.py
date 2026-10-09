@@ -60,6 +60,18 @@ def admin_role(db: Session, auth0_user: dict[str, Any]) -> Literal["super_admin"
     return "normal"
 
 
+def is_admin_profile(profile: Any) -> bool:
+    """Admin check for an already-resolved signed-in profile (from ``get_current_user``).
+
+    Same rules as ``admin_role``: the env allowlist by the profile's email, or an
+    in-app grant on this (active) profile. Use when a route resolves the player
+    profile rather than raw token claims.
+    """
+    return is_super_admin_email(getattr(profile, "email", None)) or bool(
+        getattr(profile, "admin_granted", 0) and getattr(profile, "is_active", 1)
+    )
+
+
 def require_admin(
     auth0_user: dict[str, Any] = Depends(get_current_auth0_user),
     db: Session = Depends(get_db),

@@ -320,12 +320,14 @@ from .routers import (
     legacy_scoring,
     messages,
     roster_admin,
+    signup_admin,
     signups,
     team_formation,
 )
 
 app.include_router(messages.router)
 app.include_router(email_routes.router)
+app.include_router(signup_admin.router)  # before signups: keep /signups/admin out of /signups/{signup_id}
 app.include_router(signups.router)
 app.include_router(roster_admin.router)
 app.include_router(admin_oauth.router)

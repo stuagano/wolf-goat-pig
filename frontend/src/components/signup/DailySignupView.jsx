@@ -7,6 +7,7 @@ import { usePlayerProfile } from '../../hooks/usePlayerProfile';
 import { acquireAccessToken, apiTokenOptions } from '../../services/authToken';
 import { api } from '../../api/client';
 import { errorDetail } from '../../api/http';
+import AdminAddSignup from './AdminAddSignup';
 
 const CLUB_PLAYER_ACCOUNT_PATH = '/account#club-player';
 
@@ -29,6 +30,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     profile,
     loading: profileLoading,
     legacyNameSkipped,
+    isAdmin,
   } = usePlayerProfile();
   const navigate = useNavigate();
   const [currentWeekStart, setCurrentWeekStart] = useState('');
@@ -263,7 +265,9 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   // Handle cancel signup
   const handleCancelSignup = async (signupId) => {
     try {
+      const token = await acquireAccessToken(getAccessTokenSilently, apiTokenOptions);
       const { response } = await api.DELETE('/signups/{signup_id}', {
+        headers: { Authorization: `Bearer ${token}` },
         params: { path: { signup_id: signupId } },
       });
       if (response.ok) {
@@ -275,6 +279,13 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     } catch (err) {
       console.error('Cancel error:', err);
       setError('Failed to cancel signup');
+    }
+  };
+
+  // Admins can remove anyone's sign-up; confirm first since it isn't their own.
+  const handleAdminRemove = (player) => {
+    if (window.confirm(`Remove ${player.player_name} from ${formatDateFull(selectedDate)}?`)) {
+      handleCancelSignup(player.id);
     }
   };
 
@@ -558,6 +569,14 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
         }}
           className="signup-day-grid"
         >
+          {isAdmin && selectedDate && selectedDate >= new Date().toLocaleDateString('en-CA') && (
+            <AdminAddSignup
+              date={selectedDate}
+              signedUpProfileIds={players.filter(p => p.status !== 'cancelled').map(p => p.player_profile_id)}
+              onAdded={() => loadWeeklyData(currentWeekStart)}
+            />
+          )}
+
           {/* Player List Table */}
           <div>
             {players.length > 0 ? (
@@ -624,9 +643,10 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                         </td>
                         {isAuthenticated && (
                           <td style={{ padding: '10px 8px', textAlign: 'center' }}>
-                            {isCurrentUser && (
+                            {(isCurrentUser || isAdmin) && (
                               <button
-                                onClick={() => handleCancelSignup(player.id)}
+                                onClick={() => (isCurrentUser ? handleCancelSignup(player.id) : handleAdminRemove(player))}
+                                aria-label={isCurrentUser ? 'Cancel my sign-up' : `Remove ${player.player_name}`}
                                 style={{
                                   background: 'none',
                                   border: 'none',
@@ -637,7 +657,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                                   textDecoration: 'underline'
                                 }}
                               >
-                                Cancel
+                                {isCurrentUser ? 'Cancel' : 'Remove'}
                               </button>
                             )}
                           </td>

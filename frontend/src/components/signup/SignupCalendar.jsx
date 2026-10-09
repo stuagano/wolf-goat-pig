@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import '../../styles/mobile-touch.css';
 import { api } from '../../api/client';
+import { acquireAccessToken, apiTokenOptions } from '../../services/authToken';
 import { errorDetail } from '../../api/http';
 
 const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
-  const { user, isAuthenticated } = useAuth0();
+  const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
   const [weekData, setWeekData] = useState({ daily_summaries: [] });
   const [currentWeekStart, setCurrentWeekStart] = useState('');
   const [loading, setLoading] = useState(true);
@@ -111,7 +112,9 @@ const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
 
   const handleCancelSignup = async (signupId) => {
     try {
+      const token = await acquireAccessToken(getAccessTokenSilently, apiTokenOptions);
       const { response } = await api.DELETE('/signups/{signup_id}', {
+        headers: { Authorization: `Bearer ${token}` },
         params: { path: { signup_id: signupId } },
       });
       if (!response.ok) throw new Error('Failed to cancel signup');
