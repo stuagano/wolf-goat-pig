@@ -127,8 +127,12 @@ def is_canonical_name_claimed(
     *,
     exclude_profile_id: int | None = None,
 ) -> bool:
-    """Return whether another profile already owns a canonical identity."""
+    """Return whether another profile already owns a canonical identity.
+
+    Retired (inactive) profiles never hold a name.
+    """
     query = db.query(PlayerProfile).filter(
+        PlayerProfile.is_active == 1,
         or_(
             func.lower(PlayerProfile.legacy_name) == canonical_name.lower(),
             func.lower(PlayerProfile.name) == canonical_name.lower(),
