@@ -4,7 +4,7 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import text
+from sqlalchemy import func, or_, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -73,21 +73,35 @@ def approve_claim(
     claim_id: int, admin: dict[str, Any] = Depends(require_admin), db: Session = Depends(get_db)
 ) -> dict[str, Any]:
     """Move the requester's login onto the original profile and retire the stray, atomically."""
+    # Read without row locks first: the advisory locks must come before any row lock
+    # (relink-auth0's order), or two admins touching the same profile can deadlock.
+    claim = _pending(db, claim_id)
+    peek = db.get(PlayerProfile, claim.requester_profile_id)
+    peek_subject = (peek.preferences or {}).get("auth0_id") if peek else None
+    peek_email = (peek.email if peek else None) or claim.requester_email
+    canonical = claim.canonical_name
+
+    # Serialize against relink-auth0 and other approvals touching the same identities.
+    # Lock keys match relink-auth0's; sorted so lock order is consistent across callers.
+    if db.get_bind().dialect.name == "postgresql":
+        identities = [f"roster:{canonical.lower()}"]
+        if peek_subject:
+            identities.append(f"auth0:{peek_subject}")
+        if peek_email:
+            identities.append(f"email:{peek_email.lower()}")
+        for identity in sorted(identities):
+            db.execute(
+                text("SELECT pg_advisory_xact_lock(hashtext(:identity))"), {"identity": f"account-link:{identity}"}
+            )
+
+    # Now take row locks and re-validate: what we locked on must still be true.
     claim = _pending(db, claim_id)
     requester = db.query(PlayerProfile).filter(PlayerProfile.id == claim.requester_profile_id).with_for_update().first()
     target = db.query(PlayerProfile).filter(PlayerProfile.id == claim.target_profile_id).with_for_update().first()
     subject = (requester.preferences or {}).get("auth0_id") if requester else None
     email = (requester.email if requester else None) or claim.requester_email
-
-    # Same identity locks as relink-auth0, so a concurrent relink can't interleave.
-    if db.get_bind().dialect.name == "postgresql":
-        identities = [f"roster:{claim.canonical_name.lower()}"] + [
-            value for value in (f"auth0:{subject}" if subject else None, f"email:{email}" if email else None) if value
-        ]
-        for identity in sorted(identities):
-            db.execute(
-                text("SELECT pg_advisory_xact_lock(hashtext(:identity))"), {"identity": f"account-link:{identity}"}
-            )
+    if subject != peek_subject or email != peek_email:
+        raise HTTPException(status_code=409, detail="This claim changed while approving. Try again.")
 
     if target is None or not target.is_active:
         raise HTTPException(
@@ -101,7 +115,32 @@ def approve_claim(
             status_code=409, detail="The requesting sign-in no longer has an active profile. Dismiss this claim."
         )
 
+    conditions = [
+        func.lower(PlayerProfile.legacy_name) == canonical.lower(),
+        func.lower(PlayerProfile.name) == canonical.lower(),
+        PlayerProfile.preferences["auth0_id"].as_string() == subject,
+    ]
+    conflict = (
+        db.query(PlayerProfile)
+        .filter(
+            PlayerProfile.is_active == 1,
+            PlayerProfile.id.notin_([target.id, requester.id]),
+            or_(*conditions),
+        )
+        .first()
+    )
+    if conflict:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"That roster name or login is already linked to profile #{conflict.id} "
+                f"({conflict.legacy_name or conflict.name}). Resolve the conflict first. Nothing was changed."
+            ),
+        )
+
     release_identity_and_retire(requester)  # frees the email + login before the original takes them
+    if (requester.name or "").lower() == canonical.lower():
+        requester.name = f"retired-profile-{requester.id}"  # frees the unique name for the original
     db.flush()
     now = utc_now().isoformat()
     target.email = email

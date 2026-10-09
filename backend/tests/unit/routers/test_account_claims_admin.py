@@ -139,3 +139,37 @@ def test_unknown_claim_404_and_non_admin_403(env):
     app.dependency_overrides[get_current_auth0_user] = lambda: {"sub": "auth0|x", "email": "player@example.com"}
     assert client.get("/players/admin/claims").status_code == 403
     assert client.post("/players/admin/claims/10/approve").status_code == 403
+
+
+def test_approve_when_stray_already_holds_the_roster_name(env):
+    client, sessions = env
+    with sessions() as db:
+        db.get(PlayerProfile, 1).name = "Gregg C"
+        db.get(PlayerProfile, 2).name = "Gregg Colburn"
+        db.commit()
+    resp = client.post("/players/admin/claims/10/approve")
+    assert resp.status_code == 200, resp.text
+    with sessions() as db:
+        assert db.get(PlayerProfile, 1).name == "Gregg Colburn"
+        assert db.get(PlayerProfile, 2).name == "retired-profile-2"
+
+
+def test_approve_refused_when_a_third_profile_holds_the_roster_name(env):
+    client, sessions = env
+    with sessions() as db:
+        db.add(PlayerProfile(id=3, name="Other", legacy_name="Gregg Colburn", created_at="2025-01-01"))
+        db.commit()
+    resp = client.post("/players/admin/claims/10/approve")
+    assert resp.status_code == 409
+    assert "already linked to profile #3" in resp.json()["detail"]
+    with sessions() as db:
+        assert db.get(PlayerProfile, 2).is_active and db.get(AccountClaim, 10).status == "pending"
+
+
+def test_approve_refused_when_a_third_profile_holds_the_login(env):
+    client, sessions = env
+    with sessions() as db:
+        db.add(PlayerProfile(id=3, name="Other", preferences={"auth0_id": "auth0|gregg"}, created_at="2025-01-01"))
+        db.commit()
+    resp = client.post("/players/admin/claims/10/approve")
+    assert resp.status_code == 409 and "profile #3" in resp.json()["detail"]
