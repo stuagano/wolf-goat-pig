@@ -159,4 +159,15 @@ describe("OnboardingWrapper fuzzy legacy-name flow", () => {
       expect(screen.queryByText(/Link Your Account/i)).not.toBeInTheDocument();
     });
   });
+
+  test("shows a waiting note instead of the history prompt while a claim is pending", async () => {
+    global.fetch.mockImplementation(() => okJson({
+      id: 5,
+      legacy_name: null,
+      pending_claim: { canonical_name: "Gregg Colburn", created_at: "2026-10-09T10:00:00" },
+    }));
+    render(<OnboardingWrapper><div>app</div></OnboardingWrapper>);
+    expect(await screen.findByText(/Waiting for a club admin to connect you to Gregg Colburn/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Find my player history" })).not.toBeInTheDocument();
+  });
 });

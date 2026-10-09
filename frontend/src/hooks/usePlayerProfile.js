@@ -20,7 +20,8 @@ export const usePlayerProfile = () => {
   const [legacyNameSkipped, setLegacyNameSkipped] = useState(false);
   const profileRequestId = useRef(0);
   const isUnlinked = Boolean(profile && (!profile.legacy_name || profile.legacy_name.includes('@')));
-  const needsLegacyName = isUnlinked && !legacyNameSkipped;
+  const pendingClaim = profile?.pending_claim || null;
+  const needsLegacyName = isUnlinked && !legacyNameSkipped && !pendingClaim;
   const userSub = user?.sub || null;
   const legacyNameSkipKey = userSub ? `legacy_name_skipped:${userSub}` : null;
 
@@ -96,6 +97,14 @@ export const usePlayerProfile = () => {
           },
           body: JSON.stringify({ legacy_name: legacyName }),
         });
+
+        if (response.status === 202) {
+          const claim = await response.json();
+          setProfile((current) => (current
+            ? { ...current, pending_claim: { canonical_name: claim.canonical_name, created_at: new Date().toISOString() } }
+            : current));
+          return claim;
+        }
 
         if (!response.ok) {
           const errorData = await response.json();
@@ -185,6 +194,7 @@ export const usePlayerProfile = () => {
     needsLegacyName,
     legacyNameSkipped,
     legacyNameSuggestion,
+    pendingClaim,
     role: profile?.role || null,
     isSuperAdmin: profile ? !!profile.is_super_admin : null,
     // Compatibility alias for existing admin screens.

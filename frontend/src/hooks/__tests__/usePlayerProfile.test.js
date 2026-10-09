@@ -132,4 +132,26 @@ describe("usePlayerProfile synchronization", () => {
     });
     expect(result.current.profile.legacy_name).toBe("Player One");
   });
+
+  test("a 202 claim_pending response records the claim and stops asking for a name", async () => {
+    const { result } = renderHook(() => usePlayerProfile());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.needsLegacyName).toBe(true);
+
+    global.fetch.mockImplementationOnce(() => Promise.resolve({
+      ok: true,
+      status: 202,
+      json: () => Promise.resolve({
+        status: "claim_pending",
+        canonical_name: "Player One",
+        message: "Request sent — a club admin will connect you to your history.",
+      }),
+    }));
+    let returned;
+    await act(async () => { returned = await result.current.updateLegacyName("Player One"); });
+
+    expect(returned.status).toBe("claim_pending");
+    expect(result.current.pendingClaim.canonical_name).toBe("Player One");
+    expect(result.current.needsLegacyName).toBe(false);
+  });
 });
