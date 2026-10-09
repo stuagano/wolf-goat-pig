@@ -2379,6 +2379,31 @@
         "title": "OddsCalculationResponse",
         "type": "object"
       },
+      "PendingClaimInfo": {
+        "description": "A claim this player made on an original profile, waiting for an admin.",
+        "properties": {
+          "canonical_name": {
+            "title": "Canonical Name",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "required": [
+          "canonical_name"
+        ],
+        "title": "PendingClaimInfo",
+        "type": "object"
+      },
       "PlayerAchievementResponse": {
         "properties": {
           "achievement_data": {
@@ -2847,6 +2872,16 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "pending_claim": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PendingClaimInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "playing_style": {
             "anyOf": [
@@ -12626,6 +12661,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "202": {
+            "description": "Name belongs to an original profile with no login; a claim was sent to admins"
           },
           "422": {
             "content": {

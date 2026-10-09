@@ -5815,6 +5815,16 @@ export interface components {
             /** Timestamp */
             timestamp: number;
         };
+        /**
+         * PendingClaimInfo
+         * @description A claim this player made on an original profile, waiting for an admin.
+         */
+        PendingClaimInfo: {
+            /** Canonical Name */
+            canonical_name: string;
+            /** Created At */
+            created_at?: string | null;
+        };
         /** PlayerAchievementResponse */
         PlayerAchievementResponse: {
             /** Achievement Data */
@@ -5995,6 +6005,7 @@ export interface components {
             legacy_name_suggestion?: string | null;
             /** Name */
             name: string;
+            pending_claim?: components["schemas"]["PendingClaimInfo"] | null;
             /** Playing Style */
             playing_style?: string | null;
             /** Preferences */
@@ -12392,6 +12403,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PlayerProfileResponse"];
                 };
+            };
+            /** @description Name belongs to an original profile with no login; a claim was sent to admins */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
