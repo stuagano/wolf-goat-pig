@@ -8,6 +8,7 @@ vi.mock('../../hooks/useLegacyPlayers', () => ({
   useLegacyPlayers: () => ({ players: ['Kevin Gent', 'Casey McFarland'], loading: false }),
 }));
 vi.mock('../../components/ui', () => ({ Card: ({ children }) => <div>{children}</div> }));
+vi.mock('../admin/ClaimRequests', () => ({ default: () => null }));
 
 const kevin = { id: 1, name: 'kevin@example.com', email: 'kevin@example.com', auth0_id: 'auth0|test-kevin', legacy_name: null, updated_at: null };
 const response = data => ({ ok: true, json: async () => data });
