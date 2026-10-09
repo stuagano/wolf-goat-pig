@@ -2379,6 +2379,31 @@
         "title": "OddsCalculationResponse",
         "type": "object"
       },
+      "PendingClaimInfo": {
+        "description": "A claim this player made on an original profile, waiting for an admin.",
+        "properties": {
+          "canonical_name": {
+            "title": "Canonical Name",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "required": [
+          "canonical_name"
+        ],
+        "title": "PendingClaimInfo",
+        "type": "object"
+      },
       "PlayerAchievementResponse": {
         "properties": {
           "achievement_data": {
@@ -2847,6 +2872,16 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "pending_claim": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PendingClaimInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "playing_style": {
             "anyOf": [
@@ -12133,6 +12168,159 @@
         ]
       }
     },
+    "/players/admin/claims": {
+      "get": {
+        "operationId": "list_claims_players_admin_claims_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "pending",
+              "pattern": "^(pending|approved|dismissed)$",
+              "title": "Status",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response List Claims Players Admin Claims Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Claims",
+        "tags": [
+          "players",
+          "players"
+        ]
+      }
+    },
+    "/players/admin/claims/{claim_id}/approve": {
+      "post": {
+        "description": "Move the requester's login onto the original profile and retire the stray, atomically.",
+        "operationId": "approve_claim_players_admin_claims__claim_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "claim_id",
+            "required": true,
+            "schema": {
+              "title": "Claim Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Approve Claim Players Admin Claims  Claim Id  Approve Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Approve Claim",
+        "tags": [
+          "players",
+          "players"
+        ]
+      }
+    },
+    "/players/admin/claims/{claim_id}/dismiss": {
+      "post": {
+        "operationId": "dismiss_claim_players_admin_claims__claim_id__dismiss_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "claim_id",
+            "required": true,
+            "schema": {
+              "title": "Claim Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Dismiss Claim Players Admin Claims  Claim Id  Dismiss Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Dismiss Claim",
+        "tags": [
+          "players",
+          "players"
+        ]
+      }
+    },
     "/players/admin/relink-auth0": {
       "post": {
         "description": "Link a selected existing profile; never merge, delete, or steal another identity.",
@@ -12626,6 +12814,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "202": {
+            "description": "Name belongs to an original profile with no login; a claim was sent to admins"
           },
           "422": {
             "content": {

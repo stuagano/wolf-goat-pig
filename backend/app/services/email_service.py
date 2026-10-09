@@ -4,6 +4,7 @@ Unified Email Service for Wolf Goat Pig Application
 Handles all email functionality using a provider-based strategy (SMTP or Gmail OAuth2).
 """
 
+import html
 import logging
 import os
 import re
@@ -329,6 +330,30 @@ class EmailService:
         return self._send_email(
             to_email=to_email,
             subject=f"New WGP player needs onboarding: {new_player_name}",
+            html_body=html_body,
+        )
+
+    def send_account_claim_notification(
+        self,
+        to_email: str,
+        canonical_name: str,
+        requester_email: str | None = None,
+    ) -> bool:
+        """Alert an admin that a returning player asked to be connected to their original profile."""
+        who = f"<strong>{html.escape(requester_email)}</strong>" if requester_email else "A player"
+        safe_name = html.escape(canonical_name)
+        content = f"""
+        <h2>Player wants their history connected</h2>
+        <p>{who} signed in and says they are <strong>{safe_name}</strong>.
+        That player's original profile has no login yet.</p>
+        <p>Open the admin page → <strong>Account links</strong> → <strong>Claim requests</strong>
+        to approve or dismiss it.</p>
+        """
+        template = Template(self._get_base_template())
+        html_body = template.render(subject="WGP claim request", content=content)
+        return self._send_email(
+            to_email=to_email,
+            subject=f"WGP claim request: {canonical_name}",
             html_body=html_body,
         )
 

@@ -63,4 +63,25 @@ describe('ClubPlayerSection', () => {
       expect(screen.getByText('Club player linked as Jane Smith.')).toBeInTheDocument();
     });
   });
+
+  test('shows the claim message, not a linked success, when the pick becomes a pending claim', async () => {
+    const message = 'Request sent — a club admin will connect you to your history.';
+    const updateLegacyName = vi.fn().mockResolvedValue({
+      status: 'claim_pending',
+      canonical_name: 'Jane Smith',
+      message,
+    });
+    usePlayerProfile.mockReturnValue({
+      profile: { id: 7, legacy_name: null },
+      loading: false,
+      legacyNameSuggestion: null,
+      updateLegacyName,
+    });
+
+    render(<ClubPlayerSection cardStyle={{}} sectionTitle={{}} theme={theme} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Select Jane Smith' }));
+
+    await waitFor(() => expect(screen.getByText(message)).toBeInTheDocument());
+    expect(screen.queryByText(/linked/i)).not.toBeInTheDocument();
+  });
 });

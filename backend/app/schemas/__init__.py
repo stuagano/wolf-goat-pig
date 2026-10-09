@@ -37,6 +37,7 @@ from .games import (
 )
 from .players import (
     LeaderboardEntry,
+    PendingClaimInfo,
     PlayerAchievementResponse,
     PlayerPerformanceAnalytics,
     PlayerProfileBase,
@@ -85,6 +86,7 @@ __all__ = [
     "HoleInfo",
     # players
     "LeaderboardEntry",
+    "PendingClaimInfo",
     "PlayerAchievementResponse",
     "PlayerPerformanceAnalytics",
     "PlayerProfileBase",

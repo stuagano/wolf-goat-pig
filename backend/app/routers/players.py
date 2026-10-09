@@ -18,13 +18,13 @@ from io import BytesIO
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from PIL import Image, ImageOps
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..database import get_db
-from ..services import media_storage_service
+from ..services import account_claim_service, media_storage_service
 from ..services.auth_service import get_current_auth0_user, get_current_user
 from ..services.legacy_player_service import (
     find_unclaimed_similar_players,
@@ -36,6 +36,7 @@ from ..services.unified_data_service import get_unified_data_service
 from ..utils.admin_auth import admin_role, require_admin
 from ..utils.api_helpers import ApiResponse, handle_api_errors, require_not_none
 from ..utils.time import utc_now
+from .account_claims import router as account_claims_router
 from .account_links import router as account_links_router
 from .admin_grants import router as admin_grants_router
 
@@ -82,6 +83,7 @@ logger = logging.getLogger("app.routers.players")
 router = APIRouter(prefix="/players", tags=["players"])
 router.include_router(account_links_router)
 router.include_router(admin_grants_router)
+router.include_router(account_claims_router)
 
 
 # ============================================================================
@@ -214,14 +216,23 @@ async def get_my_profile(
     profile.role = admin_role(db, auth0_user)
     profile.is_super_admin = profile.role == "super_admin"
     profile.is_admin = profile.role != "normal"
+    claim = account_claim_service.pending_claim_for(db, cast("int", current_user.id))
+    profile.pending_claim = (
+        schemas.PendingClaimInfo(canonical_name=claim.canonical_name, created_at=claim.created_at) if claim else None
+    )
     return profile
 
 
-@router.put("/me/legacy-name", response_model=schemas.PlayerProfileResponse)
+@router.put(
+    "/me/legacy-name",
+    response_model=schemas.PlayerProfileResponse,
+    responses={202: {"description": "Name belongs to an original profile with no login; a claim was sent to admins"}},
+)
 @handle_api_errors(operation_name="update my legacy name")
 async def update_my_legacy_name(
     legacy_name_update: dict[str, str | None],
     current_user: models.PlayerProfile = Depends(get_current_user),
+    auth0_user: dict[str, Any] = Depends(get_current_auth0_user),
     db: Session = Depends(get_db),
 ) -> schemas.PlayerProfileResponse:
     """
@@ -247,6 +258,31 @@ async def update_my_legacy_name(
         )
         if not link_result["linked"]:
             if link_result["status"] == "claimed":
+                outcome = account_claim_service.request_claim_for_name(
+                    db,
+                    current_user,
+                    canonical,
+                    email=((auth0_user.get("email") or current_user.email or "").strip().lower() or None),
+                    email_verified=auth0_user.get("email_verified"),
+                )
+                if outcome["status"] == "unverified":
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Verify your email address, then pick your name again so a club admin can connect you.",
+                    )
+                if outcome["status"] == "pending":
+                    claim = outcome["claim"]
+                    db.commit()
+                    if outcome["created"]:
+                        account_claim_service.notify_admins_of_claim(canonical, claim.requester_email)
+                    return JSONResponse(
+                        status_code=202,
+                        content={
+                            "status": "claim_pending",
+                            "canonical_name": canonical,
+                            "message": "Request sent — a club admin will connect you to your history.",
+                        },
+                    )
                 raise HTTPException(
                     status_code=409,
                     detail=f"'{canonical}' already has a player profile. Ask a club admin to connect your sign-in to that player in Account links.",
@@ -256,6 +292,12 @@ async def update_my_legacy_name(
     else:
         current_user.legacy_name = None
         current_user.updated_at = utc_now().isoformat()
+
+    stale_claim = account_claim_service.pending_claim_for(db, cast("int", current_user.id))
+    if stale_claim:
+        stale_claim.status = "dismissed"
+        stale_claim.resolved_at = utc_now().isoformat()
+        stale_claim.resolved_by = "superseded"
 
     db.commit()
     db.refresh(current_user)

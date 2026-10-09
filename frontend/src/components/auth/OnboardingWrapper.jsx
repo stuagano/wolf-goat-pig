@@ -20,6 +20,7 @@ const OnboardingWrapper = ({ children }) => {
     skipLegacyName,
     error,
     refetch,
+    pendingClaim,
   } = usePlayerProfile();
 
   const ready = isAuthenticated && !authLoading && !profileLoading;
@@ -39,6 +40,9 @@ const OnboardingWrapper = ({ children }) => {
           <button type="button" onClick={() => loginWithRedirect({ authorizationParams: { prompt: 'login' } })}>Sign in again</button>
         </div>
       </div>}
+      {ready && !error && pendingClaim && <section aria-label="Claim pending" style={{ padding: 16, background: '#eef5ed', color: '#234422' }}>
+        <p style={{ margin: 0 }}>Waiting for a club admin to connect you to {pendingClaim.canonical_name}. You can keep using the app in the meantime.</p>
+      </section>}
       {canLink && !findingPlayer && <section aria-label="Player history" style={{ padding: 16, background: '#eef5ed', color: '#234422' }}>
         <p style={{ marginTop: 0 }}>Already play with the club? Connect your player history once.</p>
         <button type="button" onClick={() => setFindingPlayer(true)}>Find my player history</button>

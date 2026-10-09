@@ -193,12 +193,15 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
   };
 
   const handleLegacySelect = async (name) => {
-    await updateLegacyName(name);
+    const result = await updateLegacyName(name);
     setShowLinkFlow(false);
+    const pending = result?.status === "claim_pending";
     setSubmitState({
       loading: false,
       error: "",
-      success: "Roster name linked. You can post your round now.",
+      success: pending
+        ? `${result.message} You can post your round once a club admin connects you.`
+        : "Roster name linked. You can post your round now.",
       canRetry: false,
       needsReauth: false,
     });

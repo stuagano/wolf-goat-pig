@@ -166,6 +166,7 @@ class TestMyProfileComputedFields:
                 name="Owner Account",
                 email="owner@example.com",
                 legacy_name="Shared Name",
+                preferences={"auth0_id": "auth0|owner"},
             )
             claimant = _make_user(
                 id=2,

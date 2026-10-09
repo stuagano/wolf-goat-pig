@@ -65,6 +65,13 @@ class PlayerProfileUpdate(BaseModel):
         return v
 
 
+class PendingClaimInfo(BaseModel):
+    """A claim this player made on an original profile, waiting for an admin."""
+
+    canonical_name: str
+    created_at: str | None = None
+
+
 class PlayerProfileResponse(PlayerProfileBase):
     id: int
     created_at: str
@@ -88,6 +95,8 @@ class PlayerProfileResponse(PlayerProfileBase):
     # A non-authoritative fuzzy legacy-name suggestion to confirm in onboarding;
     # never auto-persisted to legacy_name. See issue #322.
     legacy_name_suggestion: str | None = None
+    # Computed in GET /players/me only; never an ORM attribute (see PR #373).
+    pending_claim: PendingClaimInfo | None = None
     # Computed authorization fields returned only by GET /players/me.
     role: Literal["normal", "admin", "super_admin"] = "normal"
     is_super_admin: bool = False

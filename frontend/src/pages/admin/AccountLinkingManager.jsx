@@ -3,6 +3,7 @@ import { useAuthenticatedFetch } from '../../hooks/useAuthenticatedFetch';
 import { useLegacyPlayers } from '../../hooks/useLegacyPlayers';
 import { Card } from '../../components/ui';
 import { apiConfig } from '../../config/api.config';
+import ClaimRequests from './ClaimRequests';
 
 const inputClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg';
 const buttonClass = 'px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50';
@@ -81,6 +82,7 @@ export default function AccountLinkingManager() {
         <h2 className="text-xl font-semibold">Account links</h2>
         <p className="text-gray-600 mt-2">Connect an existing player profile to their club roster name, email, and Auth0 login. Start with a name or email, then select the profile whose history belongs to that player.</p>
       </div>
+      <ClaimRequests />
       <form onSubmit={search} className="flex flex-wrap items-end gap-3">
         <label className="flex-1 min-w-48"><span className="block font-medium mb-1">Search name or email</span>
           <input className={inputClass} value={query} onChange={event => setQuery(event.target.value)} required minLength={2} maxLength={100} placeholder="Kevin Gent, Casey McFarland, or email" disabled={busy} />

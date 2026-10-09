@@ -26,7 +26,11 @@ const ClubPlayerSection = ({ cardStyle, sectionTitle, theme }) => {
   const handleSelect = async (legacyName) => {
     setMessage(null);
     try {
-      await updateLegacyName(legacyName);
+      const result = await updateLegacyName(legacyName);
+      if (result?.status === 'claim_pending') {
+        setMessage({ type: 'info', text: result.message });
+        return;
+      }
       setEditing(false);
       setMessage({ type: 'success', text: `Club player linked as ${legacyName}.` });
     } catch (error) {
@@ -34,7 +38,7 @@ const ClubPlayerSection = ({ cardStyle, sectionTitle, theme }) => {
     }
   };
 
-  const messageIsSuccess = message?.type === 'success';
+  const messageIsError = message?.type === 'error';
 
   return (
     <div id="club-player" style={cardStyle}>
@@ -90,8 +94,8 @@ const ClubPlayerSection = ({ cardStyle, sectionTitle, theme }) => {
           marginTop: 16,
           padding: '10px 14px',
           borderRadius: 8,
-          background: messageIsSuccess ? '#ecfdf5' : '#fef2f2',
-          color: messageIsSuccess ? '#166534' : '#991b1b',
+          background: messageIsError ? '#fef2f2' : '#ecfdf5',
+          color: messageIsError ? '#991b1b' : '#166534',
         }}>
           {message.text}
         </div>

@@ -855,3 +855,23 @@ class PendingLegacyPlayer(Base):
     created_at = Column(String)
     resolved_at = Column(String, nullable=True)
     notes = Column(String, nullable=True)
+
+
+class AccountClaim(Base):
+    """A returning player's request to be connected to their original profile.
+
+    Created when someone picks a roster name held by an active profile with no
+    login. An admin approves (moves the login onto the original, retires the
+    requester's stray profile) or dismisses it.
+    """
+
+    __tablename__ = "account_claims"
+    id = Column(Integer, primary_key=True, index=True)
+    requester_profile_id = Column(Integer, nullable=False, index=True)
+    target_profile_id = Column(Integer, nullable=False, index=True)
+    canonical_name = Column(String, nullable=False)
+    requester_email = Column(String, nullable=True)
+    status = Column(String, nullable=False, default="pending", server_default="pending", index=True)
+    created_at = Column(String)
+    resolved_at = Column(String, nullable=True)
+    resolved_by = Column(String, nullable=True)
