@@ -5,6 +5,7 @@ import { Card } from "../ui";
 import { usePlayerProfile } from "../../hooks/usePlayerProfile";
 import { useAuthenticatedFetch } from "../../hooks/useAuthenticatedFetch";
 import { apiConfig } from "../../config/api.config";
+import RosterDriftPanel from "./RosterDriftPanel";
 
 const API_URL = apiConfig.baseUrl;
 
@@ -240,6 +241,8 @@ const RosterManager = () => {
             {error}
           </div>
         )}
+
+        <RosterDriftPanel />
 
         {/* Add a name directly to the canonical roster */}
         <Card className="p-6 mb-6">

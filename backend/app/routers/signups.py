@@ -143,7 +143,10 @@ def admin_add_legacy_player(
 
     Use once the player is known to exist on the legacy tee-sheet dropdown.
     """
-    return add_legacy_player(body.name, source="admin")
+    result = add_legacy_player(body.name, source="admin")
+    if result.get("invalid"):
+        raise HTTPException(status_code=400, detail=result["message"])
+    return result
 
 
 @router.get("/legacy-players/pending", dependencies=[Depends(require_admin)])
@@ -158,14 +161,16 @@ def admin_list_pending_players(
 @router.post("/legacy-players/pending/{pending_id}/promote", dependencies=[Depends(require_admin)])
 def admin_promote_pending_player(
     pending_id: int,
+    db=Depends(database.get_db),
 ):
     """Promote a pending capture into the canonical roster (admin only).
 
     Call this once the player has been added to Jeff's legacy dropdown.
     """
-    result = promote_pending_player(pending_id)
+    result = promote_pending_player(pending_id, db=db)
     if not result.get("promoted"):
-        raise HTTPException(status_code=404, detail=result.get("message", "Cannot promote"))
+        status = 400 if result.get("invalid") else 404
+        raise HTTPException(status_code=status, detail=result.get("message", "Cannot promote"))
     return result
 
 

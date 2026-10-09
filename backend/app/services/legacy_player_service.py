@@ -275,7 +275,10 @@ def add_legacy_player(name: str, *, source: str = "admin", db: Any = None) -> di
     """
     name = (name or "").strip()
     if not name:
-        return {"added": False, "message": "Empty name"}
+        return {"added": False, "invalid": True, "message": "Empty name"}
+    if "@" in name:
+        # Promoting an email-named capture used to put the email on the roster.
+        return {"added": False, "invalid": True, "message": "Roster names are player names, not email addresses"}
 
     own_session = db is None
     if own_session:
@@ -392,6 +395,8 @@ def promote_pending_player(pending_id: int, db: Any = None) -> dict:
             return {"promoted": False, "message": f"Pending player id={pending_id} is already {row.status}"}
 
         roster_result = add_legacy_player(row.name, source="promoted", db=db)
+        if roster_result.get("invalid"):
+            return {"promoted": False, "invalid": True, "message": roster_result["message"]}
         canonical_name = str(roster_result.get("canonical_name") or row.name)
 
         profile_link_status = "no_profile"

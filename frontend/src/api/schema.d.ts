@@ -2912,6 +2912,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/legacy-players/drift": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Roster Drift
+         * @description What's on Jeff's dropdown vs. the app roster (reads the old site live, read-only).
+         */
+        get: operations["get_roster_drift_legacy_players_drift_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/legacy-players/pending": {
         parameters: {
             query?: never;
@@ -3014,6 +3034,26 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/legacy-players/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Roster Name
+         * @description Remove a roster entry no active profile uses (e.g. an email that was promoted by mistake).
+         */
+        delete: operations["delete_roster_name_legacy_players__name__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -10965,6 +11005,28 @@ export interface operations {
             };
         };
     };
+    get_roster_drift_legacy_players_drift_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     admin_list_pending_players_legacy_players_pending_get: {
         parameters: {
             query?: {
@@ -11109,6 +11171,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_roster_name_legacy_players__name__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
