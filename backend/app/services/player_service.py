@@ -30,6 +30,21 @@ from ..utils.time import utc_now
 logger = logging.getLogger(__name__)
 
 
+def release_identity_and_retire(player: PlayerProfile) -> None:
+    """Deactivate a profile and free its identity (email, login, GHIN, admin). Caller commits.
+
+    An inactive profile that still holds an email/Auth0 ID blocks that person's
+    sign-in and any relink to their real profile.
+    """
+    player.is_active = 0
+    player.ghin_id = None
+    player.email = None
+    player.preferences = {k: v for k, v in (player.preferences or {}).items() if k != "auth0_id"}
+    player.admin_granted = 0
+    player.admin_granted_by = None
+    player.admin_granted_at = None
+
+
 class PlayerService:
     """Service class for player profile management operations."""
 
@@ -205,15 +220,7 @@ class PlayerService:
             if not player:
                 return False
 
-            player.is_active = 0
-            player.ghin_id = None  # Release GHIN ID so it can be assigned elsewhere
-            # Release the login identity too: an inactive profile that still holds an
-            # email/Auth0 ID blocks that person's sign-in and any relink to their real profile.
-            player.email = None
-            player.preferences = {k: v for k, v in (player.preferences or {}).items() if k != "auth0_id"}
-            player.admin_granted = 0
-            player.admin_granted_by = None
-            player.admin_granted_at = None
+            release_identity_and_retire(player)
             self.db.commit()
 
             logger.info(f"Deleted (deactivated) player profile {player_id}")

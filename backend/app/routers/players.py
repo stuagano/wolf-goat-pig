@@ -36,6 +36,7 @@ from ..services.unified_data_service import get_unified_data_service
 from ..utils.admin_auth import admin_role, require_admin
 from ..utils.api_helpers import ApiResponse, handle_api_errors, require_not_none
 from ..utils.time import utc_now
+from .account_claims import router as account_claims_router
 from .account_links import router as account_links_router
 from .admin_grants import router as admin_grants_router
 
@@ -82,6 +83,7 @@ logger = logging.getLogger("app.routers.players")
 router = APIRouter(prefix="/players", tags=["players"])
 router.include_router(account_links_router)
 router.include_router(admin_grants_router)
+router.include_router(account_claims_router)
 
 
 # ============================================================================
