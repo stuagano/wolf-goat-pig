@@ -32,7 +32,6 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     loading: profileLoading,
     isAdmin,
     legacyNameSkipped,
-    isAdmin,
   } = usePlayerProfile();
   const navigate = useNavigate();
   const [currentWeekStart, setCurrentWeekStart] = useState('');
