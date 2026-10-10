@@ -35,7 +35,8 @@ export default function RoundStoryPage() {
   const [copied, setCopied] = useState(false);
 
   const query = location ? `?location=${encodeURIComponent(location)}` : '';
-  const storyUrl = `${API_URL}/data/rounds/${encodeURIComponent(date)}/${encodeURIComponent(group || '')}${query}`;
+  const storyPath = `${API_URL}/data/rounds/${encodeURIComponent(date)}/${encodeURIComponent(group || '')}`;
+  const storyUrl = `${storyPath}${query}`;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -95,7 +96,7 @@ export default function RoundStoryPage() {
     setPostError(null);
     try {
       const token = await getToken();
-      const res = await fetch(`${storyUrl}/comments`, {
+      const res = await fetch(`${storyPath}/comments${query}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ body }),
@@ -131,7 +132,7 @@ export default function RoundStoryPage() {
     try {
       const token = await getToken();
       const url = commentId == null
-        ? `${storyUrl}/reactions`
+        ? `${storyPath}/reactions${query}`
         : `${API_URL}/data/rounds/comments/${commentId}/reactions`;
       const res = await fetch(url, {
         method: 'POST',
