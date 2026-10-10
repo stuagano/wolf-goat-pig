@@ -3,12 +3,13 @@
 import logging
 from typing import Any, cast
 
-from fastapi import APIRouter, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
 from .. import database, models
 from ..services.sunday_game_service import generate_sunday_pairings
 from ..services.team_formation_service import TeamFormationService
+from ..utils.admin_auth import require_admin
 
 logger = logging.getLogger(__name__)
 
@@ -354,18 +355,20 @@ def generate_and_save_pairings(  # type: ignore
     date: str = Path(description="Date in YYYY-MM-DD format"),
     force: bool = Query(False, description="Force regenerate even if pairings exist"),
     send_notifications: bool = Query(True, description="Send email notifications to all players"),
+    actor: dict[str, Any] = Depends(require_admin),
 ):
     """Generate and save random pairings for a specific date.
 
-    This is the endpoint to call manually or from a cron job.
+    Admin only. ``force=true`` overwrites official pairings already saved for the day.
     """
     try:
         db = database.SessionLocal()
         from ..services.pairing_scheduler_service import PairingSchedulerService
 
+        generated_by = actor.get("email") or "manual"
         # Generate pairings
         pairing, message = PairingSchedulerService.generate_pairings(
-            db, date, generated_by="manual", force_regenerate=force
+            db, date, generated_by=generated_by, force_regenerate=force
         )
 
         if not pairing:

@@ -213,6 +213,28 @@ class TestGetUnifiedLeaderboard:
         with patch.object(svc, "get_all_rounds", return_value=rows):
             assert svc.get_unified_leaderboard() == []
 
+    def test_season_rounds_excludes_prior_season_and_keeps_newest_first(self):
+        svc = make_service()
+        rows = [
+            UnifiedRound("20-Jul", "2026-07-20", "A", "Stuart", -27, "Wing Point", source="primary_sheet"),
+            UnifiedRound("30-Aug", "2026-08-30", "A", "Jeff", 12, "Gold Mountain", source="primary_sheet"),
+            UnifiedRound("19-Jul", "2026-07-19", "A", "Old Player", 999, "Wing Point", source="database"),
+            UnifiedRound("31-Aug", "2026-08-31", "B", "Stuart", 4, "Wing Point", source="member"),
+        ]
+        with patch.object(svc, "get_all_rounds", return_value=rows):
+            season = svc.get_season_rounds()
+        assert [(r.date_sortable, r.member) for r in season] == [
+            ("2026-08-31", "Stuart"),
+            ("2026-08-30", "Jeff"),
+            ("2026-07-20", "Stuart"),
+        ]
+
+    def test_season_rounds_empty_without_sheet_start(self):
+        svc = make_service()
+        rows = [UnifiedRound("26-Jun", "2026-06-26", "A", "Stuart", -257, "Wing Point", source="database")]
+        with patch.object(svc, "get_all_rounds", return_value=rows):
+            assert svc.get_season_rounds() == []
+
     def test_live_fetch_skips_writable_sheet(self):
         """Prior-season writable copy must not be merged into season-of-record data."""
         svc = make_service()
