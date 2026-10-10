@@ -639,6 +639,7 @@ def get_public_player_profile(
             {
                 "date": r.date_sortable,
                 "location": r.location,
+                "group": r.group,
                 "score": r.score,
                 "duration": r.duration,
                 "source": r.source,

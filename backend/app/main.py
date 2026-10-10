@@ -284,6 +284,10 @@ from .routers import unified_data
 
 app.include_router(unified_data.router)
 
+from .routers import round_stories
+
+app.include_router(round_stories.router)
+
 # Include modular routers
 app.include_router(health.router)
 app.include_router(features.router)

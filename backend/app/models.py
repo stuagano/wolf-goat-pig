@@ -431,6 +431,54 @@ class LegacyRound(Base):
     foursome = Column(JSON, nullable=True)  # canonical roster names eligible to attest
 
 
+class RoundComment(Base):
+    """A note on a historical foursome, keyed the same way the season rounds list is.
+
+    Sheet rounds have no GameRecord id, so the identity is date + group + location.
+    """
+
+    __tablename__ = "round_comments"
+    __table_args__ = (Index("ix_round_comments_round", "round_date", "round_group", "location"),)
+    id = Column(Integer, primary_key=True, index=True)
+    round_date = Column(String, nullable=False)  # YYYY-MM-DD
+    round_group = Column(String, nullable=False)
+    location = Column(String, nullable=False, default="")
+    author_profile_id = Column(Integer, ForeignKey("player_profiles.id"), nullable=False, index=True)
+    body = Column(Text, nullable=False)
+    created_at = Column(String, nullable=False)
+
+
+class RoundReaction(Base):
+    """One player's emoji on a round or on one comment. Tap again to take it off.
+
+    A null comment_id is a reaction on the round itself. The unique key uses
+    COALESCE so Postgres treats those the same as SQLite (NULL is not distinct).
+    """
+
+    __tablename__ = "round_reactions"
+    __table_args__ = (
+        Index(
+            "uq_round_reactions_player_emoji",
+            "round_date",
+            "round_group",
+            "location",
+            text("COALESCE(comment_id, 0)"),
+            "profile_id",
+            "emoji",
+            unique=True,
+        ),
+        Index("ix_round_reactions_round", "round_date", "round_group", "location"),
+    )
+    id = Column(Integer, primary_key=True, index=True)
+    round_date = Column(String, nullable=False)
+    round_group = Column(String, nullable=False)
+    location = Column(String, nullable=False, default="")
+    comment_id = Column(Integer, ForeignKey("round_comments.id"), nullable=True, index=True)
+    profile_id = Column(Integer, ForeignKey("player_profiles.id"), nullable=False, index=True)
+    emoji = Column(String, nullable=False)
+    created_at = Column(String, nullable=False)
+
+
 class PlayerAchievement(Base):
     __tablename__ = "player_achievements"
     id = Column(Integer, primary_key=True, index=True)

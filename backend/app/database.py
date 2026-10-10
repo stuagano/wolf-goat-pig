@@ -183,6 +183,9 @@ def init_db():
                             "INTEGER REFERENCES player_profiles(id)"
                         )
                     )
+        # Round stories and reactions are new tables; create_all covers fresh
+        # SQLite. Production PostgreSQL uses add_round_comments_postgres.sql and
+        # add_round_reactions_postgres.sql.
         # Filtered view used by Commissioner SQL reads (SQLite dev; Postgres gets
         # it from the attestation migration).
         ensure_legacy_rounds_official_view(engine)

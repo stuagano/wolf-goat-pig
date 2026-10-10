@@ -1,4 +1,7 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
+import PlayerName from './PlayerName';
+import { roundPath } from './roundLink';
 
 export default function ExtremeScores({ title, scores, emptyLabel }) {
   return (
@@ -22,8 +25,12 @@ export default function ExtremeScores({ title, scores, emptyLabel }) {
             <tbody className="bg-white divide-y divide-gray-200">
               {scores.map((row) => (
                 <tr key={`${row.date_sortable}-${row.member}-${row.quarters}-${row.group || ''}`}>
-                  <td className="px-6 py-4 text-sm text-gray-700">{row.date}</td>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{row.member}</td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    <Link to={roundPath(row)} className="hover:text-blue-600 hover:underline">{row.date}</Link>
+                  </td>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                    <PlayerName name={row.member} playerId={row.player_id} />
+                  </td>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">{row.quarters}</td>
                 </tr>
               ))}

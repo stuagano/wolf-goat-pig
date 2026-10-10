@@ -6,7 +6,7 @@ import { api } from '../../../api/client';
 import { FeaturesProvider } from '../../../hooks/useFeatureFlags';
 
 const standings = [
-  { rank: 1, member: 'Alice', quarters: 40, rounds: 8, average: 5 },
+  { rank: 1, member: 'Alice', player_id: 11, quarters: 40, rounds: 8, average: 5 },
   { rank: 2, member: 'Jeff', quarters: 10, rounds: 22, average: 0.5 },
   { rank: 3, member: 'Bob', quarters: -4, rounds: 21, average: -0.2 },
 ];
@@ -92,6 +92,13 @@ test.each([false, true])('LivSow team lookup respects the runtime flag: %s', asy
   } else {
     expect(api.GET).not.toHaveBeenCalledWith('/data/livsow/team-map');
   }
+});
+
+test('a standing with a profile links to that player; one without stays plain text', async () => {
+  renderBoard();
+  const alice = await screen.findByRole('link', { name: 'Alice' });
+  expect(alice).toHaveAttribute('href', '/players/11');
+  expect(screen.getByText('Jeff').closest('a')).toBeNull();
 });
 
 test('standings default to rank ascending and each header re-sorts', async () => {

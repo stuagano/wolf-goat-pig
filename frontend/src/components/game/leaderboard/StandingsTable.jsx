@@ -1,6 +1,6 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { BANQUET_QUALIFICATION_ROUNDS, SORT_COLUMNS } from './standings';
+import PlayerName from './PlayerName';
 
 function SortGlyph({ active, dir }) {
   return (
@@ -65,11 +65,7 @@ export default function StandingsTable({
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">
-                    {entry.player_id ? (
-                      <Link to={`/players/${entry.player_id}`} className="hover:text-blue-600 hover:underline">
-                        {entry.member || 'Unknown Player'}
-                      </Link>
-                    ) : (entry.member || 'Unknown Player')}
+                    <PlayerName name={entry.member} playerId={entry.player_id} />
                   </div>
                   {showTeams && teamMap[entry.member] && (
                     <div className="text-xs text-blue-600 mt-0.5">⛳ {teamMap[entry.member].team}</div>
