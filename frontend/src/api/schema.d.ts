@@ -4586,6 +4586,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/signups/admin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Admin Add Signup */
+        post: operations["admin_add_signup_signups_admin_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/signups/admin/players": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Signup Players
+         * @description Active profiles linked to a club roster name — the only players an admin can add.
+         */
+        get: operations["list_signup_players_signups_admin_players_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/signups/weekly": {
         parameters: {
             query?: never;
@@ -4736,13 +4773,13 @@ export interface paths {
         get?: never;
         /**
          * Update Signup
-         * @description Update a daily sign-up.
+         * @description Update a daily sign-up (owner or admin).
          */
         put: operations["update_signup_signups__signup_id__put"];
         post?: never;
         /**
          * Cancel Signup
-         * @description Cancel a daily sign-up.
+         * @description Cancel a daily sign-up (owner or admin).
          */
         delete: operations["cancel_signup_signups__signup_id__delete"];
         options?: never;
@@ -5072,6 +5109,18 @@ export interface components {
         AddLegacyPlayerRequest: {
             /** Name */
             name: string;
+        };
+        /** AdminSignupCreate */
+        AdminSignupCreate: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Notes */
+            notes?: string | null;
+            /** Player Profile Id */
+            player_profile_id: number;
         };
         /** AdminTestEmailRequest */
         AdminTestEmailRequest: {
@@ -13997,6 +14046,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_add_signup_signups_admin_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSignupCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DailySignupResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_signup_players_signups_admin_players_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };

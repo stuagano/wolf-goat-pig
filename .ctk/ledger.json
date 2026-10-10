@@ -40,11 +40,11 @@
     "waiver": null
   },
   "api-surface-no-drift": {
-    "at": "2026-10-09T19:47:15.498238+00:00",
+    "at": "2026-10-09T21:05:46.880396+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:2c642b65186ff042120586095c512c009bfe10eaaab84f8b3f8a324af7cc8628",
+    "fingerprint": "sha256:d866c97728adbaaf6e5150384e9ea41b0bf05ac8eb1c78c8cf603984e42829d1",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -150,11 +150,11 @@
     "waiver": null
   },
   "daily-signup-uses-current-player": {
-    "at": "2026-10-08T17:56:02.854780+00:00",
+    "at": "2026-10-09T21:05:51.875989+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:25bddc00b2883b624eafc315c146e2145058818b5ab2d115687fe156cc6743d4",
+    "fingerprint": "sha256:ee6a89520780e7cd006c4de629fe2db17b281b83ec6ae118c4cc50a01c728b38",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -420,11 +420,11 @@
     "waiver": null
   },
   "new-player-capture-persists": {
-    "at": "2026-10-09T19:14:30.386792+00:00",
+    "at": "2026-10-09T21:05:54.457323+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:89cccd75831fe697039ee17bf5f68ade90732c646f59418e1f1b515b2d381b4c",
+    "fingerprint": "sha256:63788060ac9eecddb5849b4b910a2f1f741fa811ca5fcaa805eac544baa60ff2",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -520,11 +520,11 @@
     "waiver": null
   },
   "request-validation-422-envelope": {
-    "at": "2026-10-09T17:43:43.182696+00:00",
+    "at": "2026-10-09T21:05:43.790321+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:12f6110e57262c2edf74226ebde370f3c9dd6ecb9d28d87ae1d311770e077937",
+    "fingerprint": "sha256:4fabb002f445acbcf1db0e9dda6913ca5115dbcd2dc26c2d6693d7a4ec517a4d",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -580,21 +580,21 @@
     "waiver": null
   },
   "signup-server-owns-identity": {
-    "at": "2026-10-09T17:44:23.749693+00:00",
+    "at": "2026-10-09T21:06:02.740325+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:30f36f309b9df02cfe5803f455f05ea907b0be3e30a5b22d8bdd218181ba6a06",
+    "fingerprint": "sha256:b7a045c479e78b08bae5267219dac9e65ef09a71ffb2e11d5ad57a9dbadd6c4c",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "signups-create-persists": {
-    "at": "2026-10-09T17:43:53.174517+00:00",
+    "at": "2026-10-09T21:05:48.887988+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:579bb0858bcbc90f172a02c7d6c2db56b25aebac03e1d5feffa452a0f6da206d",
+    "fingerprint": "sha256:12ec71d53c41a22856c02717e16e860a2153b7eacb3a8c48ab96310d4db0b62b",
     "result": "pass",
     "tier": "cheap",
     "waiver": null

@@ -68,6 +68,38 @@
         "title": "AddLegacyPlayerRequest",
         "type": "object"
       },
+      "AdminSignupCreate": {
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "player_profile_id": {
+            "exclusiveMinimum": 0.0,
+            "title": "Player Profile Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "player_profile_id"
+        ],
+        "title": "AdminSignupCreate",
+        "type": "object"
+      },
       "AdminTestEmailRequest": {
         "properties": {
           "config": {
@@ -14801,6 +14833,81 @@
         ]
       }
     },
+    "/signups/admin": {
+      "post": {
+        "operationId": "admin_add_signup_signups_admin_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminSignupCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DailySignupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Add Signup",
+        "tags": [
+          "signups"
+        ]
+      }
+    },
+    "/signups/admin/players": {
+      "get": {
+        "description": "Active profiles linked to a club roster name — the only players an admin can add.",
+        "operationId": "list_signup_players_signups_admin_players_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response List Signup Players Signups Admin Players Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Signup Players",
+        "tags": [
+          "signups"
+        ]
+      }
+    },
     "/signups/weekly": {
       "get": {
         "description": "Get sign-ups for a rolling 7-day period starting from specified Monday.",
@@ -15222,7 +15329,7 @@
     },
     "/signups/{signup_id}": {
       "delete": {
-        "description": "Cancel a daily sign-up.",
+        "description": "Cancel a daily sign-up (owner or admin).",
         "operationId": "cancel_signup_signups__signup_id__delete",
         "parameters": [
           {
@@ -15255,13 +15362,18 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Cancel Signup",
         "tags": [
           "signups"
         ]
       },
       "put": {
-        "description": "Update a daily sign-up.",
+        "description": "Update a daily sign-up (owner or admin).",
         "operationId": "update_signup_signups__signup_id__put",
         "parameters": [
           {
@@ -15306,6 +15418,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Update Signup",
         "tags": [
           "signups"
