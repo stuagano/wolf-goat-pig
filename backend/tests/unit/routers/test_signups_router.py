@@ -45,6 +45,49 @@ def _signups_for_week(week_start):
     return {signup["id"]: signup for day in resp.json()["daily_summaries"] for signup in day["signups"]}
 
 
+@pytest.mark.parametrize("endpoint", ["/signups/weekly", "/signups/weekly-with-messages"])
+def test_weekly_signup_priority_survives_note_edit(endpoint, tmp_path, monkeypatch, authenticated_signup_player):
+    engine = create_engine(f"sqlite:///{tmp_path / 'priority.db'}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    sessions = sessionmaker(bind=engine)
+    monkeypatch.setattr(signups_module.database, "SessionLocal", sessions)
+    monkeypatch.setattr(signups_module, "get_legacy_signup_service", Mock(return_value=Mock()))
+    with sessions() as db:
+        for signup_id, timestamp, status in [
+            (1, "2026-10-09T18:00:00", "signed_up"),
+            (2, "2026-10-09T17:00:00", "signed_up"),
+            (3, "2026-10-09T17:00:00", "signed_up"),
+            (4, "2026-10-09T16:00:00", "cancelled"),
+        ]:
+            db.add(
+                DailySignup(
+                    id=signup_id,
+                    date="2026-10-11",
+                    player_profile_id=authenticated_signup_player.id,
+                    player_name=f"Player {signup_id}",
+                    signup_time=timestamp,
+                    status=status,
+                    created_at=timestamp,
+                    updated_at=timestamp,
+                )
+            )
+        db.commit()
+    try:
+        for edit in [False, True]:
+            if edit:
+                response = client.put("/signups/2", json={"notes": "Can play early"})
+                assert response.status_code == 200
+                assert response.json()["signup_time"] == "2026-10-09T17:00:00"
+            response = client.get(endpoint, params={"week_start": "2026-10-11"})
+            assert response.status_code == 200
+            rows = response.json()["daily_summaries"][0]["signups"]
+            assert [row["id"] for row in rows] == [2, 3, 1]
+            if edit:
+                assert rows[0]["notes"] == "Can play early"
+    finally:
+        engine.dispose()
+
+
 def test_issue_319_three_authenticated_players_stay_distinct(tmp_path, monkeypatch):
     """Verified claims -> real profile lookup -> signup/readback/cancel; no live writes."""
     engine = create_engine(f"sqlite:///{tmp_path / 'identities.db'}", connect_args={"check_same_thread": False})

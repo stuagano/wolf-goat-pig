@@ -206,6 +206,7 @@ def get_weekly_signups(week_start: str = Query(description="YYYY-MM-DD format fo
                     models.DailySignup.date == date_str,
                     models.DailySignup.status != "cancelled",
                 )
+                .order_by(models.DailySignup.signup_time, models.DailySignup.id)
                 .all()
             )
 
@@ -494,6 +495,7 @@ def get_weekly_signups_with_messages(week_start: str = Query(description="YYYY-M
                     models.DailySignup.date == date_str,
                     models.DailySignup.status != "cancelled",
                 )
+                .order_by(models.DailySignup.signup_time, models.DailySignup.id)
                 .all()
             )
 
