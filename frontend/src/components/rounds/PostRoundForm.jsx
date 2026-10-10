@@ -124,7 +124,8 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
     const members = [legacyName, ...form.foursome];
     const missingOrInvalidScore = members.some(name => (
       form.scores[name] == null || String(form.scores[name]).trim() === "" ||
-      !Number.isInteger(Number(form.scores[name]))
+      !/^[+-]?\d+$/.test(String(form.scores[name]).trim()) ||
+      Number(form.scores[name]) < -2147483648 || Number(form.scores[name]) > 2147483647
     ));
     if (!legacyName || missingOrInvalidScore) {
       setSubmitState({
@@ -288,7 +289,7 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
           {[legacyName, ...form.foursome].filter(Boolean).map(name => (
             <label key={name}>
               {name} — quarters won/lost
-              <input type="number" step="1" min="-2147483648" max="2147483647" inputMode="numeric"
+              <input type="text" inputMode="text"
                 value={form.scores[name] ?? ""} required placeholder="Example: -3, 0, or 8"
                 onChange={event => setForm(current => ({ ...current, scores: { ...current.scores, [name]: event.target.value } }))}
               />

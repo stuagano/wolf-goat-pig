@@ -51,6 +51,22 @@ test('shows posted history without an attestation column', async () => {
   expect(screen.queryByRole('columnheader', { name: 'Attested By' })).not.toBeInTheDocument();
 });
 
+test('preserves a leading minus while typing and posts negative quarters', async () => {
+  render(<PostRoundPage />);
+  await screen.findByText('No posted rounds yet.');
+  fireEvent.click(screen.getByRole('button', { name: 'Jeff Smith' }));
+  const score = screen.getByLabelText('Stuart Gano — quarters won/lost');
+  fireEvent.change(score, { target: { value: '-' } });
+  expect(score).toHaveValue('-');
+  expect(score).toHaveAttribute('inputmode', 'text');
+  fireEvent.change(score, { target: { value: '-5' } });
+  fireEvent.change(screen.getByLabelText('Jeff Smith — quarters won/lost'), { target: { value: '5' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Post foursome results' }));
+  await waitFor(() => expect(postMyRound).toHaveBeenCalledWith(token, expect.objectContaining({
+    results: [{ member: 'Stuart Gano', score: -5 }, { member: 'Jeff Smith', score: 5 }],
+  })));
+});
+
 test('keeps group results for correction when another player already posted', async () => {
   postMyRound.mockRejectedValue(Object.assign(new Error('Jeff Smith already has a posted result for that date'), { status: 409 }));
   render(<PostRoundPage />);
@@ -60,7 +76,18 @@ test('keeps group results for correction when another player already posted', as
   fireEvent.change(screen.getByLabelText('Jeff Smith — quarters won/lost'), { target: { value: -5 } });
   fireEvent.click(screen.getByRole('button', { name: 'Post foursome results' }));
   expect(await screen.findByText(/Jeff Smith already has a posted result/)).toBeInTheDocument();
-  expect(screen.getByLabelText('Stuart Gano — quarters won/lost')).toHaveValue(5);
-  expect(screen.getByLabelText('Jeff Smith — quarters won/lost')).toHaveValue(-5);
+  expect(screen.getByLabelText('Stuart Gano — quarters won/lost')).toHaveValue('5');
+  expect(screen.getByLabelText('Jeff Smith — quarters won/lost')).toHaveValue('-5');
   expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+});
+
+test.each(['-', '1.5', 'abc', '1e2', '2147483648', '-2147483649'])('rejects invalid quarters %s', async (value) => {
+  render(<PostRoundPage />);
+  await screen.findByText('No posted rounds yet.');
+  fireEvent.click(screen.getByRole('button', { name: 'Jeff Smith' }));
+  fireEvent.change(screen.getByLabelText('Stuart Gano — quarters won/lost'), { target: { value } });
+  fireEvent.change(screen.getByLabelText('Jeff Smith — quarters won/lost'), { target: { value: '0' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Post foursome results' }));
+  expect(await screen.findByText('Enter whole quarters won/lost for every player, including zero.')).toBeInTheDocument();
+  expect(postMyRound).not.toHaveBeenCalled();
 });
