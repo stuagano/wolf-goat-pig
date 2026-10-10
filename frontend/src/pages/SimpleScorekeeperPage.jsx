@@ -1,15 +1,12 @@
 // frontend/src/pages/SimpleScorekeeperPage.js
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { SimpleScorekeeper } from '../components/game';
 import ScorecardBackfill from '../components/game/ScorecardBackfill';
 import { Card } from '../components/ui';
 import { useTheme } from '../theme/Provider';
 import ErrorBoundary, { GameErrorFallback } from '../components/common/ErrorBoundary';
-import { apiConfig } from '../config/api.config';
-import syncManager from '../services/syncManager';
-
-const API_URL = apiConfig.baseUrl;
+import useGameData from '../hooks/useGameData';
 
 /**
  * Wrapper page for SimpleScorekeeper that loads game data
@@ -17,66 +14,8 @@ const API_URL = apiConfig.baseUrl;
 const SimpleScorekeeperPage = () => {
   const { gameId } = useParams();
   const theme = useTheme();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [gameData, setGameData] = useState(null);
+  const { loading, error, game, reload } = useGameData(gameId);
   const [showBackfill, setShowBackfill] = useState(false);
-
-  const loadGame = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch(`${API_URL}/games/${gameId}/state`);
-
-      if (!response.ok) {
-        throw new Error('Failed to load game');
-      }
-
-      const data = await response.json();
-      // Reconcile the local cache against server truth: flush unsynced edits,
-      // or heal a stale/duplicated cache by overwriting it with server state.
-      // Map GET /state (snake_case) into the local cache shape (camelCase).
-      syncManager.reconcileOnLoad(gameId, {
-        holeHistory: data.hole_history || [],
-        currentHole: data.current_hole,
-        playerStandings: data.standings || {},
-        players: data.players || [],
-        baseWager: data.base_wager || 1,
-        courseName: data.course_name,
-      });
-      localStorage.setItem('wgp_current_game', gameId);
-      setGameData(data);
-      setLoading(false);
-    } catch (err) {
-      console.error('Error loading game:', err);
-      // Bad course signal: open from the local write-buffer if we have a roster.
-      const local = syncManager.loadLocalGameState(gameId);
-      if (local?.players?.length) {
-        syncManager.ensureScoresQueued(gameId, { holeHistory: [] });
-        localStorage.setItem('wgp_current_game', gameId);
-        setGameData({
-          players: local.players,
-          hole_history: local.holeHistory || [],
-          current_hole: local.currentHole || 1,
-          standings: local.playerStandings || {},
-          course_name: local.courseName || 'Wing Point Golf & Country Club',
-          base_wager: local.baseWager || 1,
-          game_status: 'in_progress',
-          offline_fallback: true,
-        });
-        setLoading(false);
-        return;
-      }
-      setError(err.message);
-      setLoading(false);
-    }
-  }, [gameId]);
-
-  useEffect(() => {
-    if (gameId) {
-      loadGame();
-    }
-  }, [gameId, loadGame]);
 
   if (loading) {
     return (
@@ -147,7 +86,7 @@ const SimpleScorekeeperPage = () => {
     );
   }
 
-  if (!gameData || !gameData.players) {
+  if (!game || !game.players) {
     return (
       <div style={{
         display: 'flex',
@@ -168,31 +107,20 @@ const SimpleScorekeeperPage = () => {
     );
   }
 
-  const players = gameData.players || [];
-  // Completed games (including scorecard-scan rounds) have no current_hole in
-  // their state; use 19 so SimpleScorekeeper's isGameComplete gate fires.
-  const currentHoleNumber = gameData.current_hole || (gameData.game_status === 'completed' ? 19 : 1);
-
-  // Get hole history and stroke allocation for SimpleScorekeeper
-  const holeHistory = gameData.hole_history || [];
-  const strokeAllocation = gameData.stroke_allocation || null;
-  const courseName = gameData.course_name || 'Wing Point Golf & Country Club';
-  const baseWager = gameData.base_wager || 1;
-
-  const isCompleted = gameData.game_status === 'completed';
+  const { players, currentHole, holeHistory, standings, strokeAllocation, courseName, baseWager, isComplete } = game;
 
   // "Fill in holes" backfill editor — only available for completed rounds
-  if (isCompleted && showBackfill) {
+  if (isComplete && showBackfill) {
     return (
       <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
         <ScorecardBackfill
           gameId={gameId}
           players={players}
           holeHistory={holeHistory}
-          standings={gameData.standings || {}}
+          standings={standings}
           onSaved={() => {
             setShowBackfill(false);
-            loadGame();
+            reload();
           }}
           onCancel={() => setShowBackfill(false)}
         />
@@ -207,11 +135,11 @@ const SimpleScorekeeperPage = () => {
         players={players}
         baseWager={baseWager}
         initialHoleHistory={holeHistory}
-        initialCurrentHole={currentHoleNumber}
+        initialCurrentHole={currentHole}
         courseName={courseName}
         initialStrokeAllocation={strokeAllocation}
       />
-      {isCompleted && (
+      {isComplete && (
         <div style={{ padding: '0 20px 20px', maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
           <button
             type="button"
