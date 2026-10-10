@@ -827,6 +827,11 @@
             "title": "Date",
             "type": "string"
           },
+          "dry_run": {
+            "default": false,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
           "notes": {
             "anyOf": [
               {
@@ -891,6 +896,17 @@
           "id": {
             "title": "Id",
             "type": "integer"
+          },
+          "legacy_sync": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legacy Sync"
           },
           "notes": {
             "anyOf": [
@@ -4115,6 +4131,48 @@
           "hole_number"
         ],
         "title": "ShotRangeAnalysisRequest",
+        "type": "object"
+      },
+      "SignupPreviewResponse": {
+        "description": "What a dry-run signup would write, without writing it (issue #323).",
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "legacy_sync": {
+            "default": "skipped",
+            "title": "Legacy Sync",
+            "type": "string"
+          },
+          "live_write": {
+            "default": false,
+            "title": "Live Write",
+            "type": "boolean"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "success": {
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          },
+          "would_sign_up": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Would Sign Up",
+            "type": "object"
+          }
+        },
+        "required": [
+          "reason",
+          "would_sign_up"
+        ],
+        "title": "SignupPreviewResponse",
         "type": "object"
       },
       "SignupRequest": {
@@ -15358,7 +15416,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DailySignupResponse"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/DailySignupResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SignupPreviewResponse"
+                    }
+                  ],
+                  "title": "Response Create Signup Signups Post"
                 }
               }
             },

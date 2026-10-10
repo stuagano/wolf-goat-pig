@@ -7,6 +7,7 @@ import { acquireAccessToken, apiTokenOptions } from '../../services/authToken';
 import { api } from '../../api/client';
 import { errorDetail } from '../../api/http';
 import AdminAddSignup from './AdminAddSignup';
+import { apiConfig } from '../../config/api.config';
 
 const CLUB_PLAYER_ACCOUNT_PATH = '/account#club-player';
 
@@ -37,8 +38,10 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   const [weekData, setWeekData] = useState({ daily_summaries: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [notice, setNotice] = useState(null);
   const [teeTimesText, setTeeTimesText] = useState('');
   const [confirmingSignup, setConfirmingSignup] = useState(false);
+  const [confirmingCancelId, setConfirmingCancelId] = useState(null);
   const [signingUp, setSigningUp] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [noteValue, setNoteValue] = useState('');
@@ -47,6 +50,9 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   const signupProfileReady = Boolean(profile?.id);
   const signupDisabled = signingUp || profileLoading;
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+  // Production is the only surface that posts to the live club tee sheet.
+  // Everywhere else the signup stays in this app (issue #323).
+  const isLive = apiConfig.isProduction;
 
   // Compute the Sunday that starts the week containing a given date
   const getSundayOfWeek = useCallback((dateStr) => {
@@ -189,12 +195,32 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
           date: selectedDate,
           preferred_start_time: null,
           notes: null,
+          // Preview never asks the server to mirror onto the live club sheet.
+          dry_run: !isLive,
         },
       });
       if (data) {
-        await loadWeeklyData(currentWeekStart);
-        setError(null);
         setConfirmingSignup(false);
+        if (data.dry_run || data.live_write === false) {
+          setError(null);
+          setNotice(
+            `Preview only — nothing was saved. In production this would sign up ${data.would_sign_up?.name || signupName} for ${formatDateFull(data.would_sign_up?.date || selectedDate)} on the LIVE tee sheet.`,
+          );
+        } else if (data.legacy_sync === 'failed') {
+          await loadWeeklyData(currentWeekStart);
+          setNotice(null);
+          setError(
+            `Signed up in the app as ${signupName}, but the LIVE tee sheet was NOT updated for ${formatDateFull(selectedDate)}. Tell the sheet owner.`,
+          );
+        } else {
+          await loadWeeklyData(currentWeekStart);
+          setError(null);
+          setNotice(
+            isLive
+              ? `Signed up as ${signupName} for ${formatDateFull(selectedDate)}. The LIVE club tee sheet was updated.`
+              : null,
+          );
+        }
       } else {
         throw new Error(errorDetail(apiError) || 'Failed to sign up');
       }
@@ -232,17 +258,36 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     }
   };
 
-  // Handle cancel signup
+  // Cancel is a second step. The first click only names who and which day
+  // will come off the sheet; nothing is sent until that is confirmed.
+  const requestCancelSignup = (signupId) => {
+    setConfirmingCancelId(signupId);
+    setError(null);
+  };
+
   const handleCancelSignup = async (signupId) => {
     try {
       const token = await acquireAccessToken(getAccessTokenSilently, apiTokenOptions);
-      const { response } = await api.DELETE('/signups/{signup_id}', {
+      const { data, response } = await api.DELETE('/signups/{signup_id}', {
         headers: { Authorization: `Bearer ${token}` },
         params: { path: { signup_id: signupId } },
       });
       if (response.ok) {
-        loadWeeklyData(currentWeekStart);
-        setError(null);
+        setConfirmingCancelId(null);
+        await loadWeeklyData(currentWeekStart);
+        if (data?.legacy_sync === 'failed') {
+          setNotice(null);
+          setError(
+            `Removed in the app, but the LIVE tee sheet was NOT updated for ${data.name || signupName} on ${formatDateFull(data.date || selectedDate)}. Tell the sheet owner.`,
+          );
+        } else {
+          setError(null);
+          setNotice(
+            data?.legacy_sync === 'mirrored'
+              ? `Removed ${data.name} from the LIVE tee sheet for ${formatDateFull(data.date)}.`
+              : null,
+          );
+        }
       } else {
         throw new Error('Failed to cancel signup');
       }
@@ -254,7 +299,14 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
 
   // Admins can remove anyone's sign-up; confirm first since it isn't their own.
   const handleAdminRemove = (player) => {
-    if (window.confirm(`Remove ${player.player_name} from ${formatDateFull(selectedDate)}?`)) {
+    if (
+      window.confirm(
+        `Remove ${player.player_name} from ${formatDateFull(selectedDate)}? ` +
+          (isLive
+            ? 'This also removes them from the LIVE club tee sheet.'
+            : 'This only changes the app signup list, not the live tee sheet.'),
+      )
+    ) {
       handleCancelSignup(player.id);
     }
   };
@@ -439,6 +491,29 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
         </div>
       )}
 
+      {notice && (
+        <div role="status" style={{
+          background: '#eff6ff',
+          color: '#1e40af',
+          padding: '10px 16px',
+          fontSize: '14px',
+          borderBottom: '1px solid #bfdbfe',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '12px'
+        }}>
+          <span>{notice}</span>
+          <button
+            onClick={() => setNotice(null)}
+            aria-label="Dismiss notice"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: '#1e40af' }}
+          >
+            x
+          </button>
+        </div>
+      )}
+
       {/* Day Content */}
       <div style={{ padding: '16px' }}>
         {/* Day Header with Sign Up button */}
@@ -487,8 +562,11 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
               </button>
               {confirmingSignup && (
                 <>
-                  <span style={{ color: '#374151', fontSize: '14px', fontWeight: '600' }}>
-                    Signing up as: {signupName}
+                  <span style={{ color: '#374151', fontSize: '14px', fontWeight: '600', maxWidth: 420 }}>
+                    {isLive
+                      ? <>Sign up <strong>{signupName}</strong> for <strong>{formatDateFull(selectedDate)}</strong>? This changes the <strong>LIVE</strong> club tee sheet.</>
+                      : <>Preview — sign up <strong>{signupName}</strong> for <strong>{formatDateFull(selectedDate)}</strong> in the app only. The live tee sheet will not change.</>
+                    }
                   </span>
                   <button
                     onClick={() => setConfirmingSignup(false)}
@@ -512,22 +590,64 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
           )}
           {isAuthenticated && userIsSignedUp && userSignup && (
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <button
-                onClick={() => handleCancelSignup(userSignup.id)}
-                style={{
-                  background: '#dc2626',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '10px 24px',
-                  fontSize: '15px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                Cancel My Signup
-              </button>
+              {confirmingCancelId === userSignup.id ? (
+                <>
+                  <span style={{ color: '#374151', fontSize: '14px', fontWeight: '600', maxWidth: 420 }}>
+                    {isLive
+                      ? <>Remove <strong>{userSignup.player_name}</strong> from <strong>{formatDateFull(selectedDate)}</strong> on the <strong>LIVE</strong> club tee sheet?</>
+                      : <>Remove <strong>{userSignup.player_name}</strong> from <strong>{formatDateFull(selectedDate)}</strong>? The live tee sheet will not change.</>
+                    }
+                  </span>
+                  <button
+                    onClick={() => handleCancelSignup(userSignup.id)}
+                    style={{
+                      background: '#dc2626',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '10px 16px',
+                      fontSize: '14px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {isLive ? 'Yes, remove from the LIVE sheet' : 'Yes, remove my signup'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmingCancelId(null)}
+                    style={{
+                      background: '#6b7280',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '10px 16px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Keep my signup
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => requestCancelSignup(userSignup.id)}
+                  style={{
+                    background: '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '10px 24px',
+                    fontSize: '15px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  Cancel My Signup
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -632,9 +752,25 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                         </td>
                         {isAuthenticated && (
                           <td style={{ padding: '10px 8px', textAlign: 'center' }}>
-                            {(isCurrentUser || isAdmin) && (
+                            {(isCurrentUser || isAdmin) && confirmingCancelId === player.id && isCurrentUser ? (
+                              <span style={{ display: 'inline-flex', gap: '6px' }}>
+                                <button
+                                  onClick={() => handleCancelSignup(player.id)}
+                                  aria-label={`Confirm cancel for ${player.player_name}`}
+                                  style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: '13px', fontWeight: '700', textDecoration: 'underline' }}
+                                >
+                                  {isLive ? 'Remove from LIVE sheet' : 'Confirm cancel'}
+                                </button>
+                                <button
+                                  onClick={() => setConfirmingCancelId(null)}
+                                  style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
+                                >
+                                  Keep
+                                </button>
+                              </span>
+                            ) : (isCurrentUser || isAdmin) && (
                               <button
-                                onClick={() => (isCurrentUser ? handleCancelSignup(player.id) : handleAdminRemove(player))}
+                                onClick={() => (isCurrentUser ? requestCancelSignup(player.id) : handleAdminRemove(player))}
                                 aria-label={isCurrentUser ? 'Cancel my sign-up' : `Remove ${player.player_name}`}
                                 style={{
                                   background: 'none',
@@ -693,8 +829,11 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                     </button>
                     {confirmingSignup && (
                       <>
-                        <span style={{ marginTop: '12px', color: '#374151', fontSize: '14px', fontWeight: '600' }}>
-                          Signing up as: {signupName}
+                        <span style={{ marginTop: '12px', color: '#374151', fontSize: '14px', fontWeight: '600', maxWidth: 420 }}>
+                          {isLive
+                            ? <>Sign up <strong>{signupName}</strong> for <strong>{formatDateFull(selectedDate)}</strong>? This changes the <strong>LIVE</strong> club tee sheet.</>
+                            : <>Preview — sign up <strong>{signupName}</strong> for <strong>{formatDateFull(selectedDate)}</strong> in the app only. The live tee sheet will not change.</>
+                          }
                         </span>
                         <button
                           onClick={() => setConfirmingSignup(false)}

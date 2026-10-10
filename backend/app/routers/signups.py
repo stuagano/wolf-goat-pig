@@ -269,7 +269,22 @@ def get_signups(limit: int = Query(50, description="Maximum number of signups to
         db.close()
 
 
-@router.post("/signups", response_model=schemas.DailySignupResponse)
+class SignupPreviewResponse(BaseModel):
+    """What a dry-run signup would write, without writing it (issue #323)."""
+
+    success: bool = True
+    live_write: bool = False
+    dry_run: bool = True
+    reason: str
+    would_sign_up: dict[str, str]
+    legacy_sync: str = "skipped"
+
+
+@router.post(
+    "/signups",
+    response_model=schemas.DailySignupResponse | SignupPreviewResponse,
+    response_model_exclude_unset=True,
+)
 def create_signup(
     signup: schemas.DailySignupCreate,
     current_user: models.PlayerProfile = Depends(get_current_user),
@@ -298,6 +313,25 @@ def create_signup(
         if existing:
             raise HTTPException(status_code=400, detail="Player already signed up for this date")
 
+        # Preview/testing must not silently mutate the live club tee sheet
+        # (issue #323). An explicit dry-run returns the exact name and date and
+        # writes nothing — not even our own table.
+        legacy_service = get_legacy_signup_service()
+        if signup.dry_run:
+            logger.info(
+                "Daily signup PREVIEW (dry_run requested): would sign up %s for %s",
+                player_name,
+                signup.date,
+            )
+            return {
+                "success": True,
+                "live_write": False,
+                "dry_run": True,
+                "reason": "dry_run requested",
+                "would_sign_up": {"name": player_name, "date": signup.date},
+                "legacy_sync": "skipped",
+            }
+
         # Create new signup
         db_signup = models.DailySignup(
             date=signup.date,
@@ -318,17 +352,38 @@ def create_signup(
         logger.info(f"Created signup for player {player_name} on {signup.date}")
 
         # Mirror the signup to the legacy CGI sheet when configured.
-        try:
-            legacy_service = get_legacy_signup_service()
-            legacy_service.sync_signup_created(db_signup)
-        except Exception:
-            logger.exception("Legacy signup sync failed for create id=%s", db_signup.id)
+        # A failed mirror must stay visible — the app signup succeeded, but
+        # saying so without saying the live sheet did not is how testers got
+        # surprised (issue #323).
+        legacy_sync = "skipped"
+        if legacy_service.live_writes_allowed():
+            try:
+                mirrored = legacy_service.sync_signup_created(db_signup)
+            except Exception:
+                logger.exception("Legacy signup sync failed for create id=%s", db_signup.id)
+                report_exception()
+                mirrored = False
+            legacy_sync = "mirrored" if mirrored else "failed"
+            if legacy_sync == "failed":
+                logger.error(
+                    "Live tee-sheet mirror FAILED for %s on %s (signup id=%s)",
+                    player_name,
+                    signup.date,
+                    db_signup.id,
+                )
+        else:
+            logger.info(
+                "Live tee-sheet mirror skipped for %s on %s (signup id=%s): writes disabled",
+                player_name,
+                signup.date,
+                db_signup.id,
+            )
 
         # Send a confirmation email to the AUTHENTICATED player's address (never
         # client-supplied). Non-blocking and idempotent; see _send_signup_confirmation.
         _send_signup_confirmation(db_signup.id, getattr(current_user, "email", None), player_name, signup.date)
 
-        return schemas.DailySignupResponse.from_orm(db_signup)
+        return schemas.DailySignupResponse.from_orm(db_signup).model_copy(update={"legacy_sync": legacy_sync})
 
     except HTTPException:
         raise
@@ -415,13 +470,25 @@ def cancel_signup(
 
         logger.info(f"Cancelled signup {signup_id}")
 
-        try:
-            legacy_service = get_legacy_signup_service()
-            legacy_service.sync_signup_cancelled(db_signup)
-        except Exception:
-            logger.exception("Legacy signup sync failed for cancel id=%s", db_signup.id)
-
-        return {"message": "Sign-up cancelled successfully"}
+        legacy_service = get_legacy_signup_service()
+        legacy_sync = "skipped"
+        if legacy_service.live_writes_allowed():
+            try:
+                mirrored = legacy_service.sync_signup_cancelled(db_signup)
+            except Exception:
+                logger.exception("Legacy signup sync failed for cancel id=%s", db_signup.id)
+                report_exception()
+                mirrored = False
+            legacy_sync = "mirrored" if mirrored else "failed"
+            if legacy_sync == "failed":
+                logger.error("Live tee-sheet cancel mirror FAILED for signup id=%s", signup_id)
+        return {
+            "message": "Sign-up cancelled successfully",
+            "live_write": legacy_sync == "mirrored",
+            "legacy_sync": legacy_sync,
+            "name": db_signup.player_name,
+            "date": db_signup.date,
+        }
 
     except HTTPException:
         raise
