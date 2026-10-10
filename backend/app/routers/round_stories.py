@@ -5,21 +5,24 @@ GET /data/leaderboard/rounds. Sheet rounds like the Oct 6 game have no
 GameRecord, so comments cannot be keyed by an app game id.
 """
 
+import logging
 from datetime import datetime
 from typing import Any
-from urllib.parse import unquote
+from urllib.parse import quote, unquote
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import PlayerProfile, RoundComment, RoundReaction
+from ..models import Notification, PlayerProfile, RoundComment, RoundReaction
 from ..services.auth_service import get_current_auth0_user, get_current_user
 from ..services.player_name_index import profile_id_for_member, profile_ids_by_member
 from ..services.unified_data_service import get_unified_data_service
 from ..utils.admin_auth import admin_role
 from ..utils.time import utc_now
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/data/rounds", tags=["data"])
 
@@ -264,7 +267,7 @@ def add_round_comment(
     """Signed-in players can add a note. The round must already exist."""
     date = unquote(date)
     group = unquote(group)
-    _shown_date, players = _round_players(date, group, location, db)
+    shown_date, players = _round_players(date, group, location, db)
     key = players[0].date_sortable
     comment = RoundComment(
         round_date=key,
@@ -277,6 +280,7 @@ def add_round_comment(
     if not comment.body:
         raise HTTPException(status_code=422, detail="Comment cannot be blank")
     db.add(comment)
+    _notify_site_of_comment(comment, shown_date, current_user, db)
     db.commit()
     db.refresh(comment)
     return RoundCommentResponse(
@@ -288,6 +292,62 @@ def add_round_comment(
         can_delete=True,
         reactions=[],
     )
+
+
+def _notify_site_of_comment(
+    comment: RoundComment,
+    shown_date: str,
+    author: PlayerProfile,
+    db: Session,
+) -> None:
+    """Ping every other signed-in player. The social feed is the whole site, not the foursome.
+
+    In-app only. AI and inactive profiles have nobody watching the bell.
+    A failed fan-out must not reject a comment that already landed.
+    """
+    nested = db.begin_nested()
+    try:
+        watchers = (
+            db.query(PlayerProfile.id)
+            .filter(
+                PlayerProfile.is_active == 1,
+                PlayerProfile.is_ai == 0,
+                PlayerProfile.id != author.id,
+            )
+            .all()
+        )
+        where = shown_date or comment.round_date
+        if comment.location:
+            where = f"{where} at {comment.location}"
+        author_name = author.name or "Someone"
+        snippet = comment.body if len(comment.body) <= 80 else f"{comment.body[:77]}..."
+        message = f"{author_name} on {where}: {snippet}"
+        query = f"?location={quote(comment.location)}" if comment.location else ""
+        path = f"/rounds/{quote(comment.round_date)}/{quote(comment.round_group)}{query}"
+        created_at = utc_now().isoformat()
+        db.add_all(
+            [
+                Notification(
+                    player_profile_id=watcher_id,
+                    notification_type="round_comment",
+                    message=message,
+                    data={
+                        "path": path,
+                        "round_date": comment.round_date,
+                        "round_group": comment.round_group,
+                        "location": comment.location,
+                    },
+                    is_read=False,
+                    created_at=created_at,
+                )
+                for (watcher_id,) in watchers
+            ]
+        )
+        nested.commit()
+    except Exception:
+        # The comment itself still commits. A missed bell is better than a 500.
+        nested.rollback()
+        logger.exception("Failed to notify players of a round comment")
 
 
 def _toggle_reaction(

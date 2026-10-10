@@ -8,7 +8,7 @@ const API_URL = apiConfig.baseUrl;
 const POLL_INTERVAL_MS = 60_000;
 
 const MATCH_TYPES = new Set(['match_found', 'match_accepted', 'match_declined', 'match_confirmed']);
-const BELL_TYPES = MATCH_TYPES;
+const BELL_TYPES = new Set([...MATCH_TYPES, 'round_comment']);
 
 const relativeTime = (isoStr) => {
   if (!isoStr) return '';
@@ -88,7 +88,7 @@ const NotificationBell = () => {
     }
     setNotifications(prev => prev.filter(x => x.id !== n.id));
     setOpen(false);
-    navigate('/account');
+    navigate(n.notification_type === 'round_comment' && n.data?.path ? n.data.path : '/account');
   }, [getToken, navigate]);
 
   if (!isAuthenticated || notifications.length === 0) return null;
@@ -187,7 +187,8 @@ const NotificationBell = () => {
               >
                 <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                   <span style={{ fontSize: 20, flexShrink: 0 }}>
-                    {n.notification_type === 'match_found' ? '⛳' :
+                    {n.notification_type === 'round_comment' ? '💬' :
+                     n.notification_type === 'match_found' ? '⛳' :
                      n.notification_type === 'match_confirmed' ? '✅' :
                      n.notification_type === 'match_accepted' ? '👍' : '📬'}
                   </span>
@@ -197,7 +198,7 @@ const NotificationBell = () => {
                     </div>
                     <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
                       {relativeTime(n.created_at)}
-                      {' · tap to view in Account'}
+                      {n.notification_type === 'round_comment' ? ' · tap to open the round' : ' · tap to view in Account'}
                     </div>
                   </div>
                 </div>
