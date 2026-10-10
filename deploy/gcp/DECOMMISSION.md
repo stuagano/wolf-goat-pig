@@ -20,7 +20,7 @@ All Render services and Render Postgres have been deleted; Vercel is paused.
 - [x] Cloud Scheduler jobs enabled
 - [x] Avatars on GCS (`wgp-media-seventh-country-232522`)
 - [ ] Remove Vercel URLs from Auth0 (Firebase + localhost only)
-- [x] Pause / archive Vercel project (paused 2026-07-27 via Pause Vercel workflow)
+- [x] Delete the paused Vercel project and its GitHub link (2026-10-10). The failing `Vercel` commit status stops with it.
 - [x] Remove legacy `.github/workflows/deploy.yml` (Render/Vercel deploy hook) — GCP only (2026-07-29)
 - [x] Deploy Computer Use booking agent (`wgp-booking`) and flip `BOOKING_SERVICE_URL` (2026-07-28)
 - [x] Delete Render `wolf-goat-pig-booking` (2026-07-31; prod uses `wgp-booking`)
