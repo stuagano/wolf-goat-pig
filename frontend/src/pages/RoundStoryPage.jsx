@@ -45,14 +45,19 @@ export default function RoundStoryPage() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.detail || 'Round not found');
       }
-      setRound(await res.json());
+      const story = await res.json();
+      setRound(story);
       setError(null);
+      if (story.date_sortable && story.date_sortable !== date) {
+        const canonical = `/rounds/${encodeURIComponent(story.date_sortable)}/${encodeURIComponent(group || '')}${query}`;
+        window.history.replaceState(null, '', canonical);
+      }
     } catch (err) {
       setError(err.message || 'Could not load this round');
     } finally {
       setLoading(false);
     }
-  }, [storyUrl]);
+  }, [storyUrl, date, group, query]);
 
   useEffect(() => {
     load();
@@ -141,7 +146,8 @@ export default function RoundStoryPage() {
   };
 
   const copyLink = async () => {
-    const url = `${window.location.origin}/rounds/${encodeURIComponent(date)}/${encodeURIComponent(group || '')}${location ? `?location=${encodeURIComponent(location)}` : ''}`;
+    const key = round?.date_sortable || date;
+    const url = `${window.location.origin}/rounds/${encodeURIComponent(key)}/${encodeURIComponent(group || '')}${location ? `?location=${encodeURIComponent(location)}` : ''}`;
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);

@@ -5,6 +5,7 @@ GET /data/leaderboard/rounds. Sheet rounds like the Oct 6 game have no
 GameRecord, so comments cannot be keyed by an app game id.
 """
 
+from datetime import datetime
 from typing import Any
 from urllib.parse import unquote
 
@@ -71,12 +72,41 @@ class RoundCommentCreate(BaseModel):
     body: str = Field(..., min_length=1, max_length=2000)
 
 
+def _display_dates(dt: datetime) -> set[str]:
+    """Sheet dates are "6-Oct" or "06-Oct". Don't use %-d; glibc-only."""
+    padded = dt.strftime("%d-%b")
+    return {padded, padded.lstrip("0")}
+
+
+def _date_keys(date: str) -> set[str]:
+    """Accept YYYY-MM-DD and the sheet display form (6-Oct or 06-Oct).
+
+    Shared links from the first deploy used the display date. The year isn't
+    on the sheet, so a display date matches any season round on that day.
+    """
+    keys = {date}
+    try:
+        keys.update(_display_dates(datetime.strptime(date, "%Y-%m-%d")))
+        return keys
+    except ValueError:
+        pass
+    # Year is a dummy; only the day and month are added to the key set.
+    try:
+        keys.update(_display_dates(datetime.strptime(f"{date}-2000", "%d-%b-%Y")))
+    except ValueError:
+        pass
+    return keys
+
+
 def _round_players(date: str, group: str, location: str, db: Session) -> tuple[str, list]:
     service = get_unified_data_service(db=db)
+    wanted = _date_keys(date)
     players = [
         row
         for row in service.get_season_rounds()
-        if row.date_sortable == date and row.group == group and (row.location or "") == location
+        if (row.date_sortable in wanted or row.date in wanted)
+        and row.group == group
+        and (row.location or "") == location
     ]
     if not players:
         raise HTTPException(status_code=404, detail="Round not found")
@@ -201,10 +231,12 @@ def get_round_story(
     date = unquote(date)
     group = unquote(group)
     shown_date, players = _round_players(date, group, location, db)
+    # Always key comments and reactions on YYYY-MM-DD, even if the URL used 6-Oct.
+    key = players[0].date_sortable
     index = profile_ids_by_member(db)
     return RoundStoryResponse(
         date=shown_date,
-        date_sortable=date,
+        date_sortable=key,
         location=location,
         group=group,
         players=[
@@ -215,8 +247,8 @@ def get_round_story(
             )
             for row in players
         ],
-        comments=_comments(date, group, location, db),
-        reactions=_reactions(date, group, location, db),
+        comments=_comments(key, group, location, db),
+        reactions=_reactions(key, group, location, db),
     )
 
 
@@ -232,9 +264,10 @@ def add_round_comment(
     """Signed-in players can add a note. The round must already exist."""
     date = unquote(date)
     group = unquote(group)
-    _round_players(date, group, location, db)
+    _shown_date, players = _round_players(date, group, location, db)
+    key = players[0].date_sortable
     comment = RoundComment(
-        round_date=date,
+        round_date=key,
         round_group=group,
         location=location,
         author_profile_id=current_user.id,
@@ -310,6 +343,7 @@ def toggle_round_reaction(
     emoji = payload.emoji.strip()
     if emoji not in ROUND_REACTION_EMOJIS:
         raise HTTPException(status_code=422, detail="Pick one of the round reactions")
-    _round_players(date, group, location, db)
-    _toggle_reaction(date, group, location, emoji, None, current_user, db)
-    return _reactions(date, group, location, db, viewer_id=current_user.id)
+    _shown_date, players = _round_players(date, group, location, db)
+    key = players[0].date_sortable
+    _toggle_reaction(key, group, location, emoji, None, current_user, db)
+    return _reactions(key, group, location, db, viewer_id=current_user.id)

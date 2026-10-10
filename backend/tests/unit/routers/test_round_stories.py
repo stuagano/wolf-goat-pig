@@ -48,6 +48,18 @@ class TestRoundStory:
         assert coulburn["player_id"] == 4
         assert body["comments"] == []
 
+    @patch("app.routers.round_stories.profile_ids_by_member", return_value={})
+    @patch("app.routers.round_stories.get_unified_data_service")
+    def test_sheet_date_in_the_url_still_finds_the_round(self, mock_service, _names):
+        mock_service.return_value = _service(_round("Coulburn", -400))
+        with patch("app.routers.round_stories._comments", return_value=[]):
+            resp = client.get("/data/rounds/6-Oct/A", params={"location": "Wing Point"})
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["date_sortable"] == "2026-10-06"
+        assert body["players"][0]["quarters"] == -400
+
     @patch("app.routers.round_stories.get_unified_data_service")
     def test_missing_round_is_404(self, mock_service):
         mock_service.return_value = _service()
