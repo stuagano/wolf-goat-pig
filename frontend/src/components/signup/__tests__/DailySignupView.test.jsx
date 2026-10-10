@@ -55,6 +55,57 @@ const weeklyResponse = (signups = []) => ({
 });
 
 describe('DailySignupView', () => {
+  afterEach(() => vi.useRealTimers());
+
+  test('hides past club days and prevents navigating back into them', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-10T03:00:00Z'));
+    fetch.mockImplementation((request) => jsonResponse(
+      request.url.includes('/pairings/') ? { exists: false } : { daily_summaries: [] }
+    ));
+    render(<DailySignupView selectedDate="2026-10-04" />);
+    expect(await screen.findByRole('button', { name: 'Fri' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sat' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sun' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Thu' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Previous Week' })).toBeDisabled();
+    expect(screen.getByText('Fri - Sat: Oct 9 - Oct 10')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Signed up for Friday, October 9' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sat' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next Week' }));
+    expect(await screen.findByRole('heading', { name: 'Signed up for Saturday, October 17' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Sun' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Previous Week' }));
+    expect(await screen.findByRole('heading', { name: 'Signed up for Friday, October 9' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Previous Week' })).toBeDisabled();
+  });
+
+  test.each(['2026-10-09T17:00:00', '2026-10-09T17:00:00Z', '2026-10-09T10:00:00-07:00'])('shows the original signup time %s after editing a note', async (signupTime) => {
+    let notes = null;
+    fetch.mockImplementation(async (request) => {
+      if (request.method === 'PUT') {
+        notes = JSON.parse(await request.clone().text()).notes;
+        return jsonResponse({});
+      }
+      if (request.url.includes('/pairings/')) return jsonResponse({ exists: false });
+      return jsonResponse(weeklyResponse([{
+        id: 101, player_profile_id: playerProfile.id, player_name: 'Stuart',
+        signup_time: signupTime, notes, status: 'signed_up',
+      }]));
+    });
+    render(<DailySignupView selectedDate={selectedDate} />);
+    const timestamp = await screen.findByText(/Signed up Oct 9, 2026, 10:00:00 AM PDT/);
+    const expectedTimestamp = signupTime === '2026-10-09T17:00:00' ? `${signupTime}Z` : signupTime;
+    expect(timestamp).toHaveAttribute('datetime', expectedTimestamp);
+    fireEvent.click(screen.getByText('Add a note…'));
+    const input = screen.getByPlaceholderText('Add a note…');
+    fireEvent.change(input, { target: { value: 'Can play early' } });
+    fireEvent.blur(input);
+    expect(await screen.findByText('Can play early')).toBeInTheDocument();
+    expect(screen.getByText(/Signed up Oct 9, 2026, 10:00:00 AM PDT/)).toHaveAttribute('datetime', expectedTimestamp);
+  });
+
   beforeEach(() => {
     mockNavigate.mockReset();
     mockUseAuth0.mockReturnValue({
@@ -130,91 +181,24 @@ describe('DailySignupView', () => {
     expect(screen.queryByRole('button', { name: 'Generate pairings' })).not.toBeInTheDocument();
   });
 
-  test('admin can overwrite the selected day pairings', async () => {
-    mockUsePlayerProfile.mockReturnValue({
-      profile: { ...playerProfile, is_admin: true },
-      loading: false,
-      isAdmin: true,
+  test.each([false, true])('leaves pairings to the in-person group for admin=%s', async (isAdmin) => {
+    mockUsePlayerProfile.mockReturnValue({ profile: playerProfile, loading: false, isAdmin });
+    fetch.mockImplementation((request) => {
+      if (request.url.includes('/signups/weekly-with-messages')) return jsonResponse(weeklyResponse());
+      if (request.url.endsWith('/signups/admin/players')) return jsonResponse({ players: [] });
+      if (request.url.includes('/pairings/')) return jsonResponse({
+        exists: true, pairings: { teams: [{ players: [{ player_name: 'Generated Player' }] }] },
+      });
+      throw new Error(`Unexpected fetch: ${request.url}`);
     });
-    let overwritten = false;
-
-    fetch.mockImplementation(async (request) => {
-      const url = request.url;
-      if (url.includes('/pairings/') && url.includes('/generate') && request.method === 'POST') {
-        overwritten = true;
-        return jsonResponse({
-          success: true,
-          message: 'Generated 1 teams from 4 players',
-          pairings: { teams: [] },
-        });
-      }
-      if (url.includes('/pairings/')) {
-        return jsonResponse(
-          overwritten
-            ? {
-                exists: true,
-                generated_at: '2099-01-04T15:00:00Z',
-                pairings: {
-                  teams: [{ players: [{ player_name: 'Redrawn Player', handicap: 10 }] }],
-                },
-              }
-            : { exists: false },
-        );
-      }
-      if (url.includes('/signups/weekly-with-messages')) {
-        return jsonResponse(weeklyResponse());
-      }
-      if (url.endsWith('/signups/admin/players')) {
-        return jsonResponse({ players: [] });
-      }
-      throw new Error(`Unexpected fetch: ${url}`);
-    });
-
     render(<DailySignupView selectedDate={selectedDate} />);
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Generate pairings' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm overwrite' }));
-
-    await waitFor(() => {
-      expect(
-        fetch.mock.calls.some(
-          ([req]) => req.url.includes('/pairings/') && req.url.includes('/generate') && req.method === 'POST',
-        ),
-      ).toBe(true);
-    });
-
-    const generateRequest = fetch.mock.calls.find(
-      ([req]) => req.url.includes('/generate') && req.method === 'POST',
-    )[0];
-    expect(generateRequest.url).toContain('force=true');
-    expect(generateRequest.url).toContain('send_notifications=false');
-    expect(generateRequest.headers.get('Authorization')).toBe('Bearer signup-token');
-    expect(await screen.findAllByText('Redrawn Player')).not.toHaveLength(0);
-    expect(screen.getByRole('button', { name: 'Overwrite pairings' })).toBeInTheDocument();
-  });
-
-  test('admin sees add-player and generate at the top of a day with no pairings', async () => {
-    mockUsePlayerProfile.mockReturnValue({
-      profile: { ...playerProfile, is_admin: true },
-      loading: false,
-      isAdmin: true,
-    });
-    fetch.mockImplementation(async (request) => {
-      const url = request.url;
-      if (url.includes('/pairings/')) return jsonResponse({ exists: false });
-      if (url.includes('/signups/weekly-with-messages')) return jsonResponse(weeklyResponse());
-      if (url.endsWith('/signups/admin/players')) {
-        return jsonResponse({ players: [{ id: 8, legacy_name: 'Terry Fuerst' }] });
-      }
-      throw new Error(`Unexpected fetch: ${request.method} ${url}`);
-    });
-
-    render(<DailySignupView selectedDate={selectedDate} />);
-
-    const addPlayer = await screen.findByLabelText('Add a player');
-    const generate = await screen.findByRole('button', { name: 'Generate pairings' });
-    expect(addPlayer.compareDocumentPosition(generate) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(generate.compareDocumentPosition(screen.getByText(/Be the first to sign up/)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(await screen.findByText('Pairings will be arranged in person.')).toBeInTheDocument();
+    expect(screen.queryByText('Official Pairings')).not.toBeInTheDocument();
+    expect(screen.queryByText('Generated Player')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Generate pairings|Overwrite pairings/ })).not.toBeInTheDocument();
+    expect(fetch.mock.calls.some(([request]) => request.url.includes('/pairings/'))).toBe(false);
+    if (isAdmin) expect(screen.getByLabelText('Add a player')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Be the first to sign up!' })).toBeEnabled();
   });
 
   test('unlinked player can sign up using their display name without being blocked', async () => {

@@ -2,13 +2,11 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useNavigate } from 'react-router-dom';
 import '../../styles/mobile-touch.css';
-import { calculateCourseHandicap } from '../../utils';
 import { usePlayerProfile } from '../../hooks/usePlayerProfile';
 import { acquireAccessToken, apiTokenOptions } from '../../services/authToken';
 import { api } from '../../api/client';
 import { errorDetail } from '../../api/http';
 import AdminAddSignup from './AdminAddSignup';
-import AdminPairingOverwrite from './AdminPairingOverwrite';
 
 const CLUB_PLAYER_ACCOUNT_PATH = '/account#club-player';
 
@@ -40,9 +38,6 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [teeTimesText, setTeeTimesText] = useState('');
-  const [generatedPairings, setGeneratedPairings] = useState(null);
-  const [pairingsLoading, setPairingsLoading] = useState(false);
-  const [pairingsError, setPairingsError] = useState(null);
   const [confirmingSignup, setConfirmingSignup] = useState(false);
   const [signingUp, setSigningUp] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState(null);
@@ -51,6 +46,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   const signupName = profile?.legacy_name || profile?.name || user?.name || '';
   const signupProfileReady = Boolean(profile?.id);
   const signupDisabled = signingUp || profileLoading;
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
 
   // Compute the Sunday that starts the week containing a given date
   const getSundayOfWeek = useCallback((dateStr) => {
@@ -62,12 +58,11 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
 
   // Initialize dates
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    const startDate = initialDate || today;
+    const startDate = initialDate && initialDate >= today ? initialDate : today;
     setSelectedDate(startDate);
     const sunday = getSundayOfWeek(startDate);
     setCurrentWeekStart(sunday);
-  }, [initialDate, getSundayOfWeek]);
+  }, [initialDate, getSundayOfWeek, today]);
 
   // Load weekly data whenever week changes
   const loadWeeklyData = useCallback(async (weekStart) => {
@@ -98,38 +93,9 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     }
   }, [currentWeekStart, loadWeeklyData]);
 
-  // Load generated pairings for the selected date
-  const loadGeneratedPairings = useCallback(async (date) => {
-    if (!date) return;
-    try {
-      setPairingsLoading(true);
-      setPairingsError(null);
-      const { data, response } = await api.GET('/pairings/{date}', {
-        params: { path: { date } },
-      });
-      if (data) {
-        setGeneratedPairings(data.exists ? data : null);
-      } else {
-        // 404 means no pairings generated yet — anything else is an error
-        setGeneratedPairings(null);
-        if (response.status !== 404) {
-          setPairingsError(`Couldn't load pairings (HTTP ${response.status})`);
-        }
-      }
-    } catch (err) {
-      setGeneratedPairings(null);
-      setPairingsError("Couldn't load pairings — check your connection.");
-    } finally {
-      setPairingsLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    if (selectedDate) {
-      loadGeneratedPairings(selectedDate);
-    }
     setConfirmingSignup(false);
-  }, [selectedDate, loadGeneratedPairings]);
+  }, [selectedDate]);
 
   // Get data for the currently selected day
   const getDayData = () => {
@@ -149,15 +115,16 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     return days;
   };
 
-  // Format for week range display: "Sun - Sun: Feb 16 - Feb 22"
+  // Match the range to the visible days in the selected week.
   const formatWeekRange = () => {
     if (!currentWeekStart) return '';
-    const start = new Date(currentWeekStart + 'T12:00:00');
+    const start = new Date((currentWeekStart < today ? today : currentWeekStart) + 'T12:00:00');
     const end = new Date(currentWeekStart + 'T12:00:00');
     end.setDate(end.getDate() + 6);
     const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    return `Sun - Sat: ${startStr} - ${endStr}`;
+    if (startStr === endStr) return `${start.toLocaleDateString('en-US', { weekday: 'short' })}: ${startStr}`;
+    return `${start.toLocaleDateString('en-US', { weekday: 'short' })} - Sat: ${startStr} - ${endStr}`;
   };
 
   // Format full date for the day header
@@ -172,7 +139,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   };
 
   const isToday = (dateStr) => {
-    return dateStr === new Date().toISOString().split('T')[0];
+    return dateStr === today;
   };
 
   // Navigate weeks
@@ -180,12 +147,14 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     const d = new Date(currentWeekStart + 'T12:00:00');
     d.setDate(d.getDate() + (direction * 7));
     const newWeekStart = d.toISOString().split('T')[0];
+    if (newWeekStart < getSundayOfWeek(today)) return;
     setCurrentWeekStart(newWeekStart);
     // Select the same day-of-week in the new week
     const currentDayIndex = getWeekDays().indexOf(selectedDate);
     const newDate = new Date(newWeekStart + 'T12:00:00');
     newDate.setDate(newDate.getDate() + (currentDayIndex >= 0 ? currentDayIndex : 0));
-    setSelectedDate(newDate.toISOString().split('T')[0]);
+    const nextDate = newDate.toISOString().split('T')[0];
+    setSelectedDate(nextDate < today ? today : nextDate);
   };
 
   // Handle signup with confirmation step
@@ -357,13 +326,15 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
       }}>
         <button
           onClick={() => navigateWeek(-1)}
+          disabled={currentWeekStart <= getSundayOfWeek(today)}
           style={{
             background: 'rgba(255,255,255,0.15)',
             color: 'white',
             border: '1px solid rgba(255,255,255,0.3)',
             borderRadius: '4px',
             padding: '8px 16px',
-            cursor: 'pointer',
+            cursor: currentWeekStart <= getSundayOfWeek(today) ? 'not-allowed' : 'pointer',
+            opacity: currentWeekStart <= getSundayOfWeek(today) ? 0.5 : 1,
             fontSize: '14px',
             fontWeight: '600',
             whiteSpace: 'nowrap'
@@ -406,7 +377,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
         background: '#f3f4f6',
         borderBottom: '2px solid #d1d5db'
       }}>
-        {weekDays.map((dateStr) => {
+        {weekDays.filter(dateStr => dateStr >= today).map((dateStr) => {
           const isSelected = dateStr === selectedDate;
           const today = isToday(dateStr);
           const daySummary = weekData.daily_summaries?.find(d => d.date === dateStr);
@@ -563,23 +534,17 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
 
         {isAdmin && selectedDate && (
           <div style={{ marginBottom: '16px' }}>
-            {selectedDate >= new Date().toLocaleDateString('en-CA') && (
+            {selectedDate >= today && (
               <AdminAddSignup
                 date={selectedDate}
                 signedUpProfileIds={players.filter(p => p.status !== 'cancelled').map(p => p.player_profile_id)}
                 onAdded={() => loadWeeklyData(currentWeekStart)}
               />
             )}
-            {!pairingsLoading && (
-              <AdminPairingOverwrite
-                date={selectedDate}
-                getAccessTokenSilently={getAccessTokenSilently}
-                hasPairings={!!generatedPairings}
-                onOverwritten={() => loadGeneratedPairings(selectedDate)}
-              />
-            )}
           </div>
         )}
+
+        <p style={{ fontSize: '14px', color: '#6b7280' }}>Pairings will be arranged in person.</p>
 
         {/* Main content: Player List and Tee Times side by side */}
         <div style={{
@@ -614,6 +579,9 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                 <tbody>
                   {players.map((player, index) => {
                     const isCurrentUser = isPlayerMine(player);
+                    // The backend stores UTC timestamps without a zone suffix.
+                    const signupTime = player.signup_time && (/Z$|[+-]\d{2}:\d{2}$/.test(player.signup_time)
+                      ? player.signup_time : `${player.signup_time}Z`);
                     return (
                       <tr
                         key={player.id || index}
@@ -629,6 +597,14 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                           {player.player_name}
                           {isCurrentUser && (
                             <span style={{ color: '#047857', fontSize: '12px', marginLeft: '6px' }}>(you)</span>
+                          )}
+                          {signupTime && (
+                            <time dateTime={signupTime} style={{ display: 'block', fontSize: '11px', fontWeight: '400', color: '#6b7280' }}>
+                              Signed up {new Date(signupTime).toLocaleString('en-US', {
+                                timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric', year: 'numeric',
+                                hour: 'numeric', minute: '2-digit', second: '2-digit', timeZoneName: 'short',
+                              })}
+                            </time>
                           )}
                         </td>
                         <td style={{ padding: '6px 8px', color: '#6b7280', fontSize: '13px' }}>
@@ -772,23 +748,6 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
               Tee Times
             </h3>
 
-            {/* Generated pairings tee times */}
-            {generatedPairings && generatedPairings.pairings?.teams && (
-              <div style={{ marginBottom: '12px' }}>
-                {generatedPairings.pairings.teams.map((team, idx) => (
-                  <div key={idx} style={{
-                    padding: '6px 0',
-                    fontSize: '14px',
-                    color: '#374151',
-                    borderBottom: idx < generatedPairings.pairings.teams.length - 1 ? '1px solid #e5e7eb' : 'none'
-                  }}>
-                    <span style={{ fontWeight: '600' }}>Group {idx + 1}:</span>{' '}
-                    {team.players?.map(p => p.player_name).join(', ')}
-                  </div>
-                ))}
-              </div>
-            )}
-
             {/* Editable tee times */}
             <textarea
               placeholder={"Enter tee times...\ne.g., 12:48 (1-4)\n12:56 (5-8)\n1:04 (9-12)"}
@@ -836,109 +795,6 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                 <span style={{ fontWeight: '600' }}>{msg.player_name}:</span> {msg.message}
               </div>
             ))}
-          </div>
-        )}
-
-        {/* Official Pairings Section */}
-        {generatedPairings && generatedPairings.pairings && (
-          <div style={{
-            marginTop: '20px',
-            background: '#f0fdf4',
-            border: '2px solid #22c55e',
-            borderRadius: '8px',
-            overflow: 'hidden'
-          }}>
-            <div style={{
-              background: '#22c55e',
-              color: 'white',
-              padding: '12px 16px',
-              fontWeight: '700',
-              fontSize: '16px',
-              textAlign: 'center'
-            }}>
-              Official Pairings
-            </div>
-            <div style={{ padding: '16px' }}>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: '12px'
-              }}>
-                {generatedPairings.pairings.teams?.map((team, idx) => (
-                  <div key={idx} style={{
-                    background: 'white',
-                    borderRadius: '6px',
-                    padding: '12px',
-                    border: '1px solid #bbf7d0'
-                  }}>
-                    <div style={{
-                      fontWeight: '700',
-                      color: '#166534',
-                      fontSize: '14px',
-                      marginBottom: '8px'
-                    }}>
-                      Group {idx + 1}
-                    </div>
-                    {team.players?.map((p, pidx) => (
-                      <div key={pidx} style={{
-                        padding: '4px 0',
-                        fontSize: '14px',
-                        color: '#374151'
-                      }}>
-                        {p.player_name}
-                        {p.handicap && (
-                          <span style={{ color: '#6b7280', fontSize: '12px', marginLeft: '6px' }}>
-                            ({calculateCourseHandicap(p.handicap)} HCP)
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-
-              {generatedPairings.pairings.remaining_players?.length > 0 && (
-                <div style={{
-                  marginTop: '12px',
-                  padding: '10px',
-                  background: '#fef3c7',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  color: '#92400e'
-                }}>
-                  <span style={{ fontWeight: '600' }}>Alternates:</span>{' '}
-                  {generatedPairings.pairings.remaining_players.map(p => p.player_name).join(', ')}
-                </div>
-              )}
-
-              <div style={{
-                marginTop: '10px',
-                fontSize: '12px',
-                color: '#6b7280',
-                textAlign: 'center'
-              }}>
-                Generated {new Date(generatedPairings.generated_at).toLocaleString()}
-                {generatedPairings.notification_sent && ' | Email notifications sent'}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {pairingsLoading && (
-          <div style={{ marginTop: '16px', textAlign: 'center', color: '#6b7280', fontSize: '14px' }}>
-            Loading pairings...
-          </div>
-        )}
-
-        {pairingsError && !pairingsLoading && (
-          <div style={{ marginTop: '16px', padding: '10px 14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', color: '#b45309', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
-            <span>⚠️ {pairingsError}</span>
-            <button
-              onClick={() => loadGeneratedPairings(selectedDate)}
-              style={{ background: 'none', border: '1px solid #d97706', color: '#b45309', borderRadius: '6px', padding: '3px 10px', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}
-            >
-              Retry
-            </button>
           </div>
         )}
 
