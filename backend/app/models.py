@@ -431,6 +431,23 @@ class LegacyRound(Base):
     foursome = Column(JSON, nullable=True)  # canonical roster names eligible to attest
 
 
+class RoundComment(Base):
+    """A note on a historical foursome, keyed the same way the season rounds list is.
+
+    Sheet rounds have no GameRecord id, so the identity is date + group + location.
+    """
+
+    __tablename__ = "round_comments"
+    __table_args__ = (Index("ix_round_comments_round", "round_date", "round_group", "location"),)
+    id = Column(Integer, primary_key=True, index=True)
+    round_date = Column(String, nullable=False)  # YYYY-MM-DD
+    round_group = Column(String, nullable=False)
+    location = Column(String, nullable=False, default="")
+    author_profile_id = Column(Integer, ForeignKey("player_profiles.id"), nullable=False, index=True)
+    body = Column(Text, nullable=False)
+    created_at = Column(String, nullable=False)
+
+
 class PlayerAchievement(Base):
     __tablename__ = "player_achievements"
     id = Column(Integer, primary_key=True, index=True)

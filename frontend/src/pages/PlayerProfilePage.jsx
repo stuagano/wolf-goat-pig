@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { roundPath } from '../components/game/leaderboard/roundLink';
 import { apiConfig } from '../config/api.config';
 import { useAccessToken } from '../hooks/useAccessToken';
 import { usePlayerProfile } from '../hooks/usePlayerProfile';
@@ -308,7 +309,11 @@ const PlayerProfilePage = () => {
                       onClick={() => hasHoleDetail && setExpandedRound(isExpanded ? null : i)}
                     >
                       <div className="wgp-profile__ledger-primary">
-                        {formatGameDate(g.date)}
+                        {g.group ? (
+                          <Link to={roundPath({ date: g.date, group: g.group, location: g.location })} className="hover:underline">
+                            {formatGameDate(g.date)}
+                          </Link>
+                        ) : formatGameDate(g.date)}
                         {g.location && <span className="wgp-profile__ledger-secondary">{g.location}</span>}
                         {hasHoleDetail && <span className="wgp-profile__ledger-expand-hint">{isExpanded ? '▲' : '▾'} hole-by-hole</span>}
                       </div>

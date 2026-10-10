@@ -1811,6 +1811,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/data/rounds/comments/{comment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Round Comment
+         * @description The author or an admin can remove a comment.
+         */
+        delete: operations["delete_round_comment_data_rounds_comments__comment_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/data/rounds/{date}/{group}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Round Story
+         * @description Players, quarter totals, and comments for one foursome.
+         */
+        get: operations["get_round_story_data_rounds__date___group__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/data/rounds/{date}/{group}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Round Comment
+         * @description Signed-in players can add a note. The round must already exist.
+         */
+        post: operations["add_round_comment_data_rounds__date___group__comments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/data/status": {
         parameters: {
             query?: never;
@@ -6445,6 +6505,38 @@ export interface components {
             /** Results */
             results: components["schemas"]["PlayerRoundResult"][];
         };
+        /** RoundCommentCreate */
+        RoundCommentCreate: {
+            /** Body */
+            body: string;
+        };
+        /** RoundCommentResponse */
+        RoundCommentResponse: {
+            /** Author Name */
+            author_name: string;
+            /** Author Profile Id */
+            author_profile_id: number;
+            /** Body */
+            body: string;
+            /**
+             * Can Delete
+             * @default false
+             */
+            can_delete: boolean;
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: number;
+        };
+        /** RoundPlayerResponse */
+        RoundPlayerResponse: {
+            /** Member */
+            member: string;
+            /** Player Id */
+            player_id?: number | null;
+            /** Quarters */
+            quarters: number;
+        };
         /**
          * RoundResultResponse
          * @description Response model for a round result.
@@ -6462,6 +6554,21 @@ export interface components {
             member: string;
             /** Score */
             score: number;
+        };
+        /** RoundStoryResponse */
+        RoundStoryResponse: {
+            /** Comments */
+            comments: components["schemas"]["RoundCommentResponse"][];
+            /** Date */
+            date: string;
+            /** Date Sortable */
+            date_sortable: string;
+            /** Group */
+            group: string;
+            /** Location */
+            location: string;
+            /** Players */
+            players: components["schemas"]["RoundPlayerResponse"][];
         };
         /** Rule */
         Rule: {
@@ -6525,6 +6632,8 @@ export interface components {
         SeasonGamePlayerResponse: {
             /** Member */
             member: string;
+            /** Player Id */
+            player_id?: number | null;
             /** Quarters */
             quarters: number;
         };
@@ -6559,6 +6668,8 @@ export interface components {
             location: string;
             /** Member */
             member: string;
+            /** Player Id */
+            player_id?: number | null;
             /** Quarters */
             quarters: number;
         };
@@ -6709,6 +6820,8 @@ export interface components {
             best_round: number;
             /** Member */
             member: string;
+            /** Player Id */
+            player_id?: number | null;
             /** Quarters */
             quarters: number;
             /** Rank */
@@ -9498,6 +9611,112 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UnifiedRoundResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_round_comment_data_rounds_comments__comment_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                comment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_round_story_data_rounds__date___group__get: {
+        parameters: {
+            query?: {
+                /** @description Course name; empty when the sheet left it blank */
+                location?: string;
+            };
+            header?: never;
+            path: {
+                date: string;
+                group: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoundStoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_round_comment_data_rounds__date___group__comments_post: {
+        parameters: {
+            query?: {
+                location?: string;
+            };
+            header?: never;
+            path: {
+                date: string;
+                group: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoundCommentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoundCommentResponse"];
                 };
             };
             /** @description Validation Error */

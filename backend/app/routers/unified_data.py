@@ -20,6 +20,7 @@ from ..database import get_db
 from ..services.auth_service import get_current_auth0_user, get_current_user
 from ..services.livsow_service import get_livsow_leaderboard, get_livsow_team_map
 from ..services.livsow_transactions import LIVSOW_SEASON, check_and_record_snapshot, describe_transaction
+from ..services.player_name_index import profile_id_for_member, profile_ids_by_member
 from ..services.spreadsheet_sync_service import PRIMARY_SHEET_ID, PRIMARY_SHEET_TAB_GID
 from ..services.unified_data_service import get_unified_data_service
 from ..utils.admin_auth import admin_role, require_admin
@@ -51,6 +52,7 @@ class UnifiedLeaderboardEntryResponse(BaseModel):
 
     rank: int
     member: str
+    player_id: int | None = None
     quarters: int
     rounds: int
     average: float
@@ -65,6 +67,7 @@ class SeasonScoreResponse(BaseModel):
     date: str
     date_sortable: str
     member: str
+    player_id: int | None = None
     quarters: int
     location: str
     group: str
@@ -72,6 +75,7 @@ class SeasonScoreResponse(BaseModel):
 
 class SeasonGamePlayerResponse(BaseModel):
     member: str
+    player_id: int | None = None
     quarters: int
 
 
@@ -120,11 +124,13 @@ def get_unified_leaderboard(
     """
     service = get_unified_data_service(db=db)
     leaderboard = service.get_unified_leaderboard()
+    names = profile_ids_by_member(db)
 
     return [
         UnifiedLeaderboardEntryResponse(
             rank=i + 1,
             member=entry.member,
+            player_id=profile_id_for_member(entry.member, names),
             quarters=entry.quarters,
             rounds=entry.rounds,
             average=round(entry.average, 1),
@@ -149,11 +155,13 @@ def get_season_extreme_scores(
     """
     service = get_unified_data_service(db=db)
     ranked = sorted(service.get_season_rounds(), key=lambda r: r.score, reverse=kind == "best")
+    names = profile_ids_by_member(db)
     return [
         SeasonScoreResponse(
             date=r.date,
             date_sortable=r.date_sortable,
             member=r.member,
+            player_id=profile_id_for_member(r.member, names),
             quarters=r.score,
             location=r.location,
             group=r.group,
@@ -170,6 +178,7 @@ def get_season_round_details(db: Session = Depends(get_db)) -> Any:
     their quarter total, so the client can filter by player, date, score, or location.
     """
     service = get_unified_data_service(db=db)
+    names = profile_ids_by_member(db)
     games: dict[tuple[str, str, str], SeasonGameResponse] = {}
     order: list[tuple[str, str, str]] = []
     for r in service.get_season_rounds():
@@ -185,7 +194,13 @@ def get_season_round_details(db: Session = Depends(get_db)) -> Any:
             )
             games[key] = game
             order.append(key)
-        game.players.append(SeasonGamePlayerResponse(member=r.member, quarters=r.score))
+        game.players.append(
+            SeasonGamePlayerResponse(
+                member=r.member,
+                player_id=profile_id_for_member(r.member, names),
+                quarters=r.score,
+            )
+        )
     return [games[key] for key in order]
 
 

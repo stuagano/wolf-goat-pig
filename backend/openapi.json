@@ -3471,6 +3471,88 @@
         "title": "PostRoundRequest",
         "type": "object"
       },
+      "RoundCommentCreate": {
+        "properties": {
+          "body": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Body",
+            "type": "string"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "title": "RoundCommentCreate",
+        "type": "object"
+      },
+      "RoundCommentResponse": {
+        "properties": {
+          "author_name": {
+            "title": "Author Name",
+            "type": "string"
+          },
+          "author_profile_id": {
+            "title": "Author Profile Id",
+            "type": "integer"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "can_delete": {
+            "default": false,
+            "title": "Can Delete",
+            "type": "boolean"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "author_name",
+          "author_profile_id",
+          "body",
+          "created_at"
+        ],
+        "title": "RoundCommentResponse",
+        "type": "object"
+      },
+      "RoundPlayerResponse": {
+        "properties": {
+          "member": {
+            "title": "Member",
+            "type": "string"
+          },
+          "player_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Player Id"
+          },
+          "quarters": {
+            "title": "Quarters",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "member",
+          "quarters"
+        ],
+        "title": "RoundPlayerResponse",
+        "type": "object"
+      },
       "RoundResultResponse": {
         "description": "Response model for a round result.",
         "properties": {
@@ -3526,6 +3608,50 @@
           "score"
         ],
         "title": "RoundResultResponse",
+        "type": "object"
+      },
+      "RoundStoryResponse": {
+        "properties": {
+          "comments": {
+            "items": {
+              "$ref": "#/components/schemas/RoundCommentResponse"
+            },
+            "title": "Comments",
+            "type": "array"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "date_sortable": {
+            "title": "Date Sortable",
+            "type": "string"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "location": {
+            "title": "Location",
+            "type": "string"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/RoundPlayerResponse"
+            },
+            "title": "Players",
+            "type": "array"
+          }
+        },
+        "required": [
+          "date",
+          "date_sortable",
+          "location",
+          "group",
+          "players",
+          "comments"
+        ],
+        "title": "RoundStoryResponse",
         "type": "object"
       },
       "Rule": {
@@ -3703,6 +3829,17 @@
             "title": "Member",
             "type": "string"
           },
+          "player_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Player Id"
+          },
           "quarters": {
             "title": "Quarters",
             "type": "integer"
@@ -3774,6 +3911,17 @@
           "member": {
             "title": "Member",
             "type": "string"
+          },
+          "player_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Player Id"
           },
           "quarters": {
             "title": "Quarters",
@@ -4074,6 +4222,17 @@
           "member": {
             "title": "Member",
             "type": "string"
+          },
+          "player_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Player Id"
           },
           "quarters": {
             "title": "Quarters",
@@ -8301,6 +8460,199 @@
           }
         },
         "summary": "Get Rounds By Date",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/data/rounds/comments/{comment_id}": {
+      "delete": {
+        "description": "The author or an admin can remove a comment.",
+        "operationId": "delete_round_comment_data_rounds_comments__comment_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "comment_id",
+            "required": true,
+            "schema": {
+              "title": "Comment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Delete Round Comment Data Rounds Comments  Comment Id  Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Round Comment",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/data/rounds/{date}/{group}": {
+      "get": {
+        "description": "Players, quarter totals, and comments for one foursome.",
+        "operationId": "get_round_story_data_rounds__date___group__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "date",
+            "required": true,
+            "schema": {
+              "title": "Date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "group",
+            "required": true,
+            "schema": {
+              "title": "Group",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Course name; empty when the sheet left it blank",
+            "in": "query",
+            "name": "location",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Course name; empty when the sheet left it blank",
+              "title": "Location",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoundStoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Round Story",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/data/rounds/{date}/{group}/comments": {
+      "post": {
+        "description": "Signed-in players can add a note. The round must already exist.",
+        "operationId": "add_round_comment_data_rounds__date___group__comments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "date",
+            "required": true,
+            "schema": {
+              "title": "Date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "group",
+            "required": true,
+            "schema": {
+              "title": "Group",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "location",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Location",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoundCommentCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoundCommentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Add Round Comment",
         "tags": [
           "data"
         ]
