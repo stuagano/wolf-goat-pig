@@ -448,6 +448,37 @@ class RoundComment(Base):
     created_at = Column(String, nullable=False)
 
 
+class RoundReaction(Base):
+    """One player's emoji on a round or on one comment. Tap again to take it off.
+
+    A null comment_id is a reaction on the round itself. The unique key uses
+    COALESCE so Postgres treats those the same as SQLite (NULL is not distinct).
+    """
+
+    __tablename__ = "round_reactions"
+    __table_args__ = (
+        Index(
+            "uq_round_reactions_player_emoji",
+            "round_date",
+            "round_group",
+            "location",
+            text("COALESCE(comment_id, 0)"),
+            "profile_id",
+            "emoji",
+            unique=True,
+        ),
+        Index("ix_round_reactions_round", "round_date", "round_group", "location"),
+    )
+    id = Column(Integer, primary_key=True, index=True)
+    round_date = Column(String, nullable=False)
+    round_group = Column(String, nullable=False)
+    location = Column(String, nullable=False, default="")
+    comment_id = Column(Integer, ForeignKey("round_comments.id"), nullable=True, index=True)
+    profile_id = Column(Integer, ForeignKey("player_profiles.id"), nullable=False, index=True)
+    emoji = Column(String, nullable=False)
+    created_at = Column(String, nullable=False)
+
+
 class PlayerAchievement(Base):
     __tablename__ = "player_achievements"
     id = Column(Integer, primary_key=True, index=True)

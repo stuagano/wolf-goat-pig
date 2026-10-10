@@ -3512,6 +3512,13 @@
           "id": {
             "title": "Id",
             "type": "integer"
+          },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/RoundReactionResponse"
+            },
+            "title": "Reactions",
+            "type": "array"
           }
         },
         "required": [
@@ -3551,6 +3558,50 @@
           "quarters"
         ],
         "title": "RoundPlayerResponse",
+        "type": "object"
+      },
+      "RoundReactionResponse": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "emoji": {
+            "title": "Emoji",
+            "type": "string"
+          },
+          "mine": {
+            "default": false,
+            "title": "Mine",
+            "type": "boolean"
+          },
+          "reactor_names": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reactor Names",
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactor_names"
+        ],
+        "title": "RoundReactionResponse",
+        "type": "object"
+      },
+      "RoundReactionToggle": {
+        "properties": {
+          "emoji": {
+            "title": "Emoji",
+            "type": "string"
+          }
+        },
+        "required": [
+          "emoji"
+        ],
+        "title": "RoundReactionToggle",
         "type": "object"
       },
       "RoundResultResponse": {
@@ -3640,6 +3691,13 @@
               "$ref": "#/components/schemas/RoundPlayerResponse"
             },
             "title": "Players",
+            "type": "array"
+          },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/RoundReactionResponse"
+            },
+            "title": "Reactions",
             "type": "array"
           }
         },
@@ -8517,9 +8575,71 @@
         ]
       }
     },
+    "/data/rounds/comments/{comment_id}/reactions": {
+      "post": {
+        "description": "Add this player's emoji to one comment, or remove it.",
+        "operationId": "toggle_comment_reaction_data_rounds_comments__comment_id__reactions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "comment_id",
+            "required": true,
+            "schema": {
+              "title": "Comment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoundReactionToggle"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RoundReactionResponse"
+                  },
+                  "title": "Response Toggle Comment Reaction Data Rounds Comments  Comment Id  Reactions Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Toggle Comment Reaction",
+        "tags": [
+          "data"
+        ]
+      }
+    },
     "/data/rounds/{date}/{group}": {
       "get": {
-        "description": "Players, quarter totals, and comments for one foursome.",
+        "description": "Players, quarter totals, comments, and reactions for one foursome.",
         "operationId": "get_round_story_data_rounds__date___group__get",
         "parameters": [
           {
@@ -8653,6 +8773,87 @@
           }
         ],
         "summary": "Add Round Comment",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/data/rounds/{date}/{group}/reactions": {
+      "post": {
+        "description": "Add this player's emoji to the round, or remove it if it's already theirs.",
+        "operationId": "toggle_round_reaction_data_rounds__date___group__reactions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "date",
+            "required": true,
+            "schema": {
+              "title": "Date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "group",
+            "required": true,
+            "schema": {
+              "title": "Group",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "location",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Location",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoundReactionToggle"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RoundReactionResponse"
+                  },
+                  "title": "Response Toggle Round Reaction Data Rounds  Date   Group  Reactions Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Toggle Round Reaction",
         "tags": [
           "data"
         ]

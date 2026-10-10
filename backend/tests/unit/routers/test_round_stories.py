@@ -145,3 +145,104 @@ class TestRoundStory:
 
         assert resp.status_code == 200
         db.delete.assert_called_once_with(comment)
+
+    @patch("app.routers.round_stories._reactions", return_value=[])
+    @patch("app.routers.round_stories.get_unified_data_service")
+    def test_round_reaction_toggles_on(self, mock_service, reactions):
+        mock_service.return_value = _service(_round("Coulburn", -400))
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = None
+
+        def override_db():
+            yield db
+
+        from app.database import get_db
+
+        app.dependency_overrides[get_db] = override_db
+        try:
+            resp = client.post(
+                "/data/rounds/2026-10-06/A/reactions",
+                params={"location": "Wing Point"},
+                json={"emoji": "😭"},
+                headers={"X-Admin-Email": "player@example.com"},
+            )
+        finally:
+            app.dependency_overrides.pop(get_db, None)
+
+        assert resp.status_code == 200, resp.text
+        added = db.add.call_args.args[0]
+        assert added.emoji == "😭"
+        assert added.comment_id is None
+        reactions.assert_called_once()
+
+    @patch("app.routers.round_stories._reactions", return_value=[])
+    @patch("app.routers.round_stories.get_unified_data_service")
+    def test_tapping_your_reaction_again_removes_it(self, mock_service, _reactions):
+        mock_service.return_value = _service(_round("Coulburn", -400))
+        existing = SimpleNamespace(emoji="😭", comment_id=None, profile_id=999)
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = existing
+
+        def override_db():
+            yield db
+
+        from app.database import get_db
+
+        app.dependency_overrides[get_db] = override_db
+        try:
+            resp = client.post(
+                "/data/rounds/2026-10-06/A/reactions",
+                params={"location": "Wing Point"},
+                json={"emoji": "😭"},
+                headers={"X-Admin-Email": "player@example.com"},
+            )
+        finally:
+            app.dependency_overrides.pop(get_db, None)
+
+        assert resp.status_code == 200, resp.text
+        db.delete.assert_called_once_with(existing)
+        db.add.assert_not_called()
+
+    @patch("app.routers.round_stories.get_unified_data_service")
+    def test_unknown_emoji_is_rejected(self, mock_service):
+        mock_service.return_value = _service(_round("Coulburn", -400))
+        resp = client.post(
+            "/data/rounds/2026-10-06/A/reactions",
+            params={"location": "Wing Point"},
+            json={"emoji": "🚀"},
+            headers={"X-Admin-Email": "player@example.com"},
+        )
+        assert resp.status_code == 422
+
+    @patch("app.routers.round_stories._comment_reactions", return_value=[])
+    def test_comment_reaction_is_tied_to_that_comment(self, reactions):
+        comment = SimpleNamespace(
+            id=9,
+            round_date="2026-10-06",
+            round_group="A",
+            location="Wing Point",
+            author_profile_id=4,
+        )
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [comment, None]
+
+        def override_db():
+            yield db
+
+        from app.database import get_db
+
+        app.dependency_overrides[get_db] = override_db
+        try:
+            resp = client.post(
+                "/data/rounds/comments/9/reactions",
+                json={"emoji": "🔥"},
+                headers={"X-Admin-Email": "player@example.com"},
+            )
+        finally:
+            app.dependency_overrides.pop(get_db, None)
+
+        assert resp.status_code == 200, resp.text
+        added = db.add.call_args.args[0]
+        assert added.emoji == "🔥"
+        assert added.comment_id == 9
+        reactions.assert_called_once()

@@ -4,6 +4,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { apiConfig } from '../config/api.config';
 import { useAccessToken } from '../hooks/useAccessToken';
 import PlayerName from '../components/game/leaderboard/PlayerName';
+import ReactionBar from '../components/game/leaderboard/ReactionBar';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -31,6 +32,7 @@ export default function RoundStoryPage() {
   const [postError, setPostError] = useState(null);
   const [myProfileId, setMyProfileId] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const query = location ? `?location=${encodeURIComponent(location)}` : '';
   const storyUrl = `${API_URL}/data/rounds/${encodeURIComponent(date)}/${encodeURIComponent(group || '')}${query}`;
@@ -107,6 +109,48 @@ export default function RoundStoryPage() {
     }
   };
 
+  const applyReactions = (next, commentId) => {
+    setRound((current) => {
+      if (!current) return current;
+      if (commentId == null) return { ...current, reactions: next };
+      return {
+        ...current,
+        comments: current.comments.map((comment) => (
+          comment.id === commentId ? { ...comment, reactions: next } : comment
+        )),
+      };
+    });
+  };
+
+  const toggleReaction = async (emoji, commentId) => {
+    try {
+      const token = await getToken();
+      const url = commentId == null
+        ? `${storyUrl}/reactions`
+        : `${API_URL}/data/rounds/comments/${commentId}/reactions`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emoji }),
+      });
+      if (!res.ok) throw new Error('Could not save that reaction');
+      applyReactions(await res.json(), commentId);
+    } catch (err) {
+      setPostError(err.message || 'Could not save that reaction');
+    }
+  };
+
+  const copyLink = async () => {
+    const url = `${window.location.origin}/rounds/${encodeURIComponent(date)}/${encodeURIComponent(group || '')}${location ? `?location=${encodeURIComponent(location)}` : ''}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setPostError('Could not copy that link');
+    }
+  };
+
   const removeComment = async (commentId) => {
     try {
       const token = await getToken();
@@ -139,6 +183,9 @@ export default function RoundStoryPage() {
         <p className="text-gray-600 mt-1">
           {round.location || 'Unknown location'}{round.group ? ` · Group ${round.group}` : ''}
         </p>
+        <button type="button" onClick={copyLink} className="mt-2 text-sm text-blue-700 hover:underline">
+          {copied ? 'Link copied' : 'Copy link'}
+        </button>
 
         <ul className="mt-6 bg-white rounded-lg divide-y divide-gray-200 shadow-sm">
           {round.players.map((player) => (
@@ -150,6 +197,12 @@ export default function RoundStoryPage() {
             </li>
           ))}
         </ul>
+        <ReactionBar
+          reactions={round.reactions || []}
+          canReact={isAuthenticated}
+          onToggle={(emoji) => toggleReaction(emoji)}
+          onSignIn={loginWithRedirect}
+        />
 
         <section className="mt-8" aria-labelledby="round-comments-heading">
           <h2 id="round-comments-heading" className="text-xl font-semibold text-gray-900">Comments</h2>
@@ -164,6 +217,12 @@ export default function RoundStoryPage() {
                     <span className="text-xs text-gray-500">{formatGameDate(comment.created_at?.slice(0, 10))}</span>
                   </div>
                   <p className="text-sm text-gray-800 mt-1 whitespace-pre-wrap">{comment.body}</p>
+                  <ReactionBar
+                    reactions={comment.reactions || []}
+                    canReact={isAuthenticated}
+                    onToggle={(emoji) => toggleReaction(emoji, comment.id)}
+                    onSignIn={loginWithRedirect}
+                  />
                   {isAuthenticated && (isAdmin || comment.author_profile_id === myProfileId) && (
                     <button type="button" onClick={() => removeComment(comment.id)} className="mt-2 text-xs text-red-700 hover:underline">
                       Delete

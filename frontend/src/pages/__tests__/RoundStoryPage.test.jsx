@@ -18,7 +18,18 @@ const story = {
     { member: 'Coulburn', player_id: 4, quarters: -400 },
     { member: 'Stuart Gano', player_id: null, quarters: 200 },
   ],
-  comments: [],
+  comments: [
+    {
+      id: 9,
+      author_name: 'Jeff',
+      author_profile_id: 2,
+      body: 'Coulburn never recovered after the turn.',
+      created_at: '2026-10-06T18:00:00',
+      can_delete: false,
+      reactions: [{ emoji: '🔥', count: 1, reactor_names: ['Stuart'], mine: false }],
+    },
+  ],
+  reactions: [{ emoji: '😭', count: 2, reactor_names: ['Jeff', 'Stuart'], mine: false }],
 };
 
 const renderStory = () => render(
@@ -44,7 +55,10 @@ describe('RoundStoryPage', () => {
     expect(await screen.findByText('Coulburn')).toBeInTheDocument();
     expect(screen.getByText('-400')).toBeInTheDocument();
     expect(screen.getByText('+200')).toBeInTheDocument();
-    expect(screen.getByText(/No comments yet/)).toBeInTheDocument();
+    expect(screen.getByText('Coulburn never recovered after the turn.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '😭 2' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '🔥 1' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy link' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Coulburn' })).toHaveAttribute('href', '/players/4');
     expect(screen.getByText('Stuart Gano').closest('a')).toBeNull();
     expect(screen.getByRole('button', { name: 'Sign in to comment' })).toBeInTheDocument();

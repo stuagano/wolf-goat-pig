@@ -1831,6 +1831,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/data/rounds/comments/{comment_id}/reactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Toggle Comment Reaction
+         * @description Add this player's emoji to one comment, or remove it.
+         */
+        post: operations["toggle_comment_reaction_data_rounds_comments__comment_id__reactions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/data/rounds/{date}/{group}": {
         parameters: {
             query?: never;
@@ -1840,7 +1860,7 @@ export interface paths {
         };
         /**
          * Get Round Story
-         * @description Players, quarter totals, and comments for one foursome.
+         * @description Players, quarter totals, comments, and reactions for one foursome.
          */
         get: operations["get_round_story_data_rounds__date___group__get"];
         put?: never;
@@ -1865,6 +1885,26 @@ export interface paths {
          * @description Signed-in players can add a note. The round must already exist.
          */
         post: operations["add_round_comment_data_rounds__date___group__comments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/data/rounds/{date}/{group}/reactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Toggle Round Reaction
+         * @description Add this player's emoji to the round, or remove it if it's already theirs.
+         */
+        post: operations["toggle_round_reaction_data_rounds__date___group__reactions_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6527,6 +6567,8 @@ export interface components {
             created_at: string;
             /** Id */
             id: number;
+            /** Reactions */
+            reactions?: components["schemas"]["RoundReactionResponse"][];
         };
         /** RoundPlayerResponse */
         RoundPlayerResponse: {
@@ -6536,6 +6578,25 @@ export interface components {
             player_id?: number | null;
             /** Quarters */
             quarters: number;
+        };
+        /** RoundReactionResponse */
+        RoundReactionResponse: {
+            /** Count */
+            count: number;
+            /** Emoji */
+            emoji: string;
+            /**
+             * Mine
+             * @default false
+             */
+            mine: boolean;
+            /** Reactor Names */
+            reactor_names: string[];
+        };
+        /** RoundReactionToggle */
+        RoundReactionToggle: {
+            /** Emoji */
+            emoji: string;
         };
         /**
          * RoundResultResponse
@@ -6569,6 +6630,8 @@ export interface components {
             location: string;
             /** Players */
             players: components["schemas"]["RoundPlayerResponse"][];
+            /** Reactions */
+            reactions?: components["schemas"]["RoundReactionResponse"][];
         };
         /** Rule */
         Rule: {
@@ -9657,6 +9720,41 @@ export interface operations {
             };
         };
     };
+    toggle_comment_reaction_data_rounds_comments__comment_id__reactions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                comment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoundReactionToggle"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoundReactionResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_round_story_data_rounds__date___group__get: {
         parameters: {
             query?: {
@@ -9717,6 +9815,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RoundCommentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    toggle_round_reaction_data_rounds__date___group__reactions_post: {
+        parameters: {
+            query?: {
+                location?: string;
+            };
+            header?: never;
+            path: {
+                date: string;
+                group: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoundReactionToggle"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoundReactionResponse"][];
                 };
             };
             /** @description Validation Error */
