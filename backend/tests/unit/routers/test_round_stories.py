@@ -30,6 +30,15 @@ def _service(*rounds):
     return service
 
 
+def _savepoint():
+    nested = MagicMock()
+
+    def begin_nested():
+        return nested
+
+    return begin_nested, nested
+
+
 class TestRoundStory:
     @patch("app.routers.round_stories.profile_ids_by_member", return_value={"coulburn": 4})
     @patch("app.routers.round_stories.get_unified_data_service")
@@ -82,6 +91,8 @@ class TestRoundStory:
             comment.id = 15
 
         db.refresh.side_effect = refresh
+        db.query.return_value.filter.return_value.all.return_value = []
+        db.begin_nested.side_effect, nested = _savepoint()
         try:
             resp = client.post(
                 "/data/rounds/2026-10-06/A/comments",
@@ -96,6 +107,88 @@ class TestRoundStory:
         assert resp.json()["body"] == "Coulburn never recovered after the turn."
         assert resp.json()["id"] == 15
         db.commit.assert_called_once()
+        nested.commit.assert_called_once()
+        nested.rollback.assert_not_called()
+        db.add_all.assert_called_once_with([])
+
+    @patch("app.routers.round_stories.get_unified_data_service")
+    def test_a_comment_pings_every_other_player_on_the_site(self, mock_service):
+        mock_service.return_value = _service(_round("Coulburn", -400))
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = [(2,), (3,)]
+
+        def refresh(comment):
+            comment.id = 15
+
+        db.refresh.side_effect = refresh
+        db.begin_nested.side_effect, nested = _savepoint()
+
+        def override_db():
+            yield db
+
+        from app.database import get_db
+
+        app.dependency_overrides[get_db] = override_db
+        try:
+            resp = client.post(
+                "/data/rounds/2026-10-06/A/comments",
+                params={"location": "Wing Point"},
+                json={"body": "Coulburn lost 400 and never recovered after the turn."},
+                headers={"X-Admin-Email": "player@example.com"},
+            )
+        finally:
+            app.dependency_overrides.pop(get_db, None)
+
+        assert resp.status_code == 200, resp.text
+        db.commit.assert_called_once()
+        nested.commit.assert_called_once()
+        nested.rollback.assert_not_called()
+        notes = db.add_all.call_args.args[0]
+        assert [note.player_profile_id for note in notes] == [2, 3]
+        assert {note.notification_type for note in notes} == {"round_comment"}
+        assert "Admin Test User" in notes[0].message
+        assert "Wing Point" in notes[0].message
+        assert notes[0].data["path"] == "/rounds/2026-10-06/A?location=Wing%20Point"
+        assert notes[0].data["location"] == "Wing Point"
+        rendered = " ".join(str(arg) for arg in db.query.return_value.filter.call_args.args)
+        assert "is_active" in rendered
+        assert "is_ai" in rendered
+        assert "player_profiles.id" in rendered
+
+    @patch("app.routers.round_stories.get_unified_data_service")
+    def test_a_failed_fan_out_still_saves_the_comment(self, mock_service):
+        mock_service.return_value = _service(_round("Coulburn", -400))
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.side_effect = RuntimeError("bell is down")
+        db.begin_nested.side_effect, nested = _savepoint()
+
+        def refresh(comment):
+            comment.id = 15
+
+        db.refresh.side_effect = refresh
+
+        def override_db():
+            yield db
+
+        from app.database import get_db
+
+        app.dependency_overrides[get_db] = override_db
+        try:
+            resp = client.post(
+                "/data/rounds/2026-10-06/A/comments",
+                params={"location": "Wing Point"},
+                json={"body": "The bell can fail. The note cannot."},
+                headers={"X-Admin-Email": "player@example.com"},
+            )
+        finally:
+            app.dependency_overrides.pop(get_db, None)
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["id"] == 15
+        db.commit.assert_called_once()
+        nested.rollback.assert_called_once()
+        nested.commit.assert_not_called()
+        db.add_all.assert_not_called()
 
     @patch("app.routers.round_stories.get_unified_data_service")
     def test_blank_comment_is_rejected(self, mock_service):
