@@ -5458,6 +5458,11 @@ export interface components {
         DailySignupCreate: {
             /** Date */
             date: string;
+            /**
+             * Dry Run
+             * @default false
+             */
+            dry_run: boolean;
             /** Notes */
             notes?: string | null;
             /** Player Name */
@@ -5475,6 +5480,8 @@ export interface components {
             date: string;
             /** Id */
             id: number;
+            /** Legacy Sync */
+            legacy_sync?: string | null;
             /** Notes */
             notes: string | null;
             /** Player Name */
@@ -6800,6 +6807,38 @@ export interface components {
              * @default solo
              */
             team_situation: string;
+        };
+        /**
+         * SignupPreviewResponse
+         * @description What a dry-run signup would write, without writing it (issue #323).
+         */
+        SignupPreviewResponse: {
+            /**
+             * Dry Run
+             * @default true
+             */
+            dry_run: boolean;
+            /**
+             * Legacy Sync
+             * @default skipped
+             */
+            legacy_sync: string;
+            /**
+             * Live Write
+             * @default false
+             */
+            live_write: boolean;
+            /** Reason */
+            reason: string;
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /** Would Sign Up */
+            would_sign_up: {
+                [key: string]: string;
+            };
         };
         /** SignupRequest */
         SignupRequest: {
@@ -14391,7 +14430,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DailySignupResponse"];
+                    "application/json": components["schemas"]["DailySignupResponse"] | components["schemas"]["SignupPreviewResponse"];
                 };
             };
             /** @description Validation Error */

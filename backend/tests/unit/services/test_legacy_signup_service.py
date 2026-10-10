@@ -52,6 +52,7 @@ def test_sync_disabled_short_circuits(monkeypatch):
 def test_sync_builds_form_payload(monkeypatch):
     """Payload uses configured mappings and headers for form submissions."""
 
+    monkeypatch.setenv("ENVIRONMENT", "production")
     record: dict = {}
 
     def _client_factory(**kwargs):
@@ -123,9 +124,46 @@ def test_config_from_env_parses_json(monkeypatch):
     monkeypatch.delenv("LEGACY_SIGNUP_TIMEOUT_SECONDS", raising=False)
 
 
+def test_non_production_does_not_touch_the_live_sheet(monkeypatch):
+    """Issue #323: sync enabled outside production still must not POST."""
+
+    def _fail_client(*args, **kwargs):  # pragma: no cover - defensive guard
+        raise AssertionError("preview must not open a legacy client")
+
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.delenv("TEE_SHEET_ALLOW_LIVE_WRITES", raising=False)
+    monkeypatch.setattr(legacy_sync.httpx, "Client", _fail_client)
+
+    service = legacy_sync.LegacySignupSyncService(
+        legacy_sync.LegacySignupConfig(enabled=True, create_url="http://legacy")
+    )
+    signup = SimpleNamespace(id=1, date="2026-08-02", player_name="Preview Golfer")
+    assert service.live_writes_allowed() is False
+    assert service.sync_signup_created(signup) is False
+
+
+def test_explicit_opt_in_allows_a_non_production_live_write(monkeypatch):
+    record: dict = {}
+
+    def _client_factory(**kwargs):
+        return DummyClient(record, **kwargs)
+
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("TEE_SHEET_ALLOW_LIVE_WRITES", "true")
+    monkeypatch.setattr(legacy_sync.httpx, "Client", _client_factory)
+
+    service = legacy_sync.LegacySignupSyncService(
+        legacy_sync.LegacySignupConfig(enabled=True, create_url="http://legacy", payload_format="form")
+    )
+    signup = SimpleNamespace(id=2, date="2026-08-02", player_name="Opt In Golfer")
+    assert service.sync_signup_created(signup) is True
+    assert record["url"] == "http://legacy"
+
+
 def test_sync_uses_json_payload_when_configured(monkeypatch):
     """JSON payloads are emitted when requested."""
 
+    monkeypatch.setenv("ENVIRONMENT", "production")
     record: dict = {}
 
     def _client_factory(**kwargs):

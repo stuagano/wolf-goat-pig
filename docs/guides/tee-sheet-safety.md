@@ -19,9 +19,14 @@ is deliberately re-enabled.
 
 - `POST /tee-sheet/signup` (used by the **WGP Signup Sheet** UI) posts straight
   to the live CGI. This is the one that mutates the real, shared sheet.
-- `POST /signups` (the **Daily Signup** UI) writes to our own DB first and only
-  mirrors to the legacy sheet when `LEGACY_SIGNUP_SYNC_ENABLED=true` (off by
-  default).
+- `POST /signups` (the **Daily Signup** UI) writes to our own DB first. It
+  mirrors to the live club sheet only when **both** are true:
+  `LEGACY_SIGNUP_SYNC_ENABLED=true` **and** live writes are allowed (production,
+  or `TEE_SHEET_ALLOW_LIVE_WRITES=true`). Preview and local deploys do not
+  mirror, even if legacy sync is left on.
+- `DELETE /signups/{id}` (cancel) uses the same gate. A failed live mirror is
+  returned as `legacy_sync: "failed"` — the app row changed, the club sheet
+  did not, and the UI says so instead of calling it complete.
 
 ## Guardrails
 
@@ -44,15 +49,22 @@ preview** and performs no live mutation:
 
 ### 2. Explicit dry-run
 
-Any caller can pass `{"dry_run": true}` to preview what would be written without
-touching the live sheet, even in production.
+Any caller can pass `{"dry_run": true}` to `POST /tee-sheet/signup` or
+`POST /signups` to preview the exact name and date that would be written
+without touching the live sheet or (for `/signups`) the app database, even in
+production. The response is `live_write: false` plus `would_sign_up`.
 
 ### 3. UI confirmation
 
-The signup UI names the **exact player and date** and states that it will
-change the **LIVE** tee sheet before you confirm, and shows a **LIVE** vs
-**PREVIEW** badge based on the environment. A preview signup is clearly labeled
-as a preview, not a real signup.
+Both signup surfaces name the **exact player and date** before anything is
+posted, and say whether the click will change the **LIVE** club tee sheet:
+
+- **WGP Signup Sheet** shows a LIVE vs PREVIEW badge. Preview sends `dry_run`.
+- **Daily Signup** (the path testers actually use) shows the same warning on
+  signup and on cancel. Cancel is not one click: it names the golfer and date
+  and states that the live sheet will change when this environment can write
+  it. A `legacy_sync: "failed"` result is shown as a failure, not as "you're
+  off the sheet."
 
 ### 4. Failures are visible
 

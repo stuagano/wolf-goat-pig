@@ -113,7 +113,11 @@ def test_issue_319_three_authenticated_players_stay_distinct(tmp_path, monkeypat
             yield db
 
     monkeypatch.setattr(signups_module.database, "SessionLocal", sessions)
-    monkeypatch.setattr(signups_module, "get_legacy_signup_service", Mock(return_value=Mock()))
+    legacy = Mock()
+    legacy.live_writes_allowed.return_value = True
+    legacy.sync_signup_created.return_value = True
+    legacy.sync_signup_cancelled.return_value = True
+    monkeypatch.setattr(signups_module, "get_legacy_signup_service", Mock(return_value=legacy))
     confirmation = Mock()
     monkeypatch.setattr(signups_module, "_send_signup_confirmation", confirmation)
     monkeypatch.delitem(app.dependency_overrides, get_current_user)
@@ -284,6 +288,23 @@ class TestCreateSignup:
     def test_create_signup_missing_fields_returns_422(self):
         resp = client.post("/signups", json={})
         assert resp.status_code == 422
+
+    def test_dry_run_names_the_golfer_and_writes_nothing(self, authenticated_signup_player):
+        signup_date = _unique_signup_date()
+        resp = client.post(
+            "/signups",
+            json={"date": signup_date, "dry_run": True},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["live_write"] is False
+        assert body["dry_run"] is True
+        assert body["would_sign_up"] == {
+            "name": authenticated_signup_player.legacy_name,
+            "date": signup_date,
+        }
+        assert body["legacy_sync"] == "skipped"
+        assert _signups_for_week(signup_date) == {}
 
     def test_create_signup_requires_linked_club_player(self):
         app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(

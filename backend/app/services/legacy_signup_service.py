@@ -146,6 +146,20 @@ class LegacySignupSyncService:
     def __init__(self, config: LegacySignupConfig) -> None:
         self.config = config
 
+    def live_writes_allowed(self) -> bool:
+        """Whether a call from this deployment may mutate the live club sheet.
+
+        Issue #323: a preview, local, or staging deploy must not silently change
+        the shared thousand-cranes.com sheet just because legacy sync is on.
+        Live writes require production, or an explicit
+        ``TEE_SHEET_ALLOW_LIVE_WRITES`` opt-in. Disabled sync stays disabled.
+        """
+        if not self.config.enabled:
+            return False
+        if os.getenv("ENVIRONMENT") == "production":
+            return True
+        return os.getenv("TEE_SHEET_ALLOW_LIVE_WRITES", "").lower() in {"1", "true", "yes"}
+
     def sync_signup_created(self, signup: Any) -> bool:
         """Mirror a newly created signup to the legacy CGI."""
 
@@ -187,7 +201,12 @@ class LegacySignupSyncService:
         action_field: str | None,
         action_value: str | None,
     ) -> bool:
-        if not self.config.enabled:
+        if not self.live_writes_allowed():
+            logger.info(
+                "Legacy signup sync skipped (no live write): signup id=%s environment=%s",
+                getattr(signup, "id", "<unknown>"),
+                os.getenv("ENVIRONMENT", "unset"),
+            )
             return False
 
         if not target_url:

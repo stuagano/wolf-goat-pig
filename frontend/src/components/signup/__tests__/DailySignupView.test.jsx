@@ -5,6 +5,16 @@ import { useAuth0 as mockUseAuth0 } from '@auth0/auth0-react';
 import { usePlayerProfile as mockUsePlayerProfile } from '../../../hooks/usePlayerProfile';
 import DailySignupView from '../DailySignupView';
 
+let mockIsProduction = false;
+vi.mock('../../../config/api.config', () => ({
+  apiConfig: {
+    baseUrl: 'http://localhost:8000',
+    get isProduction() {
+      return mockIsProduction;
+    },
+  },
+}));
+
 const mockNavigate = vi.fn();
 
 vi.mock('@auth0/auth0-react', () => ({
@@ -30,6 +40,7 @@ const expectedSignupBody = {
   date: selectedDate,
   preferred_start_time: null,
   notes: null,
+  dry_run: true,
 };
 
 // Real Response so the typed client (openapi-fetch) can parse it.
@@ -107,6 +118,7 @@ describe('DailySignupView', () => {
   });
 
   beforeEach(() => {
+    mockIsProduction = false;
     mockNavigate.mockReset();
     mockUseAuth0.mockReturnValue({
       user: { name: 'Auth0 Display Name', email: 'stuart@example.com' },
@@ -136,6 +148,15 @@ describe('DailySignupView', () => {
 
       if (url.endsWith('/signups') && request.method === 'POST') {
         const body = JSON.parse(await request.clone().text());
+        if (body.dry_run) {
+          return jsonResponse({
+            success: true,
+            live_write: false,
+            dry_run: true,
+            would_sign_up: { name: playerProfile.legacy_name, date: body.date },
+            legacy_sync: 'skipped',
+          });
+        }
         createdSignup = {
           id: 101,
           ...body,
@@ -145,6 +166,7 @@ describe('DailySignupView', () => {
           signup_time: '2099-01-01T00:00:00Z',
           created_at: '2099-01-01T00:00:00Z',
           updated_at: '2099-01-01T00:00:00Z',
+          legacy_sync: 'mirrored',
         };
         return jsonResponse(createdSignup);
       }
@@ -159,7 +181,9 @@ describe('DailySignupView', () => {
     });
     const emptyStateActions = firstSignupButton.parentElement;
     fireEvent.click(firstSignupButton);
-    expect(within(emptyStateActions).getByText('Signing up as: Stuart')).toBeInTheDocument();
+    expect(within(emptyStateActions).getByText(/Preview — sign up/)).toBeInTheDocument();
+    expect(within(emptyStateActions).getByText('Stuart')).toBeInTheDocument();
+    expect(within(emptyStateActions).getByText(/live tee sheet will not change/)).toBeInTheDocument();
     fireEvent.click(within(emptyStateActions).getByRole('button', { name: 'Confirm Sign Up' }));
 
     await waitFor(() => {
@@ -175,10 +199,73 @@ describe('DailySignupView', () => {
     expect(signupRequest.headers.get('Authorization')).toBe('Bearer signup-token');
     expect(signupRequest.headers.get('Content-Type')).toContain('application/json');
 
-    expect(await screen.findByText('Stuart')).toBeInTheDocument();
-    expect(screen.getByText('(you)')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Cancel My Signup' })).toBeInTheDocument();
+    expect(await screen.findByRole('status')).toHaveTextContent(/Preview only — nothing was saved/);
+    expect(screen.getByRole('status')).toHaveTextContent('Stuart');
+    expect(screen.queryByText('(you)')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cancel My Signup' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Generate pairings' })).not.toBeInTheDocument();
+  });
+
+test('production signup and cancel name the golfer and the live sheet before posting', async () => {
+    mockIsProduction = true;
+    let createdSignup = null;
+
+    fetch.mockImplementation(async (request) => {
+      const url = request.url;
+      if (url.includes('/signups/weekly-with-messages')) {
+        return jsonResponse(weeklyResponse(createdSignup ? [createdSignup] : []));
+      }
+      if (url.endsWith('/signups') && request.method === 'POST') {
+        const body = JSON.parse(await request.clone().text());
+        createdSignup = {
+          id: 101,
+          date: body.date,
+          player_profile_id: playerProfile.id,
+          player_name: playerProfile.legacy_name,
+          status: 'signed_up',
+          legacy_sync: 'mirrored',
+        };
+        return jsonResponse(createdSignup);
+      }
+      if (request.method === 'DELETE' && url.includes('/signups/')) {
+        createdSignup = null;
+        return jsonResponse({
+          message: 'Sign-up cancelled successfully',
+          live_write: true,
+          legacy_sync: 'mirrored',
+          name: playerProfile.legacy_name,
+          date: selectedDate,
+        });
+      }
+      throw new Error(`Unexpected fetch: ${request.method} ${url}`);
+    });
+
+    render(<DailySignupView selectedDate={selectedDate} />);
+
+    const firstSignupButton = await screen.findByRole('button', { name: 'Be the first to sign up!' });
+    const emptyStateActions = firstSignupButton.parentElement;
+    fireEvent.click(firstSignupButton);
+    expect(within(emptyStateActions).getByText(/This changes the/)).toHaveTextContent('LIVE');
+    expect(within(emptyStateActions).getByText('Stuart')).toBeInTheDocument();
+    expect(fetch.mock.calls.some(([req]) => req.method === 'POST' && req.url.endsWith('/signups'))).toBe(false);
+
+    fireEvent.click(within(emptyStateActions).getByRole('button', { name: 'Confirm Sign Up' }));
+    expect(await screen.findByRole('status')).toHaveTextContent(/LIVE club tee sheet was updated/);
+
+    const signupRequest = fetch.mock.calls.find(
+      ([req]) => req.url.endsWith('/signups') && req.method === 'POST',
+    )[0];
+    expect(JSON.parse(await signupRequest.clone().text()).dry_run).toBe(false);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel My Signup' }));
+    expect(screen.getByRole('button', { name: 'Yes, remove from the LIVE sheet' })).toBeInTheDocument();
+    expect(fetch.mock.calls.some(([req]) => req.method === 'DELETE')).toBe(false);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Yes, remove from the LIVE sheet' })[0]);
+
+    await waitFor(() => {
+      expect(fetch.mock.calls.some(([req]) => req.method === 'DELETE')).toBe(true);
+    });
+    expect(await screen.findByRole('status')).toHaveTextContent(/Removed Stuart from the LIVE tee sheet/);
   });
 
   test.each([false, true])('leaves pairings to the in-person group for admin=%s', async (isAdmin) => {

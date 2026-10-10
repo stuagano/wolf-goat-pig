@@ -15,6 +15,9 @@ class DailySignupCreate(BaseModel):
     player_name: str | None = None
     preferred_start_time: str | None = None
     notes: str | None = None
+    # Preview only: validate the name and date without writing or mirroring.
+    # See issue #323.
+    dry_run: bool = False
 
     @field_validator("date")
     @classmethod
@@ -45,6 +48,11 @@ class DailySignupResponse(BaseModel):
     status: str
     created_at: str
     updated_at: str
+    # Whether this signup was mirrored onto the live club tee sheet.
+    # "skipped" = live writes off, "mirrored" = live sheet updated,
+    # "failed" = the app row exists but the live sheet did not change.
+    # Absent on older responses. See issue #323.
+    legacy_sync: str | None = None
 
 
 class PlayerAvailabilityCreate(BaseModel):
