@@ -561,6 +561,26 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
           )}
         </div>
 
+        {isAdmin && selectedDate && (
+          <div style={{ marginBottom: '16px' }}>
+            {selectedDate >= new Date().toLocaleDateString('en-CA') && (
+              <AdminAddSignup
+                date={selectedDate}
+                signedUpProfileIds={players.filter(p => p.status !== 'cancelled').map(p => p.player_profile_id)}
+                onAdded={() => loadWeeklyData(currentWeekStart)}
+              />
+            )}
+            {!pairingsLoading && (
+              <AdminPairingOverwrite
+                date={selectedDate}
+                getAccessTokenSilently={getAccessTokenSilently}
+                hasPairings={!!generatedPairings}
+                onOverwritten={() => loadGeneratedPairings(selectedDate)}
+              />
+            )}
+          </div>
+        )}
+
         {/* Main content: Player List and Tee Times side by side */}
         <div style={{
           display: 'grid',
@@ -570,14 +590,6 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
         }}
           className="signup-day-grid"
         >
-          {isAdmin && selectedDate && selectedDate >= new Date().toLocaleDateString('en-CA') && (
-            <AdminAddSignup
-              date={selectedDate}
-              signedUpProfileIds={players.filter(p => p.status !== 'cancelled').map(p => p.player_profile_id)}
-              onAdded={() => loadWeeklyData(currentWeekStart)}
-            />
-          )}
-
           {/* Player List Table */}
           <div>
             {players.length > 0 ? (
@@ -908,25 +920,8 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                 Generated {new Date(generatedPairings.generated_at).toLocaleString()}
                 {generatedPairings.notification_sent && ' | Email notifications sent'}
               </div>
-              {isAdmin && (
-                <AdminPairingOverwrite
-                  date={selectedDate}
-                  getAccessTokenSilently={getAccessTokenSilently}
-                  hasPairings
-                  onOverwritten={() => loadGeneratedPairings(selectedDate)}
-                />
-              )}
             </div>
           </div>
-        )}
-
-        {isAdmin && !generatedPairings && !pairingsLoading && selectedDate && (
-          <AdminPairingOverwrite
-            date={selectedDate}
-            getAccessTokenSilently={getAccessTokenSilently}
-            hasPairings={false}
-            onOverwritten={() => loadGeneratedPairings(selectedDate)}
-          />
         )}
 
         {pairingsLoading && (

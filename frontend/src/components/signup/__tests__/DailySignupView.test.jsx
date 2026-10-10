@@ -164,6 +164,9 @@ describe('DailySignupView', () => {
       if (url.includes('/signups/weekly-with-messages')) {
         return jsonResponse(weeklyResponse());
       }
+      if (url.endsWith('/signups/admin/players')) {
+        return jsonResponse({ players: [] });
+      }
       throw new Error(`Unexpected fetch: ${url}`);
     });
 
@@ -188,6 +191,30 @@ describe('DailySignupView', () => {
     expect(generateRequest.headers.get('Authorization')).toBe('Bearer signup-token');
     expect(await screen.findAllByText('Redrawn Player')).not.toHaveLength(0);
     expect(screen.getByRole('button', { name: 'Overwrite pairings' })).toBeInTheDocument();
+  });
+
+  test('admin sees add-player and generate at the top of a day with no pairings', async () => {
+    mockUsePlayerProfile.mockReturnValue({
+      profile: { ...playerProfile, is_admin: true },
+      loading: false,
+      isAdmin: true,
+    });
+    fetch.mockImplementation(async (request) => {
+      const url = request.url;
+      if (url.includes('/pairings/')) return jsonResponse({ exists: false });
+      if (url.includes('/signups/weekly-with-messages')) return jsonResponse(weeklyResponse());
+      if (url.endsWith('/signups/admin/players')) {
+        return jsonResponse({ players: [{ id: 8, legacy_name: 'Terry Fuerst' }] });
+      }
+      throw new Error(`Unexpected fetch: ${request.method} ${url}`);
+    });
+
+    render(<DailySignupView selectedDate={selectedDate} />);
+
+    const addPlayer = await screen.findByLabelText('Add a player');
+    const generate = await screen.findByRole('button', { name: 'Generate pairings' });
+    expect(addPlayer.compareDocumentPosition(generate) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(generate.compareDocumentPosition(screen.getByText(/Be the first to sign up/)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   test('unlinked player can sign up using their display name without being blocked', async () => {
