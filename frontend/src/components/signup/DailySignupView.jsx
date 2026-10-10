@@ -7,6 +7,7 @@ import { usePlayerProfile } from '../../hooks/usePlayerProfile';
 import { acquireAccessToken, apiTokenOptions } from '../../services/authToken';
 import { api } from '../../api/client';
 import { errorDetail } from '../../api/http';
+import AdminPairingOverwrite from './AdminPairingOverwrite';
 
 const CLUB_PLAYER_ACCOUNT_PATH = '/account#club-player';
 
@@ -28,6 +29,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   const {
     profile,
     loading: profileLoading,
+    isAdmin,
     legacyNameSkipped,
   } = usePlayerProfile();
   const navigate = useNavigate();
@@ -887,8 +889,25 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                 Generated {new Date(generatedPairings.generated_at).toLocaleString()}
                 {generatedPairings.notification_sent && ' | Email notifications sent'}
               </div>
+              {isAdmin && (
+                <AdminPairingOverwrite
+                  date={selectedDate}
+                  getAccessTokenSilently={getAccessTokenSilently}
+                  hasPairings
+                  onOverwritten={() => loadGeneratedPairings(selectedDate)}
+                />
+              )}
             </div>
           </div>
+        )}
+
+        {isAdmin && !generatedPairings && !pairingsLoading && selectedDate && (
+          <AdminPairingOverwrite
+            date={selectedDate}
+            getAccessTokenSilently={getAccessTokenSilently}
+            hasPairings={false}
+            onOverwritten={() => loadGeneratedPairings(selectedDate)}
+          />
         )}
 
         {pairingsLoading && (
