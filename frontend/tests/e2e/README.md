@@ -182,6 +182,11 @@ npx playwright install
 # Run all E2E tests
 npm run test:e2e
 
+# iOS read-after-write specs (emulated iPhone/WebKit; runs in CI as "iOS E2E")
+# Add new iPhone specs under tests/ios/
+npx playwright install webkit
+npx playwright test --config playwright.config.js --project=iphone
+
 # Run specific test file
 npm run test:e2e -- test-game-4-man.spec.js
 npm run test:e2e -- smoke-test.spec.js

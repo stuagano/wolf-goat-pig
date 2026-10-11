@@ -21,6 +21,14 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      testIgnore: /tests\/ios\//,
+    },
+    {
+      // WebKit + iPhone viewport/touch/UA. Can't render the iOS keyboard, so
+      // ios/ specs assert the attributes that choose it and type what iOS sends.
+      name: 'iphone',
+      use: { ...devices['iPhone 15'] },
+      testMatch: /tests\/ios\/.*\.spec\.js/,
     },
   ],
 
@@ -47,6 +55,8 @@ export default defineConfig({
       timeout: 300 * 1000,
       reuseExistingServer: true,
       cwd: '../../../backend',
+      // Accepts any Bearer token as the fixed dev user (auth_service.verify_token).
+      env: { ENVIRONMENT: 'development' },
     },
   ],
 

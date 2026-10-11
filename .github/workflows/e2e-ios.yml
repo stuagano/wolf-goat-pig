@@ -1,0 +1,63 @@
+name: iOS E2E
+
+# Read-after-write on an emulated iPhone (WebKit): type what iOS sends, post it,
+# read it back from the API. Runs frontend/tests/e2e/tests/ios/ against a local
+# dev backend (SQLite, ENVIRONMENT=development mock auth).
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - '.github/workflows/e2e-ios.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  iphone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    # playwright.config.js starts the API with backend/venv/bin/python.
+    - name: Backend venv
+      working-directory: backend
+      run: |
+        python -m venv venv
+        venv/bin/pip install -r requirements.txt
+
+    - name: Frontend dependencies
+      working-directory: frontend
+      run: npm ci --legacy-peer-deps --no-audit
+
+    - name: Playwright + WebKit
+      working-directory: frontend/tests/e2e
+      run: |
+        npm ci --no-audit
+        npx playwright install --with-deps webkit
+
+    - name: Run iPhone specs
+      working-directory: frontend/tests/e2e
+      run: npx playwright test --config playwright.config.js --project=iphone
+
+    - name: Upload report
+      if: failure()
+      uses: actions/upload-artifact@v7
+      with:
+        name: playwright-ios-report
+        path: |
+          frontend/tests/e2e/playwright-report/
+          frontend/tests/e2e/test-results/
