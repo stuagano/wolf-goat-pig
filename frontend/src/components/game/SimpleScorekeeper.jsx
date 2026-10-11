@@ -12,8 +12,7 @@ import React, {
 import PropTypes from "prop-types";
 import { useTheme } from "../../theme/Provider";
 import { Input } from "../ui";
-import GameCompletionView from "./GameCompletionView";
-import ScorecardPhotoButton from "./ScorecardPhotoButton";
+import CompletedRoundView from "./CompletedRoundView";
 import Scorecard from "./Scorecard";
 import ShotAnalysisWidget from "./ShotAnalysisWidget";
 import BettingOddsPanel from "../betting/BettingOddsPanel";
@@ -788,48 +787,24 @@ const SimpleScorekeeper = ({
   // (and a missing hole could also be masked). Mirrors the backend gate.
   const isGameComplete = currentHole > 18 && allHolesPlayed(holeHistory);
 
-  // Handler to mark game as complete in the database
-  const handleMarkComplete = async () => {
-    if (!gameId) {
-      console.error("No game ID available");
-      return;
-    }
-
-    try {
-      const result = await fetchJson(`${API_URL}/games/${gameId}/complete`, {
-        method: "POST",
-      });
-      setIsGameMarkedComplete(true);
-    } catch (error) {
-      console.error("Error marking game complete:", error);
-      alert(`Failed to save game: ${error.message}`);
-    }
-  };
-
   // Show completion view if game is complete and not in edit mode
   if (isGameComplete && !isEditingCompleteGame) {
     return (
-      <>
-        <GameCompletionView
-          players={players}
-          playerStandings={playerStandings}
-          holeHistory={holeHistory}
-          onNewGame={() => {
-            // Reset to start a new game
-            window.location.reload();
-          }}
-          onEditScores={() => {
-            // Enter edit mode - set to hole 19 so ALL holes appear as "completed" and editable
-            setIsEditingCompleteGame(true);
-            setCurrentHole(19); // All holes 1-18 will show as completed (editable)
-          }}
-          onMarkComplete={handleMarkComplete}
-          isCompleted={isGameMarkedComplete}
-          courseHoles={courseData?.holes || []}
-          strokeAllocation={strokeAllocation}
-        />
-        {gameId && <ScorecardPhotoButton gameId={gameId} />}
-      </>
+      <CompletedRoundView
+        gameId={gameId}
+        players={players}
+        playerStandings={playerStandings}
+        holeHistory={holeHistory}
+        courseHoles={courseData?.holes || []}
+        strokeAllocation={strokeAllocation}
+        isMarkedComplete={isGameMarkedComplete}
+        onMarkedComplete={() => setIsGameMarkedComplete(true)}
+        onEditScores={() => {
+          // Enter edit mode - set to hole 19 so ALL holes appear as "completed" and editable
+          setIsEditingCompleteGame(true);
+          setCurrentHole(19); // All holes 1-18 will show as completed (editable)
+        }}
+      />
     );
   }
 
