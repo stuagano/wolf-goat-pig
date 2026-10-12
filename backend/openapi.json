@@ -1155,6 +1155,35 @@
         "title": "DataStatusResponse",
         "type": "object"
       },
+      "DayTeeTimesResponse": {
+        "properties": {
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "tee_times": {
+            "title": "Tee Times",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "date",
+          "tee_times"
+        ],
+        "title": "DayTeeTimesResponse",
+        "type": "object"
+      },
       "EarnedBadgeResponse": {
         "properties": {
           "badge": {
@@ -15561,9 +15590,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Day Tee Times Signups Tee Times  Date  Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/DayTeeTimesResponse"
                 }
               }
             },
@@ -15614,9 +15641,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Put Day Tee Times Signups Tee Times  Date  Put",
-                  "type": "object"
+                  "$ref": "#/components/schemas/DayTeeTimesResponse"
                 }
               }
             },

@@ -5584,6 +5584,15 @@ export interface components {
             unified_total: number;
             writable_sheet: components["schemas"]["DataSourceStatus"];
         };
+        /** DayTeeTimesResponse */
+        DayTeeTimesResponse: {
+            /** Date */
+            date: string;
+            /** Tee Times */
+            tee_times: string;
+            /** Updated At */
+            updated_at?: string | null;
+        };
         /** EarnedBadgeResponse */
         EarnedBadgeResponse: {
             badge: components["schemas"]["BadgeResponse"];
@@ -14545,9 +14554,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DayTeeTimesResponse"];
                 };
             };
             /** @description Validation Error */
@@ -14582,9 +14589,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DayTeeTimesResponse"];
                 };
             };
             /** @description Validation Error */

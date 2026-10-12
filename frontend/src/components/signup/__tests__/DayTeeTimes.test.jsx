@@ -91,4 +91,65 @@ describe('DayTeeTimes', () => {
     fireEvent.blur(box());
     expect(await screen.findByRole('alert')).toHaveTextContent(/Couldn’t save/);
   });
+
+  test('switching A → B → A only applies the newest load for A', async () => {
+    const pendingSunday = [];
+    fetch.mockImplementation((request) => {
+      const date = new URL(request.url).pathname.split('/').pop();
+      if (date === '2026-10-18') {
+        return new Promise((resolve) => pendingSunday.push((text) => resolve(json({ date, tee_times: text }))));
+      }
+      return Promise.resolve(json({ date, tee_times: '' }));
+    });
+
+    const { rerender } = render(<DayTeeTimes date="2026-10-18" />);
+    rerender(<DayTeeTimes date="2026-10-19" />);
+    rerender(<DayTeeTimes date="2026-10-18" />);
+    await waitFor(() => expect(pendingSunday).toHaveLength(2));
+
+    await act(async () => pendingSunday[1]('newest'));
+    await act(async () => pendingSunday[0]('stale'));
+    expect(box()).toHaveValue('newest');
+  });
+
+  test('a failed load keeps the box locked so a blank box cannot wipe saved times', async () => {
+    let failLoad = true;
+    const puts = [];
+    fetch.mockImplementation(async (request) => {
+      if (request.method === 'PUT') {
+        puts.push(request);
+        return json({ date: '2026-10-18', tee_times: '' });
+      }
+      return failLoad ? json({ detail: 'down' }, 503) : json({ date: '2026-10-18', tee_times: '12:48 (1-4)' });
+    });
+    render(<DayTeeTimes date="2026-10-18" />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Couldn’t load/);
+    expect(box()).toHaveAttribute('readonly');
+    fireEvent.change(box(), { target: { value: 'oops' } });
+    fireEvent.blur(box());
+    expect(puts).toHaveLength(0);
+
+    failLoad = false;
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(box()).toHaveValue('12:48 (1-4)'));
+    expect(box()).not.toHaveAttribute('readonly');
+  });
+
+  test('the box is locked while a save is in flight, so saves cannot land out of order', async () => {
+    let finishSave;
+    fetch.mockImplementation((request) => (request.method === 'PUT'
+      ? new Promise((resolve) => { finishSave = () => resolve(json({ date: '2026-10-18', tee_times: 'first' })); })
+      : Promise.resolve(json({ date: '2026-10-18', tee_times: '' }))));
+    render(<DayTeeTimes date="2026-10-18" />);
+    await loaded();
+
+    fireEvent.change(box(), { target: { value: 'first' } });
+    fireEvent.blur(box());
+    await waitFor(() => expect(box()).toHaveAttribute('readonly'));
+
+    await act(async () => finishSave());
+    expect(await screen.findByText('Saved')).toBeInTheDocument();
+    expect(box()).not.toHaveAttribute('readonly');
+  });
 });
