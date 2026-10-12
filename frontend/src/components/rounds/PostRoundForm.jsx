@@ -11,6 +11,11 @@ const todayLocalDate = () => {
   return new Date(now.getTime() - offsetMs).toISOString().slice(0, 10);
 };
 
+// iOS Smart Punctuation turns "--" into an em dash, and a long-press on the
+// hyphen key offers an en dash; pasted values may carry a Unicode minus.
+// Map them all to an ASCII hyphen so "−3" posts as -3 instead of failing validation.
+export const normalizeMinus = (value) => value.replace(/[−–—]/g, "-");
+
 const FoursomePicker = ({ players, currentName, selectedNames, onChange }) => {
   const availablePlayers = useMemo(
     () => players.filter((name) => name && name !== currentName),
@@ -291,7 +296,7 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
               {name} — quarters won/lost
               <input type="text" inputMode="text"
                 value={form.scores[name] ?? ""} required placeholder="Example: -3, 0, or 8"
-                onChange={event => setForm(current => ({ ...current, scores: { ...current.scores, [name]: event.target.value } }))}
+                onChange={event => setForm(current => ({ ...current, scores: { ...current.scores, [name]: normalizeMinus(event.target.value) } }))}
               />
             </label>
           ))}
