@@ -231,6 +231,17 @@ class TestGetPlayers:
         resp = client.get("/players/all")
         assert isinstance(resp.json(), list)
 
+    def test_public_player_reads_never_expose_email(self):
+        name = unique_name("Private")
+        created = client.post("/players", json={"name": name, "email": unique_email()})
+        assert created.status_code in (200, 201)
+
+        lists = [client.get("/players").json(), client.get("/players/all").json()]
+        by_name = client.get(f"/players/name/{name}").json()
+        assert by_name["name"] == name
+        for player in [by_name, *(p for players in lists for p in players)]:
+            assert "email" not in player
+
 
 # ── POST /players ─────────────────────────────────────────────────────────────
 

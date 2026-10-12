@@ -46,6 +46,7 @@ from .players import (
     PlayerProfileUpdate,
     PlayerProfileWithStats,
     PlayerStatisticsResponse,
+    PublicPlayerProfileResponse,
 )
 from .signups import (
     DailyMessageCreate,
@@ -92,6 +93,7 @@ __all__ = [
     "PlayerProfileBase",
     "PlayerProfileCreate",
     "PlayerProfileResponse",
+    "PublicPlayerProfileResponse",
     "PlayerProfileUpdate",
     "PlayerProfileWithStats",
     "PlayerStatisticsResponse",

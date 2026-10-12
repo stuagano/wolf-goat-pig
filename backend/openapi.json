@@ -3516,6 +3516,213 @@
         "title": "PostRoundRequest",
         "type": "object"
       },
+      "PublicPlayerProfileResponse": {
+        "description": "Profile for unauthenticated reads (lists, name lookup): never exposes email.",
+        "properties": {
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "ghin_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ghin Id"
+          },
+          "ghin_last_updated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ghin Last Updated"
+          },
+          "handicap": {
+            "default": 18.0,
+            "title": "Handicap",
+            "type": "number"
+          },
+          "handicap_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handicap Source"
+          },
+          "has_avatar_image": {
+            "default": false,
+            "title": "Has Avatar Image",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_active": {
+            "default": true,
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "is_admin": {
+            "default": false,
+            "title": "Is Admin",
+            "type": "boolean"
+          },
+          "is_ai": {
+            "default": false,
+            "title": "Is Ai",
+            "type": "boolean"
+          },
+          "is_super_admin": {
+            "default": false,
+            "title": "Is Super Admin",
+            "type": "boolean"
+          },
+          "last_played": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Played"
+          },
+          "legacy_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legacy Name"
+          },
+          "legacy_name_suggestion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legacy Name Suggestion"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pending_claim": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PendingClaimInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "playing_style": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Playing Style"
+          },
+          "preferences": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preferences"
+          },
+          "role": {
+            "default": "normal",
+            "enum": [
+              "normal",
+              "admin",
+              "super_admin"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "venmo_handle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Venmo Handle"
+          }
+        },
+        "required": [
+          "name",
+          "id",
+          "created_at"
+        ],
+        "title": "PublicPlayerProfileResponse",
+        "type": "object"
+      },
       "RoundCommentCreate": {
         "properties": {
           "body": {
@@ -12800,7 +13007,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/PlayerProfileResponse"
+                    "$ref": "#/components/schemas/PublicPlayerProfileResponse"
                   },
                   "title": "Response Get All Player Profiles Players Get",
                   "type": "array"
@@ -13273,7 +13480,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/PlayerProfileResponse"
+                    "$ref": "#/components/schemas/PublicPlayerProfileResponse"
                   },
                   "title": "Response Get All Players Players All Get",
                   "type": "array"
@@ -13875,7 +14082,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlayerProfileResponse"
+                  "$ref": "#/components/schemas/PublicPlayerProfileResponse"
                 }
               }
             },
