@@ -34,7 +34,8 @@
     "lint": "eslint src/**/*.{js,jsx}",
     "typecheck": "tsc --noEmit",
     "gen:api": "openapi-typescript ../backend/openapi.json -o src/api/schema.d.ts",
-    "lint:deploy": "node scripts/lint-frontend-deploy.js"
+    "lint:deploy": "node scripts/lint-frontend-deploy.js",
+    "check:lockfile": "node scripts/check-lockfile-registry.cjs"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.1",

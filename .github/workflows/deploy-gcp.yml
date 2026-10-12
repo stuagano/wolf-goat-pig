@@ -209,6 +209,7 @@ jobs:
           # npm 10 on GHA has repeatedly aborted mid-install ("Exit handler never
           # called") leaving no vite binary. Pin npm 9 and verify the toolchain.
           npm install -g npm@9.9.4
+          node scripts/check-lockfile-registry.cjs
           npm install --legacy-peer-deps --no-audit --no-fund
           test -x node_modules/.bin/vite
           npm run build

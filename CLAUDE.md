@@ -36,7 +36,9 @@ codes (don't pipe away failures):
 
 ```bash
 # Frontend changes (mirrors .github/workflows/frontend-ci.yml):
-cd frontend && npm run typecheck && npx vitest run && npm run build
+cd frontend && npm run check:lockfile && npm run typecheck && npx vitest run && npm run build
+# ⚠️ check:lockfile — a local `npm install` behind the corp npm proxy writes the
+#    proxy host into package-lock.json; CI can't reach it. Fix: `node scripts/check-lockfile-registry.cjs --fix`.
 # ⚠️ typecheck is NOT optional — esbuild/vite tolerate syntax tsc rejects,
 #    so "build passed" alone has shipped broken code before.
 

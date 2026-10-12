@@ -63,6 +63,14 @@ repos:
         pass_filenames: false
         verbose: true
 
+      # package-lock.json must only reference registry.npmjs.org (no private mirrors)
+      - id: check-lockfile-registry
+        name: Check lockfile registry
+        entry: node frontend/scripts/check-lockfile-registry.cjs
+        language: system
+        files: ^frontend/package-lock\.json$
+        pass_filenames: false
+
       # Ensure service worker version script exists when SW changes
       - id: check-sw-version-script
         name: Check SW Version Script

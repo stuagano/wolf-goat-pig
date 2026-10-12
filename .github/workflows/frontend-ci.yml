@@ -34,6 +34,12 @@ jobs:
       with:
         node-version: '20.x'
 
+    # Fail fast if a local install behind a private npm mirror leaked its host
+    # into package-lock.json — CI and Firebase can't reach it.
+    - name: Check lockfile registry
+      working-directory: frontend
+      run: node scripts/check-lockfile-registry.cjs
+
     - name: Install dependencies
       working-directory: frontend
       run: npm ci --legacy-peer-deps --no-audit
