@@ -16,6 +16,20 @@ from app.utils.admin_auth import require_admin
 
 client = TestClient(app)
 
+
+def post_player_as_admin(payload):
+    """POST /players is admin-only; create fixtures through an admin override."""
+    previous = app.dependency_overrides.get(require_admin)
+    app.dependency_overrides[require_admin] = lambda: {"sub": "auth0|admin"}
+    try:
+        return client.post("/players", json=payload)
+    finally:
+        if previous is None:
+            app.dependency_overrides.pop(require_admin, None)
+        else:
+            app.dependency_overrides[require_admin] = previous
+
+
 _me_engine = create_engine("sqlite:///./test_players_me.db", connect_args={"check_same_thread": False})
 _MeSession = sessionmaker(autocommit=False, autoflush=False, bind=_me_engine)
 
@@ -233,7 +247,7 @@ class TestGetPlayers:
 
     def test_public_player_reads_never_expose_email(self):
         name = unique_name("Private")
-        created = client.post("/players", json={"name": name, "email": unique_email()})
+        created = post_player_as_admin({"name": name, "email": unique_email()})
         assert created.status_code in (200, 201)
 
         lists = [client.get("/players").json(), client.get("/players/all").json()]
@@ -247,14 +261,18 @@ class TestGetPlayers:
 
 
 class TestCreatePlayer:
+    def test_create_player_requires_admin(self):
+        resp = client.post("/players", json={"name": unique_name("Anon")})
+        assert resp.status_code in (401, 403)
+
     def test_create_player_returns_201_or_200(self):
         payload = {"name": unique_name("Coverage"), "email": unique_email("coverage"), "handicap": 12.0}
-        resp = client.post("/players", json=payload)
+        resp = post_player_as_admin(payload)
         assert resp.status_code in (200, 201)
 
     def test_create_player_response_has_id(self):
         payload = {"name": unique_name("Router"), "email": unique_email("router"), "handicap": 15.0}
-        resp = client.post("/players", json=payload)
+        resp = post_player_as_admin(payload)
         if resp.status_code in (200, 201):
             data = resp.json()
             assert "id" in data
@@ -262,16 +280,16 @@ class TestCreatePlayer:
     def test_create_player_response_has_name(self):
         name = unique_name("NameCheck")
         payload = {"name": name, "email": unique_email("namecheck"), "handicap": 10.0}
-        resp = client.post("/players", json=payload)
+        resp = post_player_as_admin(payload)
         if resp.status_code in (200, 201):
             assert resp.json()["name"] == name
 
     def test_missing_name_returns_422(self):
-        resp = client.post("/players", json={"email": unique_email("noname")})
+        resp = post_player_as_admin({"email": unique_email("noname")})
         assert resp.status_code == 422
 
     def test_invalid_payload_returns_422(self):
-        resp = client.post("/players", json={"handicap": "not-a-number"})
+        resp = post_player_as_admin({"handicap": "not-a-number"})
         assert resp.status_code == 422
 
 
@@ -304,7 +322,7 @@ class TestGetPlayerById(_AsAdmin):
 class TestPublicProfile:
     def test_public_profile_requires_no_auth(self):
         """Player profile pages are public — no Authorization header, no override."""
-        create = client.post("/players", json={"name": unique_name("PublicProfile"), "handicap": 12.0})
+        create = post_player_as_admin({"name": unique_name("PublicProfile"), "handicap": 12.0})
         assert create.status_code in (200, 201)
         player_id = create.json()["id"]
 
@@ -325,7 +343,7 @@ class TestPublicProfile:
 
         from app.services.unified_data_service import UnifiedRound
 
-        create = client.post("/players", json={"name": unique_name("HoleDetail"), "handicap": 12.0})
+        create = post_player_as_admin({"name": unique_name("HoleDetail"), "handicap": 12.0})
         player_id = create.json()["id"]
 
         rounds = [
@@ -420,7 +438,7 @@ class TestDeletePlayer(_AsAdmin):
     def test_delete_releases_email_and_auth0_login(self):
         """A retired duplicate must not keep blocking the person's sign-in or relink."""
         email = unique_email("dupe")
-        resp = client.post("/players", json={"name": unique_name("Dupe"), "email": email, "handicap": 18.0})
+        resp = post_player_as_admin({"name": unique_name("Dupe"), "email": email, "handicap": 18.0})
         pid = resp.json()["id"]
         db = next(app.dependency_overrides.get(get_db, get_db)())
         try:

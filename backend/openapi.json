@@ -13067,6 +13067,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create Player Profile",
         "tags": [
           "players"

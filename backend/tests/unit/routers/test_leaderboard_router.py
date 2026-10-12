@@ -12,8 +12,22 @@ from fastapi.testclient import TestClient
 
 from app import database, models
 from app.main import app
+from app.utils.admin_auth import require_admin
 
 client = TestClient(app)
+
+
+def post_player_as_admin(payload):
+    """POST /players is admin-only; create fixtures through an admin override."""
+    previous = app.dependency_overrides.get(require_admin)
+    app.dependency_overrides[require_admin] = lambda: {"sub": "auth0|admin"}
+    try:
+        return client.post("/players", json=payload)
+    finally:
+        if previous is None:
+            app.dependency_overrides.pop(require_admin, None)
+        else:
+            app.dependency_overrides[require_admin] = previous
 
 
 def _unique_id():
@@ -27,7 +41,7 @@ class TestRecordGameResult:
     def _create_player(self):
         name = f"LB-{_unique_id()}"
         email = f"lb-{_unique_id()}@test.com"
-        resp = client.post("/players", json={"name": name, "email": email, "handicap": 10.0})
+        resp = post_player_as_admin({"name": name, "email": email, "handicap": 10.0})
         if resp.status_code in (200, 201):
             return resp.json()["id"]
         return None
