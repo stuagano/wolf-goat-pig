@@ -4723,6 +4723,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/signups/tee-times/{date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Day Tee Times
+         * @description Tee times posted for one day; empty text when none have been entered.
+         */
+        get: operations["get_day_tee_times_signups_tee_times__date__get"];
+        /**
+         * Put Day Tee Times
+         * @description Replace one day's tee times. Only that date's row changes.
+         */
+        put: operations["put_day_tee_times_signups_tee_times__date__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/signups/weekly": {
         parameters: {
             query?: never;
@@ -6895,6 +6919,11 @@ export interface components {
             logo_url?: string | null;
             /** Motto */
             motto?: string | null;
+        };
+        /** TeeTimesUpdate */
+        TeeTimesUpdate: {
+            /** Tee Times */
+            tee_times: string;
         };
         /** TestEmailRequest */
         TestEmailRequest: {
@@ -14495,6 +14524,76 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    get_day_tee_times_signups_tee_times__date__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_day_tee_times_signups_tee_times__date__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeeTimesUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

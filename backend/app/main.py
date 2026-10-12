@@ -294,9 +294,10 @@ app.include_router(features.router)
 app.include_router(sheet_integration.router)
 app.include_router(tee_sheet.router)
 app.include_router(players.router)
-from .routers import feedback, member_rounds
+from .routers import day_tee_times, feedback, member_rounds
 
 app.include_router(member_rounds.router)
+app.include_router(day_tee_times.router)
 app.include_router(feedback.router)
 app.include_router(courses.router)
 
