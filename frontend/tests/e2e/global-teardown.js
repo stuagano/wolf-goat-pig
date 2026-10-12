@@ -8,7 +8,7 @@ export default async () => {
   const backendDir = path.join(__dirname, '../../../backend');
 
   // Activate the virtual environment and run the teardown script
-  const command = `cd ${backendDir} && source venv/bin/activate && python ${pythonScriptPath}`;
+  const command = `cd ${backendDir} && venv/bin/python ${pythonScriptPath}`;
   
   try {
     console.log(`Executing command: ${command}`);
