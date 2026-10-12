@@ -51,9 +51,11 @@ async def test_ghin_authenticates(db, monkeypatch):
 
     claim_vs_reality(
         claimed_success=bool(ok),
-        verifier=lambda: (_ for _ in ()).throw(AssertionError("GHIN auth failed"))
-        if not (service.initialized and service.jwt_token)
-        else None,
+        verifier=lambda: (
+            (_ for _ in ()).throw(AssertionError("GHIN auth failed"))
+            if not (service.initialized and service.jwt_token)
+            else None
+        ),
         claim_label="ghin initialize",
     )
 

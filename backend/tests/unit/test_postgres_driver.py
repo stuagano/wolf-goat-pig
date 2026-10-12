@@ -17,7 +17,7 @@ import pytest
     ],
 )
 def test_postgres_startup_uses_installed_driver(url):
-    result = subprocess.run(  # noqa: S603 - fixed Python code and test-only URLs, no shell
+    result = subprocess.run(
         [
             sys.executable,
             "-c",

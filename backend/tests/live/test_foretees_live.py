@@ -26,9 +26,11 @@ async def test_foretees_login_handshake(monkeypatch):
 
         claim_vs_reality(
             claimed_success=bool(ok),
-            verifier=lambda: None
-            if service._session_valid()
-            else (_ for _ in ()).throw(AssertionError("ForeTees session not valid after login")),
+            verifier=lambda: (
+                None
+                if service._session_valid()
+                else (_ for _ in ()).throw(AssertionError("ForeTees session not valid after login"))
+            ),
             claim_label="foretees login handshake",
         )
     finally:
