@@ -7,6 +7,7 @@ import { acquireAccessToken, apiTokenOptions } from '../../services/authToken';
 import { api } from '../../api/client';
 import { errorDetail } from '../../api/http';
 import AdminAddSignup from './AdminAddSignup';
+import DayTeeTimes from './DayTeeTimes';
 import { apiConfig } from '../../config/api.config';
 
 const CLUB_PLAYER_ACCOUNT_PATH = '/account#club-player';
@@ -39,7 +40,6 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
-  const [teeTimesText, setTeeTimesText] = useState('');
   const [confirmingSignup, setConfirmingSignup] = useState(false);
   const [confirmingCancelId, setConfirmingCancelId] = useState(null);
   const [signingUp, setSigningUp] = useState(false);
@@ -871,40 +871,8 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
             )}
           </div>
 
-          {/* Tee Times Panel */}
-          <div style={{
-            background: '#f9fafb',
-            borderRadius: '8px',
-            border: '1px solid #e5e7eb',
-            padding: '16px'
-          }}>
-            <h3 style={{
-              margin: '0 0 12px 0',
-              fontSize: '15px',
-              fontWeight: '700',
-              color: '#374151'
-            }}>
-              Tee Times
-            </h3>
-
-            {/* Editable tee times */}
-            <textarea
-              placeholder={"Enter tee times...\ne.g., 12:48 (1-4)\n12:56 (5-8)\n1:04 (9-12)"}
-              value={teeTimesText}
-              onChange={(e) => setTeeTimesText(e.target.value)}
-              style={{
-                width: '100%',
-                minHeight: '120px',
-                padding: '10px',
-                fontSize: '14px',
-                border: '1px solid #d1d5db',
-                borderRadius: '6px',
-                resize: 'vertical',
-                boxSizing: 'border-box',
-                fontFamily: 'inherit'
-              }}
-            />
-          </div>
+          {/* Tee Times Panel — stored per day on the server */}
+          <DayTeeTimes date={selectedDate} />
         </div>
 
         {/* Messages Section */}

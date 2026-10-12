@@ -1155,6 +1155,35 @@
         "title": "DataStatusResponse",
         "type": "object"
       },
+      "DayTeeTimesResponse": {
+        "properties": {
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "tee_times": {
+            "title": "Tee Times",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "date",
+          "tee_times"
+        ],
+        "title": "DayTeeTimesResponse",
+        "type": "object"
+      },
       "EarnedBadgeResponse": {
         "properties": {
           "badge": {
@@ -4298,6 +4327,20 @@
           }
         },
         "title": "TeamContentUpdate",
+        "type": "object"
+      },
+      "TeeTimesUpdate": {
+        "properties": {
+          "tee_times": {
+            "maxLength": 2000,
+            "title": "Tee Times",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tee_times"
+        ],
+        "title": "TeeTimesUpdate",
         "type": "object"
       },
       "TestEmailRequest": {
@@ -15522,6 +15565,105 @@
           }
         ],
         "summary": "List Signup Players",
+        "tags": [
+          "signups"
+        ]
+      }
+    },
+    "/signups/tee-times/{date}": {
+      "get": {
+        "description": "Tee times posted for one day; empty text when none have been entered.",
+        "operationId": "get_day_tee_times_signups_tee_times__date__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "date",
+            "required": true,
+            "schema": {
+              "title": "Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayTeeTimesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Day Tee Times",
+        "tags": [
+          "signups"
+        ]
+      },
+      "put": {
+        "description": "Replace one day's tee times. Only that date's row changes.",
+        "operationId": "put_day_tee_times_signups_tee_times__date__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "date",
+            "required": true,
+            "schema": {
+              "title": "Date",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeeTimesUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayTeeTimesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Day Tee Times",
         "tags": [
           "signups"
         ]

@@ -572,6 +572,19 @@ class DailyMessage(Base):
     updated_at = Column(String)
 
 
+class DailyTeeTimes(Base):
+    """The club's posted tee times for one day, as free text (e.g. "12:48 (1-4)").
+
+    One row per date; any signed-in member can edit it and everyone sees it.
+    """
+
+    __tablename__ = "daily_tee_times"
+    date = Column(String, primary_key=True)  # YYYY-MM-DD
+    tee_times = Column(Text, nullable=False, default="")
+    updated_by_profile_id = Column(Integer, ForeignKey("player_profiles.id"), nullable=True)
+    updated_at = Column(String, nullable=False)
+
+
 # GHIN Integration Models
 class GHINScore(Base):
     __tablename__ = "ghin_scores"
