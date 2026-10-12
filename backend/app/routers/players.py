@@ -103,7 +103,7 @@ def create_player_profile(
     return result
 
 
-@router.get("", response_model=list[schemas.PlayerProfileResponse])
+@router.get("", response_model=list[schemas.PublicPlayerProfileResponse])
 @handle_api_errors(operation_name="get player profiles")
 def get_all_player_profiles(
     response: Response,
@@ -123,7 +123,7 @@ def get_all_player_profiles(
 # ============================================================================
 
 
-@router.get("/all", response_model=list[schemas.PlayerProfileResponse])
+@router.get("/all", response_model=list[schemas.PublicPlayerProfileResponse])
 @handle_api_errors(operation_name="get all players")
 def get_all_players(
     active_only: bool = Query(True, description="Only return active players"),
@@ -134,7 +134,7 @@ def get_all_players(
     return player_service.get_all_player_profiles(active_only=active_only)
 
 
-@router.get("/name/{player_name}", response_model=schemas.PlayerProfileResponse)
+@router.get("/name/{player_name}", response_model=schemas.PublicPlayerProfileResponse)
 @handle_api_errors(operation_name="get player by name")
 def get_player_profile_by_name(player_name: str, db: Session = Depends(get_db)) -> schemas.PlayerProfileResponse:
     """Get a player profile by name."""

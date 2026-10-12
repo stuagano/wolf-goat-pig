@@ -1,6 +1,6 @@
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # Player Profile Schemas
@@ -102,6 +102,12 @@ class PlayerProfileResponse(PlayerProfileBase):
     is_super_admin: bool = False
     # Backwards-compatible alias while older clients still read is_admin.
     is_admin: bool = False
+
+
+class PublicPlayerProfileResponse(PlayerProfileResponse):
+    """Profile for unauthenticated reads (lists, name lookup): never exposes email."""
+
+    email: str | None = Field(default=None, exclude=True)
 
 
 # Player Statistics Schemas

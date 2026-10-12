@@ -6585,6 +6585,81 @@ export interface components {
             /** Results */
             results: components["schemas"]["PlayerRoundResult"][];
         };
+        /**
+         * PublicPlayerProfileResponse
+         * @description Profile for unauthenticated reads (lists, name lookup): never exposes email.
+         */
+        PublicPlayerProfileResponse: {
+            /** Avatar Url */
+            avatar_url?: string | null;
+            /** Created At */
+            created_at: string;
+            /** Description */
+            description?: string | null;
+            /** Ghin Id */
+            ghin_id?: string | null;
+            /** Ghin Last Updated */
+            ghin_last_updated?: string | null;
+            /**
+             * Handicap
+             * @default 18
+             */
+            handicap: number;
+            /** Handicap Source */
+            handicap_source?: string | null;
+            /**
+             * Has Avatar Image
+             * @default false
+             */
+            has_avatar_image: boolean;
+            /** Id */
+            id: number;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+            /**
+             * Is Admin
+             * @default false
+             */
+            is_admin: boolean;
+            /**
+             * Is Ai
+             * @default false
+             */
+            is_ai: boolean;
+            /**
+             * Is Super Admin
+             * @default false
+             */
+            is_super_admin: boolean;
+            /** Last Played */
+            last_played?: string | null;
+            /** Legacy Name */
+            legacy_name?: string | null;
+            /** Legacy Name Suggestion */
+            legacy_name_suggestion?: string | null;
+            /** Name */
+            name: string;
+            pending_claim?: components["schemas"]["PendingClaimInfo"] | null;
+            /** Playing Style */
+            playing_style?: string | null;
+            /** Preferences */
+            preferences?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Role
+             * @default normal
+             * @enum {string}
+             */
+            role: "normal" | "admin" | "super_admin";
+            /** Updated At */
+            updated_at?: string | null;
+            /** Venmo Handle */
+            venmo_handle?: string | null;
+        };
         /** RoundCommentCreate */
         RoundCommentCreate: {
             /** Body */
@@ -12570,7 +12645,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PlayerProfileResponse"][];
+                    "application/json": components["schemas"]["PublicPlayerProfileResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -12890,7 +12965,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PlayerProfileResponse"][];
+                    "application/json": components["schemas"]["PublicPlayerProfileResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -13306,7 +13381,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PlayerProfileResponse"];
+                    "application/json": components["schemas"]["PublicPlayerProfileResponse"];
                 };
             };
             /** @description Validation Error */
