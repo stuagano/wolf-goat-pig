@@ -13,6 +13,11 @@ concurrency:
 jobs:
   check-pr-size:
     runs-on: ubuntu-latest
+    # The size labeler adds/removes labels; the default token is read-only (403).
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
     
     steps:
     - uses: actions/checkout@v5
