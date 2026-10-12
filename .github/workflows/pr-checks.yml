@@ -20,7 +20,7 @@ jobs:
       pull-requests: write
     
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
     
     - name: Check PR size
       uses: codelytv/pr-size-labeler@v1
@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0
     
@@ -73,6 +73,6 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: kentaro-m/auto-assign-action@v2.0.0
+    - uses: kentaro-m/auto-assign-action@v2.0.2
       with:
         configuration-path: ".github/auto-assign.yml"
