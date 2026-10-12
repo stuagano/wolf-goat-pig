@@ -69,7 +69,7 @@ jobs:
       booking: ${{ steps.filter.outputs.booking }}
       scorecard: ${{ steps.filter.outputs.scorecard }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -109,7 +109,7 @@ jobs:
             needs.changes.outputs.backend == 'true')) }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: auth
         name: Authenticate to GCP (keyless, WIF)
@@ -184,9 +184,9 @@ jobs:
             needs.changes.outputs.frontend == 'true')) }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           # Stay on Node 20 LTS — Node 22 + npm 10 has flaked with
           # "Exit handler never called!" during npm install on this repo.
@@ -241,7 +241,7 @@ jobs:
             needs.changes.outputs.booking == 'true')) }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: auth
         name: Authenticate to GCP (keyless, WIF)
@@ -313,7 +313,7 @@ jobs:
             needs.changes.outputs.scorecard == 'true')) }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: auth
         name: Authenticate to GCP (keyless, WIF)
