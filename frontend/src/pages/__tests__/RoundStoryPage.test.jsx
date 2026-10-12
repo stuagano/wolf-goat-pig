@@ -104,7 +104,7 @@ describe('RoundStoryPage', () => {
     expect(screen.getByRole('button', { name: '🔥 1' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Copy link' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Coulburn' })).toHaveAttribute('href', '/players/4');
-    expect(screen.getByText('Stuart Gano').closest('a')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Stuart Gano' })).toHaveAttribute('href', '/players/name/Stuart%20Gano');
     expect(screen.getByRole('button', { name: 'Sign in to comment' })).toBeInTheDocument();
   });
 });

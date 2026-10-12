@@ -94,11 +94,11 @@ test.each([false, true])('LivSow team lookup respects the runtime flag: %s', asy
   }
 });
 
-test('a standing with a profile links to that player; one without stays plain text', async () => {
+test('a standing with a profile links by id; one without links by name', async () => {
   renderBoard();
   const alice = await screen.findByRole('link', { name: 'Alice' });
   expect(alice).toHaveAttribute('href', '/players/11');
-  expect(screen.getByText('Jeff').closest('a')).toBeNull();
+  expect(screen.getByRole('link', { name: 'Jeff' })).toHaveAttribute('href', '/players/name/Jeff');
 });
 
 test('standings default to rank ascending and each header re-sorts', async () => {
