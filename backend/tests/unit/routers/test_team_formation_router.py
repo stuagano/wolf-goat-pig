@@ -7,8 +7,23 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.services.auth_service import get_current_user
+from app.utils.admin_auth import require_admin
 
 client = TestClient(app)
+
+
+def post_player_as_admin(payload):
+    """POST /players is admin-only; create fixtures through an admin override."""
+    previous = app.dependency_overrides.get(require_admin)
+    app.dependency_overrides[require_admin] = lambda: {"sub": "auth0|admin"}
+    try:
+        return client.post("/players", json=payload)
+    finally:
+        if previous is None:
+            app.dependency_overrides.pop(require_admin, None)
+        else:
+            app.dependency_overrides[require_admin] = previous
+
 
 TEST_DATE = "2099-01-15"
 
@@ -20,7 +35,7 @@ def _unique_name():
 def _create_profile(name=None, handicap=15.0):
     """Create a player profile and return the JSON response."""
     name = name or _unique_name()
-    resp = client.post("/players", json={"name": name, "handicap": handicap})
+    resp = post_player_as_admin({"name": name, "handicap": handicap})
     assert resp.status_code == 200, f"Failed to create profile: {resp.text}"
     return resp.json()
 

@@ -91,7 +91,7 @@ router.include_router(account_claims_router)
 # ============================================================================
 
 
-@router.post("", response_model=schemas.PlayerProfileResponse)
+@router.post("", response_model=schemas.PlayerProfileResponse, dependencies=[Depends(require_admin)])
 @handle_api_errors(operation_name="create player profile")
 def create_player_profile(
     profile: schemas.PlayerProfileCreate, db: Session = Depends(get_db)
