@@ -2,7 +2,7 @@
 Unit tests for the weekly league highlights email.
 
 Covers the Monday-noon week window (Pacific), the highlights math over
-completed games, opt-out recipient selection, skipping an empty week,
+the merged league rounds (sheet + attested member posts + app games), opt-out recipient selection, skipping an empty week,
 dry-run, and once-per-week-per-player dedup across reruns.
 """
 
@@ -13,7 +13,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.models import Base, EmailPreferences, GamePlayerResult, GameRecord, PlayerProfile, WeeklyHighlightSend
+from app.models import (
+    Base,
+    EmailPreferences,
+    GamePlayerResult,
+    GameRecord,
+    LegacyRound,
+    PlayerProfile,
+    WeeklyHighlightSend,
+)
 from app.services import weekly_highlights as wh
 
 engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
@@ -62,9 +70,18 @@ def make_player(db, name, email, *, prefs=True, weekly=1, frequency="daily", act
     return player
 
 
-def make_game(db, completed_at, course, results):
-    """results: list of (name, total_earnings, [(hole, quarters), ...])."""
-    record = GameRecord(game_id=f"g-{completed_at}-{course}", course_name=course, completed_at=completed_at)
+def sheet(db, date, group, member, score, *, source="primary_sheet", status="attested"):
+    db.add(
+        LegacyRound(
+            date=date, group=group, member=member, score=score, location="Wing Point", source=source, status=status
+        )
+    )
+    db.commit()
+
+
+def app_game(db, completed_at, results):
+    """An in-app scored game: results = [(name, quarters, [(hole, quarters), ...])]."""
+    record = GameRecord(game_id=f"g-{completed_at}", course_name="Wing Point", completed_at=completed_at)
     db.add(record)
     db.commit()
     db.refresh(record)
@@ -78,51 +95,60 @@ def make_game(db, completed_at, course, results):
             )
         )
     db.commit()
-    return record
 
 
 def seed_week(db):
-    # Sunday afternoon PT (inside the window, the reason for the Monday send).
-    make_game(
-        db,
-        "2026-10-11T22:30:00",
-        "Wing Point",
-        [("Mike", 34, [(3, 12), (7, -2)]), ("Bob", -20, [(3, -4)]), ("Al", -14, [(9, 1)])],
-    )
-    make_game(db, "2026-10-07T20:00:00", "Wing Point", [("Bob", 10, [(18, 16)]), ("Mike", -10, [(18, -16)])])
-    # Outside the window on both sides — must be ignored.
-    make_game(db, "2026-10-05T06:59:00", "Wing Point", [("Zed", 99, [(1, 99)])])
-    make_game(db, "2026-10-12T07:00:00", "Wing Point", [("Zed", 99, [(1, 99)])])
+    sheet(db, "2026-09-07", "A", "Season Opener", 0)  # first sheet round = season start
+    # Tue Oct 6, group A (sheet)
+    sheet(db, "2026-10-06", "A", "Mike", 34)
+    sheet(db, "2026-10-06", "A", "Bob", -20)
+    sheet(db, "2026-10-06", "A", "Al", -14)
+    # Thu Oct 8, group B (sheet)
+    sheet(db, "2026-10-08", "B", "Bob", 10)
+    sheet(db, "2026-10-08", "B", "Mike", -10)
+    # Sun Oct 11, scored in the app (has hole detail)
+    app_game(db, "2026-10-11T22:30:00", [("Carl", 8, [(18, 16), (3, -8)]), ("Mike", -8, [(18, -16)])])
+    # Ignored: pending self-post, retired writable sheet, and both sides of the window.
+    sheet(db, "2026-10-07", "C", "Pending Pete", 99, source="member", status="pending")
+    sheet(db, "2026-10-07", "D", "Old Sheet", 99, source="writable_sheet")
+    sheet(db, "2026-10-04", "A", "Zed", 99)
+    sheet(db, "2026-10-12", "A", "Zed", 99)
 
 
 def test_week_window_monday_noon_covers_prior_mon_through_sun_pacific():
-    start, end, week_start = wh.week_window(MONDAY_NOON)
-    assert (start, end, week_start) == (datetime(2026, 10, 5, 7), datetime(2026, 10, 12, 7), "2026-10-05")
+    assert wh.week_window(MONDAY_NOON) == ("2026-10-05", "2026-10-12")
 
 
-def test_week_window_on_sunday_still_points_at_last_completed_week():
-    # A stray Sunday run must not report a half-finished week.
-    _, _, week_start = wh.week_window(datetime(2026, 10, 11, 16, 0))
-    assert week_start == "2026-09-28"
+def test_week_window_late_sunday_utc_is_still_sunday_pacific():
+    # Mon 03:00 UTC is Sunday 8pm PT: the week isn't over, so report the one before.
+    assert wh.week_window(datetime(2026, 10, 12, 3, 0)) == ("2026-09-28", "2026-10-05")
 
 
-def test_compute_highlights(db):
+def test_compute_highlights_merges_sheet_and_app_rounds(db):
     seed_week(db)
-    start, end, _ = wh.week_window(MONDAY_NOON)
-    h = wh.compute_highlights(db, start, end)
+    h = wh.compute_highlights(db, *wh.week_window(MONDAY_NOON))
 
-    assert h["rounds"] == 2
+    assert h["rounds"] == 3
     assert h["courses"] == ["Wing Point"]
-    assert h["players"] == ["Al", "Bob", "Mike"]
+    assert h["players"] == ["Al", "Bob", "Carl", "Mike"]
     assert h["biggest_round"] == {"player": "Mike", "quarters": 34, "course": "Wing Point"}
-    assert h["top_earner"] == {"player": "Mike", "quarters": 24, "rounds": 2}
-    assert h["biggest_hole"] == {"player": "Bob", "hole": 18, "quarters": 16, "course": "Wing Point"}
-    assert h["ironman"] == {"players": ["Bob", "Mike"], "rounds": 2}
+    assert h["top_earner"] == {"player": "Mike", "quarters": 16, "rounds": 3}
+    assert h["biggest_hole"] == {"player": "Carl", "hole": 18, "quarters": 16, "course": "Wing Point"}
+    assert h["ironman"] == {"players": ["Mike"], "rounds": 3}
+
+
+def test_sheet_only_week_has_no_hole_highlight(db):
+    sheet(db, "2026-10-06", "A", "Mike", 34)
+    sheet(db, "2026-10-06", "A", "Bob", -34)
+    h = wh.compute_highlights(db, *wh.week_window(MONDAY_NOON))
+    assert h["rounds"] == 1
+    assert h["biggest_hole"] is None
+    assert h["ironman"] is None
 
 
 def test_compute_highlights_empty_week_is_none(db):
-    start, end, _ = wh.week_window(MONDAY_NOON)
-    assert wh.compute_highlights(db, start, end) is None
+    sheet(db, "2026-09-07", "A", "Season Opener", 0)
+    assert wh.compute_highlights(db, *wh.week_window(MONDAY_NOON)) is None
 
 
 def test_recipients_default_in_and_respect_opt_out(db):
@@ -170,7 +196,7 @@ def test_dry_run_sends_nothing(db):
     result = wh.run(db, now=MONDAY_NOON, email_service=stub, dry_run=True)
     assert result["dry_run"] is True
     assert result["recipient_count"] == 1
-    assert result["highlights"]["rounds"] == 2
+    assert result["highlights"]["rounds"] == 3
     assert stub.sent == []
     assert db.query(WeeklyHighlightSend).count() == 0
 
