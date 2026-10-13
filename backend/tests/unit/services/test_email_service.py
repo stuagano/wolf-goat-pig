@@ -234,3 +234,34 @@ class TestEmailService:
         EmailService().send_callout_notification("a@x.com", "Al", "2026-10-18", 3, 1)
         html_body = mock_provider.send_email.call_args.args[2]
         assert '<a href="https://example.test/account">Manage your email preferences</a>' in html_body
+
+    @patch.dict("os.environ", {"SMTP_USER": "u", "SMTP_PASSWORD": "p", "FRONTEND_URL": "https://example.test"})
+    @patch("app.services.email_service.SMTPEmailProvider")
+    def test_sunday_reminder_lists_signups_and_links_preferences_in_both_parts(self, mock_smtp_provider):
+        mock_provider = Mock()
+        mock_provider.is_configured.return_value = True
+        mock_provider.send_email.return_value = True
+        mock_smtp_provider.return_value = mock_provider
+
+        assert EmailService().send_sunday_reminder("a@x.com", "Al", "2026-10-18", ["Bob", "Mike <b>"]) is True
+        _, subject, html_body, text_body = mock_provider.send_email.call_args.args
+        assert "2 signed up" in subject
+        assert "Sunday, October 18" in html_body
+        assert "Mike &lt;b&gt;" in html_body and "<b>" not in html_body.split("Mike")[1][:4]
+        assert "https://example.test/signup" in html_body
+        assert "https://example.test/signup" in text_body
+        assert '<a href="https://example.test/account">Manage your email preferences</a>' in html_body
+        assert "Manage your email preferences: https://example.test/account" in text_body
+
+    @patch.dict("os.environ", {"SMTP_USER": "u", "SMTP_PASSWORD": "p"})
+    @patch("app.services.email_service.SMTPEmailProvider")
+    def test_sunday_reminder_with_no_signups_yet(self, mock_smtp_provider):
+        mock_provider = Mock()
+        mock_provider.is_configured.return_value = True
+        mock_provider.send_email.return_value = True
+        mock_smtp_provider.return_value = mock_provider
+
+        EmailService().send_sunday_reminder("a@x.com", "Al", "2026-10-18", [])
+        _, subject, html_body, text_body = mock_provider.send_email.call_args.args
+        assert "Nobody's signed up yet" in html_body
+        assert "be the first" in subject

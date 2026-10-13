@@ -9216,53 +9216,6 @@
         ]
       }
     },
-    "/email/daily-reminder": {
-      "post": {
-        "description": "Send daily signup reminder email",
-        "operationId": "send_daily_reminder_email_email_daily_reminder_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": true,
-                "title": "Email Data",
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Send Daily Reminder Email",
-        "tags": [
-          "email"
-        ]
-      }
-    },
     "/email/initialize-scheduler": {
       "post": {
         "description": "Initialize the email scheduler on demand",

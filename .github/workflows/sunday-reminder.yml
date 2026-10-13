@@ -1,0 +1,30 @@
+name: Sunday Game Signup Reminder
+
+# Thursday nudge for the coming Sunday's game: emails everyone not signed up
+# yet (unless they turned off Sign-up Reminders) with who's in so far and a
+# sign-up link. Re-runs are safe: the backend logs each (Sunday, player) send.
+on:
+  schedule:
+    - cron: '0 19 * * 4'  # Thursday 19:00 UTC = noon PDT / 11am PST
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run: return signups + recipient count, send nothing'
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: sunday-reminder
+  cancel-in-progress: false
+
+jobs:
+  reminder:
+    uses: ./.github/workflows/_cron-curl.yml
+    with:
+      label: Sunday signup reminder (dry_run=${{ github.event.inputs.dry_run || 'false' }})
+      url: https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/internal/jobs/sunday-reminder?dry_run=${{ github.event.inputs.dry_run || 'false' }}
+      headers: 'Content-Type: application/json'
+      max-time: 300
+    secrets:
+      INTERNAL_JOB_TOKEN: ${{ secrets.INTERNAL_JOB_TOKEN }}

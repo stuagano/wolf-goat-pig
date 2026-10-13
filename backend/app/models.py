@@ -571,6 +571,18 @@ class WeeklyHighlightSend(Base):
     sent_at = Column(String)  # ISO timestamp
 
 
+class SignupReminderSend(Base):
+    """Dedup log for the Thursday "Sunday's game" signup nudge: one row per player
+    per game date, written after a successful send, so reruns never double-email."""
+
+    __tablename__ = "signup_reminder_sends"
+    __table_args__ = (UniqueConstraint("game_date", "player_profile_id", name="uq_signup_reminder_date_player"),)
+    id = Column(Integer, primary_key=True, index=True)
+    game_date = Column(String, index=True)  # YYYY-MM-DD Sunday the nudge was for
+    player_profile_id = Column(Integer)  # References PlayerProfile.id
+    sent_at = Column(String)  # ISO timestamp
+
+
 class DailyMessage(Base):
     __tablename__ = "daily_messages"
     id = Column(Integer, primary_key=True, index=True)

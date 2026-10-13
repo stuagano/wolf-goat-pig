@@ -106,44 +106,6 @@ async def send_signup_confirmation_email(email_data: dict):  # type: ignore
         raise HTTPException(status_code=500, detail=f"Failed to send email: {e!s}")
 
 
-@router.post("/daily-reminder")
-async def send_daily_reminder_email(email_data: dict):  # type: ignore
-    """Send daily signup reminder email"""
-    try:
-        email_service = get_email_service()
-
-        if not email_service.is_configured:  # type: ignore
-            raise HTTPException(status_code=503, detail="Email service not configured")
-
-        required_fields = ["to_email", "player_name"]
-        missing_fields = [field for field in required_fields if not email_data.get(field)]
-
-        if missing_fields:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Missing required fields: {', '.join(missing_fields)}",
-            )
-
-        success = email_service.send_daily_signup_reminder(  # type: ignore
-            to_email=email_data["to_email"],
-            player_name=email_data["player_name"],
-            available_dates=email_data.get("available_dates", []),
-        )
-
-        if success:
-            return {
-                "message": "Daily reminder email sent",
-                "to_email": email_data["to_email"],
-            }
-        raise HTTPException(status_code=500, detail="Failed to send daily reminder email")
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error sending daily reminder email: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to send email: {e!s}")
-
-
 @router.post("/initialize-scheduler")
 async def initialize_email_scheduler():
     """Initialize the email scheduler on demand"""
@@ -166,7 +128,7 @@ async def initialize_email_scheduler():
         return {
             "status": "success",
             "message": "Email scheduler initialized successfully",
-            "scheduled_jobs": ["daily_reminders", "weekly_summaries"],
+            "scheduled_jobs": ["sunday_reminder", "weekly_summaries"],
         }
 
     except Exception as e:

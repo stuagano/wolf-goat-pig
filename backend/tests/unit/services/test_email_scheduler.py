@@ -68,9 +68,3 @@ def test_dedup_action_returns_update_when_scores_differ(db):
     _legacy(db, "Jeff", -4)
     scheduler = EmailScheduler()
     assert scheduler._dedup_action(db, _job({"Stuart": 6, "Jeff": -6})) == "update"
-
-
-def test_available_signup_dates_returns_next_seven_days():
-    dates = EmailScheduler()._get_available_signup_dates()
-    assert len(dates) == 7
-    assert all(isinstance(d, str) and "," in d for d in dates)

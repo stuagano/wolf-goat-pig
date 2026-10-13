@@ -40,11 +40,11 @@
     "waiver": null
   },
   "api-surface-no-drift": {
-    "at": "2026-10-13T04:15:20.109353+00:00",
+    "at": "2026-10-13T16:48:52.842272+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:922f8eaeb76d41fec34725f6a519074cdea934eb5e952472553b36543e163dca",
+    "fingerprint": "sha256:d4ee2b56a74758c68e8ee1372d04c5d1a85d52b82d8f1d056da2075542d43f38",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -170,11 +170,11 @@
     "waiver": null
   },
   "email-scheduler-sheet-dedup": {
-    "at": "2026-10-13T04:15:24.511049+00:00",
+    "at": "2026-10-13T16:49:10.081460+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:cf1212bd513f9fde1405258a37792a9292b00a7d461a15e8b78db28622ab55d7",
+    "fingerprint": "sha256:f4f2d1f6f0c6166720e3cc68cda875d3ba1939b08e231291e9a47f53da3e5f25",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -530,11 +530,11 @@
     "waiver": null
   },
   "resend-email-contract": {
-    "at": "2026-10-13T04:15:18.820077+00:00",
+    "at": "2026-10-13T16:48:49.770645+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:7574a090bcdd9abf4e2237050eb2afea60ab6bc7653ee275cc5da82d331ff409",
+    "fingerprint": "sha256:09a48023a89c4782eb39536de333482778243db7fb3e5fb95f99e0068928700a",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -700,11 +700,11 @@
     "waiver": null
   },
   "welcome-email-sent": {
-    "at": "2026-10-13T04:15:22.198143+00:00",
+    "at": "2026-10-13T16:48:59.549936+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:ec1ca068a0337ee93bcd85addbcedcce19c6aa4dd42d72d4ef41f7e705b76064",
+    "fingerprint": "sha256:9f384af70e280c9207e4ce6d4a84a0ec4f2f8b090305513c72bafdf0dcc4dd19",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
