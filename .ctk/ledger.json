@@ -40,11 +40,11 @@
     "waiver": null
   },
   "api-surface-no-drift": {
-    "at": "2026-10-13T16:48:52.842272+00:00",
+    "at": "2026-10-13T18:47:23.676661+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:d4ee2b56a74758c68e8ee1372d04c5d1a85d52b82d8f1d056da2075542d43f38",
+    "fingerprint": "sha256:c87e09c70877edebe8873e593fbfb2cd14677df4098c8040affa4c49f03bf04e",
     "result": "pass",
     "tier": "cheap",
     "waiver": null

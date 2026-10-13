@@ -521,3 +521,30 @@ def test_history_rejects_invalid_recent_limit(client):
     _login(STUART, "Stuart Gano")
     assert client.get("/players/me/history?recent_limit=0").status_code == 400
     assert client.get("/players/me/history?recent_limit=99").status_code == 400
+
+
+def _seed_extra_players(db_session, names):
+    session, _ = db_session
+    for i, name in enumerate(names, start=len(ROSTER) + 1):
+        session.add(LegacyRosterPlayer(name=name, source="seed", added_at="2026-01-01T00:00:00"))
+        session.add(PlayerProfile(id=i, name=name, legacy_name=name, created_at="2026-01-01T00:00:00"))
+    session.commit()
+
+
+@pytest.mark.parametrize(
+    ("extra", "scores"), [(["Dan Lee"], (6, -3, -2, 0, -1)), (["Dan Lee", "Ed Moe"], (6, -3, -2, 0, -1, 0))]
+)
+def test_five_and_six_player_games_can_be_posted(client, db_session, extra, scores):
+    _seed_extra_players(db_session, extra)
+    _login(STUART, "Stuart Gano")
+    response = client.post("/players/me/round", json=group_payload(ROSTER + extra, scores))
+    assert response.status_code == 201, response.text
+    assert len(response.json()["rounds"]) == len(ROSTER) + len(extra)
+
+
+def test_more_than_six_players_rejected(client, db_session):
+    extra = ["Dan Lee", "Ed Moe", "Fay Ng"]
+    _seed_extra_players(db_session, extra)
+    _login(STUART, "Stuart Gano")
+    response = client.post("/players/me/round", json=group_payload(ROSTER + extra, (1, 1, 1, 1, 1, 1, -6)))
+    assert response.status_code == 422

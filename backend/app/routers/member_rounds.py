@@ -38,7 +38,8 @@ class PostRoundRequest(BaseModel):
     """One participant submits the whole group's results on the honor system."""
 
     date: str = Field(..., description="Date in YYYY-MM-DD format")
-    results: list[PlayerRoundResult] = Field(..., min_length=2, max_length=4)
+    # Wolf Goat Pig is played in groups of 4, 5, or 6.
+    results: list[PlayerRoundResult] = Field(..., min_length=2, max_length=6)
     location: str | None = None
     group: str | None = None
     duration: str | None = None
