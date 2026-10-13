@@ -480,7 +480,12 @@ const Scorecard = ({
                   >
                     {isHuman ? '👤 ' : '🤖 '}
                     {playerName}
-                    {player.handicap != null && <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.7 }}>({player.handicap})</span>}
+                    {player.handicap != null && (
+                      <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.7 }}>
+                        {/* Index → course handicap when the index was recorded; strokes use the course handicap. */}
+                        {player.handicap_index != null ? `(${player.handicap_index} → ${player.handicap})` : `(${player.handicap})`}
+                      </span>
+                    )}
                     {onPlayerNameChange && <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.5 }}>✏️</span>}
                   </div>
                   <div>Stroke</div>
@@ -1126,6 +1131,7 @@ Scorecard.propTypes = {
     name: PropTypes.string.isRequired,
     points: PropTypes.number,
     handicap: PropTypes.number,
+    handicap_index: PropTypes.number,
     is_human: PropTypes.bool
   })).isRequired,
 

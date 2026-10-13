@@ -11,7 +11,7 @@ WING_POINT_COURSE_DATA: dict[str, Any] = {
     "established": 1903,
     "location": "Bainbridge Island, WA",
     "tees": {
-        "black": {"rating": 70.3, "slope": 124, "total_yards": 6093},
+        "black": {"rating": 71.1, "slope": 130, "total_yards": 6093},
         "white": {"rating": 67.4, "slope": 120, "total_yards": 5486},
         "red": {"rating": 71.3, "slope": 122, "total_yards": 5117},
         "gold": {"rating": 68.4, "slope": 114, "total_yards": 4699},

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from .. import database, models
 from ..services.game_lifecycle_service import get_game_lifecycle_service
 from ..state.course_manager import CourseManager
-from ..utils.handicap_resolve import resolve_player_handicap
+from ..utils.handicap_resolve import find_course, resolve_course_handicap
 from ..utils.time import utc_now
 from ..wolf_goat_pig import Player, WolfGoatPigGame
 from ._validators import NonBlankStr
@@ -114,15 +114,19 @@ def _slug_id(name: str, i: int) -> str:
     return f"{base}-{i + 1}"
 
 
-def _resolve_handicaps(db: Session, players: list[CustomPlayer]) -> list[float]:
-    """Fill in each player's handicap from their roster profile."""
+def _resolve_handicaps(
+    db: Session, players: list[CustomPlayer], course_name: str | None
+) -> list[tuple[float, float | None]]:
+    """(course_handicap, handicap_index) per player: roster index converted off the course."""
+    course = find_course(course_name)
     return [
-        resolve_player_handicap(
+        resolve_course_handicap(
             db,
+            course,
             name=p.name,
             handicap=p.handicap,
             player_profile_id=p.player_profile_id,
-        )[0]
+        )[:2]
         for p in players
     ]
 
@@ -190,12 +194,13 @@ async def create_custom_game(body: CreateCustomGameRequest, db: Session = Depend
     game_id = str(uuid.uuid4())
     now = utc_now().isoformat()
 
-    handicaps = _resolve_handicaps(db, body.players)
+    handicaps = _resolve_handicaps(db, body.players, body.course_name)
     seeds = [
         {
             "id": _slug_id(p.name, i),
             "name": p.name,
-            "handicap": handicaps[i],
+            "handicap": handicaps[i][0],
+            "handicap_index": handicaps[i][1],
             "is_ghost": p.is_ghost,
             "player_profile_id": p.player_profile_id,
             "user_id": p.user_id,
@@ -231,6 +236,7 @@ async def create_custom_game(body: CreateCustomGameRequest, db: Session = Depend
         if seed is not None:
             sp["is_authenticated"] = not seed["is_ghost"]
             sp["is_ghost"] = seed["is_ghost"]
+            sp["handicap_index"] = seed["handicap_index"]
 
     if body.course_name and "wing point" in body.course_name.lower():
         from ..data.wing_point_course_data import WING_POINT_COURSE_DATA

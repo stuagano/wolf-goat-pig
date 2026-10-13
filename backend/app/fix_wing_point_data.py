@@ -171,8 +171,8 @@ def fix_wing_point_course():
             # Update course totals
             wing_point.total_par = correct_total_par
             wing_point.total_yards = correct_total_yards
-            wing_point.course_rating = 67.4
-            wing_point.slope_rating = 120
+            wing_point.course_rating = 71.1  # Black tees (men)
+            wing_point.slope_rating = 130
             wing_point.updated_at = utc_now().isoformat()
 
             # Update each hole

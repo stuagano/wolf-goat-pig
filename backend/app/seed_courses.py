@@ -8,9 +8,9 @@ DEFAULT_COURSES = [
         "name": "Wing Point Golf & Country Club",
         "description": "Classic parkland course on Bainbridge Island, WA (Est. 1903). Home of the original Wolf Goat Pig game.",
         "total_par": 71,
-        "total_yards": 5486,
-        "course_rating": 67.4,
-        "slope_rating": 120,
+        "total_yards": 6093,
+        "course_rating": 71.1,  # Black tees (men)
+        "slope_rating": 130,
         "holes_data": [
             {
                 "hole_number": 1,

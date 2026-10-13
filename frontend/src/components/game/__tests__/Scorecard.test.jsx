@@ -171,6 +171,15 @@ describe('Scorecard', () => {
       expect(screen.getAllByText(`(${mockPlayers[0].handicap})`).length).toBeGreaterThan(0);
       expect(screen.getAllByText(`(${mockPlayers[1].handicap})`).length).toBeGreaterThan(0);
     });
+
+    test('shows index → course handicap when the index was recorded', () => {
+      const players = mockPlayers.map((p, i) => (i === 0 ? { ...p, handicap: 14, handicap_index: 11.8 } : p));
+      render(<Scorecard {...defaultProps} players={players} />);
+
+      expect(screen.getAllByText('(11.8 → 14)').length).toBeGreaterThan(0);
+      // A typed course handicap has no index: just the number.
+      expect(screen.getAllByText(`(${mockPlayers[1].handicap})`).length).toBeGreaterThan(0);
+    });
   });
 
   describe('Score Display', () => {
