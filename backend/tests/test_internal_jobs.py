@@ -41,19 +41,19 @@ def no_side_effects(monkeypatch):
 def test_disabled_when_token_unset(client, monkeypatch, no_side_effects):
     """Fail-closed: no INTERNAL_JOB_TOKEN configured → 503, never dispatches."""
     monkeypatch.delenv("INTERNAL_JOB_TOKEN", raising=False)
-    resp = client.post("/internal/jobs/daily-reminders")
+    resp = client.post("/internal/jobs/sunday-reminder")
     assert resp.status_code == 503
     assert no_side_effects == []
 
 
 def test_wrong_token_forbidden(client, token_set, no_side_effects):
-    resp = client.post("/internal/jobs/daily-reminders", headers={"X-Internal-Job-Token": "nope"})
+    resp = client.post("/internal/jobs/sunday-reminder", headers={"X-Internal-Job-Token": "nope"})
     assert resp.status_code == 403
     assert no_side_effects == []
 
 
 def test_missing_token_forbidden(client, token_set, no_side_effects):
-    resp = client.post("/internal/jobs/daily-reminders")
+    resp = client.post("/internal/jobs/sunday-reminder")
     assert resp.status_code == 403
     assert no_side_effects == []
 

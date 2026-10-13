@@ -30,8 +30,6 @@ Both halves are now in place:
 
 | Scheduler job | Cron (UTC) | Endpoint |
 |---|---|---|
-| `wgp-daily-reminders` | `0 9 * * *` | `/internal/jobs/daily-reminders` |
-| `wgp-weekly-summaries` | `0 9 * * 0` | `/internal/jobs/weekly-summaries` |
 | `wgp-saturday-pairings` | `0 14 * * 6` | `/internal/jobs/saturday-pairings` |
 | `wgp-legacy-rounds-sync` | `0 */2 * * *` | `/internal/jobs/legacy-rounds-sync` |
 | `wgp-pending-sheet-syncs` | `0 0 * * *` | `/internal/jobs/pending-sheet-syncs` |

@@ -6,7 +6,6 @@ This module handles scheduling and sending automated emails based on user prefer
 
 import logging
 import threading
-from datetime import timedelta
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -14,9 +13,7 @@ from sqlalchemy.orm import Session
 import schedule
 
 from ..database import SessionLocal
-from ..models import EmailPreferences, PlayerProfile
-from ..utils.time import utc_now
-from . import weekly_highlights
+from . import sunday_reminder, weekly_highlights
 from .email_service import get_email_service
 from .pairing_scheduler_service import PairingSchedulerService
 
@@ -33,7 +30,7 @@ class EmailScheduler:
     # instead of the in-process `schedule` thread). Keep keys in sync with
     # deploy/gcp/phase4-scheduling/10-create-scheduler-jobs.sh.
     JOB_METHODS: dict[str, str] = {
-        "daily-reminders": "_send_daily_reminders_all",
+        "sunday-reminder": "_send_sunday_reminder",
         "weekly-summaries": "_send_weekly_summaries",
         "saturday-pairings": "_run_saturday_pairings",
         "legacy-rounds-sync": "_sync_legacy_rounds",
@@ -48,13 +45,8 @@ class EmailScheduler:
 
     def _setup_schedules(self):
         """Set up the email scheduling jobs"""
-        # Schedule daily signup reminders - send once per day at 9 AM
-        # Users who have opted in will receive reminders at their preferred time
-        # (or all at 9 AM if we want to simplify)
-        schedule.every().day.at("09:00").do(self._send_daily_reminders_all)
-
-        # Weekly league highlights are driven only by the Monday-midday GitHub Actions
-        # cron (.github/workflows/weekly-highlights.yml → /internal/jobs/weekly-summaries).
+        # The Thursday Sunday-game nudge and Monday league highlights are driven only by
+        # GitHub Actions crons (.github/workflows/sunday-reminder.yml, weekly-highlights.yml).
 
         # Schedule Saturday afternoon pairing generation for Sunday games
         # Runs at 2:00 PM every Saturday to generate pairings and notify players
@@ -82,105 +74,11 @@ class EmailScheduler:
         """Get a database session"""
         return SessionLocal()
 
-    def _send_daily_reminders_all(self):
-        """
-        Send daily signup reminders to all users who have opted in.
-        Simplified version that sends all reminders at once (9 AM).
-        """
+    def _send_sunday_reminder(self, dry_run: bool = False) -> dict[str, Any]:
+        """Thursday nudge for the coming Sunday's game. Errors propagate so the cron fails loudly."""
         db = self._get_db()
-
         try:
-            # Get all players with daily reminders enabled
-            players_with_prefs = (
-                db.query(PlayerProfile, EmailPreferences)
-                .join(
-                    EmailPreferences,
-                    PlayerProfile.id == EmailPreferences.player_profile_id,
-                )
-                .filter(
-                    EmailPreferences.daily_signups_enabled == 1,
-                    EmailPreferences.email_frequency != "never",
-                    PlayerProfile.email.isnot(None),
-                )
-                .all()
-            )
-
-            logger.info(f"Found {len(players_with_prefs)} players for daily reminders")
-
-            # Get available signup dates
-            available_dates = self._get_available_signup_dates()
-
-            sent_count = 0
-            for player, prefs in players_with_prefs:
-                try:
-                    if player.email:
-                        success = get_email_service().send_daily_signup_reminder(  # type: ignore[attr-defined]
-                            to_email=player.email,
-                            player_name=player.name,
-                            available_dates=available_dates,
-                        )
-
-                        if success:
-                            sent_count += 1
-                            logger.info(f"Daily reminder sent to {player.name} ({player.email})")
-                        else:
-                            logger.error(f"Failed to send daily reminder to {player.name}")
-
-                except Exception as e:
-                    logger.error(f"Error sending daily reminder to {player.name}: {e!s}")
-
-            logger.info(f"Daily reminders completed: {sent_count}/{len(players_with_prefs)} sent successfully")
-
-        except Exception as e:
-            logger.error(f"Error in daily reminder job: {e!s}")
-        finally:
-            db.close()
-
-    def _send_daily_reminders(self, time_slot: str) -> None:
-        """Send daily signup reminders to users who have opted in"""
-        db = self._get_db()
-
-        try:
-            # Get all players with email preferences for this time slot
-            players_with_prefs = (
-                db.query(PlayerProfile, EmailPreferences)
-                .join(
-                    EmailPreferences,
-                    PlayerProfile.id == EmailPreferences.player_profile_id,
-                )
-                .filter(
-                    EmailPreferences.daily_signups_enabled == 1,
-                    EmailPreferences.preferred_notification_time == time_slot,
-                    EmailPreferences.email_frequency != "never",
-                    PlayerProfile.email.isnot(None),
-                )
-                .all()
-            )
-
-            logger.info(f"Found {len(players_with_prefs)} players for {time_slot} daily reminder")
-
-            # Get available signup dates (mock data for now)
-            available_dates = self._get_available_signup_dates()
-
-            for player, prefs in players_with_prefs:
-                try:
-                    if player.email:
-                        success = get_email_service().send_daily_signup_reminder(  # type: ignore[attr-defined]
-                            to_email=player.email,
-                            player_name=player.name,
-                            available_dates=available_dates,
-                        )
-
-                        if success:
-                            logger.info(f"Daily reminder sent to {player.name} ({player.email})")
-                        else:
-                            logger.error(f"Failed to send daily reminder to {player.name}")
-
-                except Exception as e:
-                    logger.error(f"Error sending daily reminder to {player.name}: {e!s}")
-
-        except Exception as e:
-            logger.error(f"Error in daily reminder job: {e!s}")
+            return sunday_reminder.run(db, dry_run=dry_run)
         finally:
             db.close()
 
@@ -194,18 +92,6 @@ class EmailScheduler:
             return weekly_highlights.run(db, dry_run=dry_run)
         finally:
             db.close()
-
-    def _get_available_signup_dates(self) -> list[str]:
-        """Get available signup dates for the next week"""
-        # Mock implementation - replace with actual logic
-        dates = []
-        today = utc_now()
-
-        for i in range(1, 8):  # Next 7 days
-            date = today + timedelta(days=i)
-            dates.append(date.strftime("%B %d, %Y"))
-
-        return dates
 
     def _run_scheduler(self):
         """Run the scheduler in a loop"""
@@ -231,7 +117,7 @@ class EmailScheduler:
             logger.info("Email scheduler stopped")
 
     # Jobs whose method accepts dry_run=True (compute + report, send nothing).
-    DRY_RUN_JOBS = {"weekly-summaries"}
+    DRY_RUN_JOBS = {"weekly-summaries", "sunday-reminder"}
 
     def run_job(self, job_name: str, dry_run: bool = False) -> dict:
         """Run a single scheduled job once, by its registry key.

@@ -190,7 +190,6 @@
   "POST /data/rounds/{date}/{group}/comments",
   "POST /data/rounds/{date}/{group}/reactions",
   "POST /data/sync-sheets",
-  "POST /email/daily-reminder",
   "POST /email/initialize-scheduler",
   "POST /email/send-test",
   "POST /email/signup-confirmation",

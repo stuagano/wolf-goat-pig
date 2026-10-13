@@ -194,6 +194,48 @@ class EmailService:
         """
         ).replace("PREFERENCES_URL", self._preferences_url())
 
+    def send_sunday_reminder(self, to_email: str, player_name: str, game_date: str, signed_up: list[str]) -> bool:
+        """Thursday nudge for Sunday's game (see services/sunday_reminder.py)."""
+        from datetime import datetime
+
+        try:
+            day = datetime.strptime(game_date, "%Y-%m-%d").strftime("%A, %B %-d")
+        except ValueError:
+            day = game_date
+        signup_url = f"{os.getenv('FRONTEND_URL', 'https://seventh-country-232522.web.app').rstrip('/')}/signup"
+        count = len(signed_up)
+
+        if count:
+            subject = f"⛳ Sunday's game: {count} signed up so far"
+            who_html = f"<p>In so far: {html.escape(', '.join(signed_up))}</p>"
+            who_text = f"In so far: {', '.join(signed_up)}"
+        else:
+            subject = "⛳ Sunday's game: be the first to sign up"
+            who_html = "<p>Nobody's signed up yet &mdash; get your name on the sheet.</p>"
+            who_text = "Nobody's signed up yet - get your name on the sheet."
+
+        content = f"""
+        <h2>&#9971; {day}</h2>
+        <p>Hi {html.escape(player_name)},</p>
+        <p>Sunday's Wolf Goat Pig game is coming together. <strong>{count}</strong> signed up so far.</p>
+        {who_html}
+        <p style="margin: 24px 0;">
+            <a href="{signup_url}"
+               style="background: #047857; color: #fff; padding: 12px 24px; border-radius: 8px;
+                      text-decoration: none; font-weight: 600; display: inline-block;">
+                Sign up to play
+            </a>
+        </p>
+        """
+        html_body = Template(self._get_base_template()).render(subject=subject, content=content)
+        text_body = (
+            f"{day}\n\nHi {player_name},\n\n"
+            f"Sunday's Wolf Goat Pig game is coming together. {count} signed up so far.\n"
+            f"{who_text}\n\nSign up to play: {signup_url}\n\n"
+            f"Manage your email preferences: {self._preferences_url()}\n"
+        )
+        return self._send_email(to_email=to_email, subject=subject, html_body=html_body, text_body=text_body)
+
     def send_weekly_highlights(self, to_email: str, player_name: str, highlights: dict[str, Any]) -> bool:
         """League-wide highlights for the week that just ended (see services/weekly_highlights.py)."""
 
