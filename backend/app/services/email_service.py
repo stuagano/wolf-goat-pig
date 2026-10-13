@@ -165,9 +165,14 @@ class EmailService:
 
         return self._send_email(to_email, subject, html_body, text_body)
 
+    def _preferences_url(self) -> str:
+        """Account page, where each player controls their own email preferences."""
+        return f"{os.getenv('FRONTEND_URL', 'https://seventh-country-232522.web.app').rstrip('/')}/account"
+
     def _get_base_template(self) -> str:
-        """Returns the base HTML email template."""
-        return """
+        """Returns the base HTML email template. Every email gets the preferences link."""
+        return (
+            """
         <!DOCTYPE html>
         <html>
         <head>
@@ -177,11 +182,67 @@ class EmailService:
             <div class="container">
                 <div class="header"><h1>Wolf Goat Pig</h1></div>
                 <div class="content">{{ content }}</div>
-                <div class="footer"><p>Wing Point Golf & Country Club</p></div>
+                <div class="footer">
+                    <p>Wing Point Golf & Country Club</p>
+                    <p style="color: #6b7280; font-size: 12px;">
+                        <a href="PREFERENCES_URL">Manage your email preferences</a>
+                    </p>
+                </div>
             </div>
         </body>
         </html>
         """
+        ).replace("PREFERENCES_URL", self._preferences_url())
+
+    def send_weekly_highlights(self, to_email: str, player_name: str, highlights: dict[str, Any]) -> bool:
+        """League-wide highlights for the week that just ended (see services/weekly_highlights.py)."""
+
+        def q(value: float) -> str:
+            return f"{value:+g} quarters"
+
+        def esc(value: Any) -> str:
+            return html.escape(str(value))
+
+        lines = []
+        if br := highlights.get("biggest_round"):
+            lines.append(f"Biggest round: {esc(br['player'])}, {q(br['quarters'])} at {esc(br['course'])}")
+        if te := highlights.get("top_earner"):
+            lines.append(
+                f"Top earner of the week: {esc(te['player'])}, {q(te['quarters'])} over {te['rounds']} round(s)"
+            )
+        if bh := highlights.get("biggest_hole"):
+            lines.append(
+                f"Biggest hole: {esc(bh['player'])} took {q(bh['quarters'])} on #{esc(bh['hole'])} at {esc(bh['course'])}"
+            )
+        if im := highlights.get("ironman"):
+            lines.append(f"Ironman: {esc(', '.join(im['players']))}, {im['rounds']} rounds")
+
+        rounds = highlights["rounds"]
+        intro = (
+            f"{rounds} round{'s' if rounds != 1 else ''} at {esc(', '.join(highlights['courses']))} "
+            f"with {len(highlights['players'])} players."
+        )
+        items = "".join(f"<li>{line}</li>" for line in lines)
+        content = f"""
+        <h2>&#9971; This week in Wolf Goat Pig</h2>
+        <p>Hi {esc(player_name)},</p>
+        <p>{intro}</p>
+        <ul>{items}</ul>
+        <p style="color: #6b7280; font-size: 13px;">Played: {esc(", ".join(highlights["players"]))}</p>
+        """
+        html_body = Template(self._get_base_template()).render(subject="This week in Wolf Goat Pig", content=content)
+        text_body = (
+            f"This week in Wolf Goat Pig\n\nHi {player_name},\n\n{html.unescape(intro)}\n\n"
+            + "".join(f"- {html.unescape(line)}\n" for line in lines)
+            + f"\nPlayed: {', '.join(highlights['players'])}\n\n"
+            f"Manage your email preferences: {self._preferences_url()}\n"
+        )
+        return self._send_email(
+            to_email=to_email,
+            subject="⛳ This week in Wolf Goat Pig",
+            html_body=html_body,
+            text_body=text_body,
+        )
 
     def send_signup_confirmation(self, to_email: str, player_name: str, signup_date: str) -> bool:
         """Sends a signup confirmation email."""

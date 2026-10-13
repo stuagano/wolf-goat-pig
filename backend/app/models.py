@@ -559,6 +559,18 @@ class CalloutNotification(Base):
     sent_at = Column(String)  # ISO timestamp
 
 
+class WeeklyHighlightSend(Base):
+    """Dedup log for the weekly league highlights email: one row per player per week,
+    written after a successful send, so a retried job never emails anyone twice."""
+
+    __tablename__ = "weekly_highlight_sends"
+    __table_args__ = (UniqueConstraint("week_start", "player_profile_id", name="uq_weekly_highlight_week_player"),)
+    id = Column(Integer, primary_key=True, index=True)
+    week_start = Column(String, index=True)  # YYYY-MM-DD (Monday, Pacific) of the week covered
+    player_profile_id = Column(Integer)  # References PlayerProfile.id
+    sent_at = Column(String)  # ISO timestamp
+
+
 class DailyMessage(Base):
     __tablename__ = "daily_messages"
     id = Column(Integer, primary_key=True, index=True)

@@ -16,6 +16,7 @@ import schedule
 from ..database import SessionLocal
 from ..models import EmailPreferences, PlayerProfile
 from ..utils.time import utc_now
+from . import weekly_highlights
 from .email_service import get_email_service
 from .pairing_scheduler_service import PairingSchedulerService
 
@@ -52,8 +53,8 @@ class EmailScheduler:
         # (or all at 9 AM if we want to simplify)
         schedule.every().day.at("09:00").do(self._send_daily_reminders_all)
 
-        # Schedule weekly summaries on Sunday at 9 AM
-        schedule.every().sunday.at("09:00").do(self._send_weekly_summaries)
+        # Weekly league highlights are driven only by the Monday-midday GitHub Actions
+        # cron (.github/workflows/weekly-highlights.yml → /internal/jobs/weekly-summaries).
 
         # Schedule Saturday afternoon pairing generation for Sunday games
         # Runs at 2:00 PM every Saturday to generate pairings and notify players
@@ -183,50 +184,14 @@ class EmailScheduler:
         finally:
             db.close()
 
-    def _send_weekly_summaries(self):
-        """Send weekly summary emails to users who have opted in"""
+    def _send_weekly_summaries(self, dry_run: bool = False) -> dict[str, Any]:
+        """Email last week's league highlights to everyone not opted out.
+
+        Unlike the other jobs, errors propagate so the cron run fails loudly.
+        """
         db = self._get_db()
-
         try:
-            # Get all players with weekly summaries enabled
-            players_with_prefs = (
-                db.query(PlayerProfile, EmailPreferences)
-                .join(
-                    EmailPreferences,
-                    PlayerProfile.id == EmailPreferences.player_profile_id,
-                )
-                .filter(
-                    EmailPreferences.weekly_summary_enabled == 1,
-                    EmailPreferences.email_frequency.in_(["daily", "weekly"]),
-                    PlayerProfile.email.isnot(None),
-                )
-                .all()
-            )
-
-            logger.info(f"Found {len(players_with_prefs)} players for weekly summary")
-
-            for player, prefs in players_with_prefs:
-                try:
-                    if player.email:
-                        # Get player's weekly stats (mock data for now)
-                        summary_data = self._get_player_weekly_summary(player.id)
-
-                        success = get_email_service().send_weekly_summary(  # type: ignore[attr-defined]
-                            to_email=player.email,
-                            player_name=player.name,
-                            summary_data=summary_data,
-                        )
-
-                        if success:
-                            logger.info(f"Weekly summary sent to {player.name} ({player.email})")
-                        else:
-                            logger.error(f"Failed to send weekly summary to {player.name}")
-
-                except Exception as e:
-                    logger.error(f"Error sending weekly summary to {player.name}: {e!s}")
-
-        except Exception as e:
-            logger.error(f"Error in weekly summary job: {e!s}")
+            return weekly_highlights.run(db, dry_run=dry_run)
         finally:
             db.close()
 
@@ -241,17 +206,6 @@ class EmailScheduler:
             dates.append(date.strftime("%B %d, %Y"))
 
         return dates
-
-    def _get_player_weekly_summary(self, player_id: int) -> dict[str, Any]:
-        """Get weekly summary data for a player"""
-        # Mock implementation - replace with actual stats from database
-        return {
-            "games_played": 3,
-            "total_earnings": 12,
-            "current_rank": 5,
-            "best_hole": 4,
-            "worst_hole": 15,
-        }
 
     def _run_scheduler(self):
         """Run the scheduler in a loop"""
@@ -276,21 +230,25 @@ class EmailScheduler:
                 self.scheduler_thread.join(timeout=5)
             logger.info("Email scheduler stopped")
 
-    def run_job(self, job_name: str) -> dict:
+    # Jobs whose method accepts dry_run=True (compute + report, send nothing).
+    DRY_RUN_JOBS = {"weekly-summaries"}
+
+    def run_job(self, job_name: str, dry_run: bool = False) -> dict:
         """Run a single scheduled job once, by its registry key.
 
         Used by the /internal/jobs/* endpoints so Cloud Scheduler can drive the
         periodic work instead of the in-process thread. Raises KeyError for an
         unknown job. The underlying method handles its own DB session and errors;
         because Cloud Scheduler is at-least-once, each target must stay idempotent
-        (design doc §12).
+        (design doc §12). A dict returned by the job is merged into the response.
         """
         method_name = self.JOB_METHODS.get(job_name)
         if method_name is None:
             raise KeyError(job_name)
         logger.info("Running scheduled job '%s' one-shot via run_job()", job_name)
-        getattr(self, method_name)()
-        return {"job": job_name, "status": "completed"}
+        method = getattr(self, method_name)
+        result = method(dry_run=True) if dry_run else method()
+        return {"job": job_name, "status": "completed", **(result if isinstance(result, dict) else {})}
 
     def send_signup_confirmation_now(self, player_email: str, player_name: str, signup_date: str) -> bool:
         """Send an immediate signup confirmation email"""

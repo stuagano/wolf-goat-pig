@@ -192,3 +192,45 @@ class TestEmailService:
         assert club_player_url in html_body
         assert club_player_url in text_body
         assert "Nothing to download and nothing to set up" not in text_body
+
+    @patch.dict(
+        "os.environ",
+        {"SMTP_USER": "test@test.com", "SMTP_PASSWORD": "password123", "FRONTEND_URL": "https://example.test"},
+    )
+    @patch("app.services.email_service.SMTPEmailProvider")
+    def test_weekly_highlights_email_lists_highlights_and_preferences_link(self, mock_smtp_provider):
+        mock_provider = Mock()
+        mock_provider.is_configured.return_value = True
+        mock_provider.send_email.return_value = True
+        mock_smtp_provider.return_value = mock_provider
+        highlights = {
+            "rounds": 2,
+            "courses": ["Wing Point"],
+            "players": ["Bob", "Mike <script>"],
+            "biggest_round": {"player": "Mike <script>", "quarters": 34.0, "course": "Wing Point"},
+            "top_earner": {"player": "Mike <script>", "quarters": 24.0, "rounds": 2},
+            "biggest_hole": {"player": "Bob", "hole": 18, "quarters": 16.0, "course": "Wing Point"},
+            "ironman": None,
+        }
+
+        assert EmailService().send_weekly_highlights("a@x.com", "Al", highlights) is True
+        _, _, html_body, text_body = mock_provider.send_email.call_args.args
+        assert "+34 quarters at Wing Point" in html_body
+        assert "took +16 quarters on #18" in html_body
+        assert "Ironman" not in html_body
+        assert "<script>" not in html_body  # player names are escaped
+        assert "https://example.test/account" in html_body
+        assert "Manage your email preferences: https://example.test/account" in text_body
+        assert "Top earner of the week: Mike <script>, +24 quarters over 2 round(s)" in text_body
+
+    @patch.dict("os.environ", {"SMTP_USER": "u", "SMTP_PASSWORD": "p", "FRONTEND_URL": "https://example.test/"})
+    @patch("app.services.email_service.SMTPEmailProvider")
+    def test_every_base_template_email_has_preferences_link(self, mock_smtp_provider):
+        mock_provider = Mock()
+        mock_provider.is_configured.return_value = True
+        mock_provider.send_email.return_value = True
+        mock_smtp_provider.return_value = mock_provider
+
+        EmailService().send_callout_notification("a@x.com", "Al", "2026-10-18", 3, 1)
+        html_body = mock_provider.send_email.call_args.args[2]
+        assert '<a href="https://example.test/account">Manage your email preferences</a>' in html_body

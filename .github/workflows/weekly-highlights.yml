@@ -1,0 +1,30 @@
+name: Weekly League Highlights
+
+# Emails last week's (Mon–Sun, Pacific) league highlights to every player who
+# hasn't opted out. Monday midday so Sunday's games are in. Re-runs are safe:
+# the backend logs each (week, player) send and skips anyone already emailed.
+on:
+  schedule:
+    - cron: '0 19 * * 1'  # Monday 19:00 UTC = noon PDT / 11am PST
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run: return highlights + recipient count, send nothing'
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: weekly-highlights
+  cancel-in-progress: false
+
+jobs:
+  highlights:
+    uses: ./.github/workflows/_cron-curl.yml
+    with:
+      label: Weekly league highlights (dry_run=${{ github.event.inputs.dry_run || 'false' }})
+      url: https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/internal/jobs/weekly-summaries?dry_run=${{ github.event.inputs.dry_run || 'false' }}
+      headers: 'Content-Type: application/json'
+      max-time: 300
+    secrets:
+      INTERNAL_JOB_TOKEN: ${{ secrets.INTERNAL_JOB_TOKEN }}

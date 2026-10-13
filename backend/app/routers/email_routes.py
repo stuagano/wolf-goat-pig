@@ -144,41 +144,6 @@ async def send_daily_reminder_email(email_data: dict):  # type: ignore
         raise HTTPException(status_code=500, detail=f"Failed to send email: {e!s}")
 
 
-@router.post("/weekly-summary")
-async def send_weekly_summary_email(email_data: dict):  # type: ignore
-    """Send weekly summary email"""
-    try:
-        email_service = get_email_service()
-
-        if not email_service.is_configured:  # type: ignore
-            raise HTTPException(status_code=503, detail="Email service not configured")
-
-        required_fields = ["to_email", "player_name"]
-        missing_fields = [field for field in required_fields if not email_data.get(field)]
-
-        if missing_fields:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Missing required fields: {', '.join(missing_fields)}",
-            )
-
-        success = email_service.send_weekly_summary(  # type: ignore
-            to_email=email_data["to_email"],
-            player_name=email_data["player_name"],
-            summary_data=email_data.get("summary_data", {}),
-        )
-
-        if success:
-            return {
-                "message": "Weekly summary email sent",
-                "to_email": email_data["to_email"],
-            }
-        raise HTTPException(status_code=500, detail="Failed to send weekly summary email")
-
-    except HTTPException:
-        raise
-
-
 @router.post("/initialize-scheduler")
 async def initialize_email_scheduler():
     """Initialize the email scheduler on demand"""
