@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from ..models import EmailPreferences, PlayerProfile, WeeklyHighlightSend
 from ..utils.time import CLUB_TZ, utc_now
+from . import email_voice
 from .email_service import get_email_service
 from .unified_data_service import get_unified_data_service
 
@@ -114,6 +115,7 @@ def run(db: Session, *, now: datetime | None = None, email_service=None, dry_run
     pending = [p for p in get_recipients(db) if p.id not in already]
 
     if dry_run:
+        highlights["intro"] = email_voice.commissioner_intro("weekly league highlights", highlights)
         return {
             "dry_run": True,
             "week_start": week_start,
@@ -126,6 +128,10 @@ def run(db: Session, *, now: datetime | None = None, email_service=None, dry_run
     if not email_service.is_configured():
         logger.warning("Weekly highlights for %s skipped: email service not configured", week_start)
         return {"week_start": week_start, "sent": 0, "reason": "email_not_configured"}
+
+    # One Commissioner-voice intro for everyone; None (plain email) if the AI is unavailable.
+    if pending:
+        highlights["intro"] = email_voice.commissioner_intro("weekly league highlights", highlights)
 
     sent = failed = 0
     for player in pending:
