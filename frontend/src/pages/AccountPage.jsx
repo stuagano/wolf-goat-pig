@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useAccessToken } from '../hooks/useAccessToken';
 import { apiConfig } from '../config/api.config';
@@ -171,6 +171,39 @@ function AccountPage() {
     description: '',
   });
   const [descriptionSyncError, setDescriptionSyncError] = useState(null); // 'load' | 'save' | null
+  const [venmoStatus, setVenmoStatus] = useState(null); // 'saving' | 'saved' | 'error' | null
+  // Last handle the server has, so an unchanged box doesn't re-save.
+  const venmoSavedRef = useRef(null);
+
+  const putVenmo = useCallback(async (token, handle) => {
+    setVenmoStatus('saving');
+    try {
+      const resp = await fetch(`${apiConfig.baseUrl}/players/me/venmo`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ venmo_handle: handle }),
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const saved = (await resp.json())?.venmo_handle || '';
+      venmoSavedRef.current = saved;
+      setSettings(prev => ({ ...prev, venmoHandle: saved }));
+      setVenmoStatus('saved');
+    } catch {
+      setVenmoStatus('error');
+    }
+  }, []);
+
+  // Saves the Venmo handle to the server as soon as the box loses focus, so it
+  // can't be lost by clicking a different card's Save button.
+  const saveVenmo = useCallback(async () => {
+    const handle = (settings.venmoHandle || '').trim();
+    if (venmoSavedRef.current === null || handle === venmoSavedRef.current) return;
+    try {
+      await putVenmo(await getToken(), handle);
+    } catch {
+      setVenmoStatus('error');
+    }
+  }, [settings.venmoHandle, getToken, putVenmo]);
 
   // Load settings from localStorage, then merge description from backend
   useEffect(() => {
@@ -198,6 +231,19 @@ function AccountPage() {
             setSettings(prev => ({ ...prev, description: profile.description || '' }));
           }
 
+          // The server owns the Venmo handle. A handle saved only in this browser
+          // (before it was persisted server-side) is uploaded once, not dropped.
+          const localVenmo = (stored?.venmoHandle || '').trim();
+          if (profile?.venmo_handle) {
+            venmoSavedRef.current = profile.venmo_handle;
+            setSettings(prev => ({ ...prev, venmoHandle: profile.venmo_handle }));
+          } else if (localVenmo) {
+            venmoSavedRef.current = '';
+            await putVenmo(token, localVenmo);
+          } else {
+            venmoSavedRef.current = '';
+          }
+
           const clubStats = await fetchClubHistory(token);
           if (clubStats) {
             setStats(clubStats);
@@ -209,10 +255,11 @@ function AccountPage() {
           setDescriptionSyncError('load');
         });
     }
-  }, [user, isAuthenticated, getToken]);
+  }, [user, isAuthenticated, getToken, putVenmo]);
 
   const handleSave = useCallback(async () => {
     saveSettings(settings);
+    await saveVenmo();
     // Persist description to backend
     try {
       const token = await getToken();
@@ -230,7 +277,7 @@ function AccountPage() {
     setEditing(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
-  }, [settings, getToken]);
+  }, [settings, getToken, saveVenmo]);
 
   const handleChange = (field, value) => {
     setSettings(prev => ({ ...prev, [field]: value }));
@@ -637,9 +684,18 @@ function AccountPage() {
               type="text"
               value={settings.venmoHandle}
               onChange={(e) => handleChange('venmoHandle', e.target.value)}
+              onBlur={saveVenmo}
               placeholder="@your-venmo"
               style={inputStyle}
             />
+            {venmoStatus && (
+              <p
+                role={venmoStatus === 'error' ? 'alert' : 'status'}
+                style={{ margin: '-8px 0 12px', fontSize: '12px', color: venmoStatus === 'error' ? '#b91c1c' : '#6b7280' }}
+              >
+                {{ saving: 'Saving…', saved: 'Venmo handle saved', error: 'Couldn’t save your Venmo handle. Click in the box and out again to retry.' }[venmoStatus]}
+              </p>
+            )}
 
             <label style={labelStyle}>About Me</label>
             <textarea
