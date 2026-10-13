@@ -9252,6 +9252,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Send Daily Reminder Email",
         "tags": [
           "email"
@@ -9272,6 +9277,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Initialize Email Scheduler",
         "tags": [
           "email"
@@ -9292,6 +9302,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Email Scheduler Status",
         "tags": [
           "email"
@@ -9332,6 +9347,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Send Test Email",
         "tags": [
           "email"
@@ -9374,6 +9394,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Send Signup Confirmation Email",
         "tags": [
           "email"
@@ -9394,6 +9419,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Email Service Status",
         "tags": [
           "email"
@@ -9436,6 +9466,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Send Weekly Summary Email",
         "tags": [
           "email"
