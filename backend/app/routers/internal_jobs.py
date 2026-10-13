@@ -41,16 +41,23 @@ def run_internal_job(
     job: str,
     x_internal_job_token: str | None = Header(default=None),
     token: str | None = Query(default=None),
+    dry_run: bool = Query(default=False),
 ) -> dict:
-    """Run a single scheduled job once. See ``EmailScheduler.JOB_METHODS`` for keys."""
+    """Run a single scheduled job once. See ``EmailScheduler.JOB_METHODS`` for keys.
+
+    ``?dry_run=true`` (jobs in ``EmailScheduler.DRY_RUN_JOBS`` only) computes and
+    reports what would happen without sending anything.
+    """
     _require_job_token(x_internal_job_token or token)
 
     if job not in EmailScheduler.JOB_METHODS:
         known = ", ".join(sorted(EmailScheduler.JOB_METHODS))
         raise HTTPException(status_code=404, detail=f"unknown job '{job}'. Known jobs: {known}")
+    if dry_run and job not in EmailScheduler.DRY_RUN_JOBS:
+        raise HTTPException(status_code=400, detail=f"job '{job}' does not support dry_run")
 
     try:
-        return email_scheduler.run_job(job)
+        return email_scheduler.run_job(job, dry_run=dry_run)
     except Exception as exc:  # the target logs its own internals; surface a 500 here
         logger.error("Internal job '%s' failed: %s", job, exc)
         raise HTTPException(status_code=500, detail=f"job '{job}' failed") from exc

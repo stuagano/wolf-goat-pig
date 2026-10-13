@@ -26,7 +26,6 @@ def as_admin():
         ("get", "/email/status"),
         ("post", "/email/signup-confirmation"),
         ("post", "/email/daily-reminder"),
-        ("post", "/email/weekly-summary"),
         ("post", "/email/initialize-scheduler"),
         ("get", "/email/scheduler-status"),
     ],
@@ -292,78 +291,6 @@ class TestSendDailyReminder:
             to_email="player@example.com",
             player_name="Bob",
             available_dates=dates,
-        )
-
-
-# =============================================================================
-# POST /email/weekly-summary
-# =============================================================================
-
-
-class TestSendWeeklySummary:
-    @patch("app.routers.email_routes.get_email_service")
-    def test_returns_200_on_success(self, mock_get_svc):
-        mock_svc = MagicMock()
-        mock_svc.is_configured = True
-        mock_svc.send_weekly_summary.return_value = True
-        mock_get_svc.return_value = mock_svc
-        resp = client.post(
-            "/email/weekly-summary",
-            json={"to_email": "player@example.com", "player_name": "Carol"},
-        )
-        assert resp.status_code == 200
-
-    @patch("app.routers.email_routes.get_email_service")
-    def test_returns_503_when_not_configured(self, mock_get_svc):
-        mock_svc = MagicMock()
-        mock_svc.is_configured = False
-        mock_get_svc.return_value = mock_svc
-        resp = client.post(
-            "/email/weekly-summary",
-            json={"to_email": "player@example.com", "player_name": "Carol"},
-        )
-        assert resp.status_code == 503
-
-    @patch("app.routers.email_routes.get_email_service")
-    def test_returns_400_for_missing_fields(self, mock_get_svc):
-        mock_svc = MagicMock()
-        mock_svc.is_configured = True
-        mock_get_svc.return_value = mock_svc
-        resp = client.post("/email/weekly-summary", json={})
-        assert resp.status_code == 400
-
-    @patch("app.routers.email_routes.get_email_service")
-    def test_returns_500_when_send_fails(self, mock_get_svc):
-        mock_svc = MagicMock()
-        mock_svc.is_configured = True
-        mock_svc.send_weekly_summary.return_value = False
-        mock_get_svc.return_value = mock_svc
-        resp = client.post(
-            "/email/weekly-summary",
-            json={"to_email": "player@example.com", "player_name": "Carol"},
-        )
-        assert resp.status_code == 500
-
-    @patch("app.routers.email_routes.get_email_service")
-    def test_passes_summary_data(self, mock_get_svc):
-        mock_svc = MagicMock()
-        mock_svc.is_configured = True
-        mock_svc.send_weekly_summary.return_value = True
-        mock_get_svc.return_value = mock_svc
-        summary = {"total_games": 3, "net_score": 12}
-        resp = client.post(
-            "/email/weekly-summary",
-            json={
-                "to_email": "player@example.com",
-                "player_name": "Carol",
-                "summary_data": summary,
-            },
-        )
-        assert resp.status_code == 200
-        mock_svc.send_weekly_summary.assert_called_once_with(
-            to_email="player@example.com",
-            player_name="Carol",
-            summary_data=summary,
         )
 
 

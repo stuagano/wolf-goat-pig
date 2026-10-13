@@ -40,11 +40,11 @@
     "waiver": null
   },
   "api-surface-no-drift": {
-    "at": "2026-10-12T03:12:48.212654+00:00",
+    "at": "2026-10-13T04:15:20.109353+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:6bbb5b12e975e171e5769bc937b5e2025acc6fcaa68fac04bb751d6374a69ea6",
+    "fingerprint": "sha256:922f8eaeb76d41fec34725f6a519074cdea934eb5e952472553b36543e163dca",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -60,7 +60,7 @@
     "waiver": null
   },
   "auth-rejects-junk-token": {
-    "at": "2026-10-09T19:14:05.644299+00:00",
+    "at": "2026-10-13T04:15:18.272414+00:00",
     "detail": null,
     "duration": null,
     "files": null,
@@ -170,11 +170,11 @@
     "waiver": null
   },
   "email-scheduler-sheet-dedup": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
+    "at": "2026-10-13T04:15:24.511049+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:0f4fc489fa409ffd2ea694bc80634d14487f7da38b6a14613da4dd6ce3c4f305",
+    "fingerprint": "sha256:cf1212bd513f9fde1405258a37792a9292b00a7d461a15e8b78db28622ab55d7",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -210,7 +210,7 @@
     "waiver": null
   },
   "frontend-live-production": {
-    "at": "2026-10-09T19:14:06.160811+00:00",
+    "at": "2026-10-13T04:15:24.150171+00:00",
     "detail": null,
     "duration": null,
     "files": null,
@@ -280,7 +280,7 @@
     "waiver": null
   },
   "health-live-production": {
-    "at": "2026-10-09T19:14:05.321614+00:00",
+    "at": "2026-10-13T04:15:17.839260+00:00",
     "detail": null,
     "duration": null,
     "files": null,
@@ -530,11 +530,11 @@
     "waiver": null
   },
   "resend-email-contract": {
-    "at": "2026-10-09T19:47:14.652063+00:00",
+    "at": "2026-10-13T04:15:18.820077+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:94c6ca2b57d00b684c2ed602f0798d740101689b27d9ac08e6ce207e433569bf",
+    "fingerprint": "sha256:7574a090bcdd9abf4e2237050eb2afea60ab6bc7653ee275cc5da82d331ff409",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -700,11 +700,11 @@
     "waiver": null
   },
   "welcome-email-sent": {
-    "at": "2026-10-09T19:47:17.762968+00:00",
+    "at": "2026-10-13T04:15:22.198143+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:b11f4559661205f072c3c01664f913bf0f1417d1ef9c46bf008f3165e9961d4b",
+    "fingerprint": "sha256:ec1ca068a0337ee93bcd85addbcedcce19c6aa4dd42d72d4ef41f7e705b76064",
     "result": "pass",
     "tier": "cheap",
     "waiver": null

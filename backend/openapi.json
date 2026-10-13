@@ -9430,53 +9430,6 @@
         ]
       }
     },
-    "/email/weekly-summary": {
-      "post": {
-        "description": "Send weekly summary email",
-        "operationId": "send_weekly_summary_email_email_weekly_summary_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": true,
-                "title": "Email Data",
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Send Weekly Summary Email",
-        "tags": [
-          "email"
-        ]
-      }
-    },
     "/feedback": {
       "post": {
         "operationId": "submit_feedback_feedback_post",

@@ -30,8 +30,8 @@ def no_side_effects(monkeypatch):
     """Stub run_job so tests never trigger real emails/syncs."""
     calls = []
 
-    def fake_run_job(job_name):
-        calls.append(job_name)
+    def fake_run_job(job_name, dry_run=False):
+        calls.append(f"{job_name} (dry run)" if dry_run else job_name)
         return {"job": job_name, "status": "completed"}
 
     monkeypatch.setattr(internal_jobs.email_scheduler, "run_job", fake_run_job)
@@ -84,3 +84,26 @@ def test_job_methods_resolve_on_scheduler():
     sched = EmailScheduler()
     for method_name in EmailScheduler.JOB_METHODS.values():
         assert callable(getattr(sched, method_name, None)), method_name
+
+
+def test_weekly_summaries_dry_run(client, token_set, no_side_effects):
+    resp = client.post("/internal/jobs/weekly-summaries?dry_run=true", headers={"X-Internal-Job-Token": TOKEN})
+    assert resp.status_code == 200
+    assert no_side_effects == ["weekly-summaries (dry run)"]
+
+
+def test_dry_run_rejected_for_jobs_without_support(client, token_set, no_side_effects):
+    resp = client.post("/internal/jobs/ghin-sync?dry_run=true", headers={"X-Internal-Job-Token": TOKEN})
+    assert resp.status_code == 400
+    assert no_side_effects == []
+
+
+def test_run_job_merges_job_result(monkeypatch):
+    sched = EmailScheduler()
+    monkeypatch.setattr(sched, "_send_weekly_summaries", lambda dry_run=False: {"sent": 3, "dry_run": dry_run})
+    assert sched.run_job("weekly-summaries", dry_run=True) == {
+        "job": "weekly-summaries",
+        "status": "completed",
+        "sent": 3,
+        "dry_run": True,
+    }

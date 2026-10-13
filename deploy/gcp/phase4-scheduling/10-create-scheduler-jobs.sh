@@ -41,9 +41,10 @@ gc run services add-iam-policy-binding "${RUN_SERVICE}" --region="${GCP_REGION}"
 
 # job name | cron | endpoint job-key (see EmailScheduler.JOB_METHODS)
 # Cadences mirror the in-process schedule in app/services/email_scheduler.py.
+# weekly-summaries is driven only by .github/workflows/weekly-highlights.yml
+# (Monday midday PT); if a wgp-weekly-summaries job exists, delete it.
 JOBS=(
   "wgp-daily-reminders|0 9 * * *|daily-reminders"
-  "wgp-weekly-summaries|0 9 * * 0|weekly-summaries"
   "wgp-saturday-pairings|0 14 * * 6|saturday-pairings"
   "wgp-legacy-rounds-sync|0 */2 * * *|legacy-rounds-sync"
   "wgp-pending-sheet-syncs|0 0 * * *|pending-sheet-syncs"
