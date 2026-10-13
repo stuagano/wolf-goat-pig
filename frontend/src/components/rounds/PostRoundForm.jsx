@@ -16,7 +16,10 @@ const todayLocalDate = () => {
 // Map them all to an ASCII hyphen so "−3" posts as -3 instead of failing validation.
 export const normalizeMinus = (value) => value.replace(/[−–—]/g, "-");
 
-const FoursomePicker = ({ players, currentName, selectedNames, onChange }) => {
+// Wolf Goat Pig is played in groups of 4, 5, or 6: you plus up to 5 others.
+export const MAX_OTHER_PLAYERS = 5;
+
+export const GroupPicker = ({ players, currentName, selectedNames, onChange }) => {
   const availablePlayers = useMemo(
     () => players.filter((name) => name && name !== currentName),
     [players, currentName],
@@ -28,7 +31,7 @@ const FoursomePicker = ({ players, currentName, selectedNames, onChange }) => {
       return;
     }
 
-    if (selectedNames.length < 3) {
+    if (selectedNames.length < MAX_OTHER_PLAYERS) {
       onChange([...selectedNames, name]);
     }
   };
@@ -43,10 +46,10 @@ const FoursomePicker = ({ players, currentName, selectedNames, onChange }) => {
             </button>
           ))
         ) : (
-          <span className="pr-muted">Select 1-3 other members who played with you.</span>
+          <span className="pr-muted">Select 1-5 other members who played with you.</span>
         )}
       </div>
-      <div className="pr-player-grid" role="group" aria-label="Foursome members">
+      <div className="pr-player-grid" role="group" aria-label="Group members">
         {availablePlayers.map((name) => {
           const selected = selectedNames.includes(name);
           return (
@@ -55,7 +58,7 @@ const FoursomePicker = ({ players, currentName, selectedNames, onChange }) => {
               key={name}
               className={selected ? "selected" : ""}
               onClick={() => togglePlayer(name)}
-              disabled={!selected && selectedNames.length >= 3}
+              disabled={!selected && selectedNames.length >= MAX_OTHER_PLAYERS}
             >
               {name}
             </button>
@@ -115,10 +118,10 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
     setSubmitState({ loading: true, error: "", success: "", canRetry: false, needsReauth: false });
     setShowLinkFlow(false);
 
-    if (form.foursome.length < 1 || form.foursome.length > 3) {
+    if (form.foursome.length < 1 || form.foursome.length > MAX_OTHER_PLAYERS) {
       setSubmitState({
         loading: false,
-        error: "Select 1-3 other foursome members.",
+        error: "Select 1-5 other members who played with you.",
         success: "",
         canRetry: false,
         needsReauth: false,
@@ -274,13 +277,13 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
         )}
 
         <div>
-          <label className="pr-standalone-label">Foursome members</label>
+          <label className="pr-standalone-label">Group members</label>
           {rosterLoading ? (
             <p className="pr-muted">Loading roster...</p>
           ) : rosterError ? (
             <div className="pr-alert error">{rosterError}</div>
           ) : (
-            <FoursomePicker
+            <GroupPicker
               players={players}
               currentName={legacyName}
               selectedNames={form.foursome}
