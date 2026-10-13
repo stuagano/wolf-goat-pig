@@ -182,12 +182,44 @@ class TestJoinGameHandicapResolution:
         finally:
             db.close()
 
-    def test_omitted_handicap_uses_roster(self, scratch_profile):
-        game = _create_game().json()
+    def test_omitted_handicap_uses_roster(self, scratch_profile, wing_point_blacks):
+        # At Wing Point the 0.2 index plays off a 0 course handicap
+        # (0.2 x 130/113 + 0.1 = 0.33), not a silent 18.
+        game = _create_game(course_name="Wing Point Golf & Country Club").json()
         resp = _join_game(game["join_code"], player_name=self.SCRATCH_NAME, omit_handicap=True)
         assert resp.status_code == 200
-        assert resp.json()["handicap"] == pytest.approx(self.SCRATCH_HANDICAP)
+        assert resp.json()["handicap"] == pytest.approx(0)
+        assert resp.json()["handicap_index"] == pytest.approx(self.SCRATCH_HANDICAP)
         assert resp.json()["handicap_source"] == "profile"
+
+    def test_roster_index_becomes_wing_point_course_handicap(self, scratch_profile, wing_point_blacks):
+        from app.database import SessionLocal
+        from app.models import PlayerProfile
+
+        db = SessionLocal()
+        try:
+            db.query(PlayerProfile).filter(PlayerProfile.id == scratch_profile["id"]).update({"handicap": 11.8})
+            db.commit()
+        finally:
+            db.close()
+
+        game = _create_game(course_name="Wing Point Golf & Country Club", player_count=4).json()
+        resp = _join_game(game["join_code"], player_name=self.SCRATCH_NAME, omit_handicap=True)
+        assert resp.json()["handicap"] == 14
+        assert resp.json()["handicap_index"] == pytest.approx(11.8)
+
+        def joined():
+            state = client.get(f"/games/{game['game_id']}/state").json()
+            p = next(p for p in state["players"] if p["name"] == self.SCRATCH_NAME)
+            return p["handicap"], p["handicap_index"]
+
+        assert joined() == (14, pytest.approx(11.8))  # in the lobby
+        slots = [resp.json()["player_slot_id"]]
+        for name in ("Filler A", "Filler B", "Filler C"):
+            slots.append(_join_game(game["join_code"], player_name=name, handicap=10.0).json()["player_slot_id"])
+        client.patch(f"/games/{game['game_id']}/tee-order", json={"player_order": slots})
+        assert client.post(f"/games/{game['game_id']}/start").status_code == 200
+        assert joined() == (14, pytest.approx(11.8))  # survives game start
 
     def test_explicit_handicap_overrides_roster(self, scratch_profile):
         game = _create_game().json()

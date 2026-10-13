@@ -99,8 +99,8 @@ class HandicapValidator:
         return max(1, 10 - int(handicap))
 
     # Wing Point Black Tees defaults
-    WING_POINT_BLACKS_SLOPE = 124
-    WING_POINT_BLACKS_RATING = 70.3
+    WING_POINT_BLACKS_SLOPE = 130
+    WING_POINT_BLACKS_RATING = 71.1
     WING_POINT_BLACKS_PAR = 71
 
     @classmethod

@@ -15,7 +15,7 @@ from ..badge_engine import BadgeEngine
 from ..services.game_lifecycle_service import get_game_lifecycle_service
 from ..services.notification_service import get_notification_service
 from ..state.course_manager import CourseManager
-from ..utils.handicap_resolve import resolve_player_handicap
+from ..utils.handicap_resolve import find_course, resolve_player_handicap, to_course_handicap
 from ..utils.time import utc_now
 from ..wolf_goat_pig import Player, WolfGoatPigGame
 
@@ -400,6 +400,15 @@ async def join_game_with_code(  # type: ignore
             except Exception as ghin_err:
                 logger.warning("GHIN lookup failed for %s: %s", request.player_name, ghin_err)
 
+        # A roster/GHIN index plays off the course handicap (strokes use it); a
+        # typed handicap is already the course handicap and stays as-is.
+        handicap_index = None
+        if handicap_was_omitted and (
+            handicap_source == "ghin" or (profile is not None and profile.handicap is not None)
+        ):
+            handicap_index = player_handicap
+            player_handicap = to_course_handicap(handicap_index, find_course(game.state.get("course_name")))
+
         # Create GamePlayer record
         game_player = models.GamePlayer(
             game_id=game.game_id,
@@ -422,6 +431,7 @@ async def join_game_with_code(  # type: ignore
                 "id": player_slot_id,
                 "name": request.player_name,
                 "handicap": player_handicap,
+                "handicap_index": handicap_index,
                 "user_id": request.user_id,
                 "player_profile_id": resolved_profile_id,
             }
@@ -438,6 +448,7 @@ async def join_game_with_code(  # type: ignore
             "game_id": game.game_id,
             "player_slot_id": player_slot_id,
             "handicap": player_handicap,
+            "handicap_index": handicap_index,
             "handicap_source": handicap_source,
             "player_profile_id": resolved_profile_id,
             "players_joined": len(current_players) + 1,
@@ -649,6 +660,11 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
         # sim is a one-shot state generator — not cached (the /action engine that
         # used the cache was retired; the DB is the source of truth for /state).
         initial_state = simulation.get_game_state()
+        # Lobby join recorded each player's index; keep it beside the course
+        # handicap the engine plays off.
+        lobby_index = {p.get("id"): p.get("handicap_index") for p in (game.state or {}).get("players", [])}
+        for sp in initial_state.get("players", []):
+            sp["handicap_index"] = lobby_index.get(sp.get("id"))
 
         # Update database game state
         game.game_status = "in_progress"  # type: ignore
@@ -933,6 +949,7 @@ async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_
 
         # If game is in setup, return lobby info
         if game.game_status == "setup":
+            lobby_index = {p.get("id"): p.get("handicap_index") for p in (game.state or {}).get("players", [])}
             players = (
                 db.query(models.GamePlayer)
                 .filter(models.GamePlayer.game_id == game_id)
@@ -948,6 +965,7 @@ async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_
                         "id": p.player_slot_id,
                         "name": p.player_name,
                         "handicap": p.handicap,
+                        "handicap_index": lobby_index.get(p.player_slot_id),
                         "tee_order": p.tee_order,
                     }
                     for p in players

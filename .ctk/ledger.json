@@ -40,11 +40,11 @@
     "waiver": null
   },
   "api-surface-no-drift": {
-    "at": "2026-10-13T18:47:23.676661+00:00",
+    "at": "2026-10-13T22:29:27.981902+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:c87e09c70877edebe8873e593fbfb2cd14677df4098c8040affa4c49f03bf04e",
+    "fingerprint": "sha256:fa1a074f997a30113559ea2d877dc365802aa7d3ea917b1566cd12aed8e25a26",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -230,11 +230,11 @@
     "waiver": null
   },
   "game-state-db-authoritative": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
+    "at": "2026-10-13T22:28:59.624051+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:1ae49560e8aef75dabca994df6a5f8274cc671436783d47ca8e02d98761b09bf",
+    "fingerprint": "sha256:db93e2970806d1d848930f9e2fe65d31e8430f8ae63e6c3746d49b2d6da1ea84",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -480,11 +480,11 @@
     "waiver": null
   },
   "player-updates-persist": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
+    "at": "2026-10-13T22:29:12.898109+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:c8d2384eff9820683b11be015c16d42f2814581cd71a77cbdc15f67c0b74d1aa",
+    "fingerprint": "sha256:58c1b83ff442d488de09f23df13c1d478b59e2e293a50def509c3b4def1a98f7",
     "result": "pass",
     "tier": "cheap",
     "waiver": null

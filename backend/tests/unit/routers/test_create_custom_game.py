@@ -219,3 +219,69 @@ class TestCreateCustomGamePlayerCount:
         players = [{"name": f"P{i}", "handicap": 10, "is_ghost": False} for i in range(7)]
         resp = client.post("/games/create-custom", json={"players": players})
         assert resp.status_code == 422
+
+
+WING_POINT_NAME = "Wing Point Golf & Country Club"
+
+
+def _players_of(game_id):
+    state = client.get(f"/games/{game_id}/state").json()
+    return {p["name"]: p for p in state.get("players", state.get("state", {}).get("players", []))}
+
+
+class TestCourseHandicap:
+    """Strokes come from the Wing Point course handicap, not the raw index."""
+
+    @pytest.fixture
+    def stuart_index(self):
+        db = SessionLocal()
+        name = "Zzz Course Handicap Case"
+        try:
+            db.query(PlayerProfile).filter(PlayerProfile.name == name).delete()
+            db.add(PlayerProfile(name=name, handicap=11.8, created_at="2026-01-01T00:00:00"))
+            db.commit()
+        finally:
+            db.close()
+        yield name
+        db = SessionLocal()
+        try:
+            db.query(PlayerProfile).filter(PlayerProfile.name == name).delete()
+            db.commit()
+        finally:
+            db.close()
+
+    @pytest.mark.parametrize("course_name", [WING_POINT_NAME, "Wing Point"])
+    def test_roster_index_becomes_the_course_handicap(self, wing_point_blacks, stuart_index, course_name):
+        resp = client.post(
+            "/games/create-custom",
+            json={
+                "course_name": course_name,
+                "players": [
+                    {"name": stuart_index},
+                    {"name": "Filler One"},
+                    {"name": "Filler Two"},
+                    {"name": "Filler Three"},
+                ],
+            },
+        )
+        assert resp.status_code == 200, resp.text
+        player = _players_of(resp.json()["game_id"])[stuart_index]
+        assert player["handicap"] == 14
+        assert player["handicap_index"] == pytest.approx(11.8)
+
+    def test_typed_handicap_is_the_course_handicap_as_is(self, wing_point_blacks, stuart_index):
+        resp = client.post(
+            "/games/create-custom",
+            json={
+                "course_name": WING_POINT_NAME,
+                "players": [
+                    {"name": stuart_index, "handicap": 9},
+                    {"name": "Filler One"},
+                    {"name": "Filler Two"},
+                    {"name": "Filler Three"},
+                ],
+            },
+        )
+        player = _players_of(resp.json()["game_id"])[stuart_index]
+        assert player["handicap"] == 9
+        assert player.get("handicap_index") is None
