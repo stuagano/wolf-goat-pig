@@ -81,7 +81,9 @@ async def _check_commissioner_vertex() -> ServiceStatus:
         response = await client.aio.models.generate_content(
             model=model,
             contents="ping",
-            config=types.GenerateContentConfig(max_output_tokens=8),
+            # Gemini 2.5 spends output tokens on hidden thinking first; a tiny cap
+            # (it was 8) returns empty text and false-alarmed "down" on every probe.
+            config=types.GenerateContentConfig(max_output_tokens=512),
         )
         if not (response.text or "").strip():
             raise ValueError("Vertex returned empty response")

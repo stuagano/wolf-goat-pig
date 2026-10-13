@@ -22,6 +22,7 @@ from app.models import (
     PlayerProfile,
     WeeklyHighlightSend,
 )
+from app.services import email_voice
 from app.services import weekly_highlights as wh
 
 engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
@@ -41,6 +42,19 @@ def db():
     finally:
         session.close()
         Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture(autouse=True)
+def stub_intro(monkeypatch):
+    """Never call a real LLM; record what the intro was asked for."""
+    calls = []
+
+    def fake(kind, facts):
+        calls.append((kind, facts))
+        return "The Commissioner has notes."
+
+    monkeypatch.setattr(email_voice, "commissioner_intro", fake)
+    return calls
 
 
 class StubEmailService:
@@ -197,6 +211,7 @@ def test_dry_run_sends_nothing(db):
     assert result["dry_run"] is True
     assert result["recipient_count"] == 1
     assert result["highlights"]["rounds"] == 3
+    assert result["highlights"]["intro"] == "The Commissioner has notes."
     assert stub.sent == []
     assert db.query(WeeklyHighlightSend).count() == 0
 
@@ -206,3 +221,20 @@ def test_run_reports_unconfigured_email(db):
     make_player(db, "A", "a@x.com")
     result = wh.run(db, now=MONDAY_NOON, email_service=StubEmailService(configured=False))
     assert result["reason"] == "email_not_configured"
+
+
+def test_one_intro_per_run_reaches_the_email(db, stub_intro):
+    seed_week(db)
+    make_player(db, "A", "a@x.com")
+    make_player(db, "B", "b@x.com")
+    seen = []
+
+    class Capturing(StubEmailService):
+        def send_weekly_highlights(self, *, to_email, player_name, highlights):
+            seen.append(highlights.get("intro"))
+            return True
+
+    wh.run(db, now=MONDAY_NOON, email_service=Capturing())
+    assert len(stub_intro) == 1
+    assert stub_intro[0][1]["biggest_round"]["player"] == "Mike"
+    assert seen == ["The Commissioner has notes."] * 2

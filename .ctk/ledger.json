@@ -190,11 +190,11 @@
     "waiver": null
   },
   "external-health-monitoring": {
-    "at": "2026-10-08T19:50:08.191959+00:00",
+    "at": "2026-10-13T17:22:17.825514+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:1ea03199368877bdc196bf2fee1badc16ae81cadccfb6eb78cd4e2642a40c753",
+    "fingerprint": "sha256:d49bd97082ddce75683231eda2ed813379e7534f7a4bcbce94fc159da5bba72a",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -530,11 +530,11 @@
     "waiver": null
   },
   "resend-email-contract": {
-    "at": "2026-10-13T16:48:49.770645+00:00",
+    "at": "2026-10-13T17:22:16.719027+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:09a48023a89c4782eb39536de333482778243db7fb3e5fb95f99e0068928700a",
+    "fingerprint": "sha256:ed1721335411494e34cc367f865141f0139e64ae896b45c17c4644f41c3ca461",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -700,11 +700,11 @@
     "waiver": null
   },
   "welcome-email-sent": {
-    "at": "2026-10-13T16:48:59.549936+00:00",
+    "at": "2026-10-13T17:22:20.142418+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:9f384af70e280c9207e4ce6d4a84a0ec4f2f8b090305513c72bafdf0dcc4dd19",
+    "fingerprint": "sha256:fdd0bde2c4660779966fce21ecf68ee7ba07ecbc143aee296833705e2447a08b",
     "result": "pass",
     "tier": "cheap",
     "waiver": null

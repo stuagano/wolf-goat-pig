@@ -14,6 +14,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.models import Base, DailySignup, EmailPreferences, PlayerProfile, SignupReminderSend
+from app.services import email_voice
 from app.services import sunday_reminder as sr
 
 engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
@@ -34,19 +35,34 @@ def db():
         Base.metadata.drop_all(bind=engine)
 
 
+@pytest.fixture(autouse=True)
+def stub_intro(monkeypatch):
+    """Never call a real LLM; record what the intro was asked for."""
+    calls = []
+
+    def fake(kind, facts):
+        calls.append((kind, facts))
+        return "The Commissioner has notes."
+
+    monkeypatch.setattr(email_voice, "commissioner_intro", fake)
+    return calls
+
+
 class StubEmailService:
     def __init__(self, configured=True, fail_for=()):
         self.configured = configured
         self.fail_for = set(fail_for)
         self.sent = []
+        self.intros = []
 
     def is_configured(self):
         return self.configured
 
-    def send_sunday_reminder(self, *, to_email, player_name, game_date, signed_up):
+    def send_sunday_reminder(self, *, to_email, player_name, game_date, signed_up, intro=None):
         if to_email in self.fail_for:
             return False
         self.sent.append((to_email, game_date, tuple(signed_up)))
+        self.intros.append(intro)
         return True
 
 
@@ -123,6 +139,7 @@ def test_dry_run_sends_nothing(db):
     assert result == {
         "dry_run": True,
         "game_date": SUNDAY,
+        "intro": "The Commissioner has notes.",
         "signed_up": ["Mike"],
         "recipient_count": 1,
         "already_sent": 0,
@@ -135,3 +152,19 @@ def test_run_reports_unconfigured_email(db):
     make_player(db, "A", "a@x.com")
     result = sr.run(db, today=THURSDAY, email_service=StubEmailService(configured=False))
     assert result["reason"] == "email_not_configured"
+
+
+def test_one_intro_shared_by_every_recipient(db, stub_intro):
+    sign_up(db, make_player(db, "Mike", "m@x.com"))
+    make_player(db, "A", "a@x.com")
+    make_player(db, "B", "b@x.com")
+    stub = StubEmailService()
+    sr.run(db, today=THURSDAY, email_service=stub)
+    assert len(stub_intro) == 1
+    assert stub_intro[0][1] == {"game_date": SUNDAY, "signed_up": ["Mike"], "signed_up_count": 1}
+    assert stub.intros == ["The Commissioner has notes."] * 2
+
+
+def test_no_recipients_means_no_llm_call(db, stub_intro):
+    sr.run(db, today=THURSDAY, email_service=StubEmailService())
+    assert stub_intro == []

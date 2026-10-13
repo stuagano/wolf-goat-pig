@@ -194,7 +194,15 @@ class EmailService:
         """
         ).replace("PREFERENCES_URL", self._preferences_url())
 
-    def send_sunday_reminder(self, to_email: str, player_name: str, game_date: str, signed_up: list[str]) -> bool:
+    def _intro_html(self, intro: str | None) -> str:
+        """The AI Commissioner paragraph (escaped), or nothing when there isn't one."""
+        if not intro:
+            return ""
+        return f'<p style="font-style: italic;">{html.escape(intro)}</p>'
+
+    def send_sunday_reminder(
+        self, to_email: str, player_name: str, game_date: str, signed_up: list[str], intro: str | None = None
+    ) -> bool:
         """Thursday nudge for Sunday's game (see services/sunday_reminder.py)."""
         from datetime import datetime
 
@@ -217,6 +225,7 @@ class EmailService:
         content = f"""
         <h2>&#9971; {day}</h2>
         <p>Hi {html.escape(player_name)},</p>
+        {self._intro_html(intro)}
         <p>Sunday's Wolf Goat Pig game is coming together. <strong>{count}</strong> signed up so far.</p>
         {who_html}
         <p style="margin: 24px 0;">
@@ -228,8 +237,9 @@ class EmailService:
         </p>
         """
         html_body = Template(self._get_base_template()).render(subject=subject, content=content)
+        intro_text = f"{intro}\n\n" if intro else ""
         text_body = (
-            f"{day}\n\nHi {player_name},\n\n"
+            f"{day}\n\nHi {player_name},\n\n{intro_text}"
             f"Sunday's Wolf Goat Pig game is coming together. {count} signed up so far.\n"
             f"{who_text}\n\nSign up to play: {signup_url}\n\n"
             f"Manage your email preferences: {self._preferences_url()}\n"
@@ -268,13 +278,16 @@ class EmailService:
         content = f"""
         <h2>&#9971; This week in Wolf Goat Pig</h2>
         <p>Hi {esc(player_name)},</p>
+        {self._intro_html(highlights.get("intro"))}
         <p>{intro}</p>
         <ul>{items}</ul>
         <p style="color: #6b7280; font-size: 13px;">Played: {esc(", ".join(highlights["players"]))}</p>
         """
         html_body = Template(self._get_base_template()).render(subject="This week in Wolf Goat Pig", content=content)
         text_body = (
-            f"This week in Wolf Goat Pig\n\nHi {player_name},\n\n{html.unescape(intro)}\n\n"
+            f"This week in Wolf Goat Pig\n\nHi {player_name},\n\n"
+            + (f"{highlights['intro']}\n\n" if highlights.get("intro") else "")
+            + f"{html.unescape(intro)}\n\n"
             + "".join(f"- {html.unescape(line)}\n" for line in lines)
             + f"\nPlayed: {', '.join(highlights['players'])}\n\n"
             f"Manage your email preferences: {self._preferences_url()}\n"

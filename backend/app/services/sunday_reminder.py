@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from ..models import DailySignup, EmailPreferences, PlayerProfile, SignupReminderSend
 from ..utils.time import club_today, utc_now
+from . import email_voice
 from .email_service import get_email_service
 
 logger = logging.getLogger(__name__)
@@ -67,10 +68,15 @@ def run(db: Session, *, today: date | None = None, email_service=None, dry_run: 
     }
     pending = [p for p in get_recipients(db, game_date) if p.id not in already]
 
+    def intro() -> str | None:
+        facts = {"game_date": game_date, "signed_up": signed_up, "signed_up_count": len(signed_up)}
+        return email_voice.commissioner_intro("Thursday nudge to sign up for Sunday's game", facts)
+
     if dry_run:
         return {
             "dry_run": True,
             "game_date": game_date,
+            "intro": intro(),
             "signed_up": signed_up,
             "recipient_count": len(pending),
             "already_sent": len(already),
@@ -81,11 +87,18 @@ def run(db: Session, *, today: date | None = None, email_service=None, dry_run: 
         logger.warning("Sunday reminder for %s skipped: email service not configured", game_date)
         return {"game_date": game_date, "sent": 0, "reason": "email_not_configured"}
 
+    # One Commissioner-voice intro for everyone; None (plain email) if the AI is unavailable.
+    shared_intro = intro() if pending else None
+
     sent = failed = 0
     for player in pending:
         try:
             ok = email_service.send_sunday_reminder(
-                to_email=player.email, player_name=player.name or "Golfer", game_date=game_date, signed_up=signed_up
+                to_email=player.email,
+                player_name=player.name or "Golfer",
+                game_date=game_date,
+                signed_up=signed_up,
+                intro=shared_intro,
             )
         except Exception as e:
             logger.error("Sunday reminder to player %s raised: %s", player.id, e)

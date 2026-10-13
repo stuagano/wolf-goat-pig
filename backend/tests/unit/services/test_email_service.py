@@ -265,3 +265,36 @@ class TestEmailService:
         _, subject, html_body, text_body = mock_provider.send_email.call_args.args
         assert "Nobody's signed up yet" in html_body
         assert "be the first" in subject
+
+    @patch.dict("os.environ", {"SMTP_USER": "u", "SMTP_PASSWORD": "p"})
+    @patch("app.services.email_service.SMTPEmailProvider")
+    def test_ai_intro_renders_escaped_in_both_parts_and_is_optional(self, mock_smtp_provider):
+        mock_provider = Mock()
+        mock_provider.is_configured.return_value = True
+        mock_provider.send_email.return_value = True
+        mock_smtp_provider.return_value = mock_provider
+        svc = EmailService()
+
+        svc.send_sunday_reminder("a@x.com", "Al", "2026-10-18", ["Bob"], intro="Bob's in. <Brave> man.")
+        _, _, html_body, text_body = mock_provider.send_email.call_args.args
+        assert "Bob&#x27;s in. &lt;Brave&gt; man." in html_body
+        assert "Hi Al,\n\nBob's in. <Brave> man.\n\n" in text_body
+
+        svc.send_sunday_reminder("a@x.com", "Al", "2026-10-18", ["Bob"])
+        _, _, html_body, _ = mock_provider.send_email.call_args.args
+        assert "font-style: italic" not in html_body
+
+        highlights = {
+            "rounds": 1,
+            "courses": ["Wing Point"],
+            "players": ["Bob"],
+            "biggest_round": None,
+            "top_earner": None,
+            "biggest_hole": None,
+            "ironman": None,
+            "intro": "Quiet week. Suspicious.",
+        }
+        svc.send_weekly_highlights("a@x.com", "Al", highlights)
+        _, _, html_body, text_body = mock_provider.send_email.call_args.args
+        assert "Quiet week. Suspicious." in html_body
+        assert "Hi Al,\n\nQuiet week. Suspicious.\n\n" in text_body
