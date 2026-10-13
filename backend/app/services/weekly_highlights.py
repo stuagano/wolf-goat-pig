@@ -2,7 +2,8 @@
 
 Sent Monday midday (GitHub Actions cron → /internal/jobs/weekly-summaries) to
 every active player with an email unless they opted out. Covers the Mon–Sun
-week (Pacific) that just ended, so Sunday's games are always included. The
+week (Pacific) that just ended, so Sunday's games are always included, over the
+merged league rounds (sheet + member posts + app games). The
 same highlights go to everyone; a per-(week, player) log makes reruns safe.
 """
 
@@ -14,74 +15,58 @@ from typing import Any
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from ..models import EmailPreferences, GamePlayerResult, GameRecord, PlayerProfile, WeeklyHighlightSend
+from ..models import EmailPreferences, PlayerProfile, WeeklyHighlightSend
 from ..utils.time import CLUB_TZ, utc_now
 from .email_service import get_email_service
+from .unified_data_service import get_unified_data_service
 
 logger = logging.getLogger(__name__)
 
 
-def week_window(now_utc: datetime) -> tuple[datetime, datetime, str]:
-    """Most recent fully completed Mon–Sun club week, as naive-UTC [start, end) + its Monday date."""
+def week_window(now_utc: datetime) -> tuple[str, str]:
+    """Most recent fully completed Mon–Sun club week (Pacific), as YYYY-MM-DD [start, end)."""
     today = now_utc.replace(tzinfo=UTC).astimezone(CLUB_TZ).date()
     monday = today - timedelta(days=today.weekday() + 7)
-
-    def to_utc(d) -> datetime:
-        local = datetime(d.year, d.month, d.day, tzinfo=CLUB_TZ)
-        return local.astimezone(UTC).replace(tzinfo=None)
-
-    return to_utc(monday), to_utc(monday + timedelta(days=7)), monday.isoformat()
+    return monday.isoformat(), (monday + timedelta(days=7)).isoformat()
 
 
-def _parse_utc(value: str | None) -> datetime | None:
-    try:
-        parsed = datetime.fromisoformat(value) if value else None
-    except ValueError:
-        return None
-    if parsed and parsed.tzinfo:
-        parsed = parsed.astimezone(UTC).replace(tzinfo=None)
-    return parsed
+def compute_highlights(db: Session, start: str, end: str) -> dict[str, Any] | None:
+    """League-wide highlights for rounds dated in [start, end), or None if there were none.
 
-
-def compute_highlights(db: Session, start: datetime, end: datetime) -> dict[str, Any] | None:
-    """League-wide highlights for games completed in [start, end), or None if no rounds."""
-    # ponytail: parses every completed record's timestamp in Python (formats vary by writer);
-    # fine at club scale, push the date filter into SQL if game_records grows large.
-    games = [
-        g
-        for g in db.query(GameRecord).filter(GameRecord.completed_at.isnot(None))
-        if start <= (_parse_utc(g.completed_at) or end) < end
-    ]
-    if not games:
+    Reads the same merged view as the leaderboard: sheet rounds + attested member
+    posts (legacy_rounds) + in-app scored games. Only app rounds carry hole detail.
+    """
+    # ponytail: app games are dated by their UTC completed_at in the unified service,
+    # so one finishing after 5pm PT Sunday lands in the next week; fix there if it bites.
+    week = [r for r in get_unified_data_service(db=db).get_season_rounds() if start <= r.date_sortable < end]
+    if not week:
         return None
 
-    course_by_id = {g.id: g.course_name or "Unknown course" for g in games}
-    results = db.query(GamePlayerResult).filter(GamePlayerResult.game_record_id.in_(course_by_id)).all()
-    if not results:
-        return None
-
-    net: dict[str, float] = defaultdict(float)
+    net: dict[str, int] = defaultdict(int)
     rounds: dict[str, int] = defaultdict(int)
     biggest_round = None
     biggest_hole = None
-    for r in results:
-        name = r.player_name or f"Player {r.player_profile_id}"
-        earnings = r.total_earnings or 0
-        net[name] += earnings
-        rounds[name] += 1
-        course = course_by_id[r.game_record_id]
-        if biggest_round is None or earnings > biggest_round["quarters"]:
-            biggest_round = {"player": name, "quarters": earnings, "course": course}
+    for r in week:
+        net[r.member] += r.score
+        rounds[r.member] += 1
+        if biggest_round is None or r.score > biggest_round["quarters"]:
+            biggest_round = {"player": r.member, "quarters": r.score, "course": r.location}
         for hole in r.hole_scores or []:
             quarters = hole.get("quarters") if isinstance(hole, dict) else None
             if isinstance(quarters, int | float) and (biggest_hole is None or quarters > biggest_hole["quarters"]):
-                biggest_hole = {"player": name, "hole": hole.get("hole"), "quarters": quarters, "course": course}
+                biggest_hole = {
+                    "player": r.member,
+                    "hole": hole.get("hole"),
+                    "quarters": quarters,
+                    "course": r.location,
+                }
 
     top = max(net, key=lambda n: net[n])
     most = max(rounds.values())
     return {
-        "rounds": len(games),
-        "courses": sorted(set(course_by_id.values())),
+        # A round is one foursome: same grouping as GET /data/leaderboard/rounds.
+        "rounds": len({(r.date_sortable, r.group, r.location) for r in week}),
+        "courses": sorted({r.location for r in week}),
         "players": sorted(rounds),
         "biggest_round": biggest_round,
         "top_earner": {"player": top, "quarters": net[top], "rounds": rounds[top]},
@@ -115,8 +100,8 @@ def get_recipients(db: Session) -> list[PlayerProfile]:
 
 def run(db: Session, *, now: datetime | None = None, email_service=None, dry_run: bool = False) -> dict[str, Any]:
     """Compute last week's highlights and email everyone who hasn't had them yet."""
-    start, end, week_start = week_window(now or utc_now())
-    highlights = compute_highlights(db, start, end)
+    week_start, week_end = week_window(now or utc_now())
+    highlights = compute_highlights(db, week_start, week_end)
     if highlights is None:
         return {"week_start": week_start, "sent": 0, "reason": "no_rounds"}
 
