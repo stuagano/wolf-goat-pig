@@ -6,8 +6,37 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.utils.admin_auth import require_admin
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def as_admin():
+    """Every /email route is admin-only; run the behavior tests as an admin."""
+    app.dependency_overrides[require_admin] = lambda: {"sub": "auth0|admin"}
+    yield
+    app.dependency_overrides.pop(require_admin, None)
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("post", "/email/send-test"),
+        ("get", "/email/status"),
+        ("post", "/email/signup-confirmation"),
+        ("post", "/email/daily-reminder"),
+        ("post", "/email/weekly-summary"),
+        ("post", "/email/initialize-scheduler"),
+        ("get", "/email/scheduler-status"),
+    ],
+)
+def test_email_routes_reject_anonymous_callers(method, path):
+    # Unauthenticated, these send mail from our verified domain to any address.
+    app.dependency_overrides.pop(require_admin, None)
+    kwargs = {"json": {"to_email": "victim@example.com"}} if method == "post" else {}
+    resp = getattr(client, method)(path, **kwargs)
+    assert resp.status_code in (401, 403)
 
 
 # =============================================================================

@@ -6,15 +6,17 @@ Email sending, scheduler management, and status endpoints.
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from ..services.email_service import get_email_service
 from ..state.app_state import get_email_scheduler, set_email_scheduler
+from ..utils.admin_auth import require_admin
 
 logger = logging.getLogger("app.routers.email_routes")
 
-router = APIRouter(prefix="/email", tags=["email"])
+# Admin-only: these send mail from our verified domain to caller-chosen addresses.
+router = APIRouter(prefix="/email", tags=["email"], dependencies=[Depends(require_admin)])
 
 
 class TestEmailRequest(BaseModel):
