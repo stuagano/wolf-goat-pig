@@ -50,7 +50,7 @@ test('negative quarters typed the iOS way are saved as negative numbers', async 
   await page.goto('/rounds/post');
 
   await page.locator('input[type="date"]').fill(date);
-  await page.getByRole('group', { name: 'Foursome members' }).getByRole('button', { name: partner, exact: true }).click();
+  await page.getByRole('group', { name: 'Group members' }).getByRole('button', { name: partner, exact: true }).click();
 
   const myInput = page.getByLabel(`${me} — quarters won/lost`);
   const partnerInput = page.getByLabel(`${partner} — quarters won/lost`);
