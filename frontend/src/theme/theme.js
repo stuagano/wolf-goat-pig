@@ -56,6 +56,9 @@ export const lightColors = {
   // Background and surface colors
   background: '#f9fafe',
   paper: '#ffffff',
+  // Opaque tinted surface (status pills, sticky headers). Must stay opaque:
+  // sticky elements using it scroll over content.
+  backgroundSecondary: '#f5f5f5',
 
   // Text colors
   textPrimary: '#212121',
@@ -94,6 +97,7 @@ export const darkColors = {
   // Background and surface colors
   background: '#121212',
   paper: '#1e1e1e',
+  backgroundSecondary: '#242424',
 
   // Text colors
   textPrimary: '#e5e5e5',
