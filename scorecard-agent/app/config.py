@@ -16,7 +16,9 @@ class Settings(BaseSettings):
     gcp_project_id: str = Field(default="seventh-country-232522", validation_alias="GCP_PROJECT_ID")
     gcp_location: str = Field(default="global", validation_alias="GCP_LOCATION")
     vision_model: str = Field(default="gemini-2.5-flash", validation_alias="SCORECARD_VISION_MODEL")
-    max_correction_passes: int = Field(default=2, validation_alias="SCORECARD_MAX_CORRECTION_PASSES")
+    # Single read by default: zero-sum "correction" re-reads made results worse (4-man finals
+    # 3/4, 4/4, 0/4 at 51-84s vs 4/4 x3 at ~16s single-pass) and the last pass wins, not the best.
+    max_correction_passes: int = Field(default=0, validation_alias="SCORECARD_MAX_CORRECTION_PASSES")
     # Gemini 2.5 thinking tokens count against max_output_tokens. Uncapped, they ate ~7.6k of
     # 8k and truncated the JSON on every scan, so cap thinking and leave room for the answer.
     thinking_budget: int = Field(default=1024, validation_alias="SCORECARD_THINKING_BUDGET")
