@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import CreateGamePage from '../CreateGamePage';
 
 vi.mock('@auth0/auth0-react', () => ({
-  useAuth0: () => ({ user: null, isAuthenticated: false }),
+  useAuth0: () => ({ user: null, isAuthenticated: false, getAccessTokenSilently: async () => 'test-token' }),
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -64,6 +64,15 @@ const submittedPlayers = () => {
 };
 
 describe('CreateGamePage handicaps', () => {
+  test('creating a game sends the signed-in token', async () => {
+    await renderPage();
+    await fillRoster();
+    fireEvent.click(screen.getByRole('button', { name: /Start Game/ }));
+    await waitFor(() => expect(submittedPlayers()).toHaveLength(4));
+    const call = global.fetch.mock.calls.find(([url]) => String(url).includes('/games/create-custom'));
+    expect(call[1].headers.Authorization).toBe('Bearer test-token');
+  });
+
   test('with Stuart Mode disabled, games contain real players and never enable AI', async () => {
     await renderPage();
     await fillRoster();

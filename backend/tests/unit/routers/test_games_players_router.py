@@ -245,6 +245,7 @@ class TestUpdatePlayerName:
 # ── DELETE /games/{game_id}/players/{player_slot_id} ────────────────────────
 
 
+@pytest.mark.usefixtures("as_admin")
 class TestRemovePlayer:
     def test_remove_nonexistent_game_returns_404(self):
         resp = client.delete("/games/nonexistent-id/players/p1")

@@ -9,6 +9,8 @@ from app.models import PlayerProfile
 
 client = TestClient(app)
 
+pytestmark = pytest.mark.usefixtures("signed_in")
+
 
 def _player(name, handicap=18, is_ghost=False, profile_id=None):
     return {"name": name, "handicap": handicap, "is_ghost": is_ghost, "player_profile_id": profile_id}
