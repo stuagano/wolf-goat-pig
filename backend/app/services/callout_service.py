@@ -10,11 +10,13 @@ calling these functions DIRECTLY against the DB — no self-HTTP, no deadlock ri
 """
 
 import logging
+from datetime import date
 
 from sqlalchemy.orm import Session
 
 from ..models import CalloutNotification, DailySignup, EmailPreferences, PlayerProfile
 from ..utils.time import utc_now
+from . import email_voice
 from .email_service import get_email_service
 from .pairing_scheduler_service import PairingSchedulerService
 
@@ -82,6 +84,17 @@ def get_callout_recipients(db: Session, game_date: str) -> list[PlayerProfile]:
     return [p for p in opted_in if p.email and p.id not in signed_up_ids]
 
 
+def _intro(game_date: str, signup_count: int, needed: int) -> str | None:
+    """One commissioner intro per callout; the real weekday comes from the date, never assumed."""
+    facts = {
+        "game_date": game_date,
+        "day_of_week": date.fromisoformat(game_date).strftime("%A"),
+        "signed_up_count": signup_count,
+        "players_needed": needed,
+    }
+    return email_voice.commissioner_intro("call for players to fill a short game", facts)
+
+
 def run_callout(db: Session, game_date: str, window: str) -> dict:
     """Evaluate a game date and, if short, email the callout list.
 
@@ -128,6 +141,7 @@ def run_callout(db: Session, game_date: str, window: str) -> dict:
 
     target = foursome_target(signup_count)
     recipients = get_callout_recipients(db, game_date)
+    intro = _intro(game_date, signup_count, shortfall) if recipients else None
 
     sent = 0
     for player in recipients:
@@ -138,6 +152,7 @@ def run_callout(db: Session, game_date: str, window: str) -> dict:
                 game_date=game_date,
                 signup_count=signup_count,
                 needed=shortfall,
+                intro=intro,
             )
             if ok:
                 sent += 1

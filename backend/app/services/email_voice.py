@@ -20,7 +20,8 @@ TIMEOUT_SECONDS = 20
 MAX_CHARS = 600
 
 SYSTEM_INSTRUCTION = (
-    "You are the Commissioner of the Sunday Wolf Goat Pig golf game at Wing Point Golf & Country Club. "
+    "You are the Commissioner of the Wolf Goat Pig golf game at Wing Point Golf & Country Club. "
+    "Games are played on different days of the week; only name a day if the facts give it. "
     "Write the opening paragraph of a league email in a dry, wry, affectionate trash-talking voice: "
     "2-3 sentences, plain text, no markdown, no greeting, no sign-off, at most one emoji. "
     "Use ONLY the names and numbers in the facts you are given. Never invent numbers, scores, names, "

@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/callouts", tags=["callouts"])
 
-VALID_WINDOWS = ("pre_pairing", "morning_of")
+VALID_WINDOWS = ("pre_pairing", "night_before", "morning_of")
 
 
 def _require_cron_token(x_internal_job_token: str | None = Header(default=None)) -> None:
@@ -58,9 +58,10 @@ async def send_test_callout_email(
     return {"sent": True, "to": to, "game_date": sample_date, "template": "callout_notification"}
 
 
+# Sync on purpose: the commissioner intro uses asyncio.run, which needs a threadpool, not the event loop.
 @router.post("/run", dependencies=[Depends(_require_cron_token)])
-async def run_headcount_callout(
-    window: str = Query(..., description="Callout window: pre_pairing or morning_of"),
+def run_headcount_callout(
+    window: str = Query(..., description="Callout window: pre_pairing, night_before or morning_of"),
     game_date: str | None = Query(
         default=None,
         description="YYYY-MM-DD to evaluate; defaults to the upcoming Sunday",

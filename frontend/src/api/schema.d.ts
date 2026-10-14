@@ -8870,7 +8870,7 @@ export interface operations {
     run_headcount_callout_callouts_run_post: {
         parameters: {
             query: {
-                /** @description Callout window: pre_pairing or morning_of */
+                /** @description Callout window: pre_pairing, night_before or morning_of */
                 window: string;
                 /** @description YYYY-MM-DD to evaluate; defaults to the upcoming Sunday */
                 game_date?: string | null;
