@@ -20,10 +20,16 @@ router = APIRouter(prefix="/games", tags=["games"])
 
 CARD_MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 CARD_MAX_DIM = 2000  # big enough to read handwriting, small enough to keep rows modest
+CARD_MAX_PIXELS = 60_000_000  # ~3x a 20MP phone photo; bounds decode memory
 
 
 def _downscale_card(image_bytes: bytes) -> str:
-    img = ImageOps.exif_transpose(Image.open(BytesIO(image_bytes))).convert("RGB")
+    img = Image.open(BytesIO(image_bytes))
+    # Header-only so far: refuse pixel bombs before decoding allocates memory.
+    if img.width * img.height > CARD_MAX_PIXELS:
+        raise ValueError(f"image too large: {img.width}x{img.height}")
+    img.draft("RGB", (CARD_MAX_DIM, CARD_MAX_DIM))  # JPEG: decode at reduced scale
+    img = ImageOps.exif_transpose(img).convert("RGB")
     img.thumbnail((CARD_MAX_DIM, CARD_MAX_DIM), Image.LANCZOS)
     buf = BytesIO()
     img.save(buf, format="JPEG", quality=85)

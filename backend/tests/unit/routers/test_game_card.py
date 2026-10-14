@@ -112,6 +112,16 @@ def test_put_photo_rejects_over_20mb(as_profile, monkeypatch):
     assert put(gid, jpeg(100, 100)).status_code == 413
 
 
+def test_put_photo_rejects_pixel_bomb(as_profile, monkeypatch):
+    from app.routers import game_card
+
+    monkeypatch.setattr(game_card, "CARD_MAX_PIXELS", 100 * 100 - 1)
+    gid = make_round(image="data:image/jpeg;base64,b2xk")
+    as_profile(MEMBER)
+    assert put(gid, jpeg(100, 100)).status_code == 400
+    assert stored(gid)[0] == "data:image/jpeg;base64,b2xk"
+
+
 def test_put_photo_forbidden_for_non_member(as_profile):
     gid = make_round()
     as_profile(profile())
