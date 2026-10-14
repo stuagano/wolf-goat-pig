@@ -40,11 +40,11 @@
     "waiver": null
   },
   "api-surface-no-drift": {
-    "at": "2026-10-14T03:07:44.895920+00:00",
+    "at": "2026-10-14T21:16:22.222688+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:96422652eb3bd692eb3328e35c5fce5e245ef99da2f07a3181c8c2fd077a259a",
+    "fingerprint": "sha256:65e99bfa7768699c04653c1df17d081a7942a2b4d882555d87f7bbb7d3a22141",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -60,7 +60,7 @@
     "waiver": null
   },
   "auth-rejects-junk-token": {
-    "at": "2026-10-13T04:15:18.272414+00:00",
+    "at": "2026-10-14T21:16:24.547384+00:00",
     "detail": null,
     "duration": null,
     "files": null,
@@ -210,7 +210,7 @@
     "waiver": null
   },
   "frontend-live-production": {
-    "at": "2026-10-13T04:15:24.150171+00:00",
+    "at": "2026-10-14T21:16:25.068408+00:00",
     "detail": null,
     "duration": null,
     "files": null,
@@ -230,11 +230,11 @@
     "waiver": null
   },
   "game-state-db-authoritative": {
-    "at": "2026-10-14T02:45:03.979892+00:00",
+    "at": "2026-10-14T21:16:19.552153+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:fd1862f783447b4df3ed6af70d70ee1f0d870506a9a91a8a92ee0a6e9afb770b",
+    "fingerprint": "sha256:b637525353b204b060098c6a5f6e91334ca59a136cd5fbbfd89612edfd48074d",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -280,7 +280,7 @@
     "waiver": null
   },
   "health-live-production": {
-    "at": "2026-10-13T04:15:17.839260+00:00",
+    "at": "2026-10-14T21:16:23.973988+00:00",
     "detail": null,
     "duration": null,
     "files": null,
@@ -520,11 +520,11 @@
     "waiver": null
   },
   "request-validation-422-envelope": {
-    "at": "2026-10-12T03:02:36.051379+00:00",
+    "at": "2026-10-14T21:16:17.191431+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:59c4a7952a01f75dc5d2c25658ed499651af95bb935895b5e8042cda932f5f86",
+    "fingerprint": "sha256:6af811c13f0f74c91790a9004b21e74002f5f945987acf4a305cc9afa1986dd2",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
