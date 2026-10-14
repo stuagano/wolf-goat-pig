@@ -51,6 +51,12 @@ def test_returns_cleaned_intro_and_sends_facts_in_prompt(use_llm):
     assert "never invent" in system.lower()
 
 
+def test_system_prompt_assumes_no_game_day():
+    # Games run on any day; the day must come from the facts, never the prompt.
+    for day in ("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"):
+        assert day not in email_voice.SYSTEM_INSTRUCTION
+
+
 def test_negative_numbers_in_facts_allow_their_magnitude(use_llm):
     use_llm(fake_llm("Bob dropped 20 quarters. Ouch."))
     assert email_voice.commissioner_intro("x", {"worst": {"player": "Bob", "quarters": -20}}) == (

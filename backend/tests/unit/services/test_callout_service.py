@@ -41,8 +41,8 @@ class StubEmailService:
     def is_configured(self):
         return self.configured
 
-    def send_callout_notification(self, *, to_email, player_name, game_date, signup_count, needed):
-        self.sent.append({"to_email": to_email, "needed": needed, "signup_count": signup_count})
+    def send_callout_notification(self, *, to_email, player_name, game_date, signup_count, needed, intro=None):
+        self.sent.append({"to_email": to_email, "needed": needed, "signup_count": signup_count, "intro": intro})
         return True
 
 
@@ -51,6 +51,19 @@ def stub_email(monkeypatch):
     stub = StubEmailService()
     monkeypatch.setattr(callout_service, "get_email_service", lambda: stub)
     return stub
+
+
+@pytest.fixture(autouse=True)
+def intro_calls(monkeypatch):
+    """Never hit the LLM; record what the intro was asked to write about."""
+    calls = []
+
+    def fake_intro(kind, facts):
+        calls.append(facts)
+        return f"{facts['day_of_week']} needs {facts['players_needed']}."
+
+    monkeypatch.setattr(callout_service.email_voice, "commissioner_intro", fake_intro)
+    return calls
 
 
 def _now():
@@ -152,6 +165,20 @@ def test_run_callout_fires_when_short(db, stub_email):
     assert stub_email.sent[0]["needed"] == 1
     # dedup row written
     assert db.query(CalloutNotification).filter_by(game_date=date, callout_window="day_before").count() == 1
+
+
+def test_callout_intro_uses_the_real_weekday_once_per_callout(db, stub_email, intro_calls):
+    wednesday = "2026-10-14"
+    for i in range(7):
+        sign_up(db, make_player(db, f"Signed{i}", f"s{i}@x.com", callout=False), wednesday)
+    make_player(db, "CallerA", "a@x.com", callout=True)
+    make_player(db, "CallerB", "b@x.com", callout=True)
+
+    callout_service.run_callout(db, wednesday, "night_before")
+
+    assert len(intro_calls) == 1
+    assert intro_calls[0]["day_of_week"] == "Wednesday"
+    assert [s["intro"] for s in stub_email.sent] == ["Wednesday needs 1."] * 2
 
 
 def test_run_callout_skips_when_not_short(db, stub_email):

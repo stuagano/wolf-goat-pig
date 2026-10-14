@@ -555,6 +555,7 @@ class EmailService:
         game_date: str,
         signup_count: int,
         needed: int,
+        intro: str | None = None,
     ) -> bool:
         """Calls an opt-in player to fill out a short game.
 
@@ -583,6 +584,7 @@ class EmailService:
         content = f"""
         <h2>⛳ We need {needed} more {player_word} for {formatted_date}!</h2>
         <p>Hi {player_name},</p>
+        {self._intro_html(intro)}
         <p>There {"is" if signup_count == 1 else "are"} <strong>{signup_count}</strong>
         signed up so far &mdash; we're <strong>{needed} short</strong> of a full group.
         You're on the callout list, so you're getting first dibs.</p>
@@ -605,7 +607,8 @@ class EmailService:
         text_body = (
             f"We need {needed} more {player_word} for {formatted_date}!\n\n"
             f"Hi {player_name},\n\n"
-            f"There are {signup_count} signed up so far - we're {needed} short of a full group. "
+            + (f"{intro}\n\n" if intro else "")
+            + f"There are {signup_count} signed up so far - we're {needed} short of a full group. "
             "You're on the callout list, so you're getting first dibs.\n\n"
             f"Sign up to play: {signup_url}\n\n"
             "Don't want these? Turn off the callout list in your email settings."

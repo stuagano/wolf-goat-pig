@@ -63,3 +63,18 @@ def test_explicit_date_dispatches_to_run_callout(monkeypatch):
     assert resp.status_code == 200
     assert calls == {"game_date": "2026-06-21", "window": "morning_of"}
     assert resp.json()["result"]["recipient_count"] == 2
+
+
+def test_night_before_window_is_accepted_for_any_day(monkeypatch):
+    calls = {}
+
+    def fake_run(db, game_date, window):
+        calls.update(game_date=game_date, window=window)
+        return {"fired": False, "reason": "not_short"}
+
+    monkeypatch.setattr(routers.callouts, "run_callout", fake_run)
+
+    resp = client.post("/callouts/run?window=night_before&game_date=2026-10-14")
+
+    assert resp.status_code == 200
+    assert calls == {"game_date": "2026-10-14", "window": "night_before"}

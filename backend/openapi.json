@@ -7439,12 +7439,12 @@
         "operationId": "run_headcount_callout_callouts_run_post",
         "parameters": [
           {
-            "description": "Callout window: pre_pairing or morning_of",
+            "description": "Callout window: pre_pairing, night_before or morning_of",
             "in": "query",
             "name": "window",
             "required": true,
             "schema": {
-              "description": "Callout window: pre_pairing or morning_of",
+              "description": "Callout window: pre_pairing, night_before or morning_of",
               "title": "Window",
               "type": "string"
             }

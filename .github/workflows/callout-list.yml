@@ -1,10 +1,12 @@
 name: Headcount Callout List
 
-# Emails the opt-in callout list when the upcoming Sunday game is short of a
-# full foursome. Driven here (not the in-process scheduler, which is a no-op
-# shim in prod) — same pattern as the GHIN sync cron.
+# Emails the opt-in callout list when a game is short of a full foursome.
+# Every evening checks TOMORROW's game (any day of the week); Friday and Sunday
+# morning add the Sunday-specific calls. Driven here (not the in-process
+# scheduler, which is a no-op shim in prod) — same pattern as the GHIN sync cron.
 on:
   schedule:
+    - cron: '0 1 * * *'   # Daily 01:00 UTC (~5-6pm PT) — night-before call for tomorrow's game
     - cron: '0 22 * * 5'  # Friday 22:00 UTC (~2-3pm PT) — pre-pairing recruiting call
     - cron: '0 15 * * 0'  # Sunday 15:00 UTC (~8am PT) — morning-of last call
   workflow_dispatch:
@@ -16,6 +18,7 @@ on:
         type: choice
         options:
           - pre_pairing
+          - night_before
           - morning_of
 
 # Don't let a slow run overlap the next scheduled fire; never cancel one that's
@@ -29,26 +32,35 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       window: ${{ steps.window.outputs.window }}
+      query: ${{ steps.window.outputs.query }}
     steps:
     - name: Determine window
       id: window
       run: |
         if [ -n "${{ github.event.inputs.window }}" ]; then
           WINDOW="${{ github.event.inputs.window }}"
+        elif [ "${{ github.event.schedule }}" = "0 1 * * *" ]; then
+          WINDOW="night_before"
         elif [ "$(date -u +%u)" = "5" ]; then
           WINDOW="pre_pairing"   # Friday
         else
           WINDOW="morning_of"    # Sunday
         fi
+        QUERY="window=$WINDOW"
+        if [ "$WINDOW" = "night_before" ]; then
+          # Tomorrow in the club's timezone, whatever day of the week it is.
+          QUERY="$QUERY&game_date=$(TZ=America/Los_Angeles date -d tomorrow +%F)"
+        fi
         echo "window=$WINDOW" >> "$GITHUB_OUTPUT"
-        echo "Using window: $WINDOW"
+        echo "query=$QUERY" >> "$GITHUB_OUTPUT"
+        echo "Using: $QUERY"
 
   callout:
     needs: determine-window
     uses: ./.github/workflows/_cron-curl.yml
     with:
       label: Headcount callout (window=${{ needs.determine-window.outputs.window }})
-      url: https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/callouts/run?window=${{ needs.determine-window.outputs.window }}
+      url: https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/callouts/run?${{ needs.determine-window.outputs.query }}
       headers: 'Content-Type: application/json'
       max-time: 60
     secrets:
