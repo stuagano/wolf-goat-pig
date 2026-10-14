@@ -30,6 +30,7 @@ from .routers import (
     courses,
     features,
     foretees,
+    game_card,
     games,
     games_holes,
     games_players,
@@ -342,6 +343,7 @@ app.include_router(team_formation.router)
 app.include_router(games.router)
 app.include_router(games_holes.router)
 app.include_router(games_players.router)
+app.include_router(game_card.router)
 app.include_router(legacy_scoring.router)
 app.include_router(groupme.router)
 

@@ -308,6 +308,20 @@
         "title": "Body_import_course_from_file_courses_import_file_post",
         "type": "object"
       },
+      "Body_put_scorecard_photo_games__game_id__scorecard_photo_put": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_put_scorecard_photo_games__game_id__scorecard_photo_put",
+        "type": "object"
+      },
       "Body_scan_scorecard_photo_scorecard_scan_post": {
         "properties": {
           "file": {
@@ -9995,6 +10009,56 @@
         ]
       }
     },
+    "/games/{game_id}/card": {
+      "get": {
+        "description": "What the signed-in viewer may do with this round's card, and its last edit.",
+        "operationId": "get_card_games__game_id__card_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "game_id",
+            "required": true,
+            "schema": {
+              "title": "Game Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Card Games  Game Id  Card Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Card",
+        "tags": [
+          "games"
+        ]
+      }
+    },
     "/games/{game_id}/complete": {
       "post": {
         "description": "Mark a game as completed and persist results to GameRecord / GamePlayerResult.\n\nExtracts hole-by-hole data from the game state JSON and writes it to the\npermanent results tables so it's queryable by the Commissioner data explorer.",
@@ -10785,6 +10849,64 @@
           }
         },
         "summary": "Get Scorecard Photo",
+        "tags": [
+          "games"
+        ]
+      },
+      "put": {
+        "description": "Attach or replace the round's card photo. Numbers are untouched.",
+        "operationId": "put_scorecard_photo_games__game_id__scorecard_photo_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "game_id",
+            "required": true,
+            "schema": {
+              "title": "Game Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_put_scorecard_photo_games__game_id__scorecard_photo_put"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Put Scorecard Photo Games  Game Id  Scorecard Photo Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Scorecard Photo",
         "tags": [
           "games"
         ]
