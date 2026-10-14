@@ -6,6 +6,7 @@
 
 import React from "react";
 import PropTypes from "prop-types";
+import ScorecardPhotoButton from "../ScorecardPhotoButton";
 
 export const ErrorBanner = ({ error, setError, theme }) => {
   return (
@@ -90,6 +91,7 @@ const ScorekeeperBanners = ({
   setCurrentHole,
   resetHole,
   holeHistory,
+  gameId,
 }) => {
   return (
     <>
@@ -221,6 +223,11 @@ const ScorekeeperBanners = ({
             <div style={{ fontSize: "14px", opacity: 0.9 }}>
               Click on any hole in the scorecard below to edit it
             </div>
+            {gameId && (
+              <div style={{ marginTop: "8px" }}>
+                <ScorecardPhotoButton gameId={gameId} />
+              </div>
+            )}
           </div>
           <button
             onClick={() => {
@@ -317,6 +324,7 @@ ScorekeeperBanners.propTypes = {
   setCurrentHole: PropTypes.func.isRequired,
   resetHole: PropTypes.func.isRequired,
   holeHistory: PropTypes.array.isRequired,
+  gameId: PropTypes.string,
 };
 
 export default ScorekeeperBanners;

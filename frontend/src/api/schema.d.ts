@@ -2322,6 +2322,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/games/{game_id}/card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Card
+         * @description What the signed-in viewer may do with this round's card, and its last edit.
+         */
+        get: operations["get_card_games__game_id__card_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/games/{game_id}/complete": {
         parameters: {
             query?: never;
@@ -2620,7 +2640,11 @@ export interface paths {
          * @description Return the stored scorecard photo for a scanned round (for later per-hole backfill).
          */
         get: operations["get_scorecard_photo_games__game_id__scorecard_photo_get"];
-        put?: never;
+        /**
+         * Put Scorecard Photo
+         * @description Attach or replace the round's card photo. Numbers are untouched.
+         */
+        put: operations["put_scorecard_photo_games__game_id__scorecard_photo_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -5269,6 +5293,11 @@ export interface components {
         };
         /** Body_import_course_from_file_courses_import_file_post */
         Body_import_course_from_file_courses_import_file_post: {
+            /** File */
+            file: string;
+        };
+        /** Body_put_scorecard_photo_games__game_id__scorecard_photo_put */
+        Body_put_scorecard_photo_games__game_id__scorecard_photo_put: {
             /** File */
             file: string;
         };
@@ -10531,6 +10560,39 @@ export interface operations {
             };
         };
     };
+    get_card_games__game_id__card_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     mark_game_complete_games__game_id__complete_post: {
         parameters: {
             query?: never;
@@ -11035,6 +11097,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_scorecard_photo_games__game_id__scorecard_photo_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_put_scorecard_photo_games__game_id__scorecard_photo_put"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

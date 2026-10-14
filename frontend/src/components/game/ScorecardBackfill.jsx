@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { computeHoleDeltas } from '../../utils/quarters';
 import ScorecardPhotoButton from './ScorecardPhotoButton';
+import { useAuthenticatedFetch } from '../../hooks/useAuthenticatedFetch';
 import { apiConfig } from '../../config/api.config';
 
 const API_URL = apiConfig.baseUrl;
@@ -65,6 +66,7 @@ const ScorecardBackfill = ({
   onSaved,
   onCancel,
 }) => {
+  const authenticatedFetch = useAuthenticatedFetch();
   // Pre-fill running totals from existing hole_history
   const initialValues = useMemo(
     () => holeHistoryToRunningTotals(holeHistory, players),
@@ -152,14 +154,14 @@ const ScorecardBackfill = ({
     }
 
     try {
-      const res = await fetch(`${API_URL}/games/${gameId}/scorecard`, {
+      const res = await authenticatedFetch(`${API_URL}/games/${gameId}/scorecard`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ per_hole_quarters: perHoleQuarters }),
       });
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Save failed: ${res.status} ${text}`);
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || `Save failed (${res.status})`);
       }
       onSaved();
     } catch (err) {

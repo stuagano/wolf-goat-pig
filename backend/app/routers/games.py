@@ -17,6 +17,7 @@ from ..services.notification_service import get_notification_service
 from ..state.course_manager import CourseManager
 from ..utils.admin_auth import require_admin
 from ..utils.handicap_resolve import find_course, resolve_player_handicap, to_course_handicap
+from ..utils.round_card import mark_card_edited, require_round_member_or_admin
 from ..utils.time import utc_now
 from ..wolf_goat_pig import Player, WolfGoatPigGame
 
@@ -1122,6 +1123,7 @@ class ScorecardBackfillRequest(BaseModel):
 async def backfill_scorecard(
     game_id: str,
     body: ScorecardBackfillRequest,
+    editor: models.PlayerProfile = Depends(require_round_member_or_admin),
     db: Session = Depends(database.get_db),
 ) -> dict[str, Any]:
     """Backfill the per-hole quarters of a scanned round and recompute standings.
@@ -1143,6 +1145,7 @@ async def backfill_scorecard(
     state["hole_history"] = hole_history
     state["hole_quarters"] = {str(e["hole"]): e["points_delta"] for e in hole_history}
     state["standings"] = standings
+    mark_card_edited(state, editor)
     game.state = state  # reassign top-level so MutableDict marks dirty
     game.updated_at = utc_now().isoformat()
 
