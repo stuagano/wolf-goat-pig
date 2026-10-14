@@ -1,6 +1,7 @@
 """A finished round's paper card: attach the photo, and report who may edit it."""
 
 import base64
+import logging
 from io import BytesIO
 from typing import Any
 
@@ -13,10 +14,12 @@ from ..services.auth_service import get_current_user
 from ..utils.round_card import can_edit_round, mark_card_edited, require_round_member_or_admin
 from ..utils.time import utc_now
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/games", tags=["games"])
 
 CARD_MAX_UPLOAD_BYTES = 20 * 1024 * 1024
-CARD_MAX_DIM = 2000  # big enough to read handwriting, small enough for the 2MB column budget
+CARD_MAX_DIM = 2000  # big enough to read handwriting, small enough to keep rows modest
 
 
 def _downscale_card(image_bytes: bytes) -> str:
@@ -28,22 +31,25 @@ def _downscale_card(image_bytes: bytes) -> str:
 
 
 @router.put("/{game_id}/scorecard-photo")
-async def put_scorecard_photo(
+def put_scorecard_photo(
     game_id: str,
     file: UploadFile = File(...),
     editor: models.PlayerProfile = Depends(require_round_member_or_admin),
     db: Session = Depends(database.get_db),
 ) -> dict[str, Any]:
     """Attach or replace the round's card photo. Numbers are untouched."""
-    image_bytes = await file.read()
+    image_bytes = file.file.read()
     if len(image_bytes) > CARD_MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="Photo too large. Maximum size is 20MB.")
     try:
         image = _downscale_card(image_bytes)
     except Exception as e:
+        logger.warning("Unreadable card photo for %s", game_id, exc_info=True)
         raise HTTPException(status_code=400, detail="Could not read that file as a photo") from e
 
-    game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).one()
+    game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
+    if not game:
+        raise HTTPException(status_code=404, detail="Round not found")
     state = dict(game.state or {})
     mark_card_edited(state, editor)
     game.scorecard_image = image
