@@ -310,6 +310,20 @@ class TestListGames:
 # ── DELETE /games/{game_id} ──────────────────────────────────────────────────
 
 
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("delete", "/games/any-game"),
+        ("delete", "/games/any-game/players/p1"),
+        ("post", "/games/create-custom"),
+    ],
+)
+def test_destructive_game_routes_reject_anonymous_callers(method, path):
+    resp = getattr(client, method)(path)
+    assert resp.status_code == 401
+
+
+@pytest.mark.usefixtures("as_admin")
 class TestDeleteGame:
     def test_delete_game_returns_200(self):
         game = _create_game().json()

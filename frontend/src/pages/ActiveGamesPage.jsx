@@ -7,6 +7,8 @@ import CommissionerChat from '../components/game/CommissionerChat';
 import AppFooter from '../components/ui/AppFooter';
 import { api } from '../api/client';
 import { errorDetail } from '../api/http';
+import { useAccessToken } from '../hooks/useAccessToken';
+import { usePlayerProfile } from '../hooks/usePlayerProfile';
 
 /**
  * ActiveGamesPage - List all in-progress games
@@ -16,6 +18,8 @@ import { errorDetail } from '../api/http';
 const ActiveGamesPage = () => {
   const navigate = useNavigate();
   const theme = useTheme();
+  const { getToken } = useAccessToken();
+  const { isAdmin } = usePlayerProfile();
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -89,6 +93,7 @@ const ActiveGamesPage = () => {
     try {
       const { error: apiError, response } = await api.DELETE('/games/{game_id}', {
         params: { path: { game_id: gameId } },
+        headers: { Authorization: `Bearer ${await getToken()}` },
       });
 
       if (!response.ok) {
@@ -398,7 +403,7 @@ const ActiveGamesPage = () => {
                     >
                       👁️ View
                     </button>
-                    <button
+                    {isAdmin && <button
                       onClick={(e) => handleDeleteGame(game.game_id, e)}
                       disabled={deletingGameId === game.game_id}
                       style={{
@@ -413,7 +418,7 @@ const ActiveGamesPage = () => {
                       }}
                     >
                       {deletingGameId === game.game_id ? '⏳ Deleting...' : '🗑️ Delete'}
-                    </button>
+                    </button>}
                   </div>
                 </div>
               </Card>

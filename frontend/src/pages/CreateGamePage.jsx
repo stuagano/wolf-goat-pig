@@ -4,6 +4,7 @@ import { useTheme } from '../theme/Provider';
 import { useAuth0 } from '@auth0/auth0-react';
 import { apiConfig } from '../config/api.config';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
+import { useAuthenticatedFetch } from '../hooks/useAuthenticatedFetch';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -25,6 +26,7 @@ function CreateGamePage() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth0();
   const { stuart_mode: stuartModeEnabled } = useFeatureFlags();
+  const authenticatedFetch = useAuthenticatedFetch();
 
   const [loading, setLoading] = useState(false);
   const [creatingEmpty, setCreatingEmpty] = useState(false);
@@ -120,7 +122,7 @@ function CreateGamePage() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/games/create-custom`, {
+      const res = await authenticatedFetch(`${API_URL}/games/create-custom`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

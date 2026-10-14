@@ -3,8 +3,33 @@
 import pytest
 
 from app.database import SessionLocal
+from app.main import app
+from app.services.auth_service import get_current_user
+from app.utils.admin_auth import require_admin
 
 WING_POINT_NAME = "Wing Point Golf & Country Club"
+
+
+def _override(dependency, value):
+    previous = app.dependency_overrides.get(dependency)
+    app.dependency_overrides[dependency] = lambda: value
+    yield
+    if previous is None:
+        app.dependency_overrides.pop(dependency, None)
+    else:
+        app.dependency_overrides[dependency] = previous
+
+
+@pytest.fixture
+def as_admin():
+    """Call admin-only routes as an admin."""
+    yield from _override(require_admin, {"email": "admin@test.com"})
+
+
+@pytest.fixture
+def signed_in():
+    """Call sign-in-required routes as a signed-in player."""
+    yield from _override(get_current_user, object())
 
 
 @pytest.fixture
