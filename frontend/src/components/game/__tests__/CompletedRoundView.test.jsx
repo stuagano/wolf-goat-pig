@@ -112,15 +112,47 @@ describe('CompletedRoundView', () => {
     expect(screen.getByText('photo:g1')).toBeTruthy();
   });
 
-  test('shows an error when the upload fails', async () => {
-    authFetch.mockReturnValueOnce(card(NO_PHOTO)).mockReturnValueOnce(Promise.resolve({ ok: false, status: 403 }));
+  test('shows the server detail when the upload fails', async () => {
+    const detail = 'Only players in this round or an admin can change its card';
+    authFetch
+      .mockReturnValueOnce(card(NO_PHOTO))
+      .mockReturnValueOnce(Promise.resolve({ ok: false, status: 403, json: async () => ({ detail }) }));
     render(<CompletedRoundView {...baseProps} gameId="g1" onMarkedComplete={vi.fn()} onEditScores={vi.fn()} />);
     fireEvent.change(await screen.findByLabelText(/add the card photo/i), {
       target: { files: [new File(['x'], 'card.jpg', { type: 'image/jpeg' })] },
     });
     const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toContain('403');
+    expect(alert.textContent).toBe(detail);
     expect(screen.getByLabelText(/add the card photo/i)).toBeTruthy();
+  });
+
+  test('falls back to the status when the error body has no detail', async () => {
+    authFetch.mockReturnValueOnce(card(NO_PHOTO)).mockReturnValueOnce(Promise.resolve({ ok: false, status: 502 }));
+    render(<CompletedRoundView {...baseProps} gameId="g1" onMarkedComplete={vi.fn()} onEditScores={vi.fn()} />);
+    fireEvent.change(await screen.findByLabelText(/add the card photo/i), {
+      target: { files: [new File(['x'], 'card.jpg', { type: 'image/jpeg' })] },
+    });
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe('Upload failed (502)');
+  });
+
+  test('a member viewing a round with a photo can replace it, and /card is re-fetched', async () => {
+    authFetch
+      .mockReturnValueOnce(card({ ...NO_PHOTO, has_photo: true }))
+      .mockReturnValueOnce(Promise.resolve({ ok: true, json: async () => ({}) }))
+      .mockReturnValue(card({ ...NO_PHOTO, has_photo: true }));
+    render(<CompletedRoundView {...baseProps} gameId="g1" onMarkedComplete={vi.fn()} onEditScores={vi.fn()} />);
+
+    const input = await screen.findByLabelText(/replace card photo/i);
+    expect(screen.queryByLabelText(/add the card photo/i)).toBeNull();
+    fireEvent.change(input, { target: { files: [new File(['x'], 'card.jpg', { type: 'image/jpeg' })] } });
+
+    await waitFor(() =>
+      expect(authFetch).toHaveBeenCalledWith('http://test-api/games/g1/scorecard-photo', expect.objectContaining({ method: 'PUT' })),
+    );
+    await waitFor(() =>
+      expect(authFetch.mock.calls.filter(([url]) => url === 'http://test-api/games/g1/card')).toHaveLength(2),
+    );
   });
 
   test('shows who last edited the card', async () => {

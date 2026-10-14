@@ -160,8 +160,8 @@ const ScorecardBackfill = ({
         body: JSON.stringify({ per_hole_quarters: perHoleQuarters }),
       });
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Save failed: ${res.status} ${text}`);
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || `Save failed (${res.status})`);
       }
       onSaved();
     } catch (err) {

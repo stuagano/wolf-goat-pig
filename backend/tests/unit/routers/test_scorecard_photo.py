@@ -41,57 +41,61 @@ def test_get_scorecard_photo_404_when_none():
 
 def test_patch_scorecard_recomputes_standings_from_new_per_hole(monkeypatch):
     monkeypatch.setenv("SUPER_ADMIN_EMAILS", "boss@test.com")
-    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
-        id=1, name="Boss", email="boss@test.com", preferences={}, admin_granted=0, is_active=1
-    )
-    # create a round (totals-only: A +8 on hole 18, B -8)
-    models.Base.metadata.create_all(bind=engine)
-    create = client.post(
-        "/games/from-scorecard",
-        json={
-            "players": [{"name": "A"}, {"name": "B"}, {"name": "C"}, {"name": "D"}],
-            "per_hole_quarters": [{"player_index": i, "hole": 18, "quarters": q} for i, q in enumerate([8, -8, 4, -4])],
-        },
-    )
-    gid = create.json()["game_id"]
-    # backfill: spread A's +8 across holes 1 and 2 (sum still 8) — standings unchanged
-    patch = client.patch(
-        f"/games/{gid}/scorecard",
-        json={
-            "per_hole_quarters": [
-                {"player_index": 0, "hole": 1, "quarters": 5},
-                {"player_index": 0, "hole": 2, "quarters": 3},
-                {"player_index": 1, "hole": 1, "quarters": -5},
-                {"player_index": 1, "hole": 2, "quarters": -3},
-                {"player_index": 2, "hole": 1, "quarters": 4},
-                {"player_index": 3, "hole": 1, "quarters": -4},
-            ]
-        },
-    )
-    assert patch.status_code == 200, patch.text
-    db = SessionLocal()
     try:
-        state = db.query(models.GameStateModel).filter_by(game_id=gid).first().state
-        # hole_history now has holes 1 and 2 (not just 18)
-        assert {e["hole"] for e in state["hole_history"]} == {1, 2}
-        # standings preserved: A total +8
-        assert state["standings"]["p1"] == 8
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+            id=1, name="Boss", email="boss@test.com", preferences={}, admin_granted=0, is_active=1
+        )
+        # create a round (totals-only: A +8 on hole 18, B -8)
+        models.Base.metadata.create_all(bind=engine)
+        create = client.post(
+            "/games/from-scorecard",
+            json={
+                "players": [{"name": "A"}, {"name": "B"}, {"name": "C"}, {"name": "D"}],
+                "per_hole_quarters": [
+                    {"player_index": i, "hole": 18, "quarters": q} for i, q in enumerate([8, -8, 4, -4])
+                ],
+            },
+        )
+        gid = create.json()["game_id"]
+        # backfill: spread A's +8 across holes 1 and 2 (sum still 8) — standings unchanged
+        patch = client.patch(
+            f"/games/{gid}/scorecard",
+            json={
+                "per_hole_quarters": [
+                    {"player_index": 0, "hole": 1, "quarters": 5},
+                    {"player_index": 0, "hole": 2, "quarters": 3},
+                    {"player_index": 1, "hole": 1, "quarters": -5},
+                    {"player_index": 1, "hole": 2, "quarters": -3},
+                    {"player_index": 2, "hole": 1, "quarters": 4},
+                    {"player_index": 3, "hole": 1, "quarters": -4},
+                ]
+            },
+        )
+        assert patch.status_code == 200, patch.text
+        db = SessionLocal()
+        try:
+            state = db.query(models.GameStateModel).filter_by(game_id=gid).first().state
+            # hole_history now has holes 1 and 2 (not just 18)
+            assert {e["hole"] for e in state["hole_history"]} == {1, 2}
+            # standings preserved: A total +8
+            assert state["standings"]["p1"] == 8
 
-        # I1 regression guard: GameRecord.final_scores must reflect the new standings
-        # after PATCH (not the stale initial values from before the backfill).
-        record = db.query(models.GameRecord).filter_by(game_id=gid).first()
-        assert record is not None, "GameRecord must exist after backfill"
-        assert record.final_scores is not None, "GameRecord.final_scores must be set"
-        assert record.final_scores.get("p1") == 8, (
-            f"GameRecord.final_scores['p1'] should be 8 after backfill, got {record.final_scores.get('p1')}"
-        )
-        # total_holes_played should match the number of holes in new hole_history (2)
-        assert record.total_holes_played == 2, (
-            f"GameRecord.total_holes_played should be 2 after backfill, got {record.total_holes_played}"
-        )
+            # I1 regression guard: GameRecord.final_scores must reflect the new standings
+            # after PATCH (not the stale initial values from before the backfill).
+            record = db.query(models.GameRecord).filter_by(game_id=gid).first()
+            assert record is not None, "GameRecord must exist after backfill"
+            assert record.final_scores is not None, "GameRecord.final_scores must be set"
+            assert record.final_scores.get("p1") == 8, (
+                f"GameRecord.final_scores['p1'] should be 8 after backfill, got {record.final_scores.get('p1')}"
+            )
+            # total_holes_played should match the number of holes in new hole_history (2)
+            assert record.total_holes_played == 2, (
+                f"GameRecord.total_holes_played should be 2 after backfill, got {record.total_holes_played}"
+            )
+        finally:
+            db.close()
     finally:
-        db.close()
-    app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(get_current_user, None)
 
 
 def test_patch_scorecard_404_for_missing_round():

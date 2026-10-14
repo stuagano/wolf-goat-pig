@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import PropTypes from "prop-types";
 import GameCompletionView from "./GameCompletionView";
 import ScorecardPhotoButton from "./ScorecardPhotoButton";
 import { apiConfig } from "../../config/api.config";
 import { fetchJson } from "../../services/fetchJson";
 import { useAuthenticatedFetch } from "../../hooks/useAuthenticatedFetch";
+import useRoundCard from "../../hooks/useRoundCard";
 
 const API_URL = apiConfig.baseUrl;
 
@@ -26,31 +27,34 @@ const CompletedRoundView = ({
 }) => {
   const authenticatedFetch = useAuthenticatedFetch();
   // { has_photo, can_edit, edited_by, edited_at } — null when signed out or unknown.
-  const [card, setCard] = useState(null);
-  // Bumped after an upload: re-reads /card and remounts the photo button.
+  const { card, refresh } = useRoundCard(gameId);
+  // Bumped after an upload to remount the photo button so it re-reads the image.
   const [photoVersion, setPhotoVersion] = useState(0);
+  const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
 
-  useEffect(() => {
-    if (!gameId) return;
-    authenticatedFetch(`${API_URL}/games/${gameId}/card`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then(setCard)
-      .catch(() => setCard(null)); // signed out: view-only
-  }, [gameId, authenticatedFetch, photoVersion]);
-
   const handleCardPhoto = async (event) => {
-    const file = event.target.files?.[0];
+    const input = event.target;
+    const file = input.files?.[0];
+    // Reset so picking the same file again (a retry) still fires change.
+    input.value = "";
     if (!file) return;
     const body = new FormData();
     body.append("file", file);
     setUploadError(null);
+    setUploading(true);
     try {
       const res = await authenticatedFetch(`${API_URL}/games/${gameId}/scorecard-photo`, { method: "PUT", body });
-      if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+      if (!res.ok) {
+        const data = (await res.json?.().catch(() => ({}))) || {};
+        throw new Error(data.detail || `Upload failed (${res.status})`);
+      }
       setPhotoVersion((v) => v + 1);
+      refresh();
     } catch (error) {
       setUploadError(error.message);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -89,7 +93,7 @@ const CompletedRoundView = ({
         strokeAllocation={strokeAllocation}
       />
       {gameId && <ScorecardPhotoButton key={photoVersion} gameId={gameId} />}
-      {card?.can_edit && !card.has_photo && (
+      {card?.can_edit && (
         <label
           style={{
             display: "inline-block",
@@ -103,8 +107,8 @@ const CompletedRoundView = ({
             cursor: "pointer",
           }}
         >
-          📷 Add the card photo
-          <input type="file" accept="image/*" hidden onChange={handleCardPhoto} />
+          {uploading ? "Uploading…" : card.has_photo ? "📷 Replace card photo" : "📷 Add the card photo"}
+          <input type="file" accept="image/*" hidden disabled={uploading} onChange={handleCardPhoto} />
         </label>
       )}
       {uploadError && (

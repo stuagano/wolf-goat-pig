@@ -1,5 +1,6 @@
 """Who may change a finished round's card: the players in that round, plus admins."""
 
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import Depends, HTTPException
@@ -9,7 +10,6 @@ from .. import models
 from ..database import get_db
 from ..services.auth_service import get_current_user
 from .admin_auth import is_admin_profile
-from .time import utc_now
 
 
 def can_edit_round(db: Session, game: models.GameStateModel, profile: Any) -> bool:
@@ -46,4 +46,5 @@ def require_round_member_or_admin(
 def mark_card_edited(state: dict, profile: Any) -> None:
     """Last edit only; full history is out of scope."""
     state["card_edited_by"] = getattr(profile, "name", None) or getattr(profile, "email", None)
-    state["card_edited_at"] = utc_now().isoformat()
+    # Aware UTC (trailing +00:00) so the browser doesn't read it as local time.
+    state["card_edited_at"] = datetime.now(UTC).isoformat()

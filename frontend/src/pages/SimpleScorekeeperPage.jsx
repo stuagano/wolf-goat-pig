@@ -7,6 +7,7 @@ import { Card } from '../components/ui';
 import { useTheme } from '../theme/Provider';
 import ErrorBoundary, { GameErrorFallback } from '../components/common/ErrorBoundary';
 import useGameData from '../hooks/useGameData';
+import useRoundCard from '../hooks/useRoundCard';
 
 /**
  * Wrapper page for SimpleScorekeeper that loads game data
@@ -16,6 +17,7 @@ const SimpleScorekeeperPage = () => {
   const theme = useTheme();
   const { loading, error, game, reload } = useGameData(gameId);
   const [showBackfill, setShowBackfill] = useState(false);
+  const { card } = useRoundCard(gameId);
 
   if (loading) {
     return (
@@ -139,7 +141,7 @@ const SimpleScorekeeperPage = () => {
         courseName={courseName}
         initialStrokeAllocation={strokeAllocation}
       />
-      {isComplete && (
+      {isComplete && card?.can_edit && (
         <div style={{ padding: '0 20px 20px', maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
           <button
             type="button"
