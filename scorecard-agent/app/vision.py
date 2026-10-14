@@ -62,7 +62,8 @@ async def extract_scorecard(
         config=types.GenerateContentConfig(
             temperature=0.0 if strict else 0.2,
             response_mime_type="application/json",
-            max_output_tokens=8192,
+            max_output_tokens=settings.max_output_tokens,
+            thinking_config=types.ThinkingConfig(thinking_budget=settings.thinking_budget),
         ),
     )
 
