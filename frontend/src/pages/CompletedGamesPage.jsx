@@ -5,6 +5,8 @@ import { Card } from '../components/ui';
 import { useTheme } from '../theme/Provider';
 import CommissionerChat from '../components/game/CommissionerChat';
 import { api } from '../api/client';
+import { useAccessToken } from '../hooks/useAccessToken';
+import { usePlayerProfile } from '../hooks/usePlayerProfile';
 
 /**
  * CompletedGamesPage - List all completed games with results
@@ -13,6 +15,8 @@ import { api } from '../api/client';
 const CompletedGamesPage = () => {
   const navigate = useNavigate();
   const theme = useTheme();
+  const { getToken } = useAccessToken();
+  const { isAdmin } = usePlayerProfile();
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -74,6 +78,7 @@ const CompletedGamesPage = () => {
     try {
       const { response } = await api.DELETE('/games/{game_id}', {
         params: { path: { game_id: gameId } },
+        headers: { Authorization: `Bearer ${await getToken()}` },
       });
 
       if (!response.ok) {
@@ -318,7 +323,7 @@ const CompletedGamesPage = () => {
                       >
                         📊 View Results
                       </button>
-                      <button
+                      {isAdmin && <button
                         onClick={(e) => handleDeleteGame(game.game_id, e)}
                         style={{
                           ...theme.buttonStyle,
@@ -330,7 +335,7 @@ const CompletedGamesPage = () => {
                         }}
                       >
                         🗑️ Delete
-                      </button>
+                      </button>}
                     </div>
                   </div>
                 </Card>

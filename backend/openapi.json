@@ -9682,6 +9682,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create Custom Game",
         "tags": [
           "games"
@@ -9979,6 +9984,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Delete Game",
         "tags": [
           "games"
@@ -10608,6 +10618,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Remove Player",
         "tags": [
           "games"

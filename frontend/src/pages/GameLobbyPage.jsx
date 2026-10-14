@@ -5,6 +5,8 @@ import { useSheetSync } from '../context';
 import CommissionerChat from '../components/game/CommissionerChat';
 import TeeTossModal from '../components/game/TeeTossModal';
 import { apiConfig } from '../config/api.config';
+import { useAuthenticatedFetch } from '../hooks/useAuthenticatedFetch';
+import { usePlayerProfile } from '../hooks/usePlayerProfile';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -13,6 +15,8 @@ function GameLobbyPage() {
   const navigate = useNavigate();
   const { gameId } = useParams();
   const { syncData: leaderboardPlayers } = useSheetSync();
+  const authenticatedFetch = useAuthenticatedFetch();
+  const { isAdmin } = usePlayerProfile();
 
   const [lobby, setLobby] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -217,7 +221,7 @@ function GameLobbyPage() {
     setError('');
 
     try {
-      const response = await fetch(`${API_URL}/games/${gameId}/players/${playerSlotId}`, {
+      const response = await authenticatedFetch(`${API_URL}/games/${gameId}/players/${playerSlotId}`, {
         method: 'DELETE'
       });
 
@@ -788,8 +792,8 @@ function GameLobbyPage() {
                     </div>
                   </div>
 
-                  {/* Remove Button */}
-                  <button
+                  {/* Remove Button — admin-only on the server */}
+                  {isAdmin && <button
                     onClick={() => handleRemovePlayer(player.player_slot_id)}
                     disabled={isDeleting}
                     style={{
@@ -806,7 +810,7 @@ function GameLobbyPage() {
                     title="Remove player"
                   >
                     {isDeleting ? '...' : '✕ Remove'}
-                  </button>
+                  </button>}
                 </div>
               );
             })

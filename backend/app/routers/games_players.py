@@ -10,8 +10,10 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from .. import database, models
+from ..services.auth_service import get_current_user
 from ..services.game_lifecycle_service import get_game_lifecycle_service
 from ..state.course_manager import CourseManager
+from ..utils.admin_auth import require_admin
 from ..utils.handicap_resolve import find_course, resolve_course_handicap
 from ..utils.time import utc_now
 from ..wolf_goat_pig import Player, WolfGoatPigGame
@@ -182,7 +184,7 @@ def roster_suggestions(db: Session = Depends(database.get_db)) -> Any:
     return {"players": sorted(out.values(), key=lambda p: p["name"])}
 
 
-@router.post("/create-custom")
+@router.post("/create-custom", dependencies=[Depends(get_current_user)])
 async def create_custom_game(body: CreateCustomGameRequest, db: Session = Depends(database.get_db)) -> Any:
     """Create a started game from a custom roster of real and/or ghost
     players. Ghosts are flagged is_authenticated=False so Stuart Mode
@@ -533,7 +535,7 @@ async def update_player_name(
     return {"success": True, "game_id": game_id, "player_id": player_id, "name": new_name}
 
 
-@router.delete("/{game_id}/players/{player_slot_id}")
+@router.delete("/{game_id}/players/{player_slot_id}", dependencies=[Depends(require_admin)])
 async def remove_player(game_id: str, player_slot_id: str, db: Session = Depends(database.get_db)):  # type: ignore
     """
     Remove a player from a game in setup/lobby status.

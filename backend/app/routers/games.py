@@ -15,6 +15,7 @@ from ..badge_engine import BadgeEngine
 from ..services.game_lifecycle_service import get_game_lifecycle_service
 from ..services.notification_service import get_notification_service
 from ..state.course_manager import CourseManager
+from ..utils.admin_auth import require_admin
 from ..utils.handicap_resolve import find_course, resolve_player_handicap, to_course_handicap
 from ..utils.time import utc_now
 from ..wolf_goat_pig import Player, WolfGoatPigGame
@@ -778,7 +779,7 @@ async def get_games(  # type: ignore
         raise HTTPException(status_code=500, detail=f"Error retrieving games: {e!s}")
 
 
-@router.delete("/{game_id}")
+@router.delete("/{game_id}", dependencies=[Depends(require_admin)])
 async def delete_game(game_id: str, db: Session = Depends(database.get_db)):  # type: ignore
     """
     Delete a game and all associated data.
