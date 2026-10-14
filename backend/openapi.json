@@ -10738,6 +10738,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Backfill Scorecard",
         "tags": [
           "games"

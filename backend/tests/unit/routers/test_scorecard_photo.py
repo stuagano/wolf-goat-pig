@@ -1,11 +1,13 @@
 import base64
 import uuid
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
 from app import models
 from app.database import SessionLocal, engine
 from app.main import app
+from app.services.auth_service import get_current_user
 
 client = TestClient(app)
 
@@ -37,7 +39,11 @@ def test_get_scorecard_photo_404_when_none():
     assert client.get(f"/games/{gid}/scorecard-photo").status_code == 404
 
 
-def test_patch_scorecard_recomputes_standings_from_new_per_hole():
+def test_patch_scorecard_recomputes_standings_from_new_per_hole(monkeypatch):
+    monkeypatch.setenv("SUPER_ADMIN_EMAILS", "boss@test.com")
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+        id=1, name="Boss", email="boss@test.com", preferences={}, admin_granted=0, is_active=1
+    )
     # create a round (totals-only: A +8 on hole 18, B -8)
     models.Base.metadata.create_all(bind=engine)
     create = client.post(
@@ -85,7 +91,14 @@ def test_patch_scorecard_recomputes_standings_from_new_per_hole():
         )
     finally:
         db.close()
+    app.dependency_overrides.pop(get_current_user, None)
 
 
 def test_patch_scorecard_404_for_missing_round():
-    assert client.patch("/games/nope/scorecard", json={"per_hole_quarters": []}).status_code == 404
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+        id=1, name="Boss", email="x@test.com", preferences={}, admin_granted=0, is_active=1
+    )
+    try:
+        assert client.patch("/games/nope/scorecard", json={"per_hole_quarters": []}).status_code == 404
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
