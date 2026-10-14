@@ -18,6 +18,11 @@ vi.mock('../ScorecardPhotoZoom', () => ({
   ),
 }));
 
+vi.mock('../../../hooks/useAuthenticatedFetch', () => ({
+  useAuthenticatedFetch: () => (url, options = {}) =>
+    global.fetch(url, { ...options, headers: { ...options.headers, Authorization: 'Bearer test-token' } }),
+}));
+
 // Mock ScorecardPhotoButton — it is a self-probing component that fetches
 // /scorecard-photo internally. We control its rendered output per test.
 vi.mock('../ScorecardPhotoButton', () => ({
@@ -87,6 +92,7 @@ describe('ScorecardBackfill — money path', () => {
     const [url, opts] = global.fetch.mock.calls[0];
     expect(url).toBe('http://test-api/games/g1/scorecard');
     expect(opts.method).toBe('PATCH');
+    expect(opts.headers.Authorization).toBe('Bearer test-token');
 
     const body = JSON.parse(opts.body);
     expect(body).toHaveProperty('per_hole_quarters');

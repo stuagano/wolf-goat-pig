@@ -829,6 +829,7 @@ const SimpleScorekeeper = ({
         setCurrentHole={setCurrentHole}
         resetHole={resetHole}
         holeHistory={holeHistory}
+        gameId={gameId}
       />
 
       <h2 data-testid="scoring-hole-heading" style={{ margin: "0 0 16px", color: theme.colors.textPrimary }}>
