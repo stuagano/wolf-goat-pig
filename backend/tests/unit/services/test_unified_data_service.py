@@ -329,3 +329,28 @@ def test_member_post_without_group_or_location_still_serializes():
     unified = svc._legacy_round_to_unified(row)
 
     assert (unified.group, unified.location) == ("", "")
+
+
+def test_exact_copy_of_a_sheet_round_keeps_the_app_hole_detail():
+    from app.services.unified_data_service import _keep_first
+
+    holes = [{"hole": 1, "quarters": 2}]
+    rounds: dict = {}
+    _keep_first(rounds, _r("2026-10-12", "Steve Sutorius", 126, "primary_sheet", ("s", 1)))
+    _keep_first(rounds, _r("2026-10-12", "Steve Sutorius", 126, "database", ("db", 7), holes=holes))
+
+    assert [(r.source, r.hole_scores) for r in rounds.values()] == [("primary_sheet", holes)]
+
+
+def test_misspelled_app_name_keeps_hole_detail_by_unique_score():
+    holes = [{"hole": 1, "quarters": 2}]
+    rounds = [
+        _r("2026-10-12", "Brett Hodus", 40, "primary_sheet", ("s", 1)),
+        _r("2026-10-12", "Aaron Foster", -40, "primary_sheet", ("s", 1)),
+        _r("2026-10-12", "Bret Hodus", 40, "database", ("db", 7), holes=holes),
+        _r("2026-10-12", "Aaron Foster", -40, "database", ("db", 7)),
+    ]
+
+    kept = UnifiedDataService._drop_sheet_duplicates(rounds)
+
+    assert kept[0].member == "Brett Hodus" and kept[0].hole_scores == holes

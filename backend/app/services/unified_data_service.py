@@ -80,6 +80,13 @@ class UnifiedLeaderboardEntry:
             self.average = self.quarters / self.rounds
 
 
+def _keep_first(rounds: dict[tuple, UnifiedRound], r: UnifiedRound) -> None:
+    """Exact-key dedup; the first row wins but keeps a later copy's hole detail."""
+    kept = rounds.setdefault((r.date_sortable, r.group, r.member, r.score), r)
+    if kept is not r and r.hole_scores and not kept.hole_scores:
+        kept.hole_scores = r.hole_scores
+
+
 class UnifiedDataService:
     """Service that merges data from spreadsheets and database."""
 
@@ -210,9 +217,7 @@ class UnifiedDataService:
                     .all()
                 ):
                     unified = self._legacy_round_to_unified(r)
-                    key = (unified.date_sortable, unified.group, unified.member, unified.score)
-                    if key not in all_rounds:
-                        all_rounds[key] = unified
+                    _keep_first(all_rounds, unified)
             except Exception as e:
                 logger.warning(f"Failed to read legacy_rounds cache: {e}")
         else:
@@ -221,9 +226,7 @@ class UnifiedDataService:
             try:
                 for r in self.primary_sheet.get_all_rounds():
                     unified = self._sheet_round_to_unified(r, "primary_sheet")
-                    key = (unified.date_sortable, unified.group, unified.member, unified.score)
-                    if key not in all_rounds:
-                        all_rounds[key] = unified
+                    _keep_first(all_rounds, unified)
             except Exception as e:
                 logger.warning(f"Failed to fetch primary sheet: {e}")
 
@@ -236,9 +239,7 @@ class UnifiedDataService:
                     results = db.query(GamePlayerResult).filter(GamePlayerResult.game_record_id == record.id).all()
                     for result in results:
                         unified = self._db_result_to_unified(result, record)
-                        key = (unified.date_sortable, unified.group, unified.member, unified.score)
-                        if key not in all_rounds:
-                            all_rounds[key] = unified
+                        _keep_first(all_rounds, unified)
             except Exception as e:
                 logger.warning(f"Failed to fetch database records: {e}")
 
@@ -287,9 +288,14 @@ class UnifiedDataService:
                 continue
             sheet_game = min(matches, key=lambda m: m[0])[1]
             holes = {name(r): r.hole_scores for r in g if r.hole_scores}
+            # Misspelled names fall back to the score when it is unique in both games.
+            by_score = {r.score: r.hole_scores for r in g if r.hole_scores and totals.count(r.score) == 1}
+            sheet_totals = [r.score for r in sheet_game]
             for r in sheet_game:
-                if not r.hole_scores and name(r) in holes:
-                    r.hole_scores = holes[name(r)]
+                if not r.hole_scores:
+                    r.hole_scores = holes.get(name(r)) or (
+                        by_score.get(r.score) if sheet_totals.count(r.score) == 1 else None
+                    )
         return kept
 
     def get_unified_leaderboard(self) -> list[UnifiedLeaderboardEntry]:
