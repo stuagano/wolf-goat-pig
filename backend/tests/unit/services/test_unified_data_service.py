@@ -254,3 +254,78 @@ def test_writable_sheet_is_season_primary():
 
     assert WRITABLE_SHEET_ID == PRIMARY_SHEET_ID
     assert PRIMARY_SHEET_ID == "141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ"
+
+
+# ── sheet is authority: app/member copies of a sheet round are dropped ────────
+
+
+def _r(day, member, score, source, game, group="A", holes=None):
+    return UnifiedRound(
+        day[5:], day, group, member, score, "Wing Point", source=source, game_key=game, hole_scores=holes
+    )
+
+
+class TestSheetAuthorityDedup:
+    def test_app_round_finished_later_with_scan_errors_is_dropped(self):
+        """Prod 2026-10-14: app round dated by completion (10-14) with totals off
+        by 8 duplicated the 10-12 sheet round for the same group."""
+        holes = [{"hole": 1, "quarters": 2}]
+        rounds = [
+            _r("2026-10-12", "Steve Sutorius", 126, "primary_sheet", ("s", 1)),
+            _r("2026-10-12", "Tyson Thielman", -58, "primary_sheet", ("s", 1)),
+            _r("2026-10-14", "Steve Sutorius", 118, "database", ("db", 7), holes=holes),
+            _r("2026-10-14", "tyson thielman ", -50, "database", ("db", 7)),
+        ]
+
+        kept = UnifiedDataService._drop_sheet_duplicates(rounds)
+
+        assert [(r.member, r.score, r.source) for r in kept] == [
+            ("Steve Sutorius", 126, "primary_sheet"),
+            ("Tyson Thielman", -58, "primary_sheet"),
+        ]
+        assert kept[0].hole_scores == holes  # hole detail survives on the sheet row
+
+    def test_member_post_with_same_totals_but_a_misspelled_name_is_dropped(self):
+        rounds = [
+            _r("2026-10-06", "Brett Hodus", 40, "primary_sheet", ("s", 1), group="B"),
+            _r("2026-10-06", "Aaron Foster", -40, "primary_sheet", ("s", 1), group="B"),
+            _r("2026-10-06", "Bret Hodus", 40, "member", ("m", 1), group=""),
+            _r("2026-10-06", "Aaron Foster", -40, "member", ("m", 1), group=""),
+        ]
+
+        kept = UnifiedDataService._drop_sheet_duplicates(rounds)
+
+        assert {r.source for r in kept} == {"primary_sheet"}
+        assert len(kept) == 2
+
+    def test_app_round_not_on_the_sheet_is_kept(self):
+        rounds = [
+            _r("2026-10-12", "Steve Sutorius", 126, "primary_sheet", ("s", 1)),
+            _r("2026-10-12", "Tyson Thielman", -126, "primary_sheet", ("s", 1)),
+            _r("2026-10-14", "Steve Sutorius", 30, "database", ("db", 7)),
+            _r("2026-10-14", "Jeff Green", -30, "database", ("db", 7)),
+        ]
+
+        assert len(UnifiedDataService._drop_sheet_duplicates(rounds)) == 4
+
+    def test_same_group_a_week_and_more_apart_is_kept(self):
+        rounds = [
+            _r("2026-10-01", "Steve Sutorius", 10, "primary_sheet", ("s", 1)),
+            _r("2026-10-01", "Tyson Thielman", -10, "primary_sheet", ("s", 1)),
+            _r("2026-10-14", "Steve Sutorius", 20, "database", ("db", 7)),
+            _r("2026-10-14", "Tyson Thielman", -20, "database", ("db", 7)),
+        ]
+
+        assert len(UnifiedDataService._drop_sheet_duplicates(rounds)) == 4
+
+
+def test_member_post_without_group_or_location_still_serializes():
+    """A member post with no group/location 500'd every round-detail endpoint."""
+    svc = make_service()
+    row = MagicMock(
+        date="2026-10-06", group=None, member="Kyle Hurt", score=-24, location=None, duration=None, hole_scores={}
+    )
+
+    unified = svc._legacy_round_to_unified(row)
+
+    assert (unified.group, unified.location) == ("", "")

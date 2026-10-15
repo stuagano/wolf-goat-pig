@@ -24,6 +24,9 @@ from .spreadsheet_sync_service import PRIMARY_SHEET_ID, RoundResult, Spreadsheet
 
 logger = logging.getLogger(__name__)
 
+SHEET_SOURCES = {"primary_sheet", "writable_sheet"}
+DUPLICATE_WINDOW_DAYS = 6
+
 
 @dataclass
 class UnifiedRound:
@@ -41,6 +44,8 @@ class UnifiedRound:
     # or recorded via scorecard scan (both write real GamePlayerResult rows).
     # Legacy/sheet-only rounds never have this; it's just a running total.
     hole_scores: list[dict[str, Any]] | None = None
+    # Rows from one game share a key; used to match app/member copies to the sheet.
+    game_key: tuple | None = None
 
     def __hash__(self):
         """Hash for deduplication - same date/group/member/score is same round."""
@@ -118,6 +123,7 @@ class UnifiedDataService:
             location=r.location,
             duration=r.duration,
             source=source,
+            game_key=(source, r.date, r.group, r.location),
         )
 
     def _legacy_round_to_unified(self, r: LegacyRound) -> UnifiedRound:
@@ -130,13 +136,19 @@ class UnifiedDataService:
         return UnifiedRound(
             date=date_display,
             date_sortable=r.date,
-            group=r.group,
+            # Member posts may omit group/location; the API models require strings.
+            group=r.group or "",
             member=r.member,
             score=r.score,
-            location=r.location,
+            location=r.location or "",
             duration=r.duration,
             source=r.source,
             hole_scores=r.hole_scores if isinstance(r.hole_scores, list) and r.hole_scores else None,
+            game_key=(
+                ("member", r.date, r.submitted_by_profile_id)
+                if r.source == "member"
+                else (r.source, r.date, r.group, r.location)
+            ),
         )
 
     def _db_result_to_unified(self, result: GamePlayerResult, record: GameRecord) -> UnifiedRound:
@@ -163,6 +175,7 @@ class UnifiedDataService:
             duration=(f"{record.game_duration_minutes}:00" if record.game_duration_minutes else None),
             source="database",
             hole_scores=result.hole_scores if isinstance(result.hole_scores, list) and result.hole_scores else None,
+            game_key=("database", record.id),
         )
 
     def get_all_rounds(
@@ -229,7 +242,55 @@ class UnifiedDataService:
             except Exception as e:
                 logger.warning(f"Failed to fetch database records: {e}")
 
-        return sorted(all_rounds.values(), key=lambda r: r.date_sortable, reverse=True)
+        rounds = self._drop_sheet_duplicates(list(all_rounds.values()))
+        return sorted(rounds, key=lambda r: r.date_sortable, reverse=True)
+
+    @staticmethod
+    def _drop_sheet_duplicates(rounds: list[UnifiedRound]) -> list[UnifiedRound]:
+        """The sheet is authoritative: drop app/member games the sheet already has.
+
+        App rounds are dated when finished or scanned, and scans or posts can be
+        off by a few quarters or a spelling, so a game matches a sheet game within
+        DUPLICATE_WINDOW_DAYS that has the same players or the same totals. Hole
+        detail from a dropped app round moves onto the matching sheet rows.
+        """
+
+        def name(r: UnifiedRound) -> str:
+            return " ".join(r.member.lower().split())
+
+        def games(rows):
+            out: dict[tuple, list[UnifiedRound]] = {}
+            for r in rows:
+                out.setdefault(r.game_key or (r.source, id(r)), []).append(r)
+            return list(out.values())
+
+        def day(g):
+            try:
+                return date.fromisoformat(g[0].date_sortable)
+            except ValueError:
+                return None
+
+        sheet = [r for r in rounds if r.source in SHEET_SOURCES]
+        sheet_games = [(day(g), {name(r) for r in g}, sorted(r.score for r in g), g) for g in games(sheet)]
+        kept = list(sheet)
+        for g in games([r for r in rounds if r.source not in SHEET_SOURCES]):
+            d, players, totals = day(g), {name(r) for r in g}, sorted(r.score for r in g)
+            # ponytail: nearest match wins; a foursome replaying inside the window
+            # with an app-only round would be dropped — widen the key if that happens.
+            matches = [
+                (abs((sd - d).days), sg)
+                for sd, sp, st, sg in sheet_games
+                if d and sd and abs((sd - d).days) <= DUPLICATE_WINDOW_DAYS and (sp == players or st == totals)
+            ]
+            if not matches:
+                kept.extend(g)
+                continue
+            sheet_game = min(matches, key=lambda m: m[0])[1]
+            holes = {name(r): r.hole_scores for r in g if r.hole_scores}
+            for r in sheet_game:
+                if not r.hole_scores and name(r) in holes:
+                    r.hole_scores = holes[name(r)]
+        return kept
 
     def get_unified_leaderboard(self) -> list[UnifiedLeaderboardEntry]:
         """Get the current season leaderboard, leaving all-time history intact.
