@@ -101,6 +101,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
 
   useEffect(() => {
     setConfirmingSignup(false);
+    setConfirmingCancelId(null);
   }, [selectedDate]);
 
   // Get data for the currently selected day
@@ -285,7 +286,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
           setNotice(
             data?.legacy_sync === 'mirrored'
               ? `Removed ${data.name} from the LIVE tee sheet for ${formatDateFull(data.date)}.`
-              : null,
+              : `Cancelled signup for ${data.name || signupName} on ${formatDateFull(data.date || selectedDate)}.`,
           );
         }
       } else {
