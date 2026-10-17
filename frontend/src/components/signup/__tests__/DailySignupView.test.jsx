@@ -206,7 +206,22 @@ describe('DailySignupView', () => {
     expect(screen.queryByRole('button', { name: 'Generate pairings' })).not.toBeInTheDocument();
   });
 
-test('production signup and cancel name the golfer and the live sheet before posting', async () => {
+  test('leaving a date disarms its cancellation confirmation', async () => {
+    fetch.mockImplementation(() => jsonResponse(weeklyResponse([{
+      id: 101, date: selectedDate, player_profile_id: playerProfile.id,
+      player_name: 'Stuart', status: 'signed_up',
+    }])));
+    render(<DailySignupView selectedDate={selectedDate} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel My Signup' }));
+    expect(screen.getByRole('button', { name: 'Yes, remove my signup' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Mon' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sun (1)' }));
+    expect(await screen.findByRole('button', { name: 'Cancel My Signup' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Yes, remove my signup' })).not.toBeInTheDocument();
+    expect(fetch.mock.calls.some(([request]) => request.method === 'DELETE')).toBe(false);
+  });
+
+  test.each(['mirrored', 'skipped'])('production signup and cancel show their outcome when legacy sync is %s', async (legacySync) => {
     mockIsProduction = true;
     let createdSignup = null;
 
@@ -232,7 +247,7 @@ test('production signup and cancel name the golfer and the live sheet before pos
         return jsonResponse({
           message: 'Sign-up cancelled successfully',
           live_write: true,
-          legacy_sync: 'mirrored',
+          legacy_sync: legacySync,
           name: playerProfile.legacy_name,
           date: selectedDate,
         });
@@ -265,7 +280,11 @@ test('production signup and cancel name the golfer and the live sheet before pos
     await waitFor(() => {
       expect(fetch.mock.calls.some(([req]) => req.method === 'DELETE')).toBe(true);
     });
-    expect(await screen.findByRole('status')).toHaveTextContent(/Removed Stuart from the LIVE tee sheet/);
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      legacySync === 'mirrored'
+        ? 'Removed Stuart from the LIVE tee sheet'
+        : 'Cancelled signup for Stuart on Sunday, January 4',
+    );
   });
 
   test.each([false, true])('leaves pairings to the in-person group for admin=%s', async (isAdmin) => {
