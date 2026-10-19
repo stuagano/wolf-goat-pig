@@ -694,11 +694,12 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
         # sim is a one-shot state generator — not cached (the /action engine that
         # used the cache was retired; the DB is the source of truth for /state).
         initial_state = simulation.get_game_state()
-        # Lobby join recorded each player's index; keep it beside the course
-        # handicap the engine plays off.
-        lobby_index = {p.get("id"): p.get("handicap_index") for p in (game.state or {}).get("players", [])}
+        # The simulation omits profile identity and handicap index from its players.
+        lobby_players = {p.get("id"): p for p in (game.state or {}).get("players", [])}
         for sp in initial_state.get("players", []):
-            sp["handicap_index"] = lobby_index.get(sp.get("id"))
+            lobby_player = lobby_players.get(sp.get("id"), {})
+            sp["handicap_index"] = lobby_player.get("handicap_index")
+            sp["player_profile_id"] = lobby_player.get("player_profile_id")
 
         # Update database game state
         game.game_status = "in_progress"  # type: ignore

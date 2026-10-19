@@ -8,7 +8,43 @@ from fastapi import HTTPException
 from app import models
 from app.services.completed_game_service import persist_completed_game
 from app.services.unified_data_service import UnifiedDataService
-from tests.unit.routers.test_round_posting_p1 import round_api, scan_body, sign_in
+from tests.unit.routers.test_round_posting_p1 import round_api, scan_body, scores, sign_in
+
+
+def test_live_start_preserves_profile_identity_through_completion(round_api):
+    client, app, sessions = round_api
+    sign_in(app)
+    with sessions() as db:
+        game = db.query(models.GameStateModel).one()
+        players = game.state["players"]
+        players[1]["name"] = players[0]["name"]
+        players[0]["handicap_index"] = 7.5
+        game.state = {"players": players, "tee_order_set": True, "player_count": 4}
+        game.game_status = "setup"
+        for i, player in enumerate(players):
+            db.add(
+                models.GamePlayer(
+                    game_id="round",
+                    player_slot_id=player["id"],
+                    player_profile_id=player["player_profile_id"],
+                    player_name=player["name"],
+                    handicap=18,
+                    tee_order=i,
+                )
+            )
+        db.commit()
+    response = client.post("/games/round/start")
+    assert response.status_code == 200, response.text
+    with sessions() as db:
+        players = db.query(models.GameStateModel).one().state["players"]
+        assert {p["id"]: p.get("player_profile_id") for p in players} == {"p1": 1, "p2": 2, "p3": 3, "p4": 4}
+        assert next(p for p in players if p["id"] == "p1")["handicap_index"] == 7.5
+    response = client.post("/games/round/scores", json=scores())
+    assert response.status_code == 200, response.text
+    with sessions() as db:
+        results = db.query(models.GamePlayerResult).all()
+        assert len(results) == 4
+        assert {r.player_profile_id for r in results} == {1, 2, 3, 4}
 
 
 def test_historical_scorecard_uses_played_date_and_preserves_audit_time(round_api, monkeypatch):
