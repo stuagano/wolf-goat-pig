@@ -1,13 +1,22 @@
 """Unit tests for games_holes router — /scores persistence and hole CRUD."""
 
 import uuid
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services.auth_service import get_current_user
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def scorekeeper_identity():
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(admin_granted=1, is_active=1)
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
 
 
 def _unique_id():
@@ -275,8 +284,8 @@ class TestSaveScores:
             f"/games/{game_id}/scores",
             json={"holes": holes, "current_hole": 17},
         )
-        assert resp.status_code == 200, resp.text
-        assert resp.json()["game_status"] != "completed"
+        assert resp.status_code == 400, resp.text
+        assert client.get(f"/games/{game_id}/state").json()["game_status"] != "completed"
 
     def test_saved_scores_are_visible_via_state(self):
         """Regression: /scores writes to the DB but /state served the in-memory

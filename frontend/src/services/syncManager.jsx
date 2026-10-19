@@ -20,6 +20,8 @@ import { createNamespacedStorage } from '../utils/storage';
 import { apiConfig } from '../config/api.config';
 import { localHasUnsyncedHoles } from './gameReconcile';
 
+let authenticatedFetch = async () => { throw new Error('Sign in to sync scores'); };
+
 /** Interactive hole-submit timeout — fail into the queue quickly on flaky signal. */
 const INTERACTIVE_TIMEOUT_MS = 10000;
 /** Background drain timeout — allow a bit more for catch-up after reconnect. */
@@ -315,7 +317,7 @@ export async function processQueue(options = {}) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), QUEUE_TIMEOUT_MS);
 
-      const response = await fetch(url, {
+      const response = await authenticatedFetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
@@ -340,6 +342,7 @@ export async function processQueue(options = {}) {
         
         // Don't retry client errors (4xx) except 408 (timeout) and 429 (rate limit)
         if (response.status >= 400 && response.status < 500 && 
+            response.status !== 401 && response.status !== 403 &&
             response.status !== 408 && response.status !== 429) {
           results.failed++;
           results.errors.push({
@@ -457,7 +460,8 @@ export async function forceRetryAll() {
  * Setup automatic sync on reconnection / tab focus
  * @returns {Function} Cleanup function
  */
-export function setupAutoSync() {
+export function setupAutoSync(fetchWithAuth) {
+  if (fetchWithAuth) authenticatedFetch = fetchWithAuth;
   const wakeAndDrain = () => {
     // Fresh signal after a dead stretch — give score uploads another full try.
     const queue = getSyncQueue();
@@ -550,7 +554,7 @@ export async function syncHoleData(gameId, holeQuarters, optionalDetails, curren
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), INTERACTIVE_TIMEOUT_MS);
 
-    const response = await fetch(`${API_URL}/games/${gameId}/scores`, {
+    const response = await authenticatedFetch(`${API_URL}/games/${gameId}/scores`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -576,6 +580,7 @@ export async function syncHoleData(gameId, holeQuarters, optionalDetails, curren
     
     // Don't queue client errors that won't succeed on retry
     if (response.status >= 400 && response.status < 500 && 
+        response.status !== 401 && response.status !== 403 &&
         response.status !== 408 && response.status !== 429) {
       return {
         success: false,

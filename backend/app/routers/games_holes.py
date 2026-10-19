@@ -1,17 +1,18 @@
 """Hole operations — quarters-only scoring, per-player corrections, logs, validation."""
 
-import json
 import logging
+import math
 import traceback
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from .. import database, models
+from ..services.completed_game_service import REQUIRED_HOLES, persist_completed_game, validate_round_scores
+from ..utils.round_card import require_round_member_or_admin
 from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,6 @@ router = APIRouter(prefix="/games", tags=["games"])
 
 
 # A standard round is complete only when every hole 1-18 has score data.
-REQUIRED_HOLES = frozenset(range(1, 19))
 
 
 class HoleScore(BaseModel):
@@ -60,7 +60,7 @@ class ScoresRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-@router.delete("/{game_id}/holes/{hole_number}")
+@router.delete("/{game_id}/holes/{hole_number}", dependencies=[Depends(require_round_member_or_admin)])
 async def delete_hole(game_id: str, hole_number: int, db: Session = Depends(database.get_db)):  # type: ignore
     """
     Delete a hole's data. Removes from hole_events (source of truth) and from
@@ -69,6 +69,11 @@ async def delete_hole(game_id: str, hole_number: int, db: Session = Depends(data
     game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
+
+    if game.game_status == "completed":
+        raise HTTPException(
+            status_code=400, detail="Correct completed rounds through scores; a completed round cannot lose a hole"
+        )
 
     events = (
         db.query(models.HoleEvent)
@@ -102,7 +107,7 @@ async def delete_hole(game_id: str, hole_number: int, db: Session = Depends(data
     return {"success": True, "game_id": game_id, "hole_number": hole_number}
 
 
-@router.post("/{game_id}/scores")
+@router.post("/{game_id}/scores", dependencies=[Depends(require_round_member_or_admin)])
 async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depends(database.get_db)):
     """Submit hole scores for a game. Each hole must sum to zero. Upserts — safe to call repeatedly."""
     try:
@@ -116,6 +121,11 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
         # and crashes the hole_events upsert on the (game,hole,player) unique
         # constraint. Dedup by hole_number, preserving first-seen order.
         holes = list({h.hole_number: h for h in request.holes}.values())
+        validate_round_scores(
+            (game.state or {}).get("players", []),
+            [{"hole": h.hole_number, "points_delta": h.quarters} for h in holes],
+            complete=game.game_status == "completed",
+        )
 
         # Validate zero-sum per hole
         errors = [
@@ -214,116 +224,11 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
         # this, hole_history/current_hole/standings never persist (only the
         # separate hole_events rows do), and /state reads back stale-empty state.
         flag_modified(game, "state")
-        db.commit()
-
-        logger.info(f"Saved quarters-only data for game {game_id}: {holes_with_data} holes")
-
-        # Persist GameRecord + GamePlayerResult when game is complete
         results_created = 0
         if game_complete:
-            try:
-                existing_record = db.execute(
-                    text("SELECT id FROM game_records WHERE game_id = :gid LIMIT 1"),
-                    {"gid": game_id},
-                ).first()
-
-                if not existing_record:
-                    now = utc_now().isoformat()
-                    players = game_state.get("players", [])
-
-                    # Create GameRecord
-                    db.execute(
-                        text("""
-                            INSERT INTO game_records
-                                (game_id, course_name, game_mode, player_count,
-                                 total_holes_played, created_at, completed_at, final_scores)
-                            VALUES
-                                (:gid, :course, 'wolf_goat_pig', :pc, :holes, :cat, :comp,
-                                 CAST(:scores AS json))
-                        """),
-                        {
-                            "gid": game_id,
-                            "course": game_state.get("course_name", "Wing Point"),
-                            "pc": len(players),
-                            "holes": len(distinct_holes),
-                            "cat": game.created_at or now,
-                            "comp": now,
-                            "scores": json.dumps(standings),
-                        },
-                    )
-                    record_row = db.execute(
-                        text("SELECT id FROM game_records WHERE game_id = :gid"),
-                        {"gid": game_id},
-                    ).first()
-                    record_id = record_row[0]
-
-                    # Build per-player hole data from hole_history
-                    player_hole_data = {}
-                    for entry in hole_history:
-                        pts = entry.get("points_delta", {})
-                        gross = entry.get("gross_scores", {})
-                        for pid, quarters in pts.items():
-                            if pid not in player_hole_data:
-                                player_hole_data[pid] = []
-                            player_hole_data[pid].append(
-                                {
-                                    "hole": entry.get("hole"),
-                                    "quarters": quarters,
-                                    "gross_score": gross.get(pid) if gross else None,
-                                    "teams": entry.get("teams"),
-                                    "wager": entry.get("wager"),
-                                    "phase": entry.get("phase"),
-                                }
-                            )
-
-                    sorted_players = sorted(
-                        players,
-                        key=lambda p: standings.get(p.get("id"), 0),
-                        reverse=True,
-                    )
-
-                    for rank, player in enumerate(sorted_players, 1):
-                        pid = player.get("id")
-                        holes_data = player_hole_data.get(pid, [])
-                        total_earn = standings.get(pid, 0)
-                        holes_won = sum(1 for h in holes_data if h.get("quarters", 0) > 0)
-                        perf = json.dumps(
-                            {
-                                "handicap": player.get("handicap"),
-                                "holes_played": len(holes_data),
-                                "avg_quarters_per_hole": round(total_earn / max(len(holes_data), 1), 2),
-                            }
-                        )
-                        db.execute(
-                            text("""
-                                INSERT INTO game_player_results
-                                    (game_record_id, player_profile_id, player_name,
-                                     final_position, total_earnings, holes_won,
-                                     hole_scores, performance_metrics, created_at)
-                                VALUES
-                                    (:rid, :pid, :pname, :pos, :earn, :hw,
-                                     CAST(:hs AS json), CAST(:pm AS json), :cat)
-                            """),
-                            {
-                                "rid": record_id,
-                                "pid": player.get("player_profile_id"),
-                                "pname": player.get("name", "Unknown"),
-                                "pos": rank,
-                                "earn": total_earn,
-                                "hw": holes_won,
-                                "hs": json.dumps(holes_data),
-                                "pm": perf,
-                                "cat": now,
-                            },
-                        )
-                        results_created += 1
-
-                    db.commit()
-                    logger.info("Game %s: persisted %d player results", game_id, results_created)
-
-            except Exception as e:
-                logger.error("Failed to persist game results for %s: %s", game_id, e)
-                # Don't fail the whole request — quarters are already saved
+            results_created = persist_completed_game(db, game)
+        else:
+            db.commit()
 
         return {
             "success": True,
@@ -353,7 +258,9 @@ class HoleEventPatch(BaseModel):
     quarters: float | None = None  # quarters won/lost — omit to leave unchanged
 
 
-@router.patch("/{game_id}/holes/{hole_number}/players/{player_id}")
+@router.patch(
+    "/{game_id}/holes/{hole_number}/players/{player_id}", dependencies=[Depends(require_round_member_or_admin)]
+)
 async def patch_hole_event(
     game_id: str,
     hole_number: int,
@@ -364,6 +271,19 @@ async def patch_hole_event(
     """Independently correct a player's score or quarters for a single hole."""
     if patch.score is None and patch.quarters is None:
         raise HTTPException(status_code=400, detail="Provide at least one of: score, quarters")
+
+    game = db.query(models.GameStateModel).filter_by(game_id=game_id).first()
+    state = game.state or {}
+    if player_id not in {p.get("id") for p in state.get("players", [])} or hole_number not in REQUIRED_HOLES:
+        raise HTTPException(status_code=400, detail="Unknown player or hole")
+    if patch.quarters is not None and not math.isfinite(patch.quarters):
+        raise HTTPException(status_code=400, detail="Quarter scores must be finite numbers")
+
+    history = state.setdefault("hole_history", [])
+    entry = next((h for h in history if h.get("hole") == hole_number), None)
+    if entry is None:
+        entry = {"hole": hole_number, "points_delta": {}}
+        history.append(entry)
 
     existing = (
         db.query(models.HoleEvent)
@@ -383,18 +303,41 @@ async def patch_hole_event(
             existing.quarters = patch.quarters
         existing.recorded_at = now_ts
     else:
-        db.add(
-            models.HoleEvent(
-                game_id=game_id,
-                hole_number=hole_number,
-                player_id=player_id,
-                score=patch.score,
-                quarters=patch.quarters if patch.quarters is not None else 0.0,
-                recorded_at=now_ts,
-            )
+        existing = models.HoleEvent(
+            game_id=game_id,
+            hole_number=hole_number,
+            player_id=player_id,
+            score=patch.score,
+            quarters=patch.quarters
+            if patch.quarters is not None
+            else entry.get("points_delta", {}).get(player_id, 0.0),
+            recorded_at=now_ts,
         )
+        db.add(existing)
 
-    db.commit()
+    if patch.quarters is not None:
+        entry.setdefault("points_delta", {})[player_id] = patch.quarters
+    if patch.score is not None:
+        entry["gross_scores"] = {**(entry.get("gross_scores") or {}), player_id: patch.score}
+    standings = {}
+    for hole in history:
+        for pid, quarters in hole.get("points_delta", {}).items():
+            standings[pid] = standings.get(pid, 0) + quarters
+    state["standings"] = standings
+    state["hole_quarters"] = {str(h["hole"]): h["points_delta"] for h in history}
+    for player in state.get("players", []):
+        player["total_points"] = standings.get(player["id"], 0)
+    game.state = state
+    flag_modified(game, "state")
+    try:
+        if game.game_status == "completed":
+            validate_round_scores(state["players"], history)
+            persist_completed_game(db, game)
+        else:
+            db.commit()
+    except Exception:
+        db.rollback()
+        raise
 
     return {
         "game_id": game_id,

@@ -7,14 +7,35 @@ GameRecord / GamePlayerResult rows.
 
 from __future__ import annotations
 
-import json
 import logging
+import math
 from typing import Any
 
-from sqlalchemy import text
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
+
+REQUIRED_HOLES = frozenset(range(1, 19))
+
+
+def validate_round_scores(players: list[dict], hole_history: list[dict], *, complete: bool = True) -> None:
+    """Require explicit quarters for the roster; missing scores are not zeroes."""
+    player_ids = {p.get("id") for p in players}
+    if not player_ids or None in player_ids or len(player_ids) != len(players):
+        raise HTTPException(status_code=400, detail="Round requires a valid player roster")
+    holes = {entry.get("hole") for entry in hole_history}
+    if not holes.issubset(REQUIRED_HOLES) or (complete and holes != REQUIRED_HOLES):
+        raise HTTPException(status_code=400, detail="Completion requires all holes 1-18")
+    for entry in hole_history:
+        quarters = entry.get("points_delta") or {}
+        if set(quarters) != player_ids:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Hole {entry.get('hole')}: scores must include every roster player and no unknown players",
+            )
+        if any(not isinstance(q, (int, float)) or not math.isfinite(q) for q in quarters.values()):
+            raise HTTPException(status_code=400, detail="Quarter scores must be finite numbers")
 
 
 def build_hole_history(
@@ -64,9 +85,6 @@ def persist_completed_game(db: Session, game: Any) -> int:
                 standings[pid] = standings.get(pid, 0) + q
 
     now = utc_now().isoformat()
-    is_pg = db.bind.dialect.name == "postgresql"
-    hs_expr = "CAST(:hs AS jsonb)" if is_pg else ":hs"
-    pm_expr = "CAST(:pm AS jsonb)" if is_pg else ":pm"
 
     record = db.query(models.GameRecord).filter(models.GameRecord.game_id == game.game_id).first()
     if not record:
@@ -82,6 +100,8 @@ def persist_completed_game(db: Session, game: Any) -> int:
         )
         db.add(record)
         db.flush()
+    record.final_scores = standings
+    record.total_holes_played = len(hole_history)
     record_id = record.id
 
     player_hole_data: dict[str, list] = {}
@@ -107,43 +127,22 @@ def persist_completed_game(db: Session, game: Any) -> int:
         holes_data = player_hole_data.get(pid, [])
         holes_won = sum(1 for h in holes_data if h.get("quarters", 0) > 0)
 
-        exists = db.execute(
-            text("SELECT 1 FROM game_player_results WHERE game_record_id = :rid AND player_name = :pn LIMIT 1"),
-            {"rid": record_id, "pn": player_name},
-        ).first()
-        if exists:
-            continue
-
-        perf = json.dumps(
-            {
-                "handicap": player.get("handicap"),
-                "holes_played": len(holes_data),
-                "avg_quarters_per_hole": round(total_earnings / max(len(holes_data), 1), 2),
-            }
-        )
-        db.execute(
-            text(f"""
-                INSERT INTO game_player_results
-                    (game_record_id, player_profile_id, player_name,
-                     final_position, total_earnings, holes_won,
-                     hole_scores, performance_metrics, created_at)
-                VALUES
-                    (:rid, :pid, :pname, :pos, :earn, :hw,
-                     {hs_expr}, {pm_expr}, :cat)
-            """),
-            {
-                "rid": record_id,
-                "pid": player.get("player_profile_id"),
-                "pname": player_name,
-                "pos": rank,
-                "earn": total_earnings,
-                "hw": holes_won,
-                "hs": json.dumps(holes_data),
-                "pm": perf,
-                "cat": now,
-            },
-        )
-        results_created += 1
+        result = db.query(models.GamePlayerResult).filter_by(game_record_id=record_id, player_name=player_name).first()
+        if result is None:
+            result = models.GamePlayerResult(game_record_id=record_id, player_name=player_name, created_at=now)
+            db.add(result)
+            results_created += 1
+        result.player_profile_id = player.get("player_profile_id")
+        result.final_position = rank
+        result.total_earnings = total_earnings
+        result.holes_won = holes_won
+        result.hole_scores = holes_data
+        result.performance_metrics = {
+            "handicap": player.get("handicap"),
+            "holes_played": len(holes_data),
+            "avg_quarters_per_hole": round(total_earnings / max(len(holes_data), 1), 2),
+        }
+        db.flush()
 
     db.commit()
     logger.info("Persisted completed game %s: %d results", game.game_id, results_created)

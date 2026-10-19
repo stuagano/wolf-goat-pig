@@ -3,7 +3,6 @@ import PropTypes from "prop-types";
 import GameCompletionView from "./GameCompletionView";
 import ScorecardPhotoButton from "./ScorecardPhotoButton";
 import { apiConfig } from "../../config/api.config";
-import { fetchJson } from "../../services/fetchJson";
 import { useAuthenticatedFetch } from "../../hooks/useAuthenticatedFetch";
 import useRoundCard from "../../hooks/useRoundCard";
 
@@ -66,9 +65,13 @@ const CompletedRoundView = ({
     }
 
     try {
-      await fetchJson(`${API_URL}/games/${gameId}/complete`, {
+      const res = await authenticatedFetch(`${API_URL}/games/${gameId}/complete`, {
         method: "POST",
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || `Save failed (${res.status})`);
+      }
       onMarkedComplete();
     } catch (error) {
       console.error("Error marking game complete:", error);

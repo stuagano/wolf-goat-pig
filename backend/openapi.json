@@ -9807,6 +9807,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create Round From Scorecard",
         "tags": [
           "games"
@@ -10094,6 +10099,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Mark Game Complete",
         "tags": [
           "games"
@@ -10289,6 +10299,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Delete Hole",
         "tags": [
           "games"
@@ -10478,6 +10493,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Patch Hole Event",
         "tags": [
           "games"
@@ -10957,6 +10977,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Save Scores",
         "tags": [
           "games"

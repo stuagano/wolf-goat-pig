@@ -12,10 +12,12 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from .. import database, models, schemas
 from ..badge_engine import BadgeEngine
+from ..services.auth_service import get_current_user
+from ..services.completed_game_service import validate_round_scores
 from ..services.game_lifecycle_service import get_game_lifecycle_service
 from ..services.notification_service import get_notification_service
 from ..state.course_manager import CourseManager
-from ..utils.admin_auth import require_admin
+from ..utils.admin_auth import is_admin_profile, require_admin
 from ..utils.handicap_resolve import find_course, resolve_player_handicap, to_course_handicap
 from ..utils.round_card import mark_card_edited, require_round_member_or_admin
 from ..utils.time import utc_now
@@ -243,6 +245,7 @@ class ScorecardRoundRequest(BaseModel):
 @router.post("/from-scorecard")
 async def create_round_from_scorecard(
     body: ScorecardRoundRequest,
+    profile: models.PlayerProfile = Depends(get_current_user),
     db: Session = Depends(database.get_db),
 ) -> dict[str, Any]:
     """Record a completed round straight from a scanned scorecard.
@@ -286,6 +289,10 @@ async def create_round_from_scorecard(
 
     per_hole = [q.model_dump() for q in body.per_hole_quarters]
     hole_history, standings = build_hole_history(players, per_hole)
+
+    if not is_admin_profile(profile) and not any(p["player_profile_id"] == profile.id for p in players):
+        raise HTTPException(status_code=403, detail="Only a participant or admin can post a round")
+    validate_round_scores(players, hole_history)
 
     # Warn (do not reject) on holes whose deltas don't sum to zero.
     warnings: dict[str, float] = {}
@@ -845,7 +852,7 @@ async def delete_game(game_id: str, db: Session = Depends(database.get_db)):  # 
         raise HTTPException(status_code=500, detail=f"Error deleting game: {e!s}")
 
 
-@router.post("/{game_id}/complete")
+@router.post("/{game_id}/complete", dependencies=[Depends(require_round_member_or_admin)])
 async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db)):
     """
     Mark a game as completed and persist results to GameRecord / GamePlayerResult.
@@ -858,6 +865,8 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
 
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
+
+        validate_round_scores((game.state or {}).get("players", []), (game.state or {}).get("hole_history", []))
 
         if game.game_status == "completed":
             # Check if results were already persisted
@@ -1142,6 +1151,7 @@ async def backfill_scorecard(
 
     per_hole = [q.model_dump() for q in body.per_hole_quarters]
     hole_history, standings = build_hole_history(players, per_hole)
+    validate_round_scores(players, hole_history)
     state["hole_history"] = hole_history
     state["hole_quarters"] = {str(e["hole"]): e["points_delta"] for e in hole_history}
     state["standings"] = standings
@@ -1149,16 +1159,6 @@ async def backfill_scorecard(
     game.state = state  # reassign top-level so MutableDict marks dirty
     game.updated_at = utc_now().isoformat()
 
-    # Rebuild GamePlayerResult rows for this round so /details reflects the backfill.
-    record = db.query(models.GameRecord).filter(models.GameRecord.game_id == game_id).first()
-    if record:
-        db.query(models.GamePlayerResult).filter(models.GamePlayerResult.game_record_id == record.id).delete()
-        db.flush()
-        # Update the GameRecord summary so final_scores / total_holes_played are
-        # not stale after the backfill (persist_completed_game only sets these on
-        # initial creation, never on update).
-        record.final_scores = standings
-        record.total_holes_played = len(hole_history)
     persist_completed_game(db, game)
     db.commit()
     return {"game_id": game_id, "standings": standings}

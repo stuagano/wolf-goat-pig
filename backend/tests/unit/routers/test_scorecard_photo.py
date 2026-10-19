@@ -45,14 +45,16 @@ def test_patch_scorecard_recomputes_standings_from_new_per_hole(monkeypatch):
         app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
             id=1, name="Boss", email="boss@test.com", preferences={}, admin_granted=0, is_active=1
         )
-        # create a round (totals-only: A +8 on hole 18, B -8)
+        # Totals-only UI sends explicit zeroes on holes 1-17.
         models.Base.metadata.create_all(bind=engine)
         create = client.post(
             "/games/from-scorecard",
             json={
                 "players": [{"name": "A"}, {"name": "B"}, {"name": "C"}, {"name": "D"}],
                 "per_hole_quarters": [
-                    {"player_index": i, "hole": 18, "quarters": q} for i, q in enumerate([8, -8, 4, -4])
+                    {"player_index": i, "hole": h, "quarters": q if h == 18 else 0}
+                    for h in range(1, 19)
+                    for i, q in enumerate([8, -8, 4, -4])
                 ],
             },
         )
@@ -62,12 +64,13 @@ def test_patch_scorecard_recomputes_standings_from_new_per_hole(monkeypatch):
             f"/games/{gid}/scorecard",
             json={
                 "per_hole_quarters": [
-                    {"player_index": 0, "hole": 1, "quarters": 5},
-                    {"player_index": 0, "hole": 2, "quarters": 3},
-                    {"player_index": 1, "hole": 1, "quarters": -5},
-                    {"player_index": 1, "hole": 2, "quarters": -3},
-                    {"player_index": 2, "hole": 1, "quarters": 4},
-                    {"player_index": 3, "hole": 1, "quarters": -4},
+                    {
+                        "player_index": i,
+                        "hole": h,
+                        "quarters": ([5, -5, 4, -4] if h == 1 else [3, -3, 0, 0] if h == 2 else [0, 0, 0, 0])[i],
+                    }
+                    for h in range(1, 19)
+                    for i in range(4)
                 ]
             },
         )
@@ -75,8 +78,7 @@ def test_patch_scorecard_recomputes_standings_from_new_per_hole(monkeypatch):
         db = SessionLocal()
         try:
             state = db.query(models.GameStateModel).filter_by(game_id=gid).first().state
-            # hole_history now has holes 1 and 2 (not just 18)
-            assert {e["hole"] for e in state["hole_history"]} == {1, 2}
+            assert {e["hole"] for e in state["hole_history"]} == set(range(1, 19))
             # standings preserved: A total +8
             assert state["standings"]["p1"] == 8
 
@@ -88,10 +90,7 @@ def test_patch_scorecard_recomputes_standings_from_new_per_hole(monkeypatch):
             assert record.final_scores.get("p1") == 8, (
                 f"GameRecord.final_scores['p1'] should be 8 after backfill, got {record.final_scores.get('p1')}"
             )
-            # total_holes_played should match the number of holes in new hole_history (2)
-            assert record.total_holes_played == 2, (
-                f"GameRecord.total_holes_played should be 2 after backfill, got {record.total_holes_played}"
-            )
+            assert record.total_holes_played == 18
         finally:
             db.close()
     finally:

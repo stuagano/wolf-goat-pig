@@ -3,6 +3,8 @@ import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import ScorecardPhoto from '../ScorecardPhoto';
 
+vi.mock('@auth0/auth0-react', () => ({ useAuth0: () => ({ getAccessTokenSilently: async () => 'posting-token' }) }));
+
 // Render directly into review by mocking ScorecardCapture to immediately
 // hand back a file is overkill — instead drive handleConfirm via the review.
 vi.mock('../ScorecardReview', () => ({
@@ -40,6 +42,7 @@ test('new-round confirm POSTs to /games/from-scorecard and skips GHIN', async ()
   await waitFor(() => expect(onSaved).toHaveBeenCalled());
   const [url, opts] = global.fetch.mock.calls[0];
   expect(url).toMatch(/\/games\/from-scorecard$/);
+  expect(opts.headers.Authorization).toBe('Bearer posting-token');
   expect(JSON.parse(opts.body).course_name).toBe('Wing Point');
   expect(screen.queryByTestId('ghin')).toBeNull();
 });

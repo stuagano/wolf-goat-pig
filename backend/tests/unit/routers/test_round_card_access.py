@@ -14,7 +14,9 @@ from app.services.auth_service import get_current_user
 client = TestClient(app)
 
 PER_HOLE = {
-    "per_hole_quarters": [{"player_index": 0, "hole": 1, "quarters": 2}, {"player_index": 1, "hole": 1, "quarters": -2}]
+    "per_hole_quarters": [
+        {"player_index": i, "hole": h, "quarters": q} for h in range(1, 19) for i, q in enumerate([2, -2])
+    ]
 }
 
 

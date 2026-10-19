@@ -6,6 +6,7 @@
 import { test, expect } from '@playwright/test';
 
 const API = 'http://localhost:8333';
+const AUTH = { Authorization: 'Bearer e2e' };
 
 // True when a tap at the centre of `locator` would hit that element (or its children).
 const isTappable = (locator) =>
@@ -16,13 +17,23 @@ const isTappable = (locator) =>
   });
 
 test('back to a played hole opens an Edit Hole dialog that is on top and tappable', async ({ page, request }) => {
-  const created = await request.post(`${API}/games/create-test?player_count=4`);
+  const created = await request.post(`${API}/games/create-custom`, {
+    headers: AUTH,
+    data: {
+      players: Array.from({ length: 4 }, (_, i) => ({
+        name: `Test Player ${i + 1}`,
+        handicap: 18,
+        ...(i === 0 ? { user_id: 'auth0|123456789' } : {}),
+      })),
+    },
+  });
   expect(created.ok(), await created.text()).toBeTruthy();
   const game = await created.json();
   const ids = game.players.map((p) => p.id);
 
   const quarters = Object.fromEntries(ids.map((id, i) => [id, i < 2 ? 1 : -1]));
   const saved = await request.post(`${API}/games/${game.game_id}/scores`, {
+    headers: AUTH,
     data: { holes: [{ hole_number: 1, quarters }], current_hole: 2 },
   });
   expect(saved.ok(), await saved.text()).toBeTruthy();
