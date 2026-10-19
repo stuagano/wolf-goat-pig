@@ -26,7 +26,7 @@ requests>=2.31.0
 # Schema serialization for the committed OpenAPI contract. Bump deliberately and
 # regenerate the spec + frontend types in the same change. (pydantic pins its own
 # compatible pydantic-core, so that stays deterministic too.)
-pydantic==2.13.4
+pydantic==2.14.1
 
 # SQL parsing — Commissioner read-only SQL validator (_validate_sql) uses
 # sqlglot's AST to enumerate table refs, closing regex-based bypasses.
