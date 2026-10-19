@@ -2,6 +2,15 @@
 
 End-to-end testing infrastructure for the Wolf Goat Pig test game mode using Playwright.
 
+### Post a Score layout regression
+
+From this directory, run `npx playwright test --config playwright.layout.config.js`.
+It starts an isolated frontend on port 3107, seeds the existing Auth0 cache, and
+intercepts API calls without starting a backend or writing data. It checks rendered
+control bounds at 320/375/390px in iPhone WebKit and 1280px in desktop Chromium,
+including six-player groups, long names, focus, date entry, and negative quarters.
+This emulates iPhone WebKit; it does not test a physical iPhone keyboard.
+
 **Status**: 🚧 Foundation Complete - Implementation In Progress
 
 ---

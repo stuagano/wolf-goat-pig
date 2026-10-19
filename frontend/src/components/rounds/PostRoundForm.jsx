@@ -345,6 +345,7 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
       <style>{`
         .pr-form-root {
           color: #1f2937;
+          overflow-wrap: anywhere;
         }
 
         .pr-form {
@@ -355,6 +356,7 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
 
         .pr-field-row {
           display: grid;
+          min-width: 0;
           grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
           gap: 16px;
         }
@@ -362,6 +364,7 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
         .pr-form label,
         .pr-standalone-label {
           display: grid;
+          min-width: 0;
           gap: 6px;
           font-weight: 700;
           color: #374151;
@@ -373,6 +376,9 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
         }
 
         .pr-form input {
+          box-sizing: border-box;
+          width: 100%;
+          min-width: 0;
           border: 1px solid #d1d5db;
           border-radius: 10px;
           padding: 11px 12px;
