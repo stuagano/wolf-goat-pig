@@ -25,6 +25,7 @@ import UpdateNotification from "./components/ui/UpdateNotification";
 import OfflineIndicator from "./components/ui/OfflineIndicator";
 import { initCacheManager } from "./services/cacheManager";
 import syncManager from "./services/syncManager";
+import { useAuthenticatedFetch } from "./hooks/useAuthenticatedFetch";
 import { apiConfig } from "./config/api.config";
 import { useFeatureFlags } from "./hooks/useFeatureFlags";
 import "./styles/mobile-touch.css"; // Import mobile touch optimization styles
@@ -64,6 +65,7 @@ const CommissionerMediaPage = React.lazy(() => import("./components/game/livsow/
 const API_URL = apiConfig.baseUrl;
 
 function App() {
+  const authenticatedFetch = useAuthenticatedFetch();
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -82,12 +84,12 @@ function App() {
 
     // Setup syncManager's auto-sync for game data
     // This handles offline queue processing when connection is restored
-    const cleanupAutoSync = syncManager.setupAutoSync();
+    const cleanupAutoSync = syncManager.setupAutoSync(authenticatedFetch);
 
     return () => {
       cleanupAutoSync();
     };
-  }, []);
+  }, [authenticatedFetch]);
 
   const handleBackendReady = () => {
     setBackendReady(true);

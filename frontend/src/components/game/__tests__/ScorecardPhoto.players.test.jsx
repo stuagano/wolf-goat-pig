@@ -3,6 +3,8 @@ import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import ScorecardPhoto from '../ScorecardPhoto';
 
+vi.mock('@auth0/auth0-react', () => ({ useAuth0: () => ({ getAccessTokenSilently: async () => 'posting-token' }) }));
+
 vi.mock('../ScorecardCapture', () => ({
   default: ({ onCapture }) => <button onClick={() => onCapture(new File(['x'], 'c.jpg', { type: 'image/jpeg' }))}>capture</button>,
 }));

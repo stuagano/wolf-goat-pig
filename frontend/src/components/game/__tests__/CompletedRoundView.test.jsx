@@ -2,13 +2,11 @@ import React from 'react';
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import CompletedRoundView from '../CompletedRoundView';
-import { fetchJson } from '../../../services/fetchJson';
 
 vi.mock('../../../config/api.config', () => ({
   apiConfig: { baseUrl: 'http://test-api' },
 }));
 
-vi.mock('../../../services/fetchJson', () => ({ fetchJson: vi.fn() }));
 
 // Stub the children: this test covers the wiring CompletedRoundView owns.
 vi.mock('../GameCompletionView', () => ({
@@ -47,18 +45,19 @@ beforeEach(() => {
 
 describe('CompletedRoundView', () => {
   test('marking complete POSTs /complete and reports success', async () => {
-    fetchJson.mockResolvedValueOnce({});
     const onMarkedComplete = vi.fn();
     render(<CompletedRoundView {...baseProps} gameId="g1" onMarkedComplete={onMarkedComplete} onEditScores={vi.fn()} />);
 
     fireEvent.click(screen.getByText('mark'));
 
     await waitFor(() => expect(onMarkedComplete).toHaveBeenCalled());
-    expect(fetchJson).toHaveBeenCalledWith('http://test-api/games/g1/complete', { method: 'POST' });
+    expect(authFetch).toHaveBeenCalledWith('http://test-api/games/g1/complete', { method: 'POST' });
   });
 
   test('a failed save alerts and does not report success', async () => {
-    fetchJson.mockRejectedValueOnce(new Error('boom'));
+    authFetch.mockImplementation((url) => url.endsWith('/complete')
+      ? Promise.resolve({ ok: false, json: async () => ({ detail: 'boom' }) })
+      : card(NO_PHOTO));
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const onMarkedComplete = vi.fn();

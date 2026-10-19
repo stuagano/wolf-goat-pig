@@ -9,7 +9,10 @@ import syncManager, {
   toScoresPayload,
 } from '../syncManager';
 
+let cleanupSync;
+
 beforeEach(() => {
+  cleanupSync = syncManager.setupAutoSync((...args) => fetch(...args));
   syncManager.clearQueue();
   syncManager.clearLocalGameState('g1');
   vi.stubGlobal('navigator', { onLine: true });
@@ -24,10 +27,31 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  cleanupSync();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   syncManager.clearQueue();
   syncManager.clearLocalGameState('g1');
+});
+
+test('live saves and queued retries use authenticated requests and retain expired-session scores', async () => {
+  cleanupSync();
+  const authenticatedFetch = vi.fn(async (url, options) => fetch(url, {
+    ...options, headers: { ...options.headers, Authorization: 'Bearer refreshed-token' },
+  }));
+  cleanupSync = syncManager.setupAutoSync(authenticatedFetch);
+  // The status indicator also subscribes without providing an auth client.
+  const cleanupStatus = syncManager.setupAutoSync();
+  cleanupStatus();
+  global.fetch.mockResolvedValue({ ok: false, status: 401, json: async () => ({ detail: 'Sign in' }) });
+  await syncManager.syncHoleData('g1', { 1: { p1: 1, p2: -1 } }, {}, 1);
+  expect(syncManager.getPendingSyncCount()).toBe(1);
+  global.fetch.mockResolvedValue({ ok: true });
+  const result = await syncManager.processQueue();
+  expect(result.synced).toBe(1);
+  expect(authenticatedFetch).toHaveBeenCalledTimes(2);
+  expect(global.fetch.mock.calls.every(([, options]) => options.headers.Authorization === 'Bearer refreshed-token')).toBe(true);
+  expect(syncManager.getPendingSyncCount()).toBe(0);
 });
 
 describe('toScoresPayload', () => {

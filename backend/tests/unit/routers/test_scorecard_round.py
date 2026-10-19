@@ -1,12 +1,23 @@
 # backend/tests/unit/routers/test_scorecard_round.py
+from types import SimpleNamespace
+
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from app import models
 from app.database import SessionLocal, engine
 from app.main import app
+from app.services.auth_service import get_current_user
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def posting_identity():
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(admin_granted=1, is_active=1)
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
 
 
 def _per_hole_4p():

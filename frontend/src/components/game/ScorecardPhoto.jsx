@@ -3,6 +3,7 @@ import ScorecardCapture from './ScorecardCapture';
 import ScorecardReview from './ScorecardReview';
 import GHINPostModal from './GHINPostModal';
 import { apiConfig } from '../../config/api.config';
+import { useAuthenticatedFetch } from '../../hooks/useAuthenticatedFetch';
 import { preprocessScorecardImage, downscaleToBase64 } from '../../utils/scorecardImage';
 
 const API_URL = apiConfig.baseUrl;
@@ -39,6 +40,7 @@ const ScorecardPhoto = ({
   initialStage,
   initialExtraction,
 }) => {
+  const authenticatedFetch = useAuthenticatedFetch();
   // 'capture' | 'processing' | 'review' | 'saving' | 'ghin_prompt' | 'error'
   const [stage, setStage] = useState(initialStage || 'capture');
   const [extraction, setExtraction] = useState(initialExtraction || null);
@@ -113,7 +115,7 @@ const ScorecardPhoto = ({
 
     try {
       if (mode === 'new-round') {
-        const res = await fetch(`${API_URL}/games/from-scorecard`, {
+        const res = await authenticatedFetch(`${API_URL}/games/from-scorecard`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...payload, course_name: 'Wing Point', image_base64: photoB64Ref.current || undefined }),
@@ -132,7 +134,7 @@ const ScorecardPhoto = ({
         hole_number: parseInt(holeStr, 10),
         quarters: holeQuarters[holeStr],
       }));
-      const res = await fetch(`${API_URL}/games/${gameId}/scores`, {
+      const res = await authenticatedFetch(`${API_URL}/games/${gameId}/scores`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ holes, current_hole: 18 }),
