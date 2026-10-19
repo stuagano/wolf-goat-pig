@@ -3,17 +3,19 @@
 import base64
 import logging
 import traceback
+from datetime import date
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from .. import database, models, schemas
 from ..badge_engine import BadgeEngine
 from ..services.auth_service import get_current_user
-from ..services.completed_game_service import validate_round_scores
+from ..services.completed_game_service import round_played_at, validate_round_players, validate_round_scores
 from ..services.game_lifecycle_service import get_game_lifecycle_service
 from ..services.notification_service import get_notification_service
 from ..state.course_manager import CourseManager
@@ -241,6 +243,13 @@ class ScorecardRoundRequest(BaseModel):
     played_at: str | None = None
     image_base64: str | None = None
 
+    @field_validator("played_at")
+    @classmethod
+    def validate_played_at(cls, value: str | None) -> str | None:
+        if value is not None and date.fromisoformat(value).isoformat() != value:
+            raise ValueError("played_at must be a valid YYYY-MM-DD date")
+        return value
+
 
 @router.post("/from-scorecard")
 async def create_round_from_scorecard(
@@ -273,19 +282,35 @@ async def create_round_from_scorecard(
 
     # Assign stable ids; resolve profile from canonical legacy_name when absent.
     players: list[dict[str, Any]] = []
+    profiles = (
+        db.query(models.PlayerProfile).all()
+        if any(p.player_profile_id is None and not p.unlinked for p in body.players)
+        else []
+    )
     for i, p in enumerate(body.players):
+        name = " ".join(p.name.split())
         profile_id = p.player_profile_id
         if profile_id is None and not p.unlinked:
-            prof = db.query(models.PlayerProfile).filter(models.PlayerProfile.legacy_name == p.name).first()
-            profile_id = prof.id if prof else None
+            matches = [
+                prof
+                for prof in profiles
+                if any(
+                    alias and " ".join(alias.casefold().split()) == name.casefold()
+                    for alias in (prof.legacy_name, prof.name)
+                )
+            ]
+            if len(matches) > 1:
+                raise HTTPException(status_code=400, detail="Ambiguous player name; select a player profile")
+            profile_id = matches[0].id if matches else None
         players.append(
             {
                 "id": f"p{i + 1}",
-                "name": p.name,
+                "name": name,
                 "player_profile_id": profile_id,
                 "handicap": 18.0,
             }
         )
+    validate_round_players(players)
 
     per_hole = [q.model_dump() for q in body.per_hole_quarters]
     hole_history, standings = build_hole_history(players, per_hole)
@@ -303,7 +328,6 @@ async def create_round_from_scorecard(
 
     try:
         now = utc_now().isoformat()
-        created_at = (body.played_at + "T12:00:00") if body.played_at else now
         game_id = str(uuid.uuid4())
         game = models.GameStateModel(
             game_id=game_id,
@@ -317,8 +341,9 @@ async def create_round_from_scorecard(
                 "hole_quarters": {str(e["hole"]): e["points_delta"] for e in hole_history},
                 "standings": standings,
                 "source": "scorecard_scan",
+                "played_at": body.played_at or now[:10],
             },
-            created_at=created_at,
+            created_at=now,
             updated_at=now,
         )
         # Attach the photo for later per-hole backfill (best-effort; oversize ignored).
@@ -669,11 +694,12 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
         # sim is a one-shot state generator — not cached (the /action engine that
         # used the cache was retired; the DB is the source of truth for /state).
         initial_state = simulation.get_game_state()
-        # Lobby join recorded each player's index; keep it beside the course
-        # handicap the engine plays off.
-        lobby_index = {p.get("id"): p.get("handicap_index") for p in (game.state or {}).get("players", [])}
+        # The simulation omits profile identity and handicap index from its players.
+        lobby_players = {p.get("id"): p for p in (game.state or {}).get("players", [])}
         for sp in initial_state.get("players", []):
-            sp["handicap_index"] = lobby_index.get(sp.get("id"))
+            lobby_player = lobby_players.get(sp.get("id"), {})
+            sp["handicap_index"] = lobby_player.get("handicap_index")
+            sp["player_profile_id"] = lobby_player.get("player_profile_id")
 
         # Update database game state
         game.game_status = "in_progress"  # type: ignore
@@ -1042,8 +1068,22 @@ async def get_game_history(limit: int = 10, offset: int = 0, db: Session = Depen
     """Get list of completed games"""
     try:
         games = (
-            db.query(models.GameRecord)
-            .order_by(models.GameRecord.completed_at.desc())
+            db.query(models.GameRecord, models.GameStateModel)
+            .outerjoin(models.GameStateModel, models.GameStateModel.game_id == models.GameRecord.game_id)
+            .order_by(
+                func.coalesce(
+                    models.GameRecord.game_settings["played_at"].as_string(),
+                    case(
+                        (
+                            models.GameStateModel.state["source"].as_string() == "scorecard_scan",
+                            models.GameStateModel.created_at,
+                        )
+                    ),
+                    models.GameRecord.completed_at,
+                    models.GameRecord.created_at,
+                ).desc(),
+                models.GameRecord.id.desc(),
+            )
             .offset(offset)
             .limit(limit)
             .all()
@@ -1059,9 +1099,10 @@ async def get_game_history(limit: int = 10, offset: int = 0, db: Session = Depen
                     "game_duration_minutes": game.game_duration_minutes,
                     "created_at": game.created_at,
                     "completed_at": game.completed_at,
+                    "played_at": round_played_at(game, game_state),
                     "final_scores": game.final_scores,
                 }
-                for game in games
+                for game, game_state in games
             ],
             "total": db.query(models.GameRecord).count(),
             "offset": offset,
@@ -1081,6 +1122,7 @@ async def get_game_details(game_id: str, db: Session = Depends(database.get_db))
             raise HTTPException(status_code=404, detail="Game not found")
 
         # Get player results
+        game_state = db.query(models.GameStateModel).filter_by(game_id=game_id).first()
         player_results = (
             db.query(models.GamePlayerResult)
             .filter(models.GamePlayerResult.game_record_id == game.id)
@@ -1098,6 +1140,7 @@ async def get_game_details(game_id: str, db: Session = Depends(database.get_db))
                 "game_duration_minutes": game.game_duration_minutes,
                 "created_at": game.created_at,
                 "completed_at": game.completed_at,
+                "played_at": round_played_at(game, game_state),
                 "game_settings": game.game_settings,
                 "final_scores": game.final_scores,
             },

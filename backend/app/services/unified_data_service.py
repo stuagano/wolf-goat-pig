@@ -18,8 +18,9 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import GamePlayerResult, GameRecord, LegacyRound
+from ..models import GamePlayerResult, GameRecord, GameStateModel, LegacyRound
 from ..utils.time import utc_now
+from .completed_game_service import round_played_at
 from .spreadsheet_sync_service import PRIMARY_SHEET_ID, RoundResult, SpreadsheetSyncService
 
 logger = logging.getLogger(__name__)
@@ -158,14 +159,13 @@ class UnifiedDataService:
             ),
         )
 
-    def _db_result_to_unified(self, result: GamePlayerResult, record: GameRecord) -> UnifiedRound:
+    def _db_result_to_unified(
+        self, result: GamePlayerResult, record: GameRecord, game: GameStateModel | None = None
+    ) -> UnifiedRound:
         """Convert a database game result to unified format."""
         # Convert database date format to DD-Mon
         try:
-            if record.completed_at:
-                dt = datetime.fromisoformat(record.completed_at.replace("Z", "+00:00"))
-            else:
-                dt = datetime.fromisoformat(record.created_at.replace("Z", "+00:00"))
+            dt = datetime.fromisoformat(round_played_at(record, game).replace("Z", "+00:00"))
             date_display = dt.strftime("%-d-%b")
             date_sortable = dt.strftime("%Y-%m-%d")
         except (ValueError, AttributeError):
@@ -234,12 +234,19 @@ class UnifiedDataService:
         if include_database:
             try:
                 db = self._get_db()
-                records = db.query(GameRecord).filter(GameRecord.completed_at.isnot(None)).all()
-                for record in records:
+                records = (
+                    db.query(GameRecord, GameStateModel)
+                    .outerjoin(GameStateModel, GameStateModel.game_id == GameRecord.game_id)
+                    .filter(GameRecord.completed_at.isnot(None))
+                    .all()
+                )
+                for record, game in records:
                     results = db.query(GamePlayerResult).filter(GamePlayerResult.game_record_id == record.id).all()
                     for result in results:
-                        unified = self._db_result_to_unified(result, record)
-                        _keep_first(all_rounds, unified)
+                        unified = self._db_result_to_unified(result, record, game)
+                        # Distinct participants can share both a name and a score.
+                        # Sheet copies are reconciled by whole game below.
+                        all_rounds[("database", result.id)] = unified
             except Exception as e:
                 logger.warning(f"Failed to fetch database records: {e}")
 

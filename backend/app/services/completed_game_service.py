@@ -19,6 +19,38 @@ logger = logging.getLogger(__name__)
 REQUIRED_HOLES = frozenset(range(1, 19))
 
 
+def round_played_at(record: Any, game: Any = None) -> str | None:
+    """Keep round dates separate from completion audit timestamps."""
+    settings = record.game_settings
+    if isinstance(settings, dict) and settings.get("played_at"):
+        return settings["played_at"]
+    # Older scorecard posts stored the played date only in created_at.
+    if game is not None and (game.state or {}).get("source") == "scorecard_scan":
+        return game.created_at
+    return record.completed_at or record.created_at
+
+
+def validate_round_players(players: list[dict]) -> None:
+    """Reject repeated identities and names that cannot distinguish guests."""
+    slots: set[str] = set()
+    profiles: set[int] = set()
+    names: dict[str, int | None] = {}
+    for player in players:
+        slot = player.get("id")
+        profile = player.get("player_profile_id")
+        name = " ".join((player.get("name") or "").casefold().split())
+        if not slot or slot in slots or not name:
+            raise HTTPException(status_code=400, detail="Round requires distinct players with nonblank names")
+        if profile is not None and profile in profiles:
+            raise HTTPException(status_code=400, detail="Round contains a duplicate player profile")
+        if name in names and (profile is None or names[name] is None):
+            raise HTTPException(status_code=400, detail="Duplicate player names require distinct player profiles")
+        slots.add(slot)
+        if profile is not None:
+            profiles.add(profile)
+        names[name] = profile
+
+
 def validate_round_scores(players: list[dict], hole_history: list[dict], *, complete: bool = True) -> None:
     """Require explicit quarters for the roster; missing scores are not zeroes."""
     player_ids = {p.get("id") for p in players}
@@ -67,14 +99,15 @@ def persist_completed_game(db: Session, game: Any) -> int:
     """Write GameRecord + GamePlayerResult rows for a completed game.
 
     `game` is a GameStateModel whose `state` already contains players,
-    hole_history, hole_quarters and standings. Idempotent on
-    (game_record_id, player_name). Returns the number of results created.
+    hole_history, hole_quarters and standings. Matches linked players by profile
+    and guests by name when correcting results. Returns the number created.
     """
     from app import models  # local import: router imports this module
     from app.utils.time import utc_now  # match existing helper used in games.py
 
     state = game.state or {}
     players = state.get("players", [])
+    validate_round_players(players)
     hole_history = state.get("hole_history", [])
     hole_quarters = state.get("hole_quarters", {})
 
@@ -102,6 +135,11 @@ def persist_completed_game(db: Session, game: Any) -> int:
         db.flush()
     record.final_scores = standings
     record.total_holes_played = len(hole_history)
+    if state.get("source") == "scorecard_scan":
+        record.game_settings = {
+            **(record.game_settings or {}),
+            "played_at": state.get("played_at") or game.created_at,
+        }
     record_id = record.id
 
     player_hole_data: dict[str, list] = {}
@@ -127,12 +165,18 @@ def persist_completed_game(db: Session, game: Any) -> int:
         holes_data = player_hole_data.get(pid, [])
         holes_won = sum(1 for h in holes_data if h.get("quarters", 0) > 0)
 
-        result = db.query(models.GamePlayerResult).filter_by(game_record_id=record_id, player_name=player_name).first()
+        result_query = db.query(models.GamePlayerResult).filter_by(
+            game_record_id=record_id, player_profile_id=player.get("player_profile_id")
+        )
+        if player.get("player_profile_id") is None:
+            result_query = result_query.filter_by(player_name=player_name)
+        result = result_query.one_or_none()
         if result is None:
             result = models.GamePlayerResult(game_record_id=record_id, player_name=player_name, created_at=now)
             db.add(result)
             results_created += 1
         result.player_profile_id = player.get("player_profile_id")
+        result.player_name = player_name
         result.final_position = rank
         result.total_earnings = total_earnings
         result.holes_won = holes_won
