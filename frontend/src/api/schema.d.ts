@@ -5612,6 +5612,11 @@ export interface components {
             player_profile_id: number;
             /** Preferred Notification Time */
             preferred_notification_time: string;
+            /**
+             * Same Day Signups Enabled
+             * @default false
+             */
+            same_day_signups_enabled: boolean;
             /** Signup Confirmations Enabled */
             signup_confirmations_enabled: boolean;
             /** Signup Reminders Enabled */
@@ -5633,6 +5638,8 @@ export interface components {
             game_invitations_enabled?: boolean | null;
             /** Preferred Notification Time */
             preferred_notification_time?: string | null;
+            /** Same Day Signups Enabled */
+            same_day_signups_enabled?: boolean | null;
             /** Signup Confirmations Enabled */
             signup_confirmations_enabled?: boolean | null;
             /** Signup Reminders Enabled */

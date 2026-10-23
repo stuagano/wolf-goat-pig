@@ -174,6 +174,12 @@ def init_db():
         # Preserve existing local data when upgrading the group-posting audit field.
         # Production PostgreSQL uses add_member_round_submitter_postgres.sql.
         if engine.dialect.name == "sqlite":
+            preference_columns = {column["name"] for column in inspect(engine).get_columns("email_preferences")}
+            if "same_day_signups_enabled" not in preference_columns:
+                with engine.begin() as connection:
+                    connection.execute(
+                        text("ALTER TABLE email_preferences ADD COLUMN same_day_signups_enabled INTEGER DEFAULT 0")
+                    )
             columns = {column["name"] for column in inspect(engine).get_columns("legacy_rounds")}
             if "submitted_by_profile_id" not in columns:
                 with engine.begin() as connection:

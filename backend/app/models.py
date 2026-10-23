@@ -530,6 +530,7 @@ class EmailPreferences(Base):
     player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
     daily_signups_enabled = Column(Integer, default=1)  # Receive daily signup emails
     signup_confirmations_enabled = Column(Integer, default=1)  # When someone signs up
+    same_day_signups_enabled = Column(Integer, default=0)  # Opt in to same-day signup alerts
     signup_reminders_enabled = Column(Integer, default=1)  # Reminders to sign up
     game_invitations_enabled = Column(Integer, default=1)  # Direct game invitations
     weekly_summary_enabled = Column(Integer, default=1)  # Weekly activity summary
@@ -580,6 +581,21 @@ class SignupReminderSend(Base):
     id = Column(Integer, primary_key=True, index=True)
     game_date = Column(String, index=True)  # YYYY-MM-DD Sunday the nudge was for
     player_profile_id = Column(Integer)  # References PlayerProfile.id
+    sent_at = Column(String)  # ISO timestamp
+
+
+class SameDaySignupNotification(Base):
+    """Accepted same-day alerts, keyed by signup and recipient.
+
+    Delivery locks the source signup and consults this ledger before sending.
+    Provider acceptance and the ledger commit are not atomic.
+    """
+
+    __tablename__ = "same_day_signup_notifications"
+    __table_args__ = (UniqueConstraint("signup_id", "recipient_profile_id", name="uq_same_day_signup_recipient"),)
+    id = Column(Integer, primary_key=True, index=True)
+    signup_id = Column(Integer, index=True)  # References DailySignup.id
+    recipient_profile_id = Column(Integer)  # References PlayerProfile.id
     sent_at = Column(String)  # ISO timestamp
 
 

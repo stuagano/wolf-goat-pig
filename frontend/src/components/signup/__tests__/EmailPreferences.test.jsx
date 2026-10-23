@@ -10,6 +10,7 @@ vi.mock('@auth0/auth0-react', () => ({ useAuth0: vi.fn() }));
 const savedPreferences = {
   daily_signups_enabled: false,
   signup_confirmations_enabled: true,
+  same_day_signups_enabled: false,
   signup_reminders_enabled: false,
   game_invitations_enabled: true,
   weekly_summary_enabled: false,
@@ -43,6 +44,41 @@ test('loads and saves preferences using Auth0 access tokens', async () => {
   expect(request.headers.get('Authorization')).toBe('Bearer test-access-token');
   expect(await request.json()).toEqual({ ...savedPreferences, daily_signups_enabled: true });
   expect(useAuth0().getAccessTokenSilently).toHaveBeenCalledTimes(2);
+});
+
+test('opts into same-day signup emails independently of own signup confirmations', async () => {
+  fetch.mockResolvedValueOnce(createMockFetchResponse(savedPreferences))
+    .mockResolvedValueOnce(createMockFetchResponse({ ...savedPreferences, same_day_signups_enabled: true }));
+  render(<EmailPreferences />);
+  const sameDay = await screen.findByRole('checkbox', { name: /Someone joins my day/ });
+  const confirmations = screen.getByRole('checkbox', { name: /Sign-up Confirmations/ });
+  expect(sameDay).not.toBeChecked();
+  expect(confirmations).toBeChecked();
+  expect(screen.getByText('Confirmation when you sign up for a day')).toBeInTheDocument();
+  fireEvent.click(sameDay);
+  expect(confirmations).toBeChecked();
+  fireEvent.click(screen.getByRole('button', { name: /Save Preferences/ }));
+  await screen.findByText(/Preferences saved!/);
+  expect(await fetch.mock.calls[1][0].json()).toEqual({
+    ...savedPreferences,
+    same_day_signups_enabled: true,
+  });
+});
+
+test.each([
+  ['All Emails', false, true],
+  ['Essential', true, false],
+  ['Minimal', true, false],
+])('%s preset sets same-day signup notifications to %s → %s', async (preset, initialValue, expectedValue) => {
+  fetch.mockResolvedValueOnce(createMockFetchResponse({
+    ...savedPreferences,
+    same_day_signups_enabled: initialValue,
+  }));
+  render(<EmailPreferences />);
+  const sameDay = await screen.findByRole('checkbox', { name: /Someone joins my day/ });
+  expect(sameDay.checked).toBe(initialValue);
+  fireEvent.click(screen.getByRole('button', { name: preset }));
+  expect(sameDay.checked).toBe(expectedValue);
 });
 
 test('shows load failures without editable defaults and allows retry', async () => {

@@ -149,6 +149,7 @@ class EmailPreferencesCreate(BaseModel):
     player_profile_id: int
     daily_signups_enabled: bool = True
     signup_confirmations_enabled: bool = True
+    same_day_signups_enabled: bool = False
     signup_reminders_enabled: bool = True
     game_invitations_enabled: bool = True
     weekly_summary_enabled: bool = True
@@ -168,6 +169,7 @@ class EmailPreferencesCreate(BaseModel):
 class EmailPreferencesUpdate(BaseModel):
     daily_signups_enabled: bool | None = None
     signup_confirmations_enabled: bool | None = None
+    same_day_signups_enabled: bool | None = None
     signup_reminders_enabled: bool | None = None
     game_invitations_enabled: bool | None = None
     weekly_summary_enabled: bool | None = None
@@ -192,6 +194,8 @@ class EmailPreferencesResponse(BaseModel):
     player_profile_id: int
     daily_signups_enabled: bool
     signup_confirmations_enabled: bool
+    # Opt-in; defaulted so older rows/fixtures without the column still validate.
+    same_day_signups_enabled: bool = False
     signup_reminders_enabled: bool
     game_invitations_enabled: bool
     weekly_summary_enabled: bool

@@ -89,6 +89,7 @@ const EmailPreferences = () => {
           ...prev,
           daily_signups_enabled: true,
           signup_confirmations_enabled: true,
+          same_day_signups_enabled: true,
           signup_reminders_enabled: true,
           game_invitations_enabled: true,
           weekly_summary_enabled: true,
@@ -100,6 +101,7 @@ const EmailPreferences = () => {
           ...prev,
           daily_signups_enabled: false,
           signup_confirmations_enabled: true,
+          same_day_signups_enabled: false,
           signup_reminders_enabled: false,
           game_invitations_enabled: true,
           weekly_summary_enabled: true,
@@ -111,6 +113,7 @@ const EmailPreferences = () => {
           ...prev,
           daily_signups_enabled: false,
           signup_confirmations_enabled: false,
+          same_day_signups_enabled: false,
           signup_reminders_enabled: false,
           game_invitations_enabled: true,
           weekly_summary_enabled: false,
@@ -142,7 +145,8 @@ const EmailPreferences = () => {
 
   const notificationTypes = [
     { key: 'daily_signups_enabled', label: 'Daily Sign-up Summaries', desc: 'Who has signed up to play' },
-    { key: 'signup_confirmations_enabled', label: 'Sign-up Confirmations', desc: 'When someone joins your day' },
+    { key: 'signup_confirmations_enabled', label: 'Sign-up Confirmations', desc: 'Confirmation when you sign up for a day' },
+    { key: 'same_day_signups_enabled', label: 'Someone joins my day', desc: 'When another player signs up for a day you joined' },
     { key: 'signup_reminders_enabled', label: 'Sign-up Reminders', desc: 'Reminders for upcoming days' },
     { key: 'game_invitations_enabled', label: 'Game Invitations', desc: 'Direct invites to play' },
     { key: 'weekly_summary_enabled', label: 'Weekly Summary', desc: 'Recap of golf activity' },

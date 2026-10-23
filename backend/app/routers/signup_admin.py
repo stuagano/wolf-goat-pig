@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..services.legacy_signup_service import get_legacy_signup_service
+from ..services.same_day_signup_service import send_same_day_signup_notifications
 from ..utils.admin_auth import require_admin
 from ..utils.time import club_today, utc_now
 from .signups import _send_signup_confirmation
@@ -92,4 +93,5 @@ def admin_add_signup(
     except Exception:
         logger.exception("Legacy signup sync failed for admin create id=%s", signup.id)
     _send_signup_confirmation(signup.id, player.email, player.legacy_name, signup_date)
+    send_same_day_signup_notifications(signup.id)
     return schemas.DailySignupResponse.from_orm(signup)

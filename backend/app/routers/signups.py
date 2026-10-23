@@ -23,6 +23,7 @@ from ..services.legacy_player_service import (
     validate_player_for_legacy,
 )
 from ..services.legacy_signup_service import get_legacy_signup_service
+from ..services.same_day_signup_service import send_same_day_signup_notifications
 from ..utils.admin_auth import is_admin_profile, require_admin
 from ..utils.time import utc_now
 
@@ -383,6 +384,9 @@ def create_signup(
         # client-supplied). Non-blocking and idempotent; see _send_signup_confirmation.
         _send_signup_confirmation(db_signup.id, getattr(current_user, "email", None), player_name, signup.date)
 
+        # Separately, alert players already signed up for this date who opted in.
+        send_same_day_signup_notifications(db_signup.id)
+
         return schemas.DailySignupResponse.from_orm(db_signup).model_copy(update={"legacy_sync": legacy_sync})
 
     except HTTPException:
@@ -416,6 +420,10 @@ def update_signup(
             raise HTTPException(status_code=404, detail="Sign-up not found")
         _require_owner_or_admin(db_signup, current_user)
 
+        joined_day = signup_update.status == "signed_up" and db_signup.status != "signed_up"
+        if joined_day:
+            db_signup.signup_time = utc_now().isoformat()
+
         # Update fields
         if signup_update.preferred_start_time is not None:
             db_signup.preferred_start_time = signup_update.preferred_start_time  # type: ignore
@@ -436,6 +444,9 @@ def update_signup(
             legacy_service.sync_signup_updated(db_signup)
         except Exception:
             logger.exception("Legacy signup sync failed for update id=%s", db_signup.id)
+
+        if joined_day:
+            send_same_day_signup_notifications(db_signup.id)
 
         return schemas.DailySignupResponse.from_orm(db_signup)
 

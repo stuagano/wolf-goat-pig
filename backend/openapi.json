@@ -1271,6 +1271,11 @@
             "title": "Preferred Notification Time",
             "type": "string"
           },
+          "same_day_signups_enabled": {
+            "default": false,
+            "title": "Same Day Signups Enabled",
+            "type": "boolean"
+          },
           "signup_confirmations_enabled": {
             "title": "Signup Confirmations Enabled",
             "type": "boolean"
@@ -1361,6 +1366,17 @@
               }
             ],
             "title": "Preferred Notification Time"
+          },
+          "same_day_signups_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Same Day Signups Enabled"
           },
           "signup_confirmations_enabled": {
             "anyOf": [
