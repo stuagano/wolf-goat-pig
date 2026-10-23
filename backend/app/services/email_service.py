@@ -315,6 +315,25 @@ class EmailService:
             html_body=html_body,
         )
 
+    def send_same_day_signup_notification(
+        self, *, to_email: str, player_name: str, joining_player_name: str, signup_date: str
+    ) -> bool:
+        """Tell an opted-in player who just joined a day they are playing."""
+        subject = f"Someone joined your golf day - {signup_date}"
+        content = (
+            f"<h2>Someone joins your day</h2><p>Hi {html.escape(player_name)},</p>"
+            f"<p><strong>{html.escape(joining_player_name)}</strong> just signed up for "
+            f"Wolf Goat Pig on <strong>{html.escape(signup_date)}</strong>, "
+            "a day you're already signed up for.</p>"
+        )
+        html_body = Template(self._get_base_template()).render(subject=subject, content=content)
+        text_body = (
+            f"Hi {player_name},\n\n{joining_player_name} just signed up for Wolf Goat Pig "
+            f"on {signup_date}, a day you're already signed up for.\n\n"
+            f"Manage your email preferences: {self._preferences_url()}\n"
+        )
+        return self._send_email(to_email, subject, html_body, text_body)
+
     def send_welcome_email(self, to_email: str, player_name: str) -> bool:
         """Sends a welcome email when a new account is auto-created on first login.
 

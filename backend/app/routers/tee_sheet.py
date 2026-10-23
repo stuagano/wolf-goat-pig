@@ -201,22 +201,26 @@ def _mirror_signup_to_db(name: str, date: str) -> None:
             query = query.filter(DailySignup.player_name == name)
         existing = query.first()
 
+        joined_signup_id: int | None = None
         if existing:
             if existing.status != "signed_up":
                 existing.status = "signed_up"
+                existing.signup_time = now
                 existing.updated_at = now
+                joined_signup_id = existing.id
         else:
-            db.add(
-                DailySignup(
-                    date=date,
-                    player_profile_id=profile_id,
-                    player_name=name,
-                    signup_time=now,
-                    status="signed_up",
-                    created_at=now,
-                    updated_at=now,
-                )
+            joined = DailySignup(
+                date=date,
+                player_profile_id=profile_id,
+                player_name=name,
+                signup_time=now,
+                status="signed_up",
+                created_at=now,
+                updated_at=now,
             )
+            db.add(joined)
+            db.flush()
+            joined_signup_id = joined.id
 
         if profile and profile.email:
             prefs = db.query(EmailPreferences).filter(EmailPreferences.player_profile_id == profile_id).first()
@@ -230,6 +234,11 @@ def _mirror_signup_to_db(name: str, date: str) -> None:
         return
     finally:
         db.close()
+
+    if joined_signup_id is not None:
+        from ..services.same_day_signup_service import send_same_day_signup_notifications
+
+        send_same_day_signup_notifications(joined_signup_id)
 
     if to_email:
         try:

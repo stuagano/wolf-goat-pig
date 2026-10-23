@@ -120,6 +120,8 @@ def test_issue_319_three_authenticated_players_stay_distinct(tmp_path, monkeypat
     monkeypatch.setattr(signups_module, "get_legacy_signup_service", Mock(return_value=legacy))
     confirmation = Mock()
     monkeypatch.setattr(signups_module, "_send_signup_confirmation", confirmation)
+    alerts = Mock()
+    monkeypatch.setattr(signups_module, "send_same_day_signup_notifications", alerts)
     monkeypatch.delitem(app.dependency_overrides, get_current_user)
     monkeypatch.setitem(app.dependency_overrides, get_db, local_db)
     signup_ids = []
@@ -137,6 +139,7 @@ def test_issue_319_three_authenticated_players_stay_distinct(tmp_path, monkeypat
             persisted = _signups_for_week("2026-07-24")[signup_id]
             assert (persisted["player_profile_id"], persisted["player_name"]) == (player_id, name)
             confirmation.assert_called_with(signup_id, f"player{player_id}@example.com", name, "2026-07-24")
+            alerts.assert_called_with(signup_id)
 
         assert len(_signups_for_week("2026-07-24")) == 3
         for signup_id, (player_id, name) in zip(signup_ids[:2], identities[:2], strict=True):

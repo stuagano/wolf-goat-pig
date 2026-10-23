@@ -45,7 +45,9 @@ def env(monkeypatch):
             yield db
 
     sent = []
+    alerted = []
     monkeypatch.setattr(signup_admin, "_send_signup_confirmation", lambda *args: sent.append(args))
+    monkeypatch.setattr(signup_admin, "send_same_day_signup_notifications", lambda *args: alerted.append(args))
     monkeypatch.setenv("SUPER_ADMIN_EMAILS", "admin@example.com")
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_auth0_user] = lambda: ADMIN
