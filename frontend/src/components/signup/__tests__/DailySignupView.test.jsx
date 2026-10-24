@@ -77,16 +77,16 @@ describe('DailySignupView', () => {
     render(<DailySignupView selectedDate="2026-10-04" />);
     expect(await screen.findByRole('button', { name: 'Fri' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sat' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Sun' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sun' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Thu' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Previous Week' })).toBeDisabled();
-    expect(screen.getByText('Fri - Sat: Oct 9 - Oct 10')).toBeInTheDocument();
+    expect(screen.getByText('Fri - Sun: Oct 9 - Oct 11')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Signed up for Friday, October 9' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Sat' }));
     fireEvent.click(screen.getByRole('button', { name: 'Next Week' }));
     expect(await screen.findByRole('heading', { name: 'Signed up for Saturday, October 17' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Sun' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mon' }));
     fireEvent.click(screen.getByRole('button', { name: 'Previous Week' }));
     expect(await screen.findByRole('heading', { name: 'Signed up for Friday, October 9' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Previous Week' })).toBeDisabled();

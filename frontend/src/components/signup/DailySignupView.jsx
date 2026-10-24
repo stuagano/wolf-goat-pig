@@ -54,11 +54,11 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   // Everywhere else the signup stays in this app (issue #323).
   const isLive = apiConfig.isProduction;
 
-  // Compute the Sunday that starts the week containing a given date
-  const getSundayOfWeek = useCallback((dateStr) => {
+  // Keep Sunday at the end of the week containing a given date.
+  const getMondayOfWeek = useCallback((dateStr) => {
     const d = new Date(dateStr + 'T12:00:00');
-    const day = d.getDay(); // 0=Sun
-    d.setDate(d.getDate() - day);
+    const daysSinceMonday = (d.getDay() + 6) % 7;
+    d.setDate(d.getDate() - daysSinceMonday);
     return d.toISOString().split('T')[0];
   }, []);
 
@@ -66,9 +66,9 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   useEffect(() => {
     const startDate = initialDate && initialDate >= today ? initialDate : today;
     setSelectedDate(startDate);
-    const sunday = getSundayOfWeek(startDate);
-    setCurrentWeekStart(sunday);
-  }, [initialDate, getSundayOfWeek, today]);
+    const monday = getMondayOfWeek(startDate);
+    setCurrentWeekStart(monday);
+  }, [initialDate, getMondayOfWeek, today]);
 
   // Load weekly data whenever week changes
   const loadWeeklyData = useCallback(async (weekStart) => {
@@ -131,7 +131,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     if (startStr === endStr) return `${start.toLocaleDateString('en-US', { weekday: 'short' })}: ${startStr}`;
-    return `${start.toLocaleDateString('en-US', { weekday: 'short' })} - Sat: ${startStr} - ${endStr}`;
+    return `${start.toLocaleDateString('en-US', { weekday: 'short' })} - ${end.toLocaleDateString('en-US', { weekday: 'short' })}: ${startStr} - ${endStr}`;
   };
 
   // Format full date for the day header
@@ -154,7 +154,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     const d = new Date(currentWeekStart + 'T12:00:00');
     d.setDate(d.getDate() + (direction * 7));
     const newWeekStart = d.toISOString().split('T')[0];
-    if (newWeekStart < getSundayOfWeek(today)) return;
+    if (newWeekStart < getMondayOfWeek(today)) return;
     setCurrentWeekStart(newWeekStart);
     // Select the same day-of-week in the new week
     const currentDayIndex = getWeekDays().indexOf(selectedDate);
@@ -379,15 +379,15 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
       }}>
         <button
           onClick={() => navigateWeek(-1)}
-          disabled={currentWeekStart <= getSundayOfWeek(today)}
+          disabled={currentWeekStart <= getMondayOfWeek(today)}
           style={{
             background: 'rgba(255,255,255,0.15)',
             color: 'white',
             border: '1px solid rgba(255,255,255,0.3)',
             borderRadius: '4px',
             padding: '8px 16px',
-            cursor: currentWeekStart <= getSundayOfWeek(today) ? 'not-allowed' : 'pointer',
-            opacity: currentWeekStart <= getSundayOfWeek(today) ? 0.5 : 1,
+            cursor: currentWeekStart <= getMondayOfWeek(today) ? 'not-allowed' : 'pointer',
+            opacity: currentWeekStart <= getMondayOfWeek(today) ? 0.5 : 1,
             fontSize: '14px',
             fontWeight: '600',
             whiteSpace: 'nowrap'
