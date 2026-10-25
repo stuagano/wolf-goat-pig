@@ -18,6 +18,17 @@ test('zoom in increases the image scale', () => {
   expect(img.style.width).not.toBe(before);
 });
 
+test('embedded photo stays in the page and resets zoom and pan', () => {
+  render(<ScorecardPhotoZoom src="blob:abc" embedded />);
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(screen.queryByRole('button', { name: /close photo/i })).toBeNull();
+  const img = screen.getByAltText('scorecard');
+  fireEvent.click(screen.getByRole('button', { name: /zoom in/i }));
+  fireEvent.click(screen.getByRole('button', { name: /reset photo/i }));
+  expect(img.style.width).toBe('100%');
+  expect(screen.getByRole('region', { name: /pan scorecard/i }).scrollLeft).toBe(0);
+});
+
 test('close button calls onClose', () => {
   const onClose = vi.fn();
   render(<ScorecardPhotoZoom src="blob:abc" onClose={onClose} />);

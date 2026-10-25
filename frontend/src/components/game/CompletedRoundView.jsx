@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
 import GameCompletionView from "./GameCompletionView";
-import ScorecardPhotoButton from "./ScorecardPhotoButton";
+import RoundCardReview from "./RoundCardReview";
+import EditHoleModal from "./EditHoleModal";
+import { SyncStatusBanner } from "../ui/SyncStatusIndicator";
 import { apiConfig } from "../../config/api.config";
 import { useAuthenticatedFetch } from "../../hooks/useAuthenticatedFetch";
 import useRoundCard from "../../hooks/useRoundCard";
@@ -23,6 +25,7 @@ const CompletedRoundView = ({
   isMarkedComplete,
   onMarkedComplete,
   onEditScores,
+  onSaveHole,
 }) => {
   const authenticatedFetch = useAuthenticatedFetch();
   // { has_photo, can_edit, edited_by, edited_at } — null when signed out or unknown.
@@ -31,6 +34,8 @@ const CompletedRoundView = ({
   const [photoVersion, setPhotoVersion] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
+  const [reviewing, setReviewing] = useState(false);
+  const [editingHole, setEditingHole] = useState(null);
 
   const handleCardPhoto = async (event) => {
     const input = event.target;
@@ -79,8 +84,24 @@ const CompletedRoundView = ({
     }
   };
 
-  return (
+  const scores = (
     <>
+      <SyncStatusBanner />
+      {!reviewing && card?.can_edit && onSaveHole && (
+        <button type="button" onClick={() => setReviewing(true)} style={{ padding: '10px 16px', marginBottom: '12px', borderRadius: '8px', background: '#216b45', color: 'white' }}>Edit scores</button>
+      )}
+      {reviewing && card?.can_edit && onSaveHole && (
+        <div>
+          <p>Select a hole to correct its strokes or quarters.</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px' }}>
+            {holeHistory.map((hole) => (
+              <button key={hole.hole} type="button" disabled={editingHole !== null} onClick={() => setEditingHole(hole)} aria-label={`Edit hole ${hole.hole}`} style={{ padding: '10px', border: '1px solid #527b63', borderRadius: '6px' }}>{hole.hole}</button>
+            ))}
+            <button type="button" disabled={editingHole !== null} onClick={() => setReviewing(false)}>Done editing</button>
+          </div>
+          <EditHoleModal embedded isOpen={editingHole !== null} holeData={editingHole} players={players} onClose={() => setEditingHole(null)} onSave={onSaveHole} />
+        </div>
+      )}
       <GameCompletionView
         players={players}
         playerStandings={playerStandings}
@@ -89,13 +110,13 @@ const CompletedRoundView = ({
           // Reset to start a new game
           window.location.reload();
         }}
-        onEditScores={onEditScores}
+        onEditScores={card?.can_edit && !onSaveHole ? onEditScores : undefined}
+        compact
         onMarkComplete={handleMarkComplete}
         isCompleted={isMarkedComplete}
         courseHoles={courseHoles}
         strokeAllocation={strokeAllocation}
       />
-      {gameId && <ScorecardPhotoButton key={photoVersion} gameId={gameId} />}
       {card?.can_edit && (
         <label
           style={{
@@ -126,6 +147,8 @@ const CompletedRoundView = ({
       )}
     </>
   );
+
+  return gameId ? <RoundCardReview gameId={gameId} photoVersion={photoVersion}>{scores}</RoundCardReview> : scores;
 };
 
 CompletedRoundView.propTypes = {
@@ -137,7 +160,8 @@ CompletedRoundView.propTypes = {
   strokeAllocation: PropTypes.object,
   isMarkedComplete: PropTypes.bool,
   onMarkedComplete: PropTypes.func.isRequired,
-  onEditScores: PropTypes.func.isRequired,
+  onEditScores: PropTypes.func,
+  onSaveHole: PropTypes.func,
 };
 
 export default CompletedRoundView;
