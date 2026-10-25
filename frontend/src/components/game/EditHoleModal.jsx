@@ -16,6 +16,7 @@ const EditHoleModal = ({
   onSave,
   holeData,
   players,
+  embedded = false,
 }) => {
   const theme = useTheme();
   const [scores, setScores] = useState({});
@@ -61,16 +62,16 @@ const EditHoleModal = ({
 
   return (
     <div
-      style={{
+      style={embedded ? { marginBottom: '16px' } : {
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
         backgroundColor: 'rgba(0,0,0,0.5)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         zIndex: 1000, padding: '12px',
       }}
-      onClick={onClose}
+      onClick={embedded ? undefined : onClose}
       onKeyDown={handleKeyDown}
-      role="dialog"
-      aria-modal="true"
+      role={embedded ? 'region' : 'dialog'}
+      aria-modal={embedded ? undefined : true}
       aria-labelledby="edit-hole-title"
     >
       <div
@@ -129,6 +130,7 @@ const EditHoleModal = ({
               <input
                 type="text"
                 inputMode="numeric"
+                aria-label={`${player.name} strokes`}
                 value={scores[player.id] ?? ''}
                 onChange={e => {
                   const v = e.target.value;
@@ -167,6 +169,7 @@ const EditHoleModal = ({
                   type="text"
                   inputMode="numeric"
                   pattern="-?[0-9]*\.?[0-9]*"
+                  aria-label={`${player.name} quarters`}
                   value={quarters[player.id] ?? ''}
                   onChange={e => {
                     const v = e.target.value;

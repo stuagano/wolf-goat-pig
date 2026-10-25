@@ -9,7 +9,7 @@ import Scorecard from './Scorecard';
  * Game completion view shown after all 18 holes are played
  * Displays final standings and game summary
  */
-const GameCompletionView = ({ players, playerStandings, holeHistory, onNewGame, onEditScores, onMarkComplete, isCompleted, courseHoles, strokeAllocation }) => {
+const GameCompletionView = ({ players, playerStandings, holeHistory, onNewGame, onEditScores, onMarkComplete, isCompleted, courseHoles, strokeAllocation, compact = false }) => {
   const theme = useTheme();
   const [isMarking, setIsMarking] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
@@ -66,7 +66,7 @@ const GameCompletionView = ({ players, playerStandings, holeHistory, onNewGame, 
 
   return (
     <div style={{
-      padding: '32px',
+      padding: compact ? '0' : '32px',
       maxWidth: '800px',
       margin: '0 auto'
     }}>
@@ -89,6 +89,7 @@ const GameCompletionView = ({ players, playerStandings, holeHistory, onNewGame, 
           courseHoles={courseHoles || []}
           strokeAllocation={strokeAllocation || {}}
           isEditingCompleteGame={false}
+          defaultExpanded={compact}
         />
       </div>
 

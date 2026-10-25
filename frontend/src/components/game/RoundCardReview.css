@@ -1,0 +1,21 @@
+.round-card-review { max-width: 1440px; margin: 0 auto; padding: 16px; color: #173b2c; }
+.round-card-review__heading { border-bottom: 2px solid #d7e3dc; margin-bottom: 16px; padding-bottom: 12px; }
+.round-card-review__heading h2 { margin: 0; font-size: 24px; font-weight: 700; }
+.round-card-review__heading p { margin: 4px 0 0; color: #52665a; font-size: 14px; }
+.round-card-review__grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+.round-card-review h3 { font-size: 14px; font-weight: 700; margin: 0 0 8px; }
+.round-card-review__photo, .round-card-review__scores { min-width: 0; }
+.round-card-review__photo { position: sticky; top: 0; z-index: 20; background: #f7faf8; border: 1px solid #d7e3dc; border-radius: 12px; padding: 10px; }
+.round-card-review__viewport { height: var(--photo-height); max-height: max(160px, calc(45dvh - 100px)); min-height: 0; }
+.round-card-review__viewport > [role="status"] { margin: 0; padding: 12px; }
+.round-card-review__resize { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; margin-bottom: 8px; }
+.round-card-review__resize input { min-width: 0; width: 45%; min-height: 28px; accent-color: #216b45; }
+.round-card-review__message { color: #52665a; }
+.round-card-review__message button { border: 1px solid #527b63; border-radius: 8px; padding: 8px 12px; background: white; color: #173b2c; }
+.round-card-review__scores > div { max-width: 100%; }
+@media (min-width: 768px) {
+  .round-card-review__grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 24px; }
+  .round-card-review__photo { top: 16px; }
+  .round-card-review__viewport { height: min(70vh, 720px); max-height: none; }
+  .round-card-review__resize { display: none; }
+}

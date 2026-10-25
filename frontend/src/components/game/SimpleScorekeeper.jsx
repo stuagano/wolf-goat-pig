@@ -799,6 +799,7 @@ const SimpleScorekeeper = ({
         strokeAllocation={strokeAllocation}
         isMarkedComplete={isGameMarkedComplete}
         onMarkedComplete={() => setIsGameMarkedComplete(true)}
+        onSaveHole={handleEditModalSave}
         onEditScores={() => {
           // Enter edit mode - set to hole 19 so ALL holes appear as "completed" and editable
           setIsEditingCompleteGame(true);

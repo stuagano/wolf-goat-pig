@@ -14,13 +14,18 @@ vi.mock('../GameCompletionView', () => ({
     <div>
       <span>{isCompleted ? 'saved' : 'unsaved'}</span>
       <button onClick={onMarkComplete}>mark</button>
-      <button onClick={onEditScores}>edit</button>
+      {onEditScores && <button onClick={onEditScores}>edit</button>}
     </div>
   ),
 }));
 
-vi.mock('../ScorecardPhotoButton', () => ({
-  default: ({ gameId }) => <div>photo:{gameId}</div>,
+vi.mock('../RoundCardReview', () => ({
+  default: ({ gameId, children }) => <section aria-label="Review card & scores"><div>photo:{gameId}</div>{children}</section>,
+}));
+
+// The real banner needs sync state; assert the completed view mounts it.
+vi.mock('../../ui/SyncStatusIndicator', () => ({
+  SyncStatusBanner: () => <div>sync-status-banner</div>,
 }));
 
 const authFetch = vi.fn();
@@ -44,6 +49,11 @@ beforeEach(() => {
 });
 
 describe('CompletedRoundView', () => {
+  test('retains the existing sync-status feedback while reviewing', async () => {
+    render(<CompletedRoundView {...baseProps} gameId="g1" onMarkedComplete={vi.fn()} />);
+    expect(screen.getByText('sync-status-banner')).toBeVisible();
+    await waitFor(() => expect(authFetch).toHaveBeenCalled());
+  });
   test('marking complete POSTs /complete and reports success', async () => {
     const onMarkedComplete = vi.fn();
     render(<CompletedRoundView {...baseProps} gameId="g1" onMarkedComplete={onMarkedComplete} onEditScores={vi.fn()} />);
@@ -69,12 +79,13 @@ describe('CompletedRoundView', () => {
     expect(onMarkedComplete).not.toHaveBeenCalled();
   });
 
-  test('shows the photo button only when there is a game id, and forwards edit', () => {
+  test('shows the photo pane only when there is a game id, and forwards authorized edit', async () => {
+    authFetch.mockReturnValue(card(NO_PHOTO));
     const onEditScores = vi.fn();
     const { rerender } = render(<CompletedRoundView {...baseProps} gameId="g1" onMarkedComplete={vi.fn()} onEditScores={onEditScores} />);
     expect(screen.getByText('photo:g1')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('edit'));
+    fireEvent.click(await screen.findByText('edit'));
     expect(onEditScores).toHaveBeenCalled();
 
     rerender(<CompletedRoundView {...baseProps} gameId={null} onMarkedComplete={vi.fn()} onEditScores={onEditScores} />);
@@ -152,6 +163,37 @@ describe('CompletedRoundView', () => {
     await waitFor(() =>
       expect(authFetch.mock.calls.filter(([url]) => url === 'http://test-api/games/g1/card')).toHaveLength(2),
     );
+  });
+
+  test('read-only viewers cannot open score corrections', async () => {
+    render(<CompletedRoundView {...baseProps} gameId="g1" onMarkedComplete={vi.fn()} onEditScores={vi.fn()} onSaveHole={vi.fn()} />);
+    await waitFor(() => expect(authFetch).toHaveBeenCalled());
+    expect(screen.queryByText('edit')).toBeNull();
+    expect(screen.queryByRole('button', { name: /edit hole/i })).toBeNull();
+  });
+
+  test('edits inline with the photo present, cancels without saving, and reopens the saved correction', async () => {
+    authFetch.mockReturnValue(card(NO_PHOTO));
+    const hole = { hole: 1, gross_scores: { p1: 4 }, points_delta: { p1: 0 } };
+    const onSaveHole = vi.fn().mockResolvedValue(undefined);
+    const props = { ...baseProps, gameId: 'g1', holeHistory: [hole], onMarkedComplete: vi.fn(), onSaveHole };
+    const { rerender } = render(<CompletedRoundView {...props} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit scores' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit hole 1' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByText('photo:g1')).toBeVisible();
+    fireEvent.change(screen.getByLabelText('Alice strokes'), { target: { value: '5' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onSaveHole).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit hole 1' }));
+    expect(screen.getByLabelText('Alice strokes')).toHaveValue('4');
+    fireEvent.change(screen.getByLabelText('Alice strokes'), { target: { value: '6' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(onSaveHole).toHaveBeenCalledWith({ ...hole, gross_scores: { p1: 6 } }));
+    await waitFor(() => expect(screen.queryByLabelText('Alice strokes')).toBeNull());
+    rerender(<CompletedRoundView {...props} holeHistory={[{ ...hole, gross_scores: { p1: 6 } }]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit hole 1' }));
+    expect(screen.getByLabelText('Alice strokes')).toHaveValue('6');
   });
 
   test('shows who last edited the card', async () => {
