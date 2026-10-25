@@ -6,7 +6,7 @@
 .round-card-review h3 { font-size: 14px; font-weight: 700; margin: 0 0 8px; }
 .round-card-review__photo, .round-card-review__scores { min-width: 0; }
 .round-card-review__photo { position: sticky; top: 0; z-index: 20; background: #f7faf8; border: 1px solid #d7e3dc; border-radius: 12px; padding: 10px; }
-.round-card-review__viewport { height: var(--photo-height); max-height: max(80px, calc(45dvh - 100px)); min-height: 0; }
+.round-card-review__viewport { height: var(--photo-height); max-height: max(160px, calc(45dvh - 100px)); min-height: 0; }
 .round-card-review__viewport > [role="status"] { margin: 0; padding: 12px; }
 .round-card-review__resize { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; margin-bottom: 8px; }
 .round-card-review__resize input { min-width: 0; width: 45%; min-height: 28px; accent-color: #216b45; }

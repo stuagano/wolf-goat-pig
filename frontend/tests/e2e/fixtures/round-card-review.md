@@ -36,6 +36,7 @@ Reopen the editor and assert Alice's strokes are `6`. `GET http://127.0.0.1:8334
 - Phone: set device `iPhone 15`, then explicitly set viewport `393 852`. Reload so the app's existing mobile navigation recalculates. An existing desktop-nav overflow at 820px is unrelated to the review panes.
 - Zoom in, pan the scroll region, then reset. Reset restores 100% width and zero scroll offsets.
 - Resize the phone panel via the range control (click `input[type="range"]`, then press `Home`/`End`; do not use text-fill on a range control). The maximum height is bounded by the viewport so centered inputs remain tappable.
+- At a 320×422 CSS viewport (zoom/reflow case), assert the `Pan scorecard photo` region is at least 80px tall; the photo viewport keeps a 160px floor for wrapped controls plus usable image space. Recheck the maximum-height panel at 393×852 to ensure centered correction inputs are not covered.
 - Save a phone correction, reload, reopen, and read it back.
 - `/game/readonly-fixture`: photo/results visible, no Edit scores control.
 - `/game/missing-fixture`: no-photo message; scores remain visible.
