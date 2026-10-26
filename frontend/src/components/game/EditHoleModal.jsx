@@ -8,6 +8,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { useTheme } from '../../theme/Provider';
+import useCorrectionSyncFeedback from '../../hooks/useCorrectionSyncFeedback';
 import { parseQuarter, normalizeQuarterInput, flipSign, isNegativeInput } from '../../utils/quarters';
 
 const EditHoleModal = ({
@@ -22,6 +23,8 @@ const EditHoleModal = ({
   const [scores, setScores] = useState({});
   const [quarters, setQuarters] = useState({});
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const syncFeedback = useCorrectionSyncFeedback(JSON.stringify([scores, quarters]));
 
   useEffect(() => {
     if (isOpen && holeData) {
@@ -31,6 +34,8 @@ const EditHoleModal = ({
           players.map(p => [p.id, (holeData.points_delta?.[p.id] ?? 0).toString()])
         )
       );
+      setSaveError(null);
+      syncFeedback.reset();
     }
   }, [isOpen, holeData, players]);
 
@@ -40,23 +45,32 @@ const EditHoleModal = ({
       parsedQuarters[p.id] = parseQuarter(quarters[p.id]) ?? 0;
     }
     setSaving(true);
+    setSaveError(null);
+    syncFeedback.reset();
     try {
-      await onSave({
+      const result = await onSave({
         ...holeData,
         gross_scores: scores,
         points_delta: parsedQuarters,
       });
+      // A queued correction is saved on this device only — say so instead of
+      // closing as if the server had accepted it.
+      if (result?.queued && !result?.synced) {
+        syncFeedback.trackQueued(result);
+        return;
+      }
       onClose();
-    } catch {
-      // parent handles errors
+    } catch (err) {
+      // Keep the edits on screen so the correction can be retried.
+      setSaveError(err?.message || 'Saving the correction failed. Review your edits and retry saving.');
     } finally {
       setSaving(false);
     }
   }, [holeData, scores, quarters, players, onSave, onClose]);
 
   const handleKeyDown = useCallback((e) => {
-    if (e.key === 'Escape') onClose();
-  }, [onClose]);
+    if (e.key === 'Escape' && !saving) onClose();
+  }, [onClose, saving]);
 
   if (!isOpen || !holeData) return null;
 
@@ -68,7 +82,7 @@ const EditHoleModal = ({
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         zIndex: 1000, padding: '12px',
       }}
-      onClick={embedded ? undefined : onClose}
+      onClick={embedded || saving ? undefined : onClose}
       onKeyDown={handleKeyDown}
       role={embedded ? 'region' : 'dialog'}
       aria-modal={embedded ? undefined : true}
@@ -131,6 +145,7 @@ const EditHoleModal = ({
                 type="text"
                 inputMode="numeric"
                 aria-label={`${player.name} strokes`}
+                disabled={saving}
                 value={scores[player.id] ?? ''}
                 onChange={e => {
                   const v = e.target.value;
@@ -151,6 +166,7 @@ const EditHoleModal = ({
               <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                 <button
                   onClick={toggleSign}
+                  disabled={saving}
                   className="touch-optimized"
                   aria-label={`Set sign for ${player.name} (negative or positive)`}
                   title="Tap to set negative / positive"
@@ -170,6 +186,7 @@ const EditHoleModal = ({
                   inputMode="numeric"
                   pattern="-?[0-9]*\.?[0-9]*"
                   aria-label={`${player.name} quarters`}
+                  disabled={saving}
                   value={quarters[player.id] ?? ''}
                   onChange={e => {
                     const v = e.target.value;
@@ -213,12 +230,39 @@ const EditHoleModal = ({
           );
         })()}
 
+        {(saveError || syncFeedback.error) && (
+          <p
+            role="alert"
+            style={{
+              marginTop: '12px', padding: '8px 12px', borderRadius: '8px',
+              background: 'rgba(244,67,54,0.1)', color: '#b91c1c',
+              fontSize: '13px', fontWeight: 'bold',
+            }}
+          >
+            {saveError || syncFeedback.error} Your edits are still here. You can retry saving.
+          </p>
+        )}
+
+        {syncFeedback.message && (
+          <p
+            role="status"
+            style={{
+              marginTop: '12px', padding: '8px 12px', borderRadius: '8px',
+              background: 'rgba(255,167,38,0.12)', color: '#92400e',
+              fontSize: '13px', fontWeight: 'bold',
+            }}
+          >
+            {syncFeedback.message}
+          </p>
+        )}
+
         {/* Actions */}
         <div style={{
           display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px',
         }}>
           <button
             onClick={onClose}
+            disabled={saving}
             className="touch-optimized"
             style={{
               padding: '10px 20px', fontSize: '16px', fontWeight: 'bold',
@@ -226,7 +270,7 @@ const EditHoleModal = ({
               background: 'transparent', color: theme.colors.textPrimary, cursor: 'pointer',
             }}
           >
-            Cancel
+            {syncFeedback.submitted ? 'Close' : 'Cancel'}
           </button>
           <button
             onClick={handleSave}

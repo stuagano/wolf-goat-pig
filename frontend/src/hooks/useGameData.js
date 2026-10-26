@@ -35,12 +35,29 @@ export function normalizeGameState(data) {
 export default function useGameData(gameId) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Local sync-storage trouble while the round itself is usable. Separate from
+  // `error`, which means the round could not be loaded at all.
+  const [syncError, setSyncError] = useState(null);
   const [game, setGame] = useState(null);
+
+  // Retry only the persisted scores. Do not reload the round or toggle loading:
+  // doing so unmounts editors and discards their unsubmitted drafts.
+  const retrySync = useCallback(() => {
+    try {
+      const queued = syncManager.ensureScoresQueued(gameId, { holeHistory: [] });
+      setSyncError(null);
+      return queued;
+    } catch (queueError) {
+      setSyncError(`Could not queue cached scores for sync: ${queueError.message}`);
+      return false;
+    }
+  }, [gameId]);
 
   const reload = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
+      setSyncError(null);
       const response = await fetch(`${API_URL}/games/${gameId}/state`);
 
       if (!response.ok) {
@@ -65,7 +82,15 @@ export default function useGameData(gameId) {
       // Bad course signal: open from the local write-buffer if we have a roster.
       const local = syncManager.loadLocalGameState(gameId);
       if (local?.players?.length) {
-        syncManager.ensureScoresQueued(gameId, { holeHistory: [] });
+        try {
+          syncManager.ensureScoresQueued(gameId, { holeHistory: [] });
+        } catch (queueError) {
+          // Queue persistence is independent of readable cached round data, so
+          // the round stays open. Non-fatal on purpose: `error` blanks the
+          // round, which is exactly what must not happen here. Never imply the
+          // scores were queued or that a retry is scheduled.
+          setSyncError(`Could not queue cached scores for sync: ${queueError.message}`);
+        }
         localStorage.setItem('wgp_current_game', gameId);
         setGame(normalizeGameState({
           players: local.players,
@@ -90,5 +115,5 @@ export default function useGameData(gameId) {
     }
   }, [gameId, reload]);
 
-  return { loading, error, game, reload };
+  return { loading, error, syncError, game, reload, retrySync };
 }

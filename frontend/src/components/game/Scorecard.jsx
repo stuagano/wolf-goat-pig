@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Card, Button, Input } from '../ui';
 import { useTheme } from '../../theme/Provider';
+import useCorrectionSyncFeedback from '../../hooks/useCorrectionSyncFeedback';
 /**
  * Unified Scorecard component for both real games and simulations
  * Displays all 18 holes with strokes and quarters, with click-to-edit functionality
@@ -28,6 +29,9 @@ const Scorecard = ({
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [editStrokes, setEditStrokes] = useState('');
   const [editQuarters, setEditQuarters] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editSaveError, setEditSaveError] = useState(null);
+  const syncFeedback = useCorrectionSyncFeedback(JSON.stringify([editingHole, editingPlayer, editStrokes, editQuarters]));
   const [viewMode, setViewMode] = useState('scorecard'); // 'scorecard' or 'standings'
   const [editingPlayerName, setEditingPlayerName] = useState(null);
   const [editPlayerNameValue, setEditPlayerNameValue] = useState('');
@@ -220,12 +224,14 @@ const Scorecard = ({
     const { strokes, quarters } = getHoleData(hole, playerId);
     setEditingHole(hole);
     setEditingPlayer(playerId);
+    setEditSaveError(null);
+    syncFeedback.reset();
     setEditStrokes(typeof strokes === 'number' ? strokes.toString() : '');
     setEditQuarters(typeof quarters === 'number' ? quarters.toString() : '0');
   };
 
   // Handle saving the edit
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!onEditHole || !editingHole || !editingPlayer) return;
 
     // Validate and parse strokes
@@ -244,17 +250,29 @@ const Scorecard = ({
       return;
     }
 
-    onEditHole({
-      hole: editingHole,
-      playerId: editingPlayer,
-      strokes: parsedStrokes,
-      quarters: parsedQuarters
-    });
-
-    setEditingHole(null);
-    setEditingPlayer(null);
-    setEditStrokes('');
-    setEditQuarters('');
+    setSavingEdit(true);
+    setEditSaveError(null);
+    syncFeedback.reset();
+    try {
+      const result = await onEditHole({
+        hole: editingHole,
+        playerId: editingPlayer,
+        strokes: parsedStrokes,
+        quarters: parsedQuarters
+      });
+      if (result?.queued && !result?.synced) {
+        syncFeedback.trackQueued(result);
+        return;
+      }
+      setEditingHole(null);
+      setEditingPlayer(null);
+      setEditStrokes('');
+      setEditQuarters('');
+    } catch (error) {
+      setEditSaveError(error?.message || 'Saving the correction failed. Retry saving.');
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   // Handle canceling the edit
@@ -978,6 +996,7 @@ const Scorecard = ({
               <Input
                 type="number"
                 value={editStrokes}
+                disabled={savingEdit}
                 onChange={(e) => setEditStrokes(e.target.value)}
                 min="0"
                 max="15"
@@ -1002,6 +1021,7 @@ const Scorecard = ({
               <Input
                 type="number"
                 value={editQuarters}
+                disabled={savingEdit}
                 onChange={(e) => setEditQuarters(e.target.value)}
                 min="-10"
                 max="10"
@@ -1023,12 +1043,14 @@ const Scorecard = ({
               </p>
             </div>
 
+            {(editSaveError || syncFeedback.error) && <p role="alert" style={{ color: '#b91c1c' }}>{editSaveError || syncFeedback.error} Your edits are still here. You can retry saving.</p>}
+            {syncFeedback.message && <p role="status">{syncFeedback.message}</p>}
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <Button variant="secondary" onClick={handleCancelEdit}>
-                Cancel
+              <Button variant="secondary" onClick={handleCancelEdit} disabled={savingEdit}>
+                {syncFeedback.submitted ? 'Close' : 'Cancel'}
               </Button>
-              <Button variant="primary" onClick={handleSaveEdit}>
-                Save
+              <Button variant="primary" onClick={handleSaveEdit} disabled={savingEdit}>
+                {savingEdit ? 'Saving...' : 'Save'}
               </Button>
             </div>
           </Card>

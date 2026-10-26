@@ -466,11 +466,8 @@ const useHoleSubmission = (ctx) => {
     const updatedHistory = holeHistory.map((h) =>
       h.hole === updatedHole.hole ? updatedHole : h,
     );
-    setHoleHistory(updatedHistory);
-
-    const newStandings = standingsFromHistory(players, updatedHistory);
-    setPlayerStandings(newStandings);
-
+    // Do not publish a correction until it is acknowledged or queued locally.
+    // A rejected save must leave history and monetary standings unchanged.
     // Sync to backend
     const holeQuarters = {};
     const optionalDetails = {};
@@ -493,11 +490,26 @@ const useHoleSubmission = (ctx) => {
         carry_over_applied: hole.carry_over_applied || false,
       };
     });
-    await syncHole(holeQuarters, optionalDetails, currentHole);
+    const result = await syncHole(holeQuarters, optionalDetails, currentHole);
+    if (!result?.success || (!result.synced && !result.queued)) {
+      const detail = result?.error || "The server did not confirm the correction";
+      // syncHole already embeds its own reference when it has one.
+      const reference =
+        result?.requestId && !detail.includes(result.requestId)
+          ? ` (Reference: ${result.requestId})`
+          : "";
+      throw new Error(`${detail}${reference}. Review your edits and retry saving.`);
+    }
+
+    setHoleHistory(updatedHistory);
+    setPlayerStandings(standingsFromHistory(players, updatedHistory));
+    return result;
   };
 
   // Handler for editing a hole from the scorecard
   // This is called when user clicks a cell and saves in the Scorecard modal
+  // Returns the save promise so the scorecard can report a rejected
+  // correction instead of closing over an unhandled rejection.
   const handleEditHoleFromScorecard = ({
     hole,
     playerId,
@@ -515,7 +527,7 @@ const useHoleSubmission = (ctx) => {
       updatedPointsDelta[playerId] = quartersOverride;
     }
 
-    handleEditModalSave({
+    return handleEditModalSave({
       ...holeData,
       gross_scores: updatedScores,
       points_delta: updatedPointsDelta,
