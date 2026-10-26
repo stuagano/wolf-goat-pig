@@ -94,6 +94,10 @@ jobs:
     - name: Run tests with coverage
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/wolf_goat_pig_test
+        # Real commit/readback tests use isolated schemas in this disposable service.
+        # Missing configuration must fail CI rather than silently skip these tests.
+        SCORE_SAVE_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/wolf_goat_pig_test
+        SCORE_SAVE_REQUIRE_POSTGRES: '1'
         SECRET_KEY: test-secret-key-for-ci
         ENVIRONMENT: test
       run: |

@@ -21,6 +21,7 @@ from pydantic import BaseModel
 from . import database, models, schemas
 from .badge_routes import router as badge_router
 from .migrations_routes import router as migrations_router
+from .observability.score_save import ScoreSaveDiagnostics
 from .post_hole_analytics import PostHoleAnalyzer
 
 # Import routers
@@ -247,6 +248,7 @@ if os.getenv("ENVIRONMENT") != "production" or _frontend_url.startswith("http://
         ]
     )
 
+app.add_middleware(ScoreSaveDiagnostics)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -260,11 +262,13 @@ app.add_middleware(
         "Authorization",
         "X-Admin-Key",
         "X-Requested-With",
+        "X-Request-ID",
         "Origin",
         "Access-Control-Request-Method",
         "Access-Control-Request-Headers",
     ],
-    expose_headers=["*"],
+    # With credentialed requests, '*' is literal; explicitly expose the id.
+    expose_headers=["*", "X-Request-ID"],
 )
 
 # Include badge system routes
@@ -360,11 +364,13 @@ logger.info("✅ All routers registered")
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     """Handle HTTP exceptions and preserve their status codes"""
-    logger.error(f"HTTP exception: {exc.status_code} - {exc.detail}")
-    # Add logging for host header during exceptions
-    logger.error(f"Request Host header: {request.headers.get('host')}")
-    if request.client is not None:
-        logger.error(f"Request Client host: {request.client.host}")
+    # Score writes have bounded correlated diagnostics; their validation
+    # details can include user-supplied player ids or other payload values.
+    if not getattr(request.state, "score_save_request_id", None):
+        logger.error(f"HTTP exception: {exc.status_code} - {exc.detail}")
+        logger.error(f"Request Host header: {request.headers.get('host')}")
+        if request.client is not None:
+            logger.error(f"Request Client host: {request.client.host}")
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": "HTTP error", "detail": exc.detail},
@@ -387,7 +393,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         for err in exc.errors()
     ]
     summary = "; ".join(f"{f['field']}: {f['message']}" for f in fields) or "Invalid request"
-    logger.warning("Request validation failed: %s", summary)
+    if not getattr(request.state, "score_save_request_id", None):
+        logger.warning("Request validation failed: %s", summary)
     return JSONResponse(
         status_code=422,
         content={"error": "Validation error", "detail": summary, "fields": fields},
