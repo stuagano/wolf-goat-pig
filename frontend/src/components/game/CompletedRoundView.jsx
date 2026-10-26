@@ -148,7 +148,7 @@ const CompletedRoundView = ({
     </>
   );
 
-  return gameId ? <RoundCardReview gameId={gameId} photoVersion={photoVersion}>{scores}</RoundCardReview> : scores;
+  return gameId ? <RoundCardReview gameId={gameId} photoVersion={photoVersion} players={players} holeHistory={holeHistory} uploading={uploading}>{scores}</RoundCardReview> : scores;
 };
 
 CompletedRoundView.propTypes = {

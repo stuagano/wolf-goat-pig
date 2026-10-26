@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { apiConfig } from '../../config/api.config';
 import ScorecardPhotoZoom from './ScorecardPhotoZoom';
+import CardExtractionValidation from './CardExtractionValidation';
 import './RoundCardReview.css';
 
 /** A view-only reference pane around the existing completed-round score UI. */
-const RoundCardReview = ({ gameId, photoVersion = 0, children }) => {
+const RoundCardReview = ({ gameId, photoVersion = 0, players, holeHistory, uploading = false, children }) => {
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState('loading');
   const [height, setHeight] = useState(240);
@@ -50,6 +51,9 @@ const RoundCardReview = ({ gameId, photoVersion = 0, children }) => {
         </aside>
         <div className="round-card-review__scores" aria-label="Recorded scores" role="region">
           <h3>Recorded scores</h3>
+          {players && status === 'ready' && !uploading && (
+            <CardExtractionValidation photoSrc={src} players={players} holeHistory={holeHistory} />
+          )}
           {children}
         </div>
       </div>
@@ -60,6 +64,9 @@ const RoundCardReview = ({ gameId, photoVersion = 0, children }) => {
 RoundCardReview.propTypes = {
   gameId: PropTypes.string.isRequired,
   photoVersion: PropTypes.number,
+  players: PropTypes.array,
+  holeHistory: PropTypes.array,
+  uploading: PropTypes.bool,
   children: PropTypes.node.isRequired,
 };
 
