@@ -55,6 +55,7 @@ class ScoreSaveDiagnostics:
         token = _context.set({"request_id": request_id, "committed": False})
         reported_failure = False
         response_started = False
+        failure_class: str | None = None
 
         async def correlated_send(message: Message) -> None:
             nonlocal reported_failure, response_started
@@ -64,17 +65,19 @@ class ScoreSaveDiagnostics:
                 status = message["status"]
                 if status >= 400:
                     reported_failure = True
-                    _emit("score_save_failed" if status >= 500 else "score_save_rejected", status_code=status)
+                    extra = {"error_class": failure_class} if failure_class else {}
+                    _emit("score_save_failed" if status >= 500 else "score_save_rejected", status_code=status, **extra)
             await send(message)
 
         try:
             _emit("score_save_attempt")
             await self.app(scope, receive, correlated_send)
-        except Exception:
+        except Exception as exc:
             if response_started:
                 if not reported_failure:
                     _emit("score_save_failed", status_code=500)
                 raise
+            failure_class = type(exc).__name__
             # Handle pre-response failures here, including authorization DB
             # failures. The outer generic handler would lose correlation and
             # log exception text that can contain SQL parameters. CORS still

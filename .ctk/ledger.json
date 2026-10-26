@@ -130,20 +130,20 @@
     "waiver": null
   },
   "completed-correction-postgres-readback": {
-    "at": "2026-10-26T15:39:36.889407+00:00",
+    "at": "2026-10-26T16:11:29.592427+00:00",
     "detail": null,
-    "duration": 3.961,
+    "duration": 3.386,
     "files": {
       "backend/app/database.py": "sha256:ce013f019a65c12fb5388ecbf519d21d4b14d2d4540f1c56761ca7c7facb01be",
       "backend/app/main.py": "sha256:a3d4bf66715513e2de054535aa4dcea62acc07e935461eb836ab81a95458fdc5",
-      "backend/app/observability/score_save.py": "sha256:6c4fdff91a5f8ff0c70e6e147140aea5621aaf74019d9ae7199e4bd603ba46b7",
+      "backend/app/observability/score_save.py": "sha256:81b774a5f741c3fa7f857c47f757044e3bbef8b1168b856ef904c65cca7c3b36",
       "backend/app/routers/games_holes.py": "sha256:5f85317c15b90b95067614a9778be54445662e837c888307d8116c3196aa4644",
       "backend/app/services/completed_game_service.py": "sha256:0a66cd9473eaa701efa7027a3857e2d3af40e946317524ab05c0af457900d325",
       "backend/tests/unit/score_save_postgres_support.py": "sha256:dc4cc08273e1d05880fcf793b26b1a568e55abd8030fe685ba7a78babcfd3b52",
-      "backend/tests/unit/test_score_save_diagnostics.py": "sha256:b3db91e45c624fb2f92fd44da0d38346da1d196b9c38587c63ca4f2516c95904",
+      "backend/tests/unit/test_score_save_diagnostics.py": "sha256:1592e717072f755a118cc8ade34adae59b44b3e8062acccea50784cecea28f94",
       "backend/tests/unit/test_score_save_postgres.py": "sha256:f4d058f2315694c6622eeb0e299a2f6313949ae6661dbfdbc849a48f56577af7"
     },
-    "fingerprint": "sha256:4df6959b0c57bddfe6389755cef5f26e55e4570c02f8577d39021d92934661ab",
+    "fingerprint": "sha256:ed79c1125c23dcd8baa807c00953f9417c90541affdcc24872fb2f23129d2576",
     "result": "pass",
     "tier": "cheap",
     "waiver": null

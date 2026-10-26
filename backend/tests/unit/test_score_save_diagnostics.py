@@ -107,7 +107,9 @@ def test_failure_before_the_route_is_still_correlated(caplog):
     assert response.headers["X-Request-ID"] == "dependency-failure-1"
     events = _events(caplog)
     assert [e["event"] for e in events] == ["score_save_attempt", "score_save_failed"]
-    assert "could not connect" not in caplog.text
+    assert events[-1]["error_class"] == "RuntimeError"
+    assert set(events[-1]) == {"event", "request_id", "status_code", "error_class"}
+    assert "could not connect" not in caplog.text + response.text
 
 
 def test_real_app_exposes_request_reference_to_credentialed_browser():
