@@ -1,8 +1,8 @@
 """A shareable page for one historical foursome, plus its comments.
 
-The round identity is date + group + location — the same grouping as
-GET /data/leaderboard/rounds. Sheet rounds like the Oct 6 game have no
-GameRecord, so comments cannot be keyed by an app game id.
+The discussion identity remains date + group + location. Saved games also
+have a UUID, but sheet-only rounds have no GameRecord and a discussion URL
+can cover multiple saved games, so comments keep their original keys.
 """
 
 import logging
@@ -66,6 +66,7 @@ class RoundStoryResponse(BaseModel):
     date_sortable: str
     location: str
     group: str
+    game_id: str | None = None
     players: list[RoundPlayerResponse]
     comments: list[RoundCommentResponse]
     reactions: list[RoundReactionResponse] = Field(default_factory=list)
@@ -103,11 +104,19 @@ def _date_keys(date: str) -> set[str]:
 
 def _round_players(date: str, group: str, location: str, db: Session) -> tuple[str, list]:
     service = get_unified_data_service(db=db)
+    try:
+        datetime.strptime(date, "%Y-%m-%d")
+        is_iso_date = True
+    except ValueError:
+        is_iso_date = False
+    # ISO links identify a year, including prior seasons. Display-date links
+    # remain season-scoped for compatibility with the original shared URLs.
+    rounds = service.get_all_rounds() if is_iso_date else service.get_season_rounds()
     wanted = _date_keys(date)
     players = [
         row
-        for row in service.get_season_rounds()
-        if (row.date_sortable in wanted or row.date in wanted)
+        for row in rounds
+        if (row.date_sortable == date if is_iso_date else row.date_sortable in wanted or row.date in wanted)
         and row.group == group
         and (row.location or "") == location
     ]
@@ -237,11 +246,16 @@ def get_round_story(
     # Always key comments and reactions on YYYY-MM-DD, even if the URL used 6-Oct.
     key = players[0].date_sortable
     index = profile_ids_by_member(db)
+    # The discussion URL predates saved-game UUIDs and can cover more than
+    # one game. Only expose a card when every result identifies the same one.
+    game_ids = {row.game_id for row in players}
+    game_id = next(iter(game_ids)) if len(game_ids) == 1 else None
     return RoundStoryResponse(
         date=shown_date,
         date_sortable=key,
         location=location,
         group=group,
+        game_id=game_id,
         players=[
             RoundPlayerResponse(
                 member=row.member,

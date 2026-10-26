@@ -6735,6 +6735,8 @@ export interface components {
             date: string;
             /** Date Sortable */
             date_sortable: string;
+            /** Game Id */
+            game_id?: string | null;
             /** Group */
             group: string;
             /** Location */
@@ -6820,6 +6822,8 @@ export interface components {
             date: string;
             /** Date Sortable */
             date_sortable: string;
+            /** Game Id */
+            game_id?: string | null;
             /** Group */
             group: string;
             /** Location */
@@ -6836,6 +6840,8 @@ export interface components {
             date: string;
             /** Date Sortable */
             date_sortable: string;
+            /** Game Id */
+            game_id?: string | null;
             /** Group */
             group: string;
             /** Location */
@@ -7055,6 +7061,8 @@ export interface components {
             date_sortable: string;
             /** Duration */
             duration?: string | null;
+            /** Game Id */
+            game_id?: string | null;
             /** Group */
             group: string;
             /** Location */

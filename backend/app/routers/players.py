@@ -645,6 +645,7 @@ def get_public_player_profile(
                 "score": r.score,
                 "duration": r.duration,
                 "source": r.source,
+                "game_id": r.game_id,
                 # Only ever present for rounds scored live in the app or via
                 # scorecard scan — legacy sheet rounds are a total only.
                 "holes": (

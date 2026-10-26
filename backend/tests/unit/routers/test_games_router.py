@@ -306,6 +306,70 @@ class TestListGames:
         data = resp.json()
         assert "has_more" in data
 
+    def _find(self, game_id, **params):
+        for offset in range(0, 200, 100):
+            data = client.get("/games", params={"limit": 100, "offset": offset, **params}).json()
+            for game in data["games"]:
+                if game["game_id"] == game_id:
+                    return game
+            if not data["has_more"]:
+                break
+        raise AssertionError(f"{game_id} missing from /games")
+
+    def test_list_games_reports_the_played_date_not_the_upload_date(self):
+        """A scanned round's played date lives in the record, not created_at."""
+        from app.database import SessionLocal
+        from app.models import GameRecord
+
+        game = _create_game().json()
+        original = self._find(game["game_id"])
+        db = SessionLocal()
+        try:
+            db.add(
+                GameRecord(
+                    game_id=game["game_id"],
+                    course_name="Wing Point",
+                    player_count=4,
+                    created_at="2026-10-25T15:59:43.422247",
+                    completed_at="2026-10-25T16:02:00",
+                    game_settings={"played_at": "2026-10-11T08:00:00"},
+                )
+            )
+            db.commit()
+        finally:
+            db.close()
+
+        listed = self._find(game["game_id"])
+        assert listed["played_at"] == "2026-10-11T08:00:00"
+        # Existing audit fields stay put.
+        assert listed["created_at"] == original["created_at"]
+        assert listed["updated_at"] == original["updated_at"]
+        assert listed["join_code"] == game["join_code"]
+        assert "updated_at" in listed
+
+    def test_list_games_falls_back_to_state_played_at_without_a_record(self):
+        from app.database import SessionLocal
+        from app.models import GameStateModel
+
+        game = _create_game().json()
+        db = SessionLocal()
+        try:
+            row = db.query(GameStateModel).filter(GameStateModel.game_id == game["game_id"]).first()
+            state = dict(row.state or {})
+            state["played_at"] = "2026-09-30T07:30:00"
+            row.state = state
+            db.commit()
+        finally:
+            db.close()
+
+        assert self._find(game["game_id"])["played_at"] == "2026-09-30T07:30:00"
+
+    def test_list_games_falls_back_to_created_at_when_nothing_is_recorded(self):
+        game = _create_game().json()
+        listed = self._find(game["game_id"])
+        assert listed["played_at"] == listed["created_at"]
+        assert listed["played_at"]
+
 
 # ── DELETE /games/{game_id} ──────────────────────────────────────────────────
 

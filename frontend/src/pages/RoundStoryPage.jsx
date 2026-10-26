@@ -5,6 +5,7 @@ import { apiConfig } from '../config/api.config';
 import { useAccessToken } from '../hooks/useAccessToken';
 import PlayerName from '../components/game/leaderboard/PlayerName';
 import ReactionBar from '../components/game/leaderboard/ReactionBar';
+import ScorecardLink from '../components/game/leaderboard/ScorecardLink';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -190,9 +191,12 @@ export default function RoundStoryPage() {
         <p className="text-gray-600 mt-1">
           {round.location || 'Unknown location'}{round.group ? ` · Group ${round.group}` : ''}
         </p>
-        <button type="button" onClick={copyLink} className="mt-2 text-sm text-blue-700 hover:underline">
-          {copied ? 'Link copied' : 'Copy link'}
-        </button>
+        <div className="mt-2 flex flex-wrap items-center gap-4">
+          <button type="button" onClick={copyLink} className="text-sm text-blue-700 hover:underline">
+            {copied ? 'Link copied' : 'Copy link'}
+          </button>
+          <ScorecardLink gameId={round.game_id} className="text-sm text-blue-700 hover:underline" />
+        </div>
 
         <ul className="mt-6 bg-white rounded-lg divide-y divide-gray-200 shadow-sm">
           {round.players.map((player) => (

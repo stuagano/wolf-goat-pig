@@ -13,7 +13,7 @@ pytestmark = pytest.mark.usefixtures("mock_admin_identity")
 client = TestClient(app)
 
 
-def _round(member, score, group="A", location="Wing Point", date="2026-10-06"):
+def _round(member, score, group="A", location="Wing Point", date="2026-10-06", game_id=None):
     return SimpleNamespace(
         date="6-Oct",
         date_sortable=date,
@@ -21,12 +21,14 @@ def _round(member, score, group="A", location="Wing Point", date="2026-10-06"):
         member=member,
         score=score,
         location=location,
+        game_id=game_id,
     )
 
 
 def _service(*rounds):
     service = MagicMock()
     service.get_season_rounds.return_value = list(rounds)
+    service.get_all_rounds.return_value = list(rounds)
     return service
 
 
@@ -68,6 +70,85 @@ class TestRoundStory:
         body = resp.json()
         assert body["date_sortable"] == "2026-10-06"
         assert body["players"][0]["quarters"] == -400
+
+    @patch("app.routers.round_stories.profile_ids_by_member", return_value={})
+    @patch("app.routers.round_stories.get_unified_data_service")
+    def test_one_saved_game_exposes_its_card(self, mock_service, _names):
+        card = "4358722d-8bf0-4991-af07-9b40cfc65fd7"
+        mock_service.return_value = _service(
+            _round("Coulburn", -400, game_id=card),
+            _round("Stuart Gano", 200, game_id=card),
+        )
+        with patch("app.routers.round_stories._comments", return_value=[]):
+            resp = client.get("/data/rounds/2026-10-06/A", params={"location": "Wing Point"})
+
+        assert resp.status_code == 200
+        assert resp.json()["game_id"] == card
+
+    @pytest.mark.parametrize("other_game_id", ["9f1f3d2e-55aa-4ff0-bb42-0c7d1f9e2a31", None])
+    @patch("app.routers.round_stories.profile_ids_by_member", return_value={})
+    @patch("app.routers.round_stories.get_unified_data_service")
+    def test_ambiguous_date_group_location_exposes_no_card(self, mock_service, _names, other_game_id):
+        """This date/group/course covers more than one game, so no single card is the round's."""
+        mock_service.return_value = _service(
+            _round("Coulburn", -400, game_id="4358722d-8bf0-4991-af07-9b40cfc65fd7"),
+            _round("Stuart Gano", 200, game_id=other_game_id),
+        )
+        with patch("app.routers.round_stories._comments", return_value=[]):
+            resp = client.get("/data/rounds/2026-10-06/A", params={"location": "Wing Point"})
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["game_id"] is None
+        # The discussion keeps working off date/group/location.
+        assert body["date_sortable"] == "2026-10-06"
+        assert len(body["players"]) == 2
+
+    @patch("app.routers.round_stories.profile_ids_by_member", return_value={})
+    @patch("app.routers.round_stories.get_unified_data_service")
+    def test_sheet_only_round_exposes_no_card(self, mock_service, _names):
+        mock_service.return_value = _service(_round("Coulburn", -400))
+        with patch("app.routers.round_stories._comments", return_value=[]):
+            resp = client.get("/data/rounds/2026-10-06/A", params={"location": "Wing Point"})
+
+        assert resp.status_code == 200
+        assert resp.json()["game_id"] is None
+
+    @patch("app.routers.round_stories.profile_ids_by_member", return_value={})
+    @patch("app.routers.round_stories.get_unified_data_service")
+    def test_iso_url_never_shows_a_round_from_another_year(self, mock_service, _names):
+        """An ISO link names the year; a same-day round from 2025 is not it."""
+        service = _service(_round("Coulburn", -400, date="2025-10-06"))
+        mock_service.return_value = service
+
+        resp = client.get("/data/rounds/2026-10-06/A", params={"location": "Wing Point"})
+
+        assert resp.status_code == 404
+        service.get_all_rounds.assert_called_once_with()
+
+    @patch("app.routers.round_stories.profile_ids_by_member", return_value={})
+    @patch("app.routers.round_stories.get_unified_data_service")
+    def test_iso_url_finds_a_prior_season_round(self, mock_service, _names):
+        service = _service(_round("Coulburn", -400, date="2025-10-06"))
+        mock_service.return_value = service
+        with patch("app.routers.round_stories._comments", return_value=[]):
+            resp = client.get("/data/rounds/2025-10-06/A", params={"location": "Wing Point"})
+
+        assert resp.status_code == 200
+        assert resp.json()["date_sortable"] == "2025-10-06"
+        service.get_season_rounds.assert_not_called()
+
+    @patch("app.routers.round_stories.profile_ids_by_member", return_value={})
+    @patch("app.routers.round_stories.get_unified_data_service")
+    def test_display_date_url_stays_season_scoped(self, mock_service, _names):
+        service = _service(_round("Coulburn", -400))
+        mock_service.return_value = service
+        with patch("app.routers.round_stories._comments", return_value=[]):
+            resp = client.get("/data/rounds/6-Oct/A", params={"location": "Wing Point"})
+
+        assert resp.status_code == 200
+        service.get_season_rounds.assert_called_once_with()
+        service.get_all_rounds.assert_not_called()
 
     @patch("app.routers.round_stories.get_unified_data_service")
     def test_missing_round_is_404(self, mock_service):

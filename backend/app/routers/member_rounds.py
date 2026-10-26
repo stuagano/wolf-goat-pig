@@ -91,6 +91,7 @@ def _history_from_rounds(member: str, rounds: list[Any], *, recent_limit: int = 
             "location": r.location,
             "group": r.group,
             "source": r.source,
+            "game_id": r.game_id,
         }
         for r in rounds[:recent_limit]
     ]

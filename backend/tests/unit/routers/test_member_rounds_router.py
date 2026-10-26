@@ -444,7 +444,16 @@ def test_history_aggregates_club_rounds(client, monkeypatch):
 
     _login(STUART, "Stuart Gano")
     rounds = [
-        UnifiedRound("24-Aug", "2026-08-24", "A", "Stuart Gano", -58, "Wing Point", source="primary_sheet"),
+        UnifiedRound(
+            "24-Aug",
+            "2026-08-24",
+            "A",
+            "Stuart Gano",
+            -58,
+            "Wing Point",
+            source="primary_sheet",
+            game_id="8571419c-c312-4b3c-a8bd-12ee060fd056",
+        ),
         UnifiedRound("10-Aug", "2026-08-10", "C", "Stuart Gano", 80, "Wing Point", source="primary_sheet"),
         UnifiedRound("27-Jul", "2026-07-27", "A", "Stuart Gano", 153, "Wing Point", source="primary_sheet"),
     ]
@@ -470,7 +479,9 @@ def test_history_aggregates_club_rounds(client, monkeypatch):
         "location": "Wing Point",
         "group": "A",
         "source": "primary_sheet",
+        "game_id": "8571419c-c312-4b3c-a8bd-12ee060fd056",
     }
+    assert data["recent_rounds"][1]["game_id"] is None
     fake.get_player_history.assert_called_once_with("Stuart Gano")
 
 

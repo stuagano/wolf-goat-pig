@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import PlayerName from './PlayerName';
+import ScorecardLink from './ScorecardLink';
 import { roundPath } from './roundLink';
 
 export default function ExtremeScores({ title, scores, emptyLabel }) {
@@ -20,11 +21,12 @@ export default function ExtremeScores({ title, scores, emptyLabel }) {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Player</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quarters</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Card</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {scores.map((row) => (
-                <tr key={`${row.date_sortable}-${row.member}-${row.quarters}-${row.group || ''}`}>
+                <tr key={`${row.game_id || row.date_sortable}-${row.member}-${row.quarters}-${row.group || ''}-${row.location || ''}`}>
                   <td className="px-6 py-4 text-sm text-gray-700">
                     <Link to={roundPath(row)} className="hover:text-blue-600 hover:underline">{row.date}</Link>
                   </td>
@@ -32,6 +34,9 @@ export default function ExtremeScores({ title, scores, emptyLabel }) {
                     <PlayerName name={row.member} playerId={row.player_id} />
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">{row.quarters}</td>
+                  <td className="px-6 py-4 text-sm">
+                    <ScorecardLink gameId={row.game_id} className="text-blue-700 hover:underline" />
+                  </td>
                 </tr>
               ))}
             </tbody>

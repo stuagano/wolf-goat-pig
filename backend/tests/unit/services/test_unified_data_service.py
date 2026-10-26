@@ -283,7 +283,9 @@ class TestSheetAuthorityDedup:
             ("Steve Sutorius", 126, "primary_sheet"),
             ("Tyson Thielman", -58, "primary_sheet"),
         ]
-        assert kept[0].hole_scores == holes  # hole detail survives on the sheet row
+        # Approximate score suppression is not proof of card/hole identity.
+        assert kept[0].hole_scores is None
+        assert kept[0].game_id is None
 
     def test_member_post_with_same_totals_but_a_misspelled_name_is_dropped(self):
         rounds = [
@@ -331,7 +333,7 @@ def test_member_post_without_group_or_location_still_serializes():
     assert (unified.group, unified.location) == ("", "")
 
 
-def test_exact_copy_of_a_sheet_round_keeps_the_app_hole_detail():
+def test_exact_player_copy_does_not_bypass_whole_game_identity():
     from app.services.unified_data_service import _keep_first
 
     holes = [{"hole": 1, "quarters": 2}]
@@ -339,10 +341,10 @@ def test_exact_copy_of_a_sheet_round_keeps_the_app_hole_detail():
     _keep_first(rounds, _r("2026-10-12", "Steve Sutorius", 126, "primary_sheet", ("s", 1)))
     _keep_first(rounds, _r("2026-10-12", "Steve Sutorius", 126, "database", ("db", 7), holes=holes))
 
-    assert [(r.source, r.hole_scores) for r in rounds.values()] == [("primary_sheet", holes)]
+    assert [(r.source, r.hole_scores) for r in rounds.values()] == [("primary_sheet", None), ("database", holes)]
 
 
-def test_misspelled_app_name_keeps_hole_detail_by_unique_score():
+def test_misspelled_app_name_suppresses_totals_without_guessing_hole_identity():
     holes = [{"hole": 1, "quarters": 2}]
     rounds = [
         _r("2026-10-12", "Brett Hodus", 40, "primary_sheet", ("s", 1)),
@@ -353,4 +355,5 @@ def test_misspelled_app_name_keeps_hole_detail_by_unique_score():
 
     kept = UnifiedDataService._drop_sheet_duplicates(rounds)
 
-    assert kept[0].member == "Brett Hodus" and kept[0].hole_scores == holes
+    assert kept[0].member == "Brett Hodus" and kept[0].hole_scores is None
+    assert len(kept) == 2
