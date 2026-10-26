@@ -49,6 +49,7 @@ describe('mapClubHistoryToStats', () => {
       recentGames: [
         {
           date: '2026-08-24',
+          game_id: null,
           score: -58,
           earnings: -58,
           course: 'Wing Point',

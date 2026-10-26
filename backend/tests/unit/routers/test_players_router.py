@@ -355,6 +355,7 @@ class TestPublicProfile:
                 score=4,
                 location="Wing Point",
                 source="database",
+                game_id="8571419c-c312-4b3c-a8bd-12ee060fd056",
                 hole_scores=[
                     {"hole": 2, "quarters": -1, "gross_score": 6},
                     {"hole": 1, "quarters": 2, "gross_score": 4},
@@ -383,6 +384,8 @@ class TestPublicProfile:
             {"hole": 2, "quarters": -1, "gross_score": 6},
         ]
         assert history[1]["holes"] is None
+        assert history[0]["game_id"] == "8571419c-c312-4b3c-a8bd-12ee060fd056"
+        assert history[1]["game_id"] is None
 
 
 # ── PUT /players/{player_id} ──────────────────────────────────────────────────

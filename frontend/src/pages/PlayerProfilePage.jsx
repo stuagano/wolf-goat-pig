@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { roundPath } from '../components/game/leaderboard/roundLink';
+import ScorecardLink from '../components/game/leaderboard/ScorecardLink';
 import { apiConfig } from '../config/api.config';
 import { useAccessToken } from '../hooks/useAccessToken';
 import { usePlayerProfile } from '../hooks/usePlayerProfile';
@@ -310,11 +311,15 @@ const PlayerProfilePage = () => {
                     >
                       <div className="wgp-profile__ledger-primary">
                         {g.group ? (
-                          <Link to={roundPath({ date: g.date, group: g.group, location: g.location })} className="hover:underline">
+                          <Link to={roundPath(g)} className="hover:underline">
                             {formatGameDate(g.date)}
                           </Link>
                         ) : formatGameDate(g.date)}
                         {g.location && <span className="wgp-profile__ledger-secondary">{g.location}</span>}
+                        <ScorecardLink
+                          gameId={g.game_id}
+                          className="wgp-profile__ledger-secondary hover:underline"
+                        />
                         {hasHoleDetail && <span className="wgp-profile__ledger-expand-hint">{isExpanded ? '▲' : '▾'} hole-by-hole</span>}
                       </div>
                       <span className={`wgp-profile__score ${g.score >= 0 ? 'wgp-profile__score--win' : 'wgp-profile__score--loss'}`}>

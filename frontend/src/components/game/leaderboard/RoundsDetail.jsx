@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PlayerName from './PlayerName';
+import ScorecardLink from './ScorecardLink';
 import { roundPath } from './roundLink';
 
 function matches(game, filters) {
@@ -50,11 +51,14 @@ export default function RoundsDetail({ games }) {
       ) : (
         <ul className="divide-y divide-gray-200">
           {visible.map((game) => (
-            <li key={`${game.date_sortable}-${game.group}-${game.location}`} className="px-6 py-4">
+            <li key={game.game_id || `${game.date_sortable}-${game.group}-${game.location}`} className="px-6 py-4">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <Link to={roundPath(game)} className="text-sm font-semibold text-gray-900 hover:text-blue-600 hover:underline">
-                  {game.date}
-                </Link>
+                <div className="flex flex-wrap items-baseline gap-3">
+                  <Link to={roundPath(game)} className="text-sm font-semibold text-gray-900 hover:text-blue-600 hover:underline">
+                    {game.date}
+                  </Link>
+                  <ScorecardLink gameId={game.game_id} className="text-sm text-blue-700 hover:underline" />
+                </div>
                 <div className="text-sm text-gray-600">{game.location || 'Unknown location'}</div>
               </div>
               <div className="mt-2 flex flex-wrap gap-2">

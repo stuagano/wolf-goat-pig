@@ -21,6 +21,7 @@ from ..database import get_db
 from ..models import GamePlayerResult, GameRecord, GameStateModel, LegacyRound
 from ..utils.time import utc_now
 from .completed_game_service import round_played_at
+from .round_identity import course_name, group_rounds, link_saved_cards, normalized, round_day
 from .spreadsheet_sync_service import PRIMARY_SHEET_ID, RoundResult, SpreadsheetSyncService
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,13 @@ class UnifiedRound:
     hole_scores: list[dict[str, Any]] | None = None
     # Rows from one game share a key; used to match app/member copies to the sheet.
     game_key: tuple | None = None
+    # The saved game's UUID, when this round is backed by a reachable app card.
+    # Sheet-only and member-posted rounds have none; linking copies it onto
+    # sheet rows only when exactly one app game matches them unambiguously.
+    game_id: str | None = None
+    # True only when ``date_sortable`` is the date the round was played rather
+    # than the date the app finished or uploaded it. Dedup trusts a known date.
+    played_date_known: bool = False
 
     def __hash__(self):
         """Hash for deduplication - same date/group/member/score is same round."""
@@ -82,10 +90,8 @@ class UnifiedLeaderboardEntry:
 
 
 def _keep_first(rounds: dict[tuple, UnifiedRound], r: UnifiedRound) -> None:
-    """Exact-key dedup; the first row wins but keeps a later copy's hole detail."""
-    kept = rounds.setdefault((r.date_sortable, r.group, r.member, r.score), r)
-    if kept is not r and r.hole_scores and not kept.hole_scores:
-        kept.hole_scores = r.hole_scores
+    """Remove exact cache duplicates without collapsing distinct source games."""
+    rounds.setdefault((r.game_key, r.source, r.date_sortable, r.group, r.location, r.member, r.score), r)
 
 
 class UnifiedDataService:
@@ -172,6 +178,11 @@ class UnifiedDataService:
             date_display = "Unknown"
             date_sortable = "1900-01-01"
 
+        settings = record.game_settings
+        explicit_date = isinstance(settings, dict) and bool(settings.get("played_at"))
+        scan_date = game is not None and isinstance(game.state, dict) and game.state.get("source") == "scorecard_scan"
+        played_date_known = date_display != "Unknown" and bool(explicit_date or scan_date)
+
         return UnifiedRound(
             date=date_display,
             date_sortable=date_sortable,
@@ -183,6 +194,10 @@ class UnifiedDataService:
             source="database",
             hole_scores=result.hole_scores if isinstance(result.hole_scores, list) and result.hole_scores else None,
             game_key=("database", record.id),
+            # Only a reachable saved game can be opened as a card; a GameRecord
+            # whose game_state row is gone must not advertise a dead route.
+            game_id=str(game.game_id) if game is not None and game.game_id else None,
+            played_date_known=played_date_known,
         )
 
     def get_all_rounds(
@@ -259,50 +274,38 @@ class UnifiedDataService:
 
         App rounds are dated when finished or scanned, and scans or posts can be
         off by a few quarters or a spelling, so a game matches a sheet game within
-        DUPLICATE_WINDOW_DAYS that has the same players or the same totals. Hole
-        detail from a dropped app round moves onto the matching sheet rows.
+        DUPLICATE_WINDOW_DAYS that has the same players or the same totals. A round
+        whose real played date is known only matches that same day, so a foursome
+        replaying later in the week keeps its own round.
+
+        Suppressing a duplicate total is a weaker claim than identifying a card, so
+        the saved game id and its per-hole detail come from ``link_saved_cards``
+        instead of this approximate match.
         """
+        sheet_games = group_rounds([r for r in rounds if r.source in SHEET_SOURCES])
+        other_games = group_rounds([r for r in rounds if r.source not in SHEET_SOURCES])
+        link_saved_cards(sheet_games, other_games)
 
-        def name(r: UnifiedRound) -> str:
-            return " ".join(r.member.lower().split())
-
-        def games(rows):
-            out: dict[tuple, list[UnifiedRound]] = {}
-            for r in rows:
-                out.setdefault(r.game_key or (r.source, id(r)), []).append(r)
-            return list(out.values())
-
-        def day(g):
-            try:
-                return date.fromisoformat(g[0].date_sortable)
-            except ValueError:
-                return None
-
-        sheet = [r for r in rounds if r.source in SHEET_SOURCES]
-        sheet_games = [(day(g), {name(r) for r in g}, sorted(r.score for r in g), g) for g in games(sheet)]
-        kept = list(sheet)
-        for g in games([r for r in rounds if r.source not in SHEET_SOURCES]):
-            d, players, totals = day(g), {name(r) for r in g}, sorted(r.score for r in g)
-            # ponytail: nearest match wins; a foursome replaying inside the window
-            # with an app-only round would be dropped — widen the key if that happens.
+        indexed = [
+            (round_day(g), {normalized(r.member) for r in g}, sorted(r.score for r in g), g) for g in sheet_games
+        ]
+        kept = [r for g in sheet_games for r in g]
+        for g in other_games:
+            day, players, totals = round_day(g), {normalized(r.member) for r in g}, sorted(r.score for r in g)
+            window = 0 if g[0].played_date_known else DUPLICATE_WINDOW_DAYS
+            course = course_name(g[0].location)
             matches = [
-                (abs((sd - d).days), sg)
-                for sd, sp, st, sg in sheet_games
-                if d and sd and abs((sd - d).days) <= DUPLICATE_WINDOW_DAYS and (sp == players or st == totals)
+                sheet
+                for sheet_day, sheet_players, sheet_totals, sheet in indexed
+                if day
+                and sheet_day
+                and abs((sheet_day - day).days) <= window
+                and (sheet_players == players or sheet_totals == totals)
+                # A known course never matches a different known course.
+                and not (course and course_name(sheet[0].location) and course_name(sheet[0].location) != course)
             ]
             if not matches:
                 kept.extend(g)
-                continue
-            sheet_game = min(matches, key=lambda m: m[0])[1]
-            holes = {name(r): r.hole_scores for r in g if r.hole_scores}
-            # Misspelled names fall back to the score when it is unique in both games.
-            by_score = {r.score: r.hole_scores for r in g if r.hole_scores and totals.count(r.score) == 1}
-            sheet_totals = [r.score for r in sheet_game]
-            for r in sheet_game:
-                if not r.hole_scores:
-                    r.hole_scores = holes.get(name(r)) or (
-                        by_score.get(r.score) if sheet_totals.count(r.score) == 1 else None
-                    )
         return kept
 
     def get_unified_leaderboard(self) -> list[UnifiedLeaderboardEntry]:

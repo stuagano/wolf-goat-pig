@@ -45,6 +45,7 @@ class UnifiedRoundResponse(BaseModel):
     location: str
     duration: str | None = None
     source: str
+    game_id: str | None = None
 
 
 class UnifiedLeaderboardEntryResponse(BaseModel):
@@ -71,6 +72,7 @@ class SeasonScoreResponse(BaseModel):
     quarters: int
     location: str
     group: str
+    game_id: str | None = None
 
 
 class SeasonGamePlayerResponse(BaseModel):
@@ -87,6 +89,7 @@ class SeasonGameResponse(BaseModel):
     location: str
     group: str
     players: list[SeasonGamePlayerResponse]
+    game_id: str | None = None
 
 
 class DataSourceStatus(BaseModel):
@@ -165,6 +168,7 @@ def get_season_extreme_scores(
             quarters=r.score,
             location=r.location,
             group=r.group,
+            game_id=r.game_id,
         )
         for r in ranked[:limit]
     ]
@@ -179,10 +183,12 @@ def get_season_round_details(db: Session = Depends(get_db)) -> Any:
     """
     service = get_unified_data_service(db=db)
     names = profile_ids_by_member(db)
-    games: dict[tuple[str, str, str], SeasonGameResponse] = {}
-    order: list[tuple[str, str, str]] = []
+    games: dict[tuple, SeasonGameResponse] = {}
+    order: list[tuple] = []
     for r in service.get_season_rounds():
-        key = (r.date_sortable, r.group, r.location)
+        # Date/group/course is not unique for two saved games on the same day.
+        identity = r.game_id or r.game_key
+        key = (r.date_sortable, r.group, r.location, identity)
         game = games.get(key)
         if game is None:
             game = SeasonGameResponse(
@@ -190,6 +196,7 @@ def get_season_round_details(db: Session = Depends(get_db)) -> Any:
                 date_sortable=r.date_sortable,
                 location=r.location,
                 group=r.group,
+                game_id=r.game_id,
                 players=[],
             )
             games[key] = game
@@ -638,6 +645,7 @@ def get_unified_rounds(
             location=r.location,
             duration=r.duration,
             source=r.source,
+            game_id=r.game_id,
         )
         for r in rounds[offset : offset + limit]
     ]
@@ -666,6 +674,7 @@ def get_rounds_by_date(
             location=r.location,
             duration=r.duration,
             source=r.source,
+            game_id=r.game_id,
         )
         for r in rounds
     ]
@@ -694,6 +703,7 @@ def get_player_history(
             location=r.location,
             duration=r.duration,
             source=r.source,
+            game_id=r.game_id,
         )
         for r in rounds
     ]

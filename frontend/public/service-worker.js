@@ -10,7 +10,7 @@
  */
 
 // IMPORTANT: Update this version with each release to trigger cache refresh
-const SW_VERSION = '0.2.0.86436';
+const SW_VERSION = '0.2.0.44315';
 const CACHE_NAME = `wgp-cache-v${SW_VERSION}`;
 
 const urlsToCache = [

@@ -10,6 +10,7 @@ import EmailPreferences from '../components/signup/EmailPreferences';
 import MyMatches from '../components/signup/MyMatches';
 import { FORETEES_ENABLED } from '../config/features';
 import { playerDisplayName } from '../utils/playerDisplayName';
+import ScorecardLink from '../components/game/leaderboard/ScorecardLink';
 
 const STORAGE_KEY = 'wgp_account_settings';
 
@@ -134,6 +135,7 @@ export const mapClubHistoryToStats = (history) => {
     bestScore: history.best_round ?? null,
     recentGames: (history.recent_rounds || []).map((round) => ({
       date: round.date || round.date_display,
+      game_id: round.game_id ?? null,
       score: round.score,
       earnings: round.score,
       course: round.location || 'Round',
@@ -521,6 +523,7 @@ function AccountPage() {
                       <div style={{ fontSize: '12px', color: theme.colors.textSecondary }}>
                         {formatRoundDate(game.date)}
                       </div>
+                      <ScorecardLink gameId={game.game_id} className="text-sm text-blue-700 hover:underline" />
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       {game.earnings != null && (

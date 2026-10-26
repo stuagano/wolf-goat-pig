@@ -26,6 +26,8 @@ def _make_mock_round(date="15-Mar", member="Alice", score=5, group="A", source="
     mock.location = "Wing Point"
     mock.duration = "4:30"
     mock.source = source
+    mock.game_id = None
+    mock.game_key = None
     return mock
 
 
@@ -153,6 +155,19 @@ class TestSeasonExtremeScores:
         resp = client.get("/data/leaderboard/scores", params={"kind": "worst", "limit": 5})
         assert [row["member"] for row in resp.json()] == ["Bob", "Cara", "Alice"]
 
+    @patch("app.routers.unified_data.get_unified_data_service")
+    def test_extreme_scores_expose_optional_saved_card(self, mock_get_service):
+        card = "4358722d-8bf0-4991-af07-9b40cfc65fd7"
+        saved = _make_mock_round("2-Aug", "Alice", 10)
+        saved.game_id = card
+        sheet = _make_mock_round("1-Aug", "Bob", 5, source="primary_sheet")
+        mock_service = MagicMock()
+        mock_service.get_season_rounds.return_value = [saved, sheet]
+        mock_get_service.return_value = mock_service
+
+        rows = client.get("/data/leaderboard/scores", params={"kind": "best"}).json()
+        assert [row["game_id"] for row in rows] == [card, None]
+
     def test_scores_require_kind(self):
         resp = client.get("/data/leaderboard/scores")
         assert resp.status_code == 422
@@ -185,6 +200,65 @@ class TestSeasonRoundDetails:
         assert data[0]["location"] == "Gold Mountain"
         assert [(p["member"], p["quarters"]) for p in data[0]["players"]] == [("Bob", -3), ("Alice", 3)]
         assert data[1]["players"][0]["member"] == "Cara"
+        assert data[0]["game_id"] is None
+
+    @patch("app.routers.unified_data.get_unified_data_service")
+    def test_two_saved_games_on_one_day_stay_separate(self, mock_get_service):
+        """Date/group/course collides for two app games; the saved id keeps them apart."""
+        first_card = "4358722d-8bf0-4991-af07-9b40cfc65fd7"
+        second_card = "9f1f3d2e-55aa-4ff0-bb42-0c7d1f9e2a31"
+        rounds = []
+        for card, member, score in (
+            (first_card, "Bob", -3),
+            (first_card, "Alice", 3),
+            (second_card, "Cara", 7),
+            (second_card, "Dave", -7),
+        ):
+            row = _make_mock_round("2-Aug", member, score, group="A")
+            row.date_sortable = "2026-08-02"
+            row.location = "Wing Point"
+            row.game_id = card
+            row.game_key = ("database", card)
+            rounds.append(row)
+        mock_service = MagicMock()
+        mock_service.get_season_rounds.return_value = rounds
+        mock_get_service.return_value = mock_service
+
+        resp = client.get("/data/leaderboard/rounds")
+        data = resp.json()
+        assert [row["game_id"] for row in data] == [first_card, second_card]
+        assert [[p["member"] for p in row["players"]] for row in data] == [["Bob", "Alice"], ["Cara", "Dave"]]
+
+    @patch("app.routers.unified_data.get_unified_data_service")
+    def test_internal_keys_keep_unreachable_saved_games_separate(self, mock_get_service):
+        rows = [_make_mock_round(member="Alice"), _make_mock_round(member="Bob")]
+        for index, row in enumerate(rows):
+            row.game_key = ("database", index)
+        mock_get_service.return_value.get_season_rounds.return_value = rows
+
+        resp = client.get("/data/leaderboard/rounds")
+        assert resp.status_code == 200
+        assert len(resp.json()) == 2
+        assert all(row["game_id"] is None for row in resp.json())
+        assert all("game_key" not in row for row in resp.json())
+
+    @patch("app.routers.unified_data.get_unified_data_service")
+    def test_sheet_rows_without_a_card_still_group_together(self, mock_get_service):
+        rows = []
+        for member, score in (("Bob", -3), ("Alice", 3)):
+            row = _make_mock_round("2-Aug", member, score, group="A", source="primary_sheet")
+            row.date_sortable = "2026-08-02"
+            row.location = "Wing Point"
+            row.game_key = ("primary_sheet", "2-Aug", "A", "Wing Point")
+            rows.append(row)
+        mock_service = MagicMock()
+        mock_service.get_season_rounds.return_value = rows
+        mock_get_service.return_value = mock_service
+
+        data = client.get("/data/leaderboard/rounds").json()
+        assert len(data) == 1
+        assert data[0]["game_id"] is None
+        assert [p["member"] for p in data[0]["players"]] == ["Bob", "Alice"]
 
 
 # ── GET /data/rounds ───────────────────────────────────────────────────────
@@ -229,6 +303,19 @@ class TestGetUnifiedRounds:
         assert "score" in entry
         assert "location" in entry
         assert "source" in entry
+        assert entry["game_id"] is None
+
+    @patch("app.routers.unified_data.get_unified_data_service")
+    def test_rounds_expose_the_saved_card_when_present(self, mock_get_service):
+        card = "4358722d-8bf0-4991-af07-9b40cfc65fd7"
+        saved = _make_mock_round(source="database")
+        saved.game_id = card
+        mock_service = MagicMock()
+        mock_service.get_all_rounds.return_value = [saved, _make_mock_round(source="primary_sheet")]
+        mock_get_service.return_value = mock_service
+
+        rows = client.get("/data/rounds").json()
+        assert [row["game_id"] for row in rows] == [card, None]
 
     @patch("app.routers.unified_data.get_unified_data_service")
     def test_rounds_respects_limit_and_offset(self, mock_get_service):
@@ -248,6 +335,25 @@ class TestGetUnifiedRounds:
     def test_rounds_offset_validation_negative(self):
         resp = client.get("/data/rounds", params={"offset": -1})
         assert resp.status_code == 422
+
+
+@pytest.mark.parametrize(
+    ("path", "service_method"),
+    [
+        ("/data/rounds/by-date/15-Mar", "get_rounds_by_date"),
+        ("/data/player/Alice", "get_player_history"),
+    ],
+)
+@patch("app.routers.unified_data.get_unified_data_service")
+def test_filtered_rounds_preserve_optional_game_identity(mock_get_service, path, service_method):
+    saved = _make_mock_round()
+    saved.game_id = "8571419c-c312-4b3c-a8bd-12ee060fd056"
+    getattr(mock_get_service.return_value, service_method).return_value = [saved, _make_mock_round()]
+
+    resp = client.get(path)
+    assert resp.status_code == 200
+    assert [row["game_id"] for row in resp.json()] == [saved.game_id, None]
+    assert all("game_key" not in row for row in resp.json())
 
 
 # ── GET /data/rounds/by-date/{date} ────────────────────────────────────────

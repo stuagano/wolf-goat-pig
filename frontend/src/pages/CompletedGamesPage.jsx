@@ -7,6 +7,7 @@ import CommissionerChat from '../components/game/CommissionerChat';
 import { api } from '../api/client';
 import { useAccessToken } from '../hooks/useAccessToken';
 import { usePlayerProfile } from '../hooks/usePlayerProfile';
+import { scorecardPath } from '../components/game/leaderboard/roundLink';
 
 /**
  * CompletedGamesPage - List all completed games with results
@@ -61,7 +62,10 @@ const CompletedGamesPage = () => {
   }, [loadGames]);
 
   const handleViewGame = (gameId) => {
-    navigate(`/game/${gameId}`);
+    // Same shared helper every other round view uses, so there is one
+    // definition of "where a scorecard lives".
+    const path = scorecardPath({ game_id: gameId });
+    if (path) navigate(path);
   };
 
   const handleDeleteGame = async (gameId, event) => {
@@ -96,13 +100,14 @@ const CompletedGamesPage = () => {
   const formatDate = (isoString) => {
     if (!isoString) return 'Unknown';
     try {
-      const date = new Date(isoString);
+      // Scanned cards carry a calendar date, not a UTC instant or upload time.
+      const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(isoString);
+      const date = new Date(dateOnly ? `${isoString}T00:00:00` : isoString);
       return date.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+        ...(dateOnly ? {} : { hour: '2-digit', minute: '2-digit' })
       });
     } catch (e) {
       return isoString;
@@ -269,7 +274,7 @@ const CompletedGamesPage = () => {
                           fontSize: '12px',
                           color: theme.colors.textSecondary
                         }}>
-                          {formatDate(game.updated_at || game.created_at)}
+                          {formatDate(game.played_at || game.updated_at || game.created_at)}
                         </span>
                       </div>
 

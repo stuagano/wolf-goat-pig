@@ -782,11 +782,25 @@ async def get_games(  # type: ignore
         # Apply pagination
         games = query.offset(offset).limit(limit).all()
 
+        # Resolve persisted round dates in one query for the current page.
+        records = (
+            db.query(models.GameRecord).filter(models.GameRecord.game_id.in_([game.game_id for game in games])).all()
+            if games
+            else []
+        )
+        records_by_game = {record.game_id: record for record in records}
+
         # Format response
         games_list = []
         for game in games:
             # Get player count
             player_count = db.query(models.GamePlayer).filter(models.GamePlayer.game_id == game.game_id).count()
+            record = records_by_game.get(game.game_id)
+            played_at = (
+                round_played_at(record, game)
+                if record is not None
+                else (game.state or {}).get("played_at") or game.created_at
+            )
 
             games_list.append(
                 {
@@ -797,6 +811,7 @@ async def get_games(  # type: ignore
                     "player_count": player_count,
                     "created_at": game.created_at,
                     "updated_at": game.updated_at,
+                    "played_at": played_at,
                 }
             )
 
