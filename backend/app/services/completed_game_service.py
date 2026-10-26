@@ -188,6 +188,10 @@ def persist_completed_game(db: Session, game: Any) -> int:
         }
         db.flush()
 
+    # Read the id BEFORE commit: with expire_on_commit=True, touching any
+    # attribute afterwards re-queries, so a post-commit read failure would turn
+    # an already-durable save into a 500.
+    game_id = game.game_id
     db.commit()
-    logger.info("Persisted completed game %s: %d results", game.game_id, results_created)
+    logger.info("Persisted completed game %s: %d results", game_id, results_created)
     return results_created

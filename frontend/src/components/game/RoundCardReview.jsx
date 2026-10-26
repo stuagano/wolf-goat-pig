@@ -9,6 +9,8 @@ import './RoundCardReview.css';
 const RoundCardReview = ({ gameId, photoVersion = 0, players, holeHistory, uploading = false, children }) => {
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState('loading');
+  // Readiness belongs to the loaded URL, not the previous photo's status.
+  const [loadedSrc, setLoadedSrc] = useState(null);
   const [height, setHeight] = useState(240);
   const src = `${apiConfig.baseUrl}/games/${gameId}/scorecard-photo?v=${photoVersion}&retry=${attempt}`;
 
@@ -39,7 +41,7 @@ const RoundCardReview = ({ gameId, photoVersion = 0, players, holeHistory, uploa
           <div className="round-card-review__viewport" style={{ '--photo-height': `${height}px` }}>
             {(status === 'loading' || status === 'decoding') && <p role="status">Loading card photo…</p>}
             {(status === 'decoding' || status === 'ready') && (
-              <ScorecardPhotoZoom key={src} src={src} embedded onLoad={() => setStatus('ready')} onError={() => setStatus('error')} />
+              <ScorecardPhotoZoom key={src} src={src} embedded onLoad={() => { setLoadedSrc(src); setStatus('ready'); }} onError={() => setStatus('error')} />
             )}
             {(status === 'missing' || status === 'error') && (
               <div className="round-card-review__message" role="status">
@@ -51,7 +53,7 @@ const RoundCardReview = ({ gameId, photoVersion = 0, players, holeHistory, uploa
         </aside>
         <div className="round-card-review__scores" aria-label="Recorded scores" role="region">
           <h3>Recorded scores</h3>
-          {players && status === 'ready' && !uploading && (
+          {players && loadedSrc === src && status === 'ready' && !uploading && (
             <CardExtractionValidation photoSrc={src} players={players} holeHistory={holeHistory} />
           )}
           {children}

@@ -2,7 +2,6 @@
 
 import logging
 import math
-import traceback
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,6 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from .. import database, models
+from ..observability.score_save import log_score_commit
 from ..services.completed_game_service import REQUIRED_HOLES, persist_completed_game, validate_round_scores
 from ..utils.round_card import require_round_member_or_admin
 from ..utils.time import utc_now
@@ -224,18 +224,25 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
         # this, hole_history/current_hole/standings never persist (only the
         # separate hole_events rows do), and /state reads back stale-empty state.
         flag_modified(game, "state")
+        # Snapshot the response value BEFORE commit. With expire_on_commit=True
+        # a post-commit attribute read re-queries the row, so a dropped
+        # connection there raised 500 for a save that had already landed —
+        # the client then retried or showed "save failed" over durable data.
+        saved_status = game.game_status
         results_created = 0
         if game_complete:
             results_created = persist_completed_game(db, game)
         else:
             db.commit()
+        # Only now is the write provable.
+        log_score_commit()
 
         return {
             "success": True,
             "game_id": game_id,
             "holes_saved": holes_with_data,
             "standings": standings,
-            "game_status": game.game_status,
+            "game_status": saved_status,
             "results_created": results_created,
         }
 
@@ -243,9 +250,11 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
         raise
     except Exception as e:
         db.rollback()
-        logger.error(f"Error saving quarters-only data for game {game_id}: {e}")
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Error saving data: {e!s}")
+        # Log the failure class and location, never the message: SQLAlchemy
+        # errors embed the bound score values, and the message previously went
+        # to the client as well.
+        logger.error("Score save failed for game %s: %s", game_id, type(e).__name__)
+        raise HTTPException(status_code=500, detail="Unable to save scores. Please retry.") from None
 
 
 # ---------------------------------------------------------------------------

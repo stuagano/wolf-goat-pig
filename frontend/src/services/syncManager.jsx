@@ -28,6 +28,26 @@ const INTERACTIVE_TIMEOUT_MS = 10000;
 const QUEUE_TIMEOUT_MS = 30000;
 const MAX_ATTEMPTS = 5;
 
+/**
+ * Correlation id so a failed score save can be traced to its server log line.
+ * Opaque and bounded on both ends: we only echo a server reference that looks
+ * like an id, so an error message can never carry round or player data.
+ */
+const SAFE_REQUEST_ID = /^[A-Za-z0-9_-]{8,64}$/;
+
+function newRequestId() {
+  return `wgp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function safeRequestId(value) {
+  return value && SAFE_REQUEST_ID.test(value) ? value : undefined;
+}
+
+/** Append the reference a user can quote when a save fails. */
+function withReference(message, requestId) {
+  return requestId ? `${message} (Reference: ${requestId})` : message;
+}
+
 // Convert internal queue payload {hole_quarters, optional_details, current_hole}
 // to the /scores API shape {holes: [...], current_hole}
 export function toScoresPayload({ hole_quarters, optional_details, current_hole }) {
@@ -108,6 +128,32 @@ const STORAGE_KEYS = {
 let syncListeners = [];
 let isProcessing = false;
 let retryTimeoutId = null;
+// Bounded receipts for mounted editors, keyed to the exact uploaded queue
+// revision. These are observations, not a second queue or a persistence claim.
+let queueOutcomes = [];
+
+function recordQueueOutcome(item, state, error) {
+  queueOutcomes.push({ queueId: item.id, queueVersion: item.version || 1, state, error });
+  queueOutcomes = queueOutcomes.slice(-50);
+}
+
+export function getQueueOutcome(queueId, queueVersion) {
+  const receipt = queueOutcomes.findLast(
+    item => item.queueId === queueId && item.queueVersion === queueVersion,
+  );
+  if (receipt) return receipt;
+  const item = getSyncQueue().find(item => item.id === queueId);
+  if (item && (item.version || 1) === queueVersion) return { state: 'pending' };
+  // Cleared, superseded, evicted receipt, or reload: never infer success from
+  // absence, nor promise retries for a revision that is no longer queued.
+  return { state: 'unknown' };
+}
+
+function persistQueue(queue) {
+  if (!syncStore.set(STORAGE_KEYS.SYNC_QUEUE, queue)) {
+    throw new Error('Unable to store the correction on this device. Keep your edits open and retry saving.');
+  }
+}
 
 /**
  * Get current sync queue
@@ -198,6 +244,7 @@ export function queueSync(gameId, type, payload, options = {}) {
     lastAttempt: null,
     priority: options.priority || 'normal', // 'high', 'normal', 'low'
     ...options,
+    version: 1,
   };
 
   // For hole syncs, we can merge with existing queue items for same game
@@ -228,16 +275,17 @@ export function queueSync(gameId, type, payload, options = {}) {
       queue[existingIndex] = {
         ...existing,
         payload: mergedPayload,
+        version: (existing.version || 1) + 1,
         updatedAt: new Date().toISOString(),
       };
-      syncStore.set(STORAGE_KEYS.SYNC_QUEUE, queue);
+      persistQueue(queue);
       notifyListeners();
       return existing.id;
     }
   }
 
   queue.push(queueItem);
-  syncStore.set(STORAGE_KEYS.SYNC_QUEUE, queue);
+  persistQueue(queue);
   
   notifyListeners();
   
@@ -321,6 +369,7 @@ export async function processQueue(options = {}) {
         method,
         headers: {
           'Content-Type': 'application/json',
+          ...(item.type === 'scores' ? { 'X-Request-ID': newRequestId() } : {}),
         },
         body,
         signal: controller.signal,
@@ -329,6 +378,7 @@ export async function processQueue(options = {}) {
       clearTimeout(timeoutId);
 
       if (response.ok) {
+        recordQueueOutcome(item, 'synced');
         results.synced++;
         // Update last sync time
         syncStore.set(STORAGE_KEYS.LAST_SYNC, new Date().toISOString());
@@ -338,12 +388,16 @@ export async function processQueue(options = {}) {
         syncStore.set(STORAGE_KEYS.SYNC_ERRORS, errors);
       } else {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.detail || errorData.message || `HTTP ${response.status}`;
+        const errorMessage = withReference(
+          errorData.detail || errorData.message || `HTTP ${response.status}`,
+          safeRequestId(response.headers?.get?.('X-Request-ID')),
+        );
         
         // Don't retry client errors (4xx) except 408 (timeout) and 429 (rate limit)
         if (response.status >= 400 && response.status < 500 && 
             response.status !== 401 && response.status !== 403 &&
             response.status !== 408 && response.status !== 429) {
+          recordQueueOutcome(item, 'rejected', errorMessage);
           results.failed++;
           results.errors.push({
             id: item.id,
@@ -356,6 +410,8 @@ export async function processQueue(options = {}) {
           // Store error for UI display
           const errors = getSyncErrors();
           errors.push({
+            queueId: item.id,
+            queueVersion: item.version || 1,
             gameId: item.gameId,
             error: errorMessage,
             timestamp: new Date().toISOString(),
@@ -376,15 +432,22 @@ export async function processQueue(options = {}) {
     }
   }
 
-  // Update queue with items that need retry
-  syncStore.set(STORAGE_KEYS.SYNC_QUEUE, updatedQueue);
+  // Preserve requests added/merged while an HTTP attempt was in flight. Only
+  // settle the exact revisions in this drain's snapshot.
+  const remainingQueue = getSyncQueue().flatMap(current => {
+    const attempted = queue.find(item => item.id === current.id);
+    if (!attempted || (current.version || 1) !== (attempted.version || 1)) return [current];
+    const retry = updatedQueue.find(item => item.id === current.id);
+    return retry ? [retry] : [];
+  });
+  syncStore.set(STORAGE_KEYS.SYNC_QUEUE, remainingQueue);
   
   isProcessing = false;
   notifyListeners();
 
   // Schedule retry for remaining items with exponential backoff
-  if (updatedQueue.length > 0 && navigator.onLine) {
-    const maxAttempts = Math.max(...updatedQueue.map(i => i.attempts));
+  if (remainingQueue.length > 0 && navigator.onLine) {
+    const maxAttempts = Math.max(...remainingQueue.map(i => i.attempts));
     const delay = Math.min(30000, 2000 * Math.pow(2, Math.max(0, maxAttempts - 1)));
     scheduleProcessing(delay);
   }
@@ -543,13 +606,15 @@ export async function syncHoleData(gameId, holeQuarters, optionalDetails, curren
       success: true,
       queued: true,
       queueId,
+      queueVersion: getSyncQueue().find(item => item.id === queueId)?.version,
       message: 'Saved locally, will sync when online',
     };
   }
 
   // Try to sync immediately
   const API_URL = apiConfig.baseUrl;
-  
+  const requestId = newRequestId();
+
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), INTERACTIVE_TIMEOUT_MS);
@@ -558,6 +623,7 @@ export async function syncHoleData(gameId, holeQuarters, optionalDetails, curren
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'X-Request-ID': requestId,
       },
       body: JSON.stringify(toScoresPayload(payload)),
       signal: controller.signal,
@@ -574,9 +640,14 @@ export async function syncHoleData(gameId, holeQuarters, optionalDetails, curren
       };
     }
 
-    // Server error - queue for retry
+    // Server error - queue for retry. The server's id is authoritative; only
+    // expose it when it passes the same bounded-id rule as the backend.
+    const responseId = safeRequestId(response.headers?.get?.('X-Request-ID'));
     const errorData = await response.json().catch(() => ({}));
-    const errorMessage = errorData.detail || errorData.message || `HTTP ${response.status}`;
+    const errorMessage = withReference(
+      errorData.detail || errorData.message || `HTTP ${response.status}`,
+      responseId,
+    );
     
     // Don't queue client errors that won't succeed on retry
     if (response.status >= 400 && response.status < 500 && 
@@ -585,6 +656,7 @@ export async function syncHoleData(gameId, holeQuarters, optionalDetails, curren
       return {
         success: false,
         error: errorMessage,
+        requestId: responseId,
         permanent: true,
       };
     }
@@ -595,7 +667,9 @@ export async function syncHoleData(gameId, holeQuarters, optionalDetails, curren
       success: true,
       queued: true,
       queueId,
-      message: `Sync failed (${errorMessage}), will retry`,
+      queueVersion: getSyncQueue().find(item => item.id === queueId)?.version,
+      requestId: responseId,
+      message: `Pending sync (${errorMessage}); will retry`,
     };
 
   } catch (error) {
@@ -605,6 +679,7 @@ export async function syncHoleData(gameId, holeQuarters, optionalDetails, curren
       success: true,
       queued: true,
       queueId,
+      queueVersion: getSyncQueue().find(item => item.id === queueId)?.version,
       message: error.name === 'AbortError' 
         ? 'Request timed out, will retry' 
         : 'Network error, will retry when online',

@@ -40,11 +40,11 @@
     "waiver": null
   },
   "api-surface-no-drift": {
-    "at": "2026-10-14T21:24:15.092369+00:00",
+    "at": "2026-10-26T15:39:43.057981+00:00",
     "detail": null,
-    "duration": null,
+    "duration": 1.568,
     "files": null,
-    "fingerprint": "sha256:be9089ac506c160c4560e9f219e86bfbbe1ed2d322a804bc020ff848d9fe37f5",
+    "fingerprint": "sha256:e6aefe4d7ccf9d22e6f65b39e61f84d524a7b0342c765f6cbbf82e1030cf9cea",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -129,12 +129,55 @@
     "tier": "cheap",
     "waiver": null
   },
-  "completed-game-persists-results": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
+  "completed-correction-postgres-readback": {
+    "at": "2026-10-26T16:11:29.592427+00:00",
     "detail": null,
-    "duration": null,
-    "files": null,
-    "fingerprint": "sha256:1bb49b874449b56db345789733e5a7b10bde498f658f3db1227ac7dca81c56dd",
+    "duration": 3.386,
+    "files": {
+      "backend/app/database.py": "sha256:ce013f019a65c12fb5388ecbf519d21d4b14d2d4540f1c56761ca7c7facb01be",
+      "backend/app/main.py": "sha256:a3d4bf66715513e2de054535aa4dcea62acc07e935461eb836ab81a95458fdc5",
+      "backend/app/observability/score_save.py": "sha256:81b774a5f741c3fa7f857c47f757044e3bbef8b1168b856ef904c65cca7c3b36",
+      "backend/app/routers/games_holes.py": "sha256:5f85317c15b90b95067614a9778be54445662e837c888307d8116c3196aa4644",
+      "backend/app/services/completed_game_service.py": "sha256:0a66cd9473eaa701efa7027a3857e2d3af40e946317524ab05c0af457900d325",
+      "backend/tests/unit/score_save_postgres_support.py": "sha256:dc4cc08273e1d05880fcf793b26b1a568e55abd8030fe685ba7a78babcfd3b52",
+      "backend/tests/unit/test_score_save_diagnostics.py": "sha256:1592e717072f755a118cc8ade34adae59b44b3e8062acccea50784cecea28f94",
+      "backend/tests/unit/test_score_save_postgres.py": "sha256:f4d058f2315694c6622eeb0e299a2f6313949ae6661dbfdbc849a48f56577af7"
+    },
+    "fingerprint": "sha256:ed79c1125c23dcd8baa807c00953f9417c90541affdcc24872fb2f23129d2576",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "completed-game-persists-results": {
+    "at": "2026-10-26T12:25:09.166702+00:00",
+    "detail": null,
+    "duration": 3.007,
+    "files": {
+      "backend/app/services/completed_game_service.py": "sha256:0a66cd9473eaa701efa7027a3857e2d3af40e946317524ab05c0af457900d325"
+    },
+    "fingerprint": "sha256:dad771003662028ca329537a58684500c132a2ab930a2238c625289b9c730bb7",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "correction-save-feedback": {
+    "at": "2026-10-26T15:55:36.237746+00:00",
+    "detail": null,
+    "duration": 4.335,
+    "files": {
+      "frontend/src/components/game/EditHoleModal.jsx": "sha256:16cc344d88cf95d9ea99e03e0cc6243f04b09f45e7b240cf4fa5831fde1abc2d",
+      "frontend/src/components/game/Scorecard.jsx": "sha256:26cef3cd2f6e779c2c1e9617e1db4c3732ec4dae655e94f8cc8cb2e6099b0647",
+      "frontend/src/components/game/__tests__/EditHoleModal.save.test.jsx": "sha256:ddbf87bc9127d8d34ab883ca3fa40bc16796e4a5ef9a9eb765e77117a7f02348",
+      "frontend/src/hooks/__tests__/useGameData.test.js": "sha256:732c5813dd6fa2896010c45e1d60da1576af3ccb5842bd4afde4a49c3c956703",
+      "frontend/src/hooks/useCorrectionSyncFeedback.js": "sha256:08a0b2a0aad8fb3c3fc939023cf48d4c4d5f9c2bf1640c204598ba0affa0d714",
+      "frontend/src/hooks/useGameData.js": "sha256:2de40af88d7d53f0002a2cba4a4627a530b860458962747013802a3f50571a47",
+      "frontend/src/hooks/useHoleSubmission.js": "sha256:023571557e24059f6b58860223bfbc392ada5b87be3f228f628870eba95ab085",
+      "frontend/src/pages/SimpleScorekeeperPage.jsx": "sha256:7d2b89453c0a8f225008bc1da29e8da5cfb09f6a45ff8d0af024012f16044a90",
+      "frontend/src/pages/__tests__/SimpleScorekeeperPage.syncWarning.test.jsx": "sha256:ae640c369122c9876f0193274aad18e0c69dccdf0cf7fdeb6b5a77cb8bdde337",
+      "frontend/src/services/__tests__/syncManager.correlation.test.js": "sha256:e01fdea17cecdfe0a7cc31a5c32422cc65aeb81a30d98b6093f73c5e7e9abf8b",
+      "frontend/src/services/syncManager.jsx": "sha256:1673868c080d1e5c7754d9b84068112d9d2b9dca38b350eee4372bf5fd676597"
+    },
+    "fingerprint": "sha256:96fcdd6f2ccbf4be13b4b5352c6650d5610969c303bb79982a25eb994f69fef7",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -290,11 +333,13 @@
     "waiver": null
   },
   "hole-completion-distinct-18": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
+    "at": "2026-10-26T12:24:59.830427+00:00",
     "detail": null,
-    "duration": null,
-    "files": null,
-    "fingerprint": "sha256:6cc5c22cb6d7143d4b9f6ad99fc7cb9c272e4392e4ada359033f6af67d829960",
+    "duration": 3.315,
+    "files": {
+      "backend/app/routers/games_holes.py": "sha256:5f85317c15b90b95067614a9778be54445662e837c888307d8116c3196aa4644"
+    },
+    "fingerprint": "sha256:950f0dda39ed0460f50f8a0e629cc9b2f5a7547efd2d6c0100290bef87561f6c",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -520,11 +565,13 @@
     "waiver": null
   },
   "request-validation-422-envelope": {
-    "at": "2026-10-14T21:24:16.842009+00:00",
+    "at": "2026-10-26T15:39:40.961605+00:00",
     "detail": null,
-    "duration": null,
-    "files": null,
-    "fingerprint": "sha256:6af811c13f0f74c91790a9004b21e74002f5f945987acf4a305cc9afa1986dd2",
+    "duration": 1.971,
+    "files": {
+      "backend/app/main.py": "sha256:a3d4bf66715513e2de054535aa4dcea62acc07e935461eb836ab81a95458fdc5"
+    },
+    "fingerprint": "sha256:f5a73a2f1dd4182bd7a8a806b2f624015f98fd624641bf4a942a22a608fcf802",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -610,11 +657,14 @@
     "waiver": null
   },
   "stale-local-heals-from-server": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
+    "at": "2026-10-26T15:55:40.704633+00:00",
     "detail": null,
-    "duration": null,
-    "files": null,
-    "fingerprint": "sha256:4e99c1356f1a308fcc7a1419b550a46dca2aa44cc34473c8e6eaf4a02948629b",
+    "duration": 1.589,
+    "files": {
+      "frontend/src/services/gameReconcile.js": "sha256:de188fdd57515e8c127eaf6194784cec629bc35753bc78297c6ec70bc4bc0445",
+      "frontend/src/services/syncManager.jsx": "sha256:1673868c080d1e5c7754d9b84068112d9d2b9dca38b350eee4372bf5fd676597"
+    },
+    "fingerprint": "sha256:b162331b0fdd57717827beb4b0fc69a094512b909da0d1193a36afe6e51008a2",
     "result": "pass",
     "tier": "cheap",
     "waiver": null

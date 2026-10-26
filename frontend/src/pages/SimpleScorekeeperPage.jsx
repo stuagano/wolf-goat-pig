@@ -15,7 +15,7 @@ import useRoundCard from '../hooks/useRoundCard';
 const SimpleScorekeeperPage = () => {
   const { gameId } = useParams();
   const theme = useTheme();
-  const { loading, error, game, reload } = useGameData(gameId);
+  const { loading, error, syncError, game, reload, retrySync } = useGameData(gameId);
   const [showBackfill, setShowBackfill] = useState(false);
   const { card } = useRoundCard(gameId);
 
@@ -111,10 +111,34 @@ const SimpleScorekeeperPage = () => {
 
   const { players, currentHole, holeHistory, standings, strokeAllocation, courseName, baseWager, isComplete } = game;
 
+  // Non-blocking by design: the round below is usable, so warn beside it rather
+  // than replacing it, and never imply the scores were queued or will retry.
+  const syncWarning = syncError ? (
+    <Card style={{ margin: '16px auto', maxWidth: '800px', borderLeft: `4px solid ${theme.colors.warning}`, color: theme.colors.textPrimary }}>
+      <div role="alert">
+        <h3 style={{ margin: '0 0 8px', color: theme.colors.warning }}>
+          ⚠️ Scores not queued for sync
+        </h3>
+        <p style={{ margin: '0 0 8px' }}>{syncError}</p>
+        <p style={{ margin: 0 }}>
+          Your saved round below is still usable. Keep scoring, then retry.
+        </p>
+      </div>
+      <button
+        type="button"
+        style={{ ...theme.buttonStyle, marginTop: '12px', padding: '10px 20px' }}
+        onClick={retrySync}
+      >
+        Retry sync
+      </button>
+    </Card>
+  ) : null;
+
   // "Fill in holes" backfill editor — only available for completed rounds
   if (isComplete && showBackfill) {
     return (
       <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+        {syncWarning}
         <ScorecardBackfill
           gameId={gameId}
           players={players}
@@ -132,6 +156,7 @@ const SimpleScorekeeperPage = () => {
 
   return (
     <ErrorBoundary FallbackComponent={GameErrorFallback}>
+      {syncWarning}
       <SimpleScorekeeper
         gameId={gameId}
         players={players}

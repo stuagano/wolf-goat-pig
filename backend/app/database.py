@@ -8,6 +8,8 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 from starlette.exceptions import HTTPException
 
+from .observability.score_save import is_score_save_request
+
 logger = logging.getLogger(__name__)
 
 
@@ -84,7 +86,10 @@ def get_db():
         db.rollback()
         raise
     except Exception as e:
-        logger.error(f"Database error: {e}")
+        # The score-save middleware records a bounded correlated outcome.
+        # Validation and SQL exceptions here can contain the entire payload.
+        if not is_score_save_request():
+            logger.error(f"Database error: {e}")
         db.rollback()
         raise
     finally:
