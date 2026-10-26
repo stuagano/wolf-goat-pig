@@ -1,6 +1,50 @@
 # Capabilities this project promises — managed with `caps`.
 # Prove with: python -m caps verify
 capabilities:
+  - id: completed-correction-postgres-readback
+    description: completed-round corrections commit atomically across state, events,
+      and permanent results on real PostgreSQL, preserving completion and all holes
+    given: a disposable localhost PostgreSQL *_test database in SCORE_SAVE_TEST_DATABASE_URL
+    when: the authorized real scores endpoint corrects a previously committed 18-hole round
+    then: a new HTTP read and separate database connection see the correction;
+      rejected and failed writes leave all scoring representations unchanged
+    tier: cheap
+    deps:
+    - backend/app/routers/games_holes.py
+    - backend/app/services/completed_game_service.py
+    - backend/app/observability/score_save.py
+    - backend/app/database.py
+    - backend/app/main.py
+    - backend/tests/unit/test_score_save_diagnostics.py
+    - backend/tests/unit/test_score_save_postgres.py
+    - backend/tests/unit/score_save_postgres_support.py
+    check:
+      shell: cd backend && SCORE_SAVE_REQUIRE_POSTGRES=1 venv/bin/python -m pytest
+        tests/unit/test_score_save_postgres.py tests/unit/test_score_save_diagnostics.py -q -p no:cacheprovider
+  - id: correction-save-feedback
+    description: correction editors retain rejected edits and distinguish queued changes
+      from server-confirmed saves using the existing correction handler and sync queue
+    given: successful, rejected, offline, and network-failed correction saves
+    when: the user saves through the hole or scorecard editor
+    then: confirmed changes publish; rejected changes preserve edits and show a retryable
+      error; queued changes explicitly show pending sync
+    tier: cheap
+    deps:
+    - frontend/src/hooks/useHoleSubmission.js
+    - frontend/src/hooks/useCorrectionSyncFeedback.js
+    - frontend/src/hooks/useGameData.js
+    - frontend/src/pages/SimpleScorekeeperPage.jsx
+    - frontend/src/components/game/EditHoleModal.jsx
+    - frontend/src/components/game/Scorecard.jsx
+    - frontend/src/services/syncManager.jsx
+    - frontend/src/components/game/__tests__/EditHoleModal.save.test.jsx
+    - frontend/src/services/__tests__/syncManager.correlation.test.js
+    - frontend/src/hooks/__tests__/useGameData.test.js
+    - frontend/src/pages/__tests__/SimpleScorekeeperPage.syncWarning.test.jsx
+    check:
+      shell: cd frontend && npx vitest run src/components/game/__tests__/EditHoleModal.save.test.jsx
+        src/services/__tests__/syncManager.correlation.test.js src/hooks/__tests__/useGameData.test.js
+        src/pages/__tests__/SimpleScorekeeperPage.syncWarning.test.jsx
   - id: hole-completion-distinct-18
     description: a quarters-only game completes only when all 18 distinct holes are
       scored; duplicate/partial submissions don't complete early or inflate standings
