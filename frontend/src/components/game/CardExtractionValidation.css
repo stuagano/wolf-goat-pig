@@ -1,0 +1,15 @@
+.card-validation { margin: 0 0 18px; padding: 14px; border: 1px solid #a8c0af; border-radius: 10px; background: #f7faf8; font-size: 14px; }
+.card-validation p { margin: 8px 0 12px; line-height: 1.5; }
+.card-validation button { min-height: 44px; padding: 8px 14px; border: 1px solid #216b45; border-radius: 6px; color: white; background: #216b45; font-weight: 600; }
+.card-validation button:disabled { opacity: .65; cursor: wait; }
+.card-validation__player { margin-top: 18px; }
+.card-validation label { display: grid; gap: 6px; overflow-wrap: anywhere; }
+.card-validation select { width: 100%; min-width: 0; min-height: 44px; border: 1px solid #527b63; border-radius: 6px; padding: 6px; background: white; color: #173b2c; }
+.card-validation table { width: 100%; margin-top: 12px; border-collapse: collapse; table-layout: fixed; font-variant-numeric: tabular-nums; }
+.card-validation caption { text-align: left; font-weight: 700; padding-bottom: 8px; }
+.card-validation th, .card-validation td { padding: 8px 3px; border-bottom: 1px solid #d7e3dc; text-align: center; overflow-wrap: anywhere; }
+.card-validation th:first-child { width: 12%; }
+.card-validation th:last-child { width: 42%; }
+.card-validation td:last-child { text-align: left; }
+.card-validation__mismatch { background: #fff0d9; color: #744400; }
+.card-validation [role="alert"] { color: #a12622; }

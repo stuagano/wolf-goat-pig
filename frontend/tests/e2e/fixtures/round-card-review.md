@@ -30,6 +30,20 @@ agent-browser --session round-card-review reload
 
 Reopen the editor and assert Alice's strokes are `6`. `GET http://127.0.0.1:8334/fixture/evidence` exposes the received request and resulting state: 18 holes, current hole 19, corrected gross score, unchanged quarters. Use `GET /fixture/reset` to reset.
 
+## Extraction validation (read-only comparison)
+
+The fixture serves a synthetic extraction from `POST /scorecard/scan` and rejects any field other than `file`, so the request itself proves no scores are sent. It deliberately disagrees with the saved quarters on Alice's hole 2 and returns low confidence on hole 3. Reset with `GET /fixture/reset` and reload before this check if you previously tested score editing. The synthetic photo and scan response are independent fixtures: this checks UI/network behavior, not real OCR accuracy.
+
+```bash
+agent-browser --session round-card-review wait --text 'Extract & compare card'
+agent-browser --session round-card-review find role button click --name 'Extract & compare card' --exact
+agent-browser --session round-card-review wait --text 'Possible extraction error'
+```
+
+`GET http://127.0.0.1:8334/fixture/evidence` then shows `scans: [{ fields: ["file"] }]` with `lastSave: null` and the hole history unchanged — the extraction performs no score write. Saved scores remain the ground truth; the panel offers no apply/replace control, and correcting scores stays in the separate `Edit scores` flow.
+
+Hole 2 is highlighted as `Possible extraction error`, hole 3 reads `Equal · uncertain extraction`, and Bob's missing hole-4 cell reads `Missing extraction` rather than zero.
+
 ## Responsive checks
 
 - Desktop: 1440×1000; tablet: 820×1180. Photo is left of scores and still usable while the inline editor is open.
