@@ -278,6 +278,15 @@ export function queueSync(gameId, type, payload, options = {}) {
           payload.current_hole || 0
         ),
       };
+      // A drain may still be awaiting another game after this predecessor's
+      // request has finished. Keep the earlier proof until settlement, but only
+      // across the same key/baseline; a stale replacement cannot inherit it.
+      const predecessor = inFlightScores.get(existing.id) || existing.predecessor;
+      const inheritsPredecessor = predecessor &&
+        predecessor.requestKey === existing.requestKey &&
+        predecessor.version <= (existing.version || 1) &&
+        predecessor.expectedRevision === existing.payload.expected_revision &&
+        predecessor.expectedRevision === mergedPayload.expected_revision;
       // A rejection carries its evidence onto the merged item: pending local
       // work stays in one place and stays held for review, never auto-retried.
       queue[existingIndex] = {
@@ -286,9 +295,7 @@ export function queueSync(gameId, type, payload, options = {}) {
           ? { reviewRequired: true, review: options.review, lastError: options.lastError || existing.lastError }
           : {}),
         payload: mergedPayload,
-        predecessor: inFlightScores.get(existing.id) &&
-          mergedPayload.expected_revision === inFlightScores.get(existing.id).expectedRevision
-          ? inFlightScores.get(existing.id) : null,
+        predecessor: inheritsPredecessor ? predecessor : null,
         version: (existing.version || 1) + 1,
         updatedAt: new Date().toISOString(),
       };

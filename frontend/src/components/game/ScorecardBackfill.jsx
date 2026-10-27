@@ -77,14 +77,27 @@ const ScorecardBackfill = ({
   const sameSlots = recovered?.slots?.join('|') === players.map(p => p.id).join('|');
   const [values, setValues] = useState(sameSlots ? recovered.values : initialValues);
   const [revision, setRevision] = useState(sameSlots ? recovered.revision : expectedRevision);
-  const [needsReview, setNeedsReview] = useState(Boolean(sameSlots && recovered));
+  const [needsReview, setNeedsReview] = useState(Boolean(recovered));
+  const [rosterDraftHeld, setRosterDraftHeld] = useState(Boolean(recovered && !sameSlots));
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [acceptedStandings, setAcceptedStandings] = useState(standings);
-  const retain = (next, rev = revision) => keepDraft(gameId, 'backfill', {
-    values: next, revision: rev, slots: players.map(p => p.id),
-  });
+  const retain = (next, rev = revision) => {
+    // Index-keyed cells cannot be relabeled using a changed accepted roster.
+    // Preserve the original copy until the user explicitly discards it.
+    if (rosterDraftHeld) return;
+    keepDraft(gameId, 'backfill', { values: next, revision: rev, slots: players.map(p => p.id) });
+  };
+  const discardRosterDraft = () => {
+    try {
+      keepDraft(gameId, 'backfill', { values, revision, slots: players.map(p => p.id) });
+      setRosterDraftHeld(false);
+      // Still require the existing explicit reload/review before any submission.
+      setNeedsReview(true);
+    } catch { setSaveError('Could not replace the retained draft on this device. Original draft is still held.'); }
+  };
   const reloadAccepted = async () => {
+    if (rosterDraftHeld) return;
     try {
       const res = await authenticatedFetch(`${API_URL}/games/${gameId}/state`);
       if (!res.ok) throw new Error('Could not reload accepted round. Your draft is retained.');
@@ -112,7 +125,7 @@ const ScorecardBackfill = ({
       catch { setSaveError('Could not retain edits on this device. Keep this editor open and copy your entries before leaving.'); }
       return next;
     });
-  }, [gameId, revision, players]);
+  }, [gameId, revision, players, rosterDraftHeld]);
 
   // Compute per-hole deltas for each player from the running-total grid
   const allDeltas = useMemo(() => {
@@ -244,7 +257,20 @@ const ScorecardBackfill = ({
         </div>
       )}
 
-      {needsReview && (
+      {rosterDraftHeld && (
+        <div role="alert" className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-sm text-amber-800">
+          The accepted roster changed. Your original draft is held below with its original slot IDs and cell indices.
+          Copy this JSON to recover all entries, including removed players. Current grid edits will not replace it
+          or be submitted until you explicitly discard the original. Current grid edits are not retained while it is held.
+          <textarea aria-label="Retained backfill draft JSON" readOnly value={JSON.stringify(recovered, null, 2)}
+            className="block w-full mt-2" rows={6} />
+          <button type="button" onClick={discardRosterDraft} className="underline font-semibold">
+            Discard retained draft and use current grid
+          </button>
+        </div>
+      )}
+
+      {needsReview && !rosterDraftHeld && (
         <div role="alert" className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-sm text-amber-800">
           Your retained edits were not accepted and are not staged on the server.
           <button type="button" onClick={reloadAccepted} className="ml-2 underline font-semibold">

@@ -62,6 +62,42 @@ it('does not rebase a same-round replacement with an unrelated stale baseline', 
   stop();
 });
 
+it('preserves proven A lineage across merges straddling its ack while B is pending', async () => {
+  vi.useFakeTimers();
+  Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+  let acknowledgeA;
+  let acknowledgeB;
+  let revisionA = 2;
+  const fetcher = vi.fn()
+    .mockImplementationOnce(() => new Promise(resolve => { acknowledgeA = resolve; }))
+    .mockImplementationOnce(() => new Promise(resolve => { acknowledgeB = resolve; }))
+    .mockImplementation(async (_, options) => {
+      const body = JSON.parse(options.body);
+      if (body.expected_revision !== revisionA) return new Response('{}', { status: 409 });
+      return new Response(JSON.stringify({ revision: ++revisionA }));
+    });
+  const stop = syncManager.setupAutoSync(fetcher);
+  const id = syncManager.queueSync('A', 'scores', { hole_quarters: { 1: { p1: 1 } }, expected_revision: 2 });
+  syncManager.queueSync('B', 'scores', { hole_quarters: { 1: { p1: 4 } }, expected_revision: 6 });
+  const draining = syncManager.processQueue();
+  syncManager.queueSync('A', 'scores', { hole_quarters: { 1: { p1: 3 } }, expected_revision: 2 });
+  revisionA = 3;
+  acknowledgeA(new Response(JSON.stringify({ revision: revisionA })));
+  // B starting proves A's finally ran, but drain settlement has not.
+  for (let i = 0; i < 20 && !acknowledgeB; i++) await Promise.resolve();
+  expect(acknowledgeB).toBeTypeOf('function');
+  syncManager.queueSync('A', 'scores', { hole_quarters: { 1: { p1: 7 }, 2: { p1: -7 } }, expected_revision: 2 });
+  acknowledgeB(new Response(JSON.stringify({ revision: 7 })));
+  await draining;
+  expect(syncManager.getSyncQueue().find(item => item.id === id)).toMatchObject({
+    version: 3, payload: { expected_revision: 3, hole_quarters: { 1: { p1: 7 }, 2: { p1: -7 } } },
+  });
+  await syncManager.processQueue();
+  expect(JSON.parse(fetcher.mock.calls[2][1].body).expected_revision).toBe(3);
+  expect(syncManager.getSyncQueue()).toEqual([]);
+  stop();
+});
+
 it('only a proven in-flight descendant advances its server baseline', async () => {
   vi.useFakeTimers();
   Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
