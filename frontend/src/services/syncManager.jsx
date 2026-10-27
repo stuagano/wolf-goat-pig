@@ -128,6 +128,9 @@ const STORAGE_KEYS = {
 // Sync status for event listeners
 let syncListeners = [];
 let isProcessing = false;
+// Only an edit merged while this exact predecessor is in flight inherits its
+// acknowledgement. Old/offline snapshots are never rebased just by game ID.
+const inFlightScores = new Map();
 let retryTimeoutId = null;
 // Bounded receipts for mounted editors, keyed to the exact uploaded queue
 // revision. These are observations, not a second queue or a persistence claim.
@@ -275,9 +278,17 @@ export function queueSync(gameId, type, payload, options = {}) {
           payload.current_hole || 0
         ),
       };
+      // A rejection carries its evidence onto the merged item: pending local
+      // work stays in one place and stays held for review, never auto-retried.
       queue[existingIndex] = {
         ...existing,
+        ...(options.reviewRequired
+          ? { reviewRequired: true, review: options.review, lastError: options.lastError || existing.lastError }
+          : {}),
         payload: mergedPayload,
+        predecessor: inFlightScores.get(existing.id) &&
+          mergedPayload.expected_revision === inFlightScores.get(existing.id).expectedRevision
+          ? inFlightScores.get(existing.id) : null,
         version: (existing.version || 1) + 1,
         updatedAt: new Date().toISOString(),
       };
@@ -369,6 +380,9 @@ export async function processQueue(options = {}) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), QUEUE_TIMEOUT_MS);
 
+      if (item.type === 'scores') inFlightScores.set(item.id, {
+        version: item.version || 1, requestKey: item.requestKey, expectedRevision: item.payload.expected_revision,
+      });
       const response = await authenticatedFetch(url, {
         method,
         headers: {
@@ -388,6 +402,7 @@ export async function processQueue(options = {}) {
         if (local && Number.isInteger(accepted.revision)) {
           saveLocalGameState(item.gameId, { ...local, expectedRevision: accepted.revision, gameStatus: accepted.game_status || local.gameStatus });
         }
+        item.acceptedRevision = accepted.revision;
         recordQueueOutcome(item, 'synced');
         results.synced++;
         // Update last sync time
@@ -450,6 +465,8 @@ export async function processQueue(options = {}) {
       const message =
         error.name === 'AbortError' ? 'Request timed out' : error.message;
       requeueForRetry(item, message, updatedQueue, results);
+    } finally {
+      inFlightScores.delete(item.id);
     }
   }
 
@@ -457,7 +474,18 @@ export async function processQueue(options = {}) {
   // settle the exact revisions in this drain's snapshot.
   const remainingQueue = getSyncQueue().flatMap(current => {
     const attempted = queue.find(item => item.id === current.id);
-    if (!attempted || (current.version || 1) !== (attempted.version || 1)) return [current];
+    if (!attempted) return [current];
+    if ((current.version || 1) !== (attempted.version || 1)) {
+      if (attempted.reviewRequired) return [{ ...current, reviewRequired: true, review: attempted.review, lastError: attempted.lastError }];
+      const parent = current.predecessor;
+      if (!current.reviewRequired && Number.isInteger(attempted.acceptedRevision) &&
+          parent?.version === (attempted.version || 1) && parent?.requestKey === attempted.requestKey &&
+          parent?.expectedRevision === current.payload.expected_revision &&
+          parent?.expectedRevision === attempted.payload.expected_revision) {
+        return [{ ...current, predecessor: null, payload: { ...current.payload, expected_revision: attempted.acceptedRevision } }];
+      }
+      return [current];
+    }
     const retry = updatedQueue.find(item => item.id === current.id);
     return retry ? [retry] : [];
   });

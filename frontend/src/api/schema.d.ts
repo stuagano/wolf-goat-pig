@@ -10757,7 +10757,9 @@ export interface operations {
     };
     delete_hole_games__game_id__holes__hole_number__delete: {
         parameters: {
-            query?: never;
+            query?: {
+                expected_revision?: number | null;
+            };
             header?: never;
             path: {
                 game_id: string;

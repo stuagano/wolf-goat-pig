@@ -144,6 +144,7 @@ const SimpleScorekeeperPage = () => {
           players={players}
           holeHistory={holeHistory}
           standings={standings}
+          expectedRevision={game.readVerified ? game.expectedRevision : undefined}
           onSaved={() => {
             setShowBackfill(false);
             reload();

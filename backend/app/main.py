@@ -263,6 +263,7 @@ app.add_middleware(
         "X-Admin-Key",
         "X-Requested-With",
         "X-Request-ID",
+        "Idempotency-Key",
         "Origin",
         "Access-Control-Request-Method",
         "Access-Control-Request-Headers",

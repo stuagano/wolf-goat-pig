@@ -5,6 +5,7 @@ import GHINPostModal from './GHINPostModal';
 import { apiConfig } from '../../config/api.config';
 import { useAuthenticatedFetch } from '../../hooks/useAuthenticatedFetch';
 import { preprocessScorecardImage, downscaleToBase64 } from '../../utils/scorecardImage';
+import { readDraft, keepDraft, clearDraft, extractionFromQuarters } from './roundWriteDraft';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -50,8 +51,29 @@ const ScorecardPhoto = ({
   const photoUrlRef = useRef(null);
   const photoB64Ref = useRef(null);
   const photoFileRef = useRef(null);
-  const submissionRef = useRef(null);
+  const retainedSubmission = mode === 'attach' ? readDraft(gameId, 'attach') : null;
+  const submissionRef = useRef(retainedSubmission ? {
+    key: retainedSubmission.key, content: JSON.stringify(retainedSubmission.quarters),
+  } : null);
+  const reviewedSnapshot = useRef(null);
   const [photoWarning, setPhotoWarning] = useState('');
+  // Held attach edits live locally only; reapply is an explicit user action.
+  const [held, setHeld] = useState(() => (mode === 'attach' ? readDraft(gameId, 'attach') : null));
+  const reloadAccepted = async () => {
+    try {
+      const res = await authenticatedFetch(`${API_URL}/games/${gameId}/state`);
+      if (!res.ok) throw new Error('Could not reload the accepted round. Your edits are retained locally.');
+      const snapshot = await res.json();
+      if (!Number.isInteger(snapshot.revision)) throw new Error('Round revision unavailable; nothing was submitted.');
+      reviewedSnapshot.current = snapshot;
+      const next = { ...held, revision: snapshot.revision };
+      keepDraft(gameId, 'attach', next);
+      setHeld(next);
+      setExtraction(extractionFromQuarters(players, next.quarters));
+      setErrorMsg(null);
+      setStage('review');
+    } catch (err) { setErrorMsg(err.message); }
+  };
   // Free the retained object URL when this flow unmounts.
   useEffect(() => () => { if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current); }, []);
 
@@ -142,10 +164,18 @@ const ScorecardPhoto = ({
         return;
       }
 
-      const current = await authenticatedFetch(`${API_URL}/games/${gameId}/state`);
-      if (!current.ok) throw new Error('Reload the round before attaching scores.');
-      const snapshot = await current.json();
       const holeQuarters = payload;
+      if (!submissionRef.current || submissionRef.current.content !== JSON.stringify(holeQuarters)) {
+        submissionRef.current = { content: JSON.stringify(holeQuarters), key: crypto.randomUUID() };
+      }
+      keepDraft(gameId, 'attach', { quarters: holeQuarters, revision: held?.revision, key: submissionRef.current.key });
+      let snapshot = reviewedSnapshot.current;
+      if (!snapshot) {
+        const current = await authenticatedFetch(`${API_URL}/games/${gameId}/state`);
+        if (!current.ok) throw new Error('Reload the round before attaching scores.');
+        snapshot = await current.json();
+      }
+      if (!Number.isInteger(snapshot.revision)) throw new Error('Round revision unavailable; nothing was submitted.');
       // Whole-snapshot semantics: keep server holes this card does not cover.
       const submitted = new Set(Object.keys(holeQuarters).map(h => parseInt(h, 10)));
       const holes = [
@@ -159,7 +189,7 @@ const ScorecardPhoto = ({
       ];
       const res = await authenticatedFetch(`${API_URL}/games/${gameId}/scores`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': submissionRef.current.key },
         body: JSON.stringify({ holes, current_hole: 18, expected_revision: snapshot.revision }),
       });
 
@@ -174,7 +204,14 @@ const ScorecardPhoto = ({
         }
       }
       if (res.status === 409) {
-        setErrorMsg('This round has newer or competing values. Your correction is held for review; accepted scores were not overwritten.');
+        const rejected = await res.json().catch(() => ({}));
+        const draft = { quarters: holeQuarters, revision: snapshot.revision, key: submissionRef.current.key, response: rejected };
+        keepDraft(gameId, 'attach', draft);
+        setHeld(draft);
+        reviewedSnapshot.current = null;
+        // Existing issue IDs can predate this stale request, so none proves
+        // that these particular edits were staged.
+        setErrorMsg('Round changed. Your edited scores are retained locally; this response does not confirm server staging. Reload accepted round, review, then explicitly confirm again.');
         setStage('conflict');
         return;
       }
@@ -183,6 +220,8 @@ const ScorecardPhoto = ({
         throw new Error(typeof detail.detail === 'string' ? detail.detail : `Save failed: ${res.status}`);
       }
 
+      clearDraft(gameId, 'attach');
+      setHeld(null);
       setSavedQuarters(holeQuarters);
       setStage('ghin_prompt');
     } catch (err) {
@@ -190,6 +229,12 @@ const ScorecardPhoto = ({
       setStage('error');
     }
   };
+
+  if (held && !reviewedSnapshot.current && stage !== 'saving' && stage !== 'conflict') {
+    return <div role="alert"><p>{errorMsg || 'Unaccepted edits are retained locally. Reload before reviewing and explicitly resubmitting.'}</p>
+      <button onClick={reloadAccepted}>Reload accepted round and reapply my retained edits</button>
+      <button onClick={onCancel}>Close</button></div>;
+  }
 
   if (stage === 'capture') {
     return (
@@ -238,6 +283,7 @@ const ScorecardPhoto = ({
   if (stage === 'conflict') {
     return <div role="alert"><p>{errorMsg}</p><p>{photoWarning}</p>
       <a href={gameId ? `/game/${gameId}` : '/rounds/reconciliation'}>Open review / reload round</a>
+      {held && <button onClick={reloadAccepted}>Reload accepted round and reapply my retained edits</button>}
       <button onClick={onCancel}>Close</button></div>;
   }
 

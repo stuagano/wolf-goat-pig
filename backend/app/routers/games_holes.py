@@ -69,14 +69,18 @@ class ScoresRequest(BaseModel):
 
 
 @router.delete("/{game_id}/holes/{hole_number}", dependencies=[Depends(require_round_member_or_admin)])
-async def delete_hole(game_id: str, hole_number: int, db: Session = Depends(database.get_db)):  # type: ignore
+async def delete_hole(
+    game_id: str, hole_number: int, expected_revision: int | None = None, db: Session = Depends(database.get_db)
+):  # type: ignore
     """
     Delete a hole's data. Removes from hole_events (source of truth) and from
     the game state hole_history blob. Recalculates standings from what remains.
     """
-    game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
+    writer_mode(db)
+    game = db.query(models.GameStateModel).filter_by(game_id=game_id).populate_existing().first()
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
+    check_revision(db, game, expected_revision)
 
     if game.game_status == "completed":
         raise HTTPException(
@@ -107,16 +111,24 @@ async def delete_hole(game_id: str, hole_number: int, db: Session = Depends(data
     for p in state.get("players", []):
         p["total_points"] = standings.get(p.get("id"), 0)
 
+    state["hole_quarters"] = {str(h["hole"]): h["points_delta"] for h in state["hole_history"]}
     flag_modified(game, "state")
     game.updated_at = utc_now().isoformat()
+    game.revision = (game.revision or 0) + 1
+    revision = game.revision
     db.commit()
 
     logger.info(f"Deleted hole {hole_number} from game {game_id}")
-    return {"success": True, "game_id": game_id, "hole_number": hole_number}
+    return {"success": True, "game_id": game_id, "hole_number": hole_number, "revision": revision}
 
 
-@router.post("/{game_id}/scores", dependencies=[Depends(require_round_member_or_admin)])
-async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depends(database.get_db)):
+@router.post("/{game_id}/scores")
+async def save_scores(
+    game_id: str,
+    request: ScoresRequest,
+    db: Session = Depends(database.get_db),
+    editor: models.PlayerProfile = Depends(require_round_member_or_admin),
+):
     """Replace the full scored-hole snapshot (not a one-hole patch)."""
     try:
         mode = writer_mode(db)
@@ -159,7 +171,7 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
                     for h in holes
                 ],
             )
-            detail = propose_completed(db, game, proposed_history)
+            detail = propose_completed(db, game, proposed_history, editor.id)
             db.commit()
             if detail["issue_ids"]:
                 raise HTTPException(409, detail)
@@ -316,15 +328,14 @@ class HoleEventPatch(BaseModel):
     expected_revision: int | None = None
 
 
-@router.patch(
-    "/{game_id}/holes/{hole_number}/players/{player_id}", dependencies=[Depends(require_round_member_or_admin)]
-)
+@router.patch("/{game_id}/holes/{hole_number}/players/{player_id}")
 async def patch_hole_event(
     game_id: str,
     hole_number: int,
     player_id: str,
     patch: HoleEventPatch,
     db: Session = Depends(database.get_db),
+    editor: models.PlayerProfile = Depends(require_round_member_or_admin),
 ) -> dict[str, Any]:
     """Independently correct a player's score or quarters for a single hole."""
     if patch.score is None and patch.quarters is None:
@@ -353,7 +364,7 @@ async def patch_hole_event(
         if patch.score is not None:
             entry["gross_scores"] = {**(entry.get("gross_scores") or {}), player_id: patch.score}
         validate_round_scores(state["players"], history)
-        detail = propose_completed(db, game, history)
+        detail = propose_completed(db, game, history, editor.id)
         db.commit()
         raise HTTPException(409, detail)
 
@@ -407,6 +418,9 @@ async def patch_hole_event(
         if game.game_status == "completed":
             validate_round_scores(state["players"], history)
             persist_completed_game(db, game)
+        else:
+            game.revision = (game.revision or 0) + 1
+        revision = game.revision
         db.commit()
     except Exception:
         db.rollback()
@@ -418,6 +432,7 @@ async def patch_hole_event(
         "player_id": player_id,
         "score": saved_score,
         "quarters": saved_quarters,
+        "revision": revision,
     }
 
 

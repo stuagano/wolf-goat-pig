@@ -10403,6 +10403,22 @@
               "title": "Hole Number",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "expected_revision",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Expected Revision"
+            }
           }
         ],
         "responses": {

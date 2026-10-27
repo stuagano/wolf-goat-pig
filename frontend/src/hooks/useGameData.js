@@ -80,7 +80,7 @@ export default function useGameData(gameId) {
         expectedRevision: data.revision,
       });
       localStorage.setItem('wgp_current_game', gameId);
-      setGame(normalizeGameState(data));
+      setGame({ ...normalizeGameState(data), readVerified: true });
     } catch (err) {
       console.error('Error loading game:', err);
       // Bad course signal: open from the local write-buffer if we have a roster.

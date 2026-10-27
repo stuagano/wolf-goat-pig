@@ -341,7 +341,9 @@ async def create_round_from_scorecard(
         raise HTTPException(status_code=403, detail="Only a participant or admin can post a round")
     if body.detail_coverage == "per_hole_complete":
         validate_round_scores(players, hole_history)
-    if mode == "canonical" or body.detail_coverage == "totals_only":
+    if body.detail_coverage == "totals_only" and mode != "canonical":
+        raise HTTPException(409, "Totals-only scans require the coordinated canonical cutover")
+    if mode == "canonical":
         draft = RoundDraft(
             played_on=date.fromisoformat(body.played_at) if body.played_at else None,
             course_name=body.course_name,

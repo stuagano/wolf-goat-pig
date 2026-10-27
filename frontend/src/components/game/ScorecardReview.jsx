@@ -147,6 +147,13 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
     ? totalsFilled
     : allFilled && (isNewRound || unbalancedHoles.length === 0));
 
+  // One row-to-slot mapping drives both editor labels and submitted attribution.
+  const rowName = pi => {
+    if (needsSlotMapping) return targetNames[Number(slotMapping[pi])] && slotMapping[pi] !== ''
+      ? targetNames[Number(slotMapping[pi])] : `Unmapped scanned row ${pi + 1}`;
+    return mapping[pi] === '__unlinked__' ? extractedPlayers[pi].name : mapping[pi];
+  };
+
   // Shared player payload for both new-round paths (totals + grid).
   const buildNewRoundPlayers = () =>
     extractedPlayers.map((ep, pi) =>
@@ -245,7 +252,7 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
               <div key={pi} className="flex items-center gap-2">
                 {knownPlayers ? (
                   <span className="text-sm text-gray-800 font-medium">
-                    {(pickedPlayers[pi] ?? ep.name) || `Player ${pi + 1}`}
+                    {rowName(pi)}
                   </span>
                 ) : (
                   <>
@@ -270,7 +277,7 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
                       type="button"
                       onClick={() => setTotals(prev => prev.map((t, i) => (i === pi ? flipSign(t) : t)))}
                       className="px-2 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100"
-                      aria-label={`toggle sign for ${(pickedPlayers[pi] ?? ep.name) || `player ${pi + 1}`}`}
+                      aria-label={`toggle sign for ${rowName(pi)}`}
                     >
                       ±
                     </button>
@@ -278,6 +285,7 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
                       type="text"
                       inputMode="numeric"
                       value={totals[pi] ?? ''}
+                      aria-label={`${rowName(pi)} final total`}
                       onChange={e => setTotals(prev => prev.map((t, i) => (i === pi ? e.target.value : t)))}
                       className="w-16 text-center text-base font-semibold border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
                       placeholder="±0"
@@ -346,7 +354,7 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
           </thead>
           <tbody>
             {extractedPlayers.map((ep, pi) => {
-              const playerName = players[pi]?.name || ep.name || `Player ${pi + 1}`;
+              const playerName = rowName(pi);
               return (
                 <React.Fragment key={pi}>
                   {/* Running total row — editable */}
@@ -364,6 +372,7 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
                           <input
                             type="number"
                             value={val ?? ''}
+                            aria-label={`${playerName} hole ${h} running total`}
                             onChange={e => handleChange(pi, h, e.target.value)}
                             className={`w-10 text-center text-sm border rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400 ${CONFIDENCE_STYLE(conf)}`}
                             placeholder="—"
