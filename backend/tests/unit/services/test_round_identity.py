@@ -60,7 +60,18 @@ def test_repeat_roster_on_different_known_played_dates_is_not_dropped():
     assert all(r.game_id is None for r in rows if r.source == "primary_sheet")
 
 
-@pytest.mark.parametrize("course", ["Other Golf Club", "Test", ""])
+def test_sheet_short_course_name_matches_full_club_name():
+    # Prod: the sheet says "Wing Point", the app saves "Wing Point Golf & Country Club".
+    rows = UnifiedDataService._drop_sheet_duplicates(
+        game("primary_sheet", "sheet", course="Wing Point")
+        + game("database", "card", course="Wing Point Golf & Country Club")
+    )
+    assert len(rows) == 6
+    assert {r.source for r in rows} == {"primary_sheet"}
+    assert {r.game_id for r in rows} == {"card"}
+
+
+@pytest.mark.parametrize("course", ["Other Golf Club", "Testing", ""])
 def test_course_mismatch_is_never_guessed(course):
     rows = UnifiedDataService._drop_sheet_duplicates(
         game("primary_sheet", "sheet") + game("database", "card", course=course)

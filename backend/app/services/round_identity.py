@@ -4,11 +4,14 @@ Score suppression is deliberately separate: historical imports can be approximat
 whereas a link or per-hole detail must never be borrowed from a guessed game.
 """
 
+import re
 from datetime import date
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .unified_data_service import UnifiedRound
+
+_CLUB_SUFFIX = re.compile(r"(\s+(golf|country|club|course|&|and|g&cc|gcc|gc|cc))+$")
 
 
 def normalized(value: str) -> str:
@@ -16,7 +19,8 @@ def normalized(value: str) -> str:
 
 
 def course_name(value: str) -> str:
-    value = normalized(value)
+    # The sheet says "Wing Point"; saved games say "Wing Point Golf & Country Club".
+    value = _CLUB_SUFFIX.sub("", normalized(value))
     return "" if value in {"", "unknown", "n/a"} else value
 
 
