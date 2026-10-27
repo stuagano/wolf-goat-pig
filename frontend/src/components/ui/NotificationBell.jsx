@@ -8,7 +8,18 @@ const API_URL = apiConfig.baseUrl;
 const POLL_INTERVAL_MS = 60_000;
 
 const MATCH_TYPES = new Set(['match_found', 'match_accepted', 'match_declined', 'match_confirmed']);
-const BELL_TYPES = new Set([...MATCH_TYPES, 'round_comment']);
+const BELL_TYPES = new Set([...MATCH_TYPES, 'round_comment', 'round_conflict']);
+
+const safePath = (path) => {
+  if (typeof path !== 'string' || !path.startsWith('/')) return null;
+  try {
+    const decoded = decodeURIComponent(path);
+    if (decoded.startsWith('//') || /[\\\\\s\u0000-\u001f]/.test(decoded)) return null;
+    return new URL(path, window.location.origin).origin === window.location.origin ? path : null;
+  } catch {
+    return null;
+  }
+};
 
 const relativeTime = (isoStr) => {
   if (!isoStr) return '';
@@ -33,7 +44,7 @@ const NotificationBell = () => {
     if (!isAuthenticated) return;
     try {
       const token = await getToken();
-      const res = await fetch(`${API_URL}/notifications?unread_only=true&limit=10`, {
+      const res = await fetch(`${API_URL}/notifications?unread_only=true&limit=10&types=${[...BELL_TYPES].join(',')}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -88,7 +99,8 @@ const NotificationBell = () => {
     }
     setNotifications(prev => prev.filter(x => x.id !== n.id));
     setOpen(false);
-    navigate(n.notification_type === 'round_comment' && n.data?.path ? n.data.path : '/account');
+    const isRound = n.notification_type === 'round_comment' || n.notification_type === 'round_conflict';
+    navigate((isRound && safePath(n.data?.path)) || '/account');
   }, [getToken, navigate]);
 
   if (!isAuthenticated || notifications.length === 0) return null;
@@ -109,7 +121,7 @@ const NotificationBell = () => {
           display: 'flex',
           alignItems: 'center',
         }}
-        aria-label={`${notifications.length} unread match notification${notifications.length !== 1 ? 's' : ''}`}
+        aria-label={`${notifications.length} unread notification${notifications.length !== 1 ? 's' : ''}`}
       >
         🔔
         <span style={{
@@ -195,10 +207,14 @@ const NotificationBell = () => {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, color: '#1f2937', lineHeight: 1.4 }}>
                       {n.message}
+                      {Object.values(n.data?.delivery_health || {}).some(status => status === 'failed' || status === 'uncertain') && (
+                        <span> · Email delivery needs attention</span>
+                      )}
                     </div>
                     <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
                       {relativeTime(n.created_at)}
-                      {n.notification_type === 'round_comment' ? ' · tap to open the round' : ' · tap to view in Account'}
+                      {n.notification_type === 'round_conflict' ? ' · tap to review the round' :
+                        n.notification_type === 'round_comment' ? ' · tap to open the round' : ' · tap to view in Account'}
                     </div>
                   </div>
                 </div>

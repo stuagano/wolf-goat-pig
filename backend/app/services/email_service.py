@@ -106,6 +106,13 @@ class SMTPEmailProvider(EmailProvider):
 # --- Unified Email Service ---
 
 
+class RoundEmailRejectedError(Exception):
+    """Transport evidence proves rejection before acceptance; safe bounded retry.
+
+    Legacy Boolean False is NOT this evidence and must remain uncertain.
+    """
+
+
 class EmailService:
     """A unified service for sending emails using a configured provider."""
 
@@ -147,6 +154,21 @@ class EmailService:
         if self.provider is not None:
             return self.provider.send_email(to_email, subject, html_body, text_body)
         return False
+
+    def send_round_conflict_notification(self, *, to_email: str, issue_id: str, path: str) -> bool:
+        """Provider acceptance only; False cannot establish safe resend."""
+        from html import escape
+
+        from .round_delivery import safe_round_path
+
+        if not safe_round_path(path):
+            raise ValueError("Round notification requires a safe application path")
+        base = os.getenv("FRONTEND_URL", "https://seventh-country-232522.web.app").rstrip("/")
+        url = base + path
+        subject = "A Wolf Goat Pig round needs review"
+        content = f'<p>A round needs review.</p><p><a href="{escape(url, quote=True)}">Review round</a></p>'
+        html = Template(self._get_base_template()).render(subject=subject, content=content)
+        return self._send_email(to_email, subject, html, f"A round needs review.\n{url}\nIssue: {issue_id}")
 
     def send_test_email(self, to_email: str, admin_name: str = "Admin") -> bool:
         """Sends a test email to verify the current provider's configuration."""

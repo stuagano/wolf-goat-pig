@@ -79,6 +79,9 @@ class NotificationService:
         message: str,
         db: Session,
         data: dict[str, Any] | None = None,
+        *,
+        delivery_key: str | None = None,
+        commit: bool = True,
     ) -> dict[str, Any]:
         """
         Send a notification to a specific player.
@@ -116,6 +119,7 @@ class NotificationService:
                 "match_confirmed",
                 "round_attestation",
                 "round_comment",
+                "round_conflict",
             ]
 
             if notification_type not in valid_types:
@@ -124,6 +128,7 @@ class NotificationService:
             # Create notification record
             notification = Notification(
                 player_profile_id=player_id,
+                delivery_key=delivery_key,
                 notification_type=notification_type,
                 message=message,
                 data=data or {},
@@ -132,8 +137,11 @@ class NotificationService:
             )
 
             db.add(notification)
-            db.commit()
-            db.refresh(notification)
+            if commit:
+                db.commit()
+                db.refresh(notification)
+            else:
+                db.flush()
 
             logger.info(f"Sent {notification_type} notification to player {player_id}: '{message}'")
 
@@ -148,8 +156,9 @@ class NotificationService:
             }
 
         except Exception as e:
-            db.rollback()
-            logger.error(f"Error sending notification to player {player_id}: {e}")
+            if commit:
+                db.rollback()
+            logger.error(f"Error sending notification to player {player_id}: {type(e).__name__}")
             raise HTTPException(status_code=500, detail=f"Failed to send notification: {e!s}")
 
     def get_player_notifications(

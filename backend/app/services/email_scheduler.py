@@ -36,6 +36,7 @@ class EmailScheduler:
         "legacy-rounds-sync": "_sync_legacy_rounds",
         "pending-sheet-syncs": "_process_pending_sheet_syncs",
         "ghin-sync": "_sync_ghin_handicaps",
+        "round-deliveries": "_dispatch_round_deliveries",
     }
 
     def __init__(self):
@@ -69,6 +70,12 @@ class EmailScheduler:
         # schedule.every().day.at("02:00").do(self._sync_google_sheets)
 
         logger.info("Email schedules set up successfully")
+
+    def _dispatch_round_deliveries(self):
+        """Durable one-shot job; does not depend on the process daemon thread."""
+        from .round_delivery import dispatch_round_deliveries
+
+        return dispatch_round_deliveries()
 
     def _get_db(self) -> Session:
         """Get a database session"""

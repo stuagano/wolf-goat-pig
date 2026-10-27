@@ -4,7 +4,7 @@ import hashlib
 import json
 
 from app import models
-from app.schemas.round_identity import RoundDraft, read_round_identity_config
+from app.schemas.round_identity import RoundDraft
 from app.utils.time import utc_now
 
 
@@ -161,27 +161,7 @@ def issue_for(db, source, observation, kind, *, head=None, candidates=(), value=
     )
     db.add(issue)
     db.flush()
-    config = read_round_identity_config(db)
-    recipient = db.get(models.PlayerProfile, config.reviewer_profile_id) if config.reviewer_profile_id else None
-    configured = bool(
-        config.routing_confirmed
-        and recipient
-        and recipient.is_active
-        and recipient.email
-        and (recipient.preferences or {}).get("email_verified")
-        and (recipient.preferences or {}).get("auth0_id")
-    )
-    for channel in ("email", "in_app"):
-        key = f"{issue.id}:{issue.generation}:{channel}:routing-{config.epoch}"
-        db.add(
-            models.RoundDelivery(
-                issue_id=issue.id,
-                issue_event_key=f"{issue.id}:{issue.generation}",
-                recipient_profile_id=recipient.id if configured else None,
-                channel=channel,
-                delivery_key=key,
-                status="pending" if configured else "unconfigured",
-            )
-        )
-    db.flush()
+    from app.services.round_delivery import enqueue_round_deliveries
+
+    enqueue_round_deliveries(db, issue)
     return issue

@@ -3476,6 +3476,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/notifications/round-deliveries/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Round Delivery Health */
+        get: operations["round_delivery_health_notifications_round_deliveries_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/round-deliveries/requeue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Requeue Round Alerts */
+        post: operations["requeue_round_alerts_notifications_round_deliveries_requeue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/notifications/unread-count": {
         parameters: {
             query?: never;
@@ -6708,6 +6742,13 @@ export interface components {
         RoundReactionToggle: {
             /** Emoji */
             emoji: string;
+        };
+        /** RoundRequeue */
+        RoundRequeue: {
+            /** Issue Ids */
+            issue_ids: string[];
+            /** Reason */
+            reason: string;
         };
         /**
          * RoundResultResponse
@@ -12395,6 +12436,7 @@ export interface operations {
             query?: {
                 unread_only?: boolean;
                 limit?: number;
+                types?: string | null;
             };
             header?: never;
             path?: never;
@@ -12438,6 +12480,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    round_delivery_health_notifications_round_deliveries_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    requeue_round_alerts_notifications_round_deliveries_requeue_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoundRequeue"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

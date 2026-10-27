@@ -3897,6 +3897,31 @@
         "title": "RoundReactionToggle",
         "type": "object"
       },
+      "RoundRequeue": {
+        "properties": {
+          "issue_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Issue Ids",
+            "type": "array"
+          },
+          "reason": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "issue_ids",
+          "reason"
+        ],
+        "title": "RoundRequeue",
+        "type": "object"
+      },
       "RoundResultResponse": {
         "description": "Response model for a round result.",
         "properties": {
@@ -12885,8 +12910,26 @@
             "required": false,
             "schema": {
               "default": 20,
+              "maximum": 100,
+              "minimum": 1,
               "title": "Limit",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "types",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Types"
             }
           }
         ],
@@ -12940,6 +12983,74 @@
           }
         ],
         "summary": "Mark All Read",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/notifications/round-deliveries/health": {
+      "get": {
+        "operationId": "round_delivery_health_notifications_round_deliveries_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Round Delivery Health",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/notifications/round-deliveries/requeue": {
+      "post": {
+        "operationId": "requeue_round_alerts_notifications_round_deliveries_requeue_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoundRequeue"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Requeue Round Alerts",
         "tags": [
           "notifications"
         ]

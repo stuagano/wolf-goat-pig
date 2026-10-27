@@ -95,6 +95,9 @@ class RoundIdentityConfig(BaseModel):
     season: int | None = None
     reviewer_profile_id: int | None = None
     routing_confirmed: bool = False
+    routing_confirmed_by_profile_id: int | None = None
+    routing_confirmed_at: str | None = None
+    routing_linkage_evidence: dict = Field(default_factory=dict)
 
 
 def read_round_identity_config(db: Session) -> RoundIdentityConfig:
