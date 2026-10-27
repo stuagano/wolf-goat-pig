@@ -4,6 +4,7 @@ No production token layout is approved. Changed evidence must be reviewed; even
 unique tokens cannot prove that an A:F-only sort preserved their association.
 """
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -45,6 +46,19 @@ def _date(raw, year):
         return datetime.strptime(f"{raw}-{year}", "%d-%b-%Y").date()
 
 
+def _a1_bounds(value):
+    """Normalize one unambiguous sheet-qualified rectangular A1 range."""
+    if not isinstance(value, str):
+        return None
+    match = re.fullmatch(
+        r"(?:'((?:[^']|'')+)'|([A-Za-z_][A-Za-z0-9_]*))!([A-Z]+)([1-9][0-9]*):([A-Z]+)([1-9][0-9]*)", value
+    )
+    if not match:
+        return None
+    quoted, bare, start_col, start_row, end_col, end_row = match.groups()
+    return (quoted.replace("''", "'") if quoted else bare, start_col, int(start_row), end_col, int(end_row))
+
+
 def fetch_round_snapshot(scope: str, *, season_year: int | None) -> SheetSnapshot:
     from . import spreadsheet_sync_service as connector
 
@@ -64,7 +78,7 @@ def fetch_round_snapshot(scope: str, *, season_year: int | None) -> SheetSnapsho
         title = properties["title"].replace("'", "''")
         requested = f"'{title}'!A2:{end}{rows}"
         data = connector._sheets_api_get(workbook, requested)
-        if not data or data.get("range") != requested or data.get("majorDimension") != "ROWS":
+        if not data or _a1_bounds(data.get("range")) != _a1_bounds(requested) or data.get("majorDimension") != "ROWS":
             raise ValueError("Incomplete source range")
         values = data.get("values")
         if (

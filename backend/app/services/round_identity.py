@@ -104,19 +104,66 @@ def sync_round_snapshot(db, snapshot):
                 )
             if config.mode != "canonical" or config.season != snapshot.season_year:
                 return [IngestOutcome(status="held")]
-            # Capture known source rounds before processing disappearance signals.
+            # Resolve immutable exact-snapshot mappings before source lookup or
+            # disappearance accounting, independently of the mutable review doc.
             with Session(engine) as known_db:
                 known = [
                     (r.round_token, r.id)
                     for r in known_db.query(models.RoundSource).filter_by(kind="sheet", scope=snapshot.scope)
                 ]
-            present = {
-                reviewed.get("round_bindings", {}).get(r.observation_key, {}).get("round_token", r.source.round_token)
-                if approved
-                else r.source.round_token
-                for r in snapshot.rounds
-            }
-            work = list(snapshot.rounds)
+                evidence = (
+                    known_db.query(models.RoundObservation)
+                    .join(models.RoundSource)
+                    .filter(models.RoundSource.kind == "sheet", models.RoundSource.scope == snapshot.scope)
+                    .all()
+                )
+                prior_snapshot = [
+                    o
+                    for o in evidence
+                    if o.raw_payload.get("payload", {}).get("snapshot_fingerprint") == snapshot.fingerprint
+                ]
+                last = known_db.get(models.RoundIdentityLease, lease[0])
+                if prior_snapshot and last.snapshot_fingerprint and last.snapshot_fingerprint != snapshot.fingerprint:
+                    return [IngestOutcome(status="held")]
+                durable = {
+                    o.raw_payload["payload"]["snapshot_mapping"]["observation_key"]: o.raw_payload["payload"][
+                        "snapshot_mapping"
+                    ]
+                    for o in prior_snapshot
+                    if o.continuity_verified and o.raw_payload.get("payload", {}).get("snapshot_mapping")
+                }
+            work = []
+            for item in snapshot.rounds:
+                binding = durable.get(item.observation_key) or (
+                    reviewed.get("round_bindings", {}).get(item.observation_key) if approved else None
+                )
+                if binding:
+                    from dataclasses import replace
+
+                    slots = binding.get("participant_ids", [])
+                    if len(slots) != len(item.draft.players) or not binding.get("round_token"):
+                        return [IngestOutcome(status="held")]
+                    draft_data = item.draft.model_dump(mode="json")
+                    for player, slot in zip(draft_data["players"], slots, strict=True):
+                        player["participant_id"] = slot
+                    raw = {
+                        **item.raw_payload,
+                        "snapshot_mapping": {
+                            "observation_key": item.observation_key,
+                            "round_token": binding["round_token"],
+                            "participant_ids": slots,
+                        },
+                    }
+                    raw["parse_errors"] = [e for e in raw.get("parse_errors", []) if e != "missing_participant_token"]
+                    item = replace(
+                        item,
+                        source=SourceRef(kind="sheet", scope=snapshot.scope, round_token=binding["round_token"]),
+                        draft=RoundDraft.model_validate(draft_data),
+                        raw_payload=raw,
+                        continuity_verified=True,
+                    )
+                work.append(item)
+            present = {r.source.round_token for r in work}
             for token, source_id in known:
                 if token in present:
                     continue
@@ -141,30 +188,6 @@ def sync_round_snapshot(db, snapshot):
                             )
                         )
             for item in work:
-                # Offline reviewed manifests map exact snapshot evidence to
-                # stable source/participant tokens; never infer them from rows.
-                if approved:
-                    binding = reviewed.get("round_bindings", {}).get(item.observation_key)
-                    if binding:
-                        from dataclasses import replace
-
-                        slots = binding.get("participant_ids", [])
-                        if len(slots) != len(item.draft.players) or not binding.get("round_token"):
-                            outcomes.append(IngestOutcome(status="held"))
-                            continue
-                        draft_data = item.draft.model_dump(mode="json")
-                        for player, slot in zip(draft_data["players"], slots, strict=True):
-                            player["participant_id"] = slot
-                        raw = {**item.raw_payload}
-                        raw["parse_errors"] = [
-                            e for e in raw.get("parse_errors", []) if e != "missing_participant_token"
-                        ]
-                        item = replace(
-                            item,
-                            source=SourceRef(kind="sheet", scope=snapshot.scope, round_token=binding["round_token"]),
-                            draft=RoundDraft.model_validate(draft_data),
-                            raw_payload=raw,
-                        )
                 heartbeat(engine, lease)
                 # Sheets has no atomic revision precondition: content and grid
                 # are read again under lease outside the game transaction.
@@ -188,7 +211,9 @@ def sync_round_snapshot(db, snapshot):
                         if fresh.mode != "canonical" or fresh.epoch != epoch or fresh.season != snapshot.season_year:
                             raise SourceLeaseLostError("Writer fence advanced")
                         row = tx.query(models.RoundSource).filter_by(**item.source.model_dump()).one_or_none()
-                        trusted = approved
+                        trusted = approved or (
+                            bool(item.raw_payload.get("snapshot_mapping")) and item.continuity_verified
+                        )
                         if snapshot.scope.startswith("fixture:") and row is None:
                             trusted = item.continuity_verified
                         if row:

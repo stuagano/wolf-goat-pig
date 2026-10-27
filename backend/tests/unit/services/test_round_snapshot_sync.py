@@ -275,6 +275,219 @@ def test_production_reviewed_manifest_supplies_stable_slots_without_assuming_g_h
     assert db.query(models.GameRecord).count() == 1
 
 
+@pytest.mark.parametrize("caller", ["admin", "data", "scheduler"])
+def test_legacy_refresh_available_for_all_callers_before_cutover(db, monkeypatch, caller):
+    from types import SimpleNamespace
+
+    from app.routers.spreadsheet_sync import trigger_legacy_rounds_sync
+    from app.routers.unified_data import sync_sheets_to_db
+    from app.services import unified_data_service
+    from app.services.email_scheduler import EmailScheduler
+
+    db.get(models.AppConfig, "round_identity").value = {"mode": "legacy", "epoch": 1}
+    db.add(models.LegacyRound(date="2026-01-01", member="Old", score=1, source="primary_sheet"))
+    db.add(models.LegacyRound(date="2026-01-01", member="Manual", score=9, source="member_posted"))
+    db.commit()
+    row = SimpleNamespace(
+        date_sortable="2026-10-06",
+        group="B",
+        member="New",
+        score=2,
+        location="Course",
+        duration=None,
+        source="primary_sheet",
+    )
+    monkeypatch.setattr(
+        unified_data_service, "get_unified_data_service", lambda **_: SimpleNamespace(get_all_rounds=lambda **_: [row])
+    )
+    if caller == "scheduler":
+        scheduler = EmailScheduler()
+        monkeypatch.setattr(scheduler, "_get_db", lambda: db)
+        result = scheduler._sync_legacy_rounds()
+    else:
+        result = (trigger_legacy_rounds_sync if caller == "admin" else sync_sheets_to_db)(db)
+    assert result["success"] and result["synced"] == 1
+    assert {r.member for r in db.query(models.LegacyRound)} == {"New", "Manual"}
+    assert db.query(models.GameRecord).count() == 0
+
+
+@pytest.mark.parametrize("caller", ["admin", "data", "scheduler"])
+@pytest.mark.parametrize("mode", ["paused", "canonical"])
+def test_nonlegacy_failure_never_invokes_cache_replacement(db, sheets, monkeypatch, mode, caller):
+    from app.services import unified_data_service
+
+    db.get(models.AppConfig, "round_identity").value = {"mode": mode, "epoch": 2, "season": 2026}
+    db.add(models.LegacyRound(date="2026-01-01", member="Keep", score=3, source="primary_sheet"))
+    db.commit()
+    monkeypatch.setattr(unified_data_service, "get_unified_data_service", lambda **_: pytest.fail("legacy fallback"))
+    monkeypatch.setattr(sheet, "_sheets_metadata_get", lambda *_: None)
+    from app.routers.spreadsheet_sync import trigger_legacy_rounds_sync
+    from app.routers.unified_data import sync_sheets_to_db
+    from app.services.email_scheduler import EmailScheduler
+
+    if caller == "scheduler":
+        scheduler = EmailScheduler()
+        monkeypatch.setattr(scheduler, "_get_db", lambda: db)
+        result = scheduler._sync_legacy_rounds()
+    else:
+        result = (trigger_legacy_rounds_sync if caller == "admin" else sync_sheets_to_db)(db)
+    assert not result["success"] and result["held"]
+    assert db.query(models.LegacyRound).one().member == "Keep"
+
+
+@pytest.mark.parametrize(
+    "change", [{"mode": "canonical", "epoch": 2}, {"mode": "paused", "epoch": 2}, {"mode": "legacy", "epoch": 2}]
+)
+def test_legacy_read_cannot_publish_after_config_transition(db, monkeypatch, change):
+    from types import SimpleNamespace
+
+    from sqlalchemy.orm import Session
+
+    from app.services import unified_data_service
+
+    db.get(models.AppConfig, "round_identity").value = {"mode": "legacy", "epoch": 1}
+    db.add(models.LegacyRound(date="2026-01-01", member="Keep", score=3, source="primary_sheet"))
+    db.commit()
+
+    def read(**_):
+        with Session(db.get_bind()) as other:
+            other.get(models.AppConfig, "round_identity").value = change
+            other.commit()
+        return [
+            SimpleNamespace(
+                date_sortable="2026-10-06",
+                group="B",
+                member="Unsafe",
+                score=2,
+                location="Course",
+                duration=None,
+                source="primary_sheet",
+            )
+        ]
+
+    monkeypatch.setattr(
+        unified_data_service, "get_unified_data_service", lambda **_: SimpleNamespace(get_all_rounds=read)
+    )
+    assert not sheet.refresh_round_history(db)["success"]
+    assert db.query(models.LegacyRound).one().member == "Keep"
+
+
+@pytest.mark.parametrize(
+    "title,response",
+    [
+        ("Details", "Details!A2:H6002"),
+        ("Details", "'Details'!A2:H6002"),
+        ("Player's Results", "'Player''s Results'!A2:H6002"),
+    ],
+)
+def test_equivalent_google_a1_response_is_complete(sheets, monkeypatch, title, response):
+    rows, metadata, _ = sheets
+    metadata["sheets"][0]["properties"]["title"] = title
+    monkeypatch.setattr(
+        sheet, "_sheets_api_get", lambda *_: {"range": response, "majorDimension": "ROWS", "values": rows}
+    )
+    assert sheet.fetch_round_snapshot("fixture:tab:2026", season_year=2026).complete
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        "Details!A2:H5000",
+        "Other!A2:H6002",
+        "Details!B2:H6002",
+        "Details!A1:H6002",
+        "Details!A2:G6002",
+        "Details!A2:H6002,Details!A2:H6002",
+        "'Details!A2:H6002",
+        "Details!A2:H6002!A2:H6002",
+    ],
+)
+def test_wrong_or_ambiguous_a1_range_is_held(sheets, monkeypatch, response):
+    monkeypatch.setattr(
+        sheet, "_sheets_api_get", lambda *_: {"range": response, "majorDimension": "ROWS", "values": sheets[0]}
+    )
+    assert not sheet.fetch_round_snapshot("fixture:tab:2026", season_year=2026).complete
+
+
+@pytest.mark.parametrize("approval_state", ["removed", "advanced"])
+def test_exact_trusted_production_replay_uses_durable_mapping(db, sheets, approval_state):
+    from app.services.round_identity import sync_round_snapshot
+
+    scope = "workbook:tab:2026"
+    first = sheet.fetch_round_snapshot(scope, season_year=2026)
+    db.add(
+        models.AppConfig(
+            name="round_source_reviews",
+            value={
+                scope: {
+                    "fingerprint": first.fingerprint,
+                    "reviewer_profile_id": 7,
+                    "round_bindings": {
+                        first.rounds[0].observation_key: {"round_token": "stable", "participant_ids": ["slot"]}
+                    },
+                }
+            },
+        )
+    )
+    db.commit()
+    accepted = sync_round_snapshot(db, first)[0]
+    config = db.get(models.AppConfig, "round_source_reviews")
+    config.value = (
+        {}
+        if approval_state == "removed"
+        else {scope: {"fingerprint": "next-unprocessed-snapshot", "reviewer_profile_id": 7}}
+    )
+    db.commit()
+    replay = sync_round_snapshot(db, first)
+    assert len(replay) == 1 and replay[0].game_id == accepted.game_id
+    assert replay[0].status == "unchanged"
+    assert db.query(models.RoundSource).count() == 1
+    assert db.query(models.GamePlayerResult).one().participant_id == "slot"
+    assert db.query(models.RoundIssue).count() == 0
+
+
+def test_old_trusted_snapshot_cannot_replay_after_newer_ingestion_commits(db, sheets):
+    from app.services.round_identity import sync_round_snapshot
+
+    scope = "workbook:tab:2026"
+    first = sheet.fetch_round_snapshot(scope, season_year=2026)
+    mapping = {"round_token": "stable", "participant_ids": ["slot"]}
+    db.add(
+        models.AppConfig(
+            name="round_source_reviews",
+            value={
+                scope: {
+                    "fingerprint": first.fingerprint,
+                    "reviewer_profile_id": 7,
+                    "round_bindings": {first.rounds[0].observation_key: mapping},
+                }
+            },
+        )
+    )
+    db.commit()
+    sync_round_snapshot(db, first)
+    sheets[0][0][3] = 0
+    second = sheet.fetch_round_snapshot(scope, season_year=2026)
+    db.get(models.AppConfig, "round_source_reviews").value = {
+        scope: {
+            "fingerprint": second.fingerprint,
+            "reviewer_profile_id": 7,
+            "round_bindings": {second.rounds[0].observation_key: mapping},
+        }
+    }
+    db.commit()
+    assert sync_round_snapshot(db, second)[0].status == "accepted"
+    count = db.query(models.RoundObservation).count()
+    db.rollback()
+    # Even a now-current transport/approval of old content is not evidence that
+    # an earlier committed snapshot may overwrite the newer connector history.
+    sheets[0][0][3] = ""
+    review(db, first)
+    assert all(o.status == "held" for o in sync_round_snapshot(db, first))
+    assert db.query(models.RoundObservation).count() == count
+    assert db.query(models.GamePlayerResult).one().total_earnings == 0
+
+
 def test_source_lease_rejects_concurrent_refresh_and_generation_increases(db):
     from app.services.round_source_lease import SourceLeaseLostError, source_lease
 

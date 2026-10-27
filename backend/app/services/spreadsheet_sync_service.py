@@ -45,9 +45,10 @@ def refresh_round_history(db) -> dict[str, Any]:
 
     config = read_round_identity_config(db)
     db.rollback()
+    if config.mode == "legacy":
+        return _refresh_legacy_history(db, expected_epoch=config.epoch)
     if config.mode != "canonical":
-        # Old cache remains readable pre-cutover, but this converted importer
-        # cannot replace it. Paused/unconfigured runs publish only safe health.
+        # Paused mode never reads or replaces the legacy cache.
         return {
             "success": False,
             "status": "held",
@@ -72,6 +73,61 @@ def refresh_round_history(db) -> dict[str, Any]:
         "synced": accepted,
         "rows_synced": accepted,
     }
+
+
+def _refresh_legacy_history(db, *, expected_epoch):
+    """Existing pre-cutover cache refresh, fenced independently of canonical IO."""
+    from sqlalchemy.orm import Session
+
+    from app import models
+    from app.schemas.round_identity import read_round_identity_config
+    from app.utils.time import utc_now
+
+    from .round_identity import acquire_reconciliation_lock
+    from .unified_data_service import get_unified_data_service
+
+    held = {"success": False, "status": "held", "held": 1, "synced": 0, "rows_synced": 0}
+    engine = db.get_bind()
+    try:
+        # A separate read session prevents a source read from holding config or
+        # cache locks, or publishing an unrelated caller transaction.
+        with Session(engine) as reader:
+            rounds = get_unified_data_service(db=reader).get_all_rounds(include_database=False, use_sheet_cache=False)
+        if not rounds:
+            return held
+        with Session(engine) as tx, tx.begin():
+            acquire_reconciliation_lock(tx)
+            # Absent config means the historical default legacy mode. Create it
+            # under the global lock so the row can fence concurrent cutover.
+            config_row = tx.query(models.AppConfig).filter_by(name="round_identity").with_for_update().one_or_none()
+            if config_row is None:
+                tx.add(models.AppConfig(name="round_identity", value={"mode": "legacy", "epoch": 0}))
+                tx.flush()
+            fresh = read_round_identity_config(tx)
+            if fresh.mode != "legacy" or fresh.epoch != expected_epoch:
+                return held
+            tx.query(models.LegacyRound).filter(
+                models.LegacyRound.source.in_(["primary_sheet", "writable_sheet"])
+            ).delete(synchronize_session=False)
+            stamp = utc_now().isoformat()
+            for row in rounds:
+                tx.add(
+                    models.LegacyRound(
+                        date=row.date_sortable,
+                        group=row.group,
+                        member=row.member,
+                        score=row.score,
+                        location=row.location or "",
+                        duration=row.duration,
+                        source=row.source,
+                        synced_at=stamp,
+                    )
+                )
+        db.expire_all()
+        return {"success": True, "status": "ok", "held": 0, "synced": len(rounds), "rows_synced": len(rounds)}
+    except Exception:
+        logger.warning("Legacy history refresh held after failure")
+        return held
 
 
 def _sheets_metadata_get(sheet_id: str) -> dict[str, Any] | None:

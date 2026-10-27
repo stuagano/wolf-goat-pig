@@ -115,6 +115,94 @@ def test_concurrent_refresh_endpoints_one_uuid_and_physical_readback(engine, mon
         assert fresh.query(models.RoundIdentityLease).one().epoch == 2
 
 
+@pytest.mark.parametrize("mode", ["canonical", "paused", "legacy"])
+def test_legacy_config_transition_during_fetch_holds_cache(engine, monkeypatch, mode):
+    from types import SimpleNamespace
+
+    from app.services import unified_data_service
+
+    with Session(engine) as db:
+        db.get(models.AppConfig, "round_identity").value = {"mode": "legacy", "epoch": 2}
+        db.add(models.LegacyRound(date="2026-01-01", member="Keep", score=3, source="primary_sheet"))
+        db.commit()
+
+    def fetch(**_):
+        with Session(engine) as other:
+            other.get(models.AppConfig, "round_identity").value = {"mode": mode, "epoch": 3}
+            other.commit()
+        return [
+            SimpleNamespace(
+                date_sortable="2026-10-06",
+                group="B",
+                member="New",
+                score=0,
+                location="",
+                duration=None,
+                source="primary_sheet",
+            )
+        ]
+
+    monkeypatch.setattr(
+        unified_data_service, "get_unified_data_service", lambda **_: SimpleNamespace(get_all_rounds=fetch)
+    )
+    with Session(engine) as db:
+        assert sheet.refresh_round_history(db)["status"] == "held"
+    with Session(engine) as fresh:
+        assert fresh.query(models.LegacyRound).one().member == "Keep"
+        assert fresh.query(models.GameRecord).count() == 0
+
+
+def test_legacy_config_lock_covers_mutation_and_failure_rolls_back(engine, monkeypatch):
+    from types import SimpleNamespace
+
+    from sqlalchemy import event
+    from sqlalchemy.exc import OperationalError
+
+    from app.services import unified_data_service
+
+    with Session(engine) as db:
+        db.get(models.AppConfig, "round_identity").value = {"mode": "legacy", "epoch": 2}
+        db.add(models.LegacyRound(date="2026-01-01", member="Keep", score=3, source="primary_sheet"))
+        db.commit()
+    row = SimpleNamespace(
+        date_sortable="2026-10-06", group="B", member="New", score=0, location="", duration=None, source="primary_sheet"
+    )
+    monkeypatch.setattr(
+        unified_data_service, "get_unified_data_service", lambda **_: SimpleNamespace(get_all_rounds=lambda **_: [row])
+    )
+    locked = []
+
+    def cutover():
+        with Session(engine) as other:
+            other.execute(text("SET LOCAL lock_timeout = '100ms'"))
+            with pytest.raises(OperationalError):
+                other.execute(
+                    models.AppConfig.__table__.update()
+                    .where(models.AppConfig.name == "round_identity")
+                    .values(value={"mode": "canonical", "epoch": 3})
+                )
+            other.rollback()
+        locked.append(True)
+
+    def fail_insert(conn, cursor, statement, parameters, context, executemany):
+        if statement.startswith("INSERT INTO legacy_rounds"):
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                executor.submit(cutover).result(timeout=5)
+            raise RuntimeError("injected cache insert failure after deletion")
+
+    event.listen(engine, "before_cursor_execute", fail_insert)
+    try:
+        with Session(engine) as db:
+            assert sheet.refresh_round_history(db)["status"] == "held"
+    finally:
+        event.remove(engine, "before_cursor_execute", fail_insert)
+    assert locked == [True]
+    with Session(engine) as fresh:
+        assert fresh.query(models.LegacyRound).one().member == "Keep"
+        assert fresh.get(models.AppConfig, "round_identity").value == {"mode": "legacy", "epoch": 2}
+        assert fresh.query(models.GameRecord).count() == 0
+
+
 def test_writer_epoch_change_during_read_aborts_before_mutation(engine, monkeypatch):
     from app.services.round_identity import sync_round_snapshot
 
