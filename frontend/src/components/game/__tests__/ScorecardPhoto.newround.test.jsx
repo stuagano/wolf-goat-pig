@@ -43,6 +43,7 @@ test('new-round confirm POSTs to /games/from-scorecard and skips GHIN', async ()
   const [url, opts] = global.fetch.mock.calls[0];
   expect(url).toMatch(/\/games\/from-scorecard$/);
   expect(opts.headers.Authorization).toBe('Bearer posting-token');
-  expect(JSON.parse(opts.body).course_name).toBe('Wing Point');
+  expect(JSON.parse(opts.body).course_name).toBeUndefined();
+  expect(opts.headers['Idempotency-Key']).toMatch(/^[0-9a-f-]{36}$/);
   expect(screen.queryByTestId('ghin')).toBeNull();
 });

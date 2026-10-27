@@ -57,7 +57,11 @@ def test_correction_is_durable_and_readable_from_a_separate_connection(score_pg)
     assert after["game_state"][0]["created_at"] == before["game_state"][0]["created_at"]
     fresh_get = score_pg.client.get(f"/games/{score_pg.game_id}/state")
     assert fresh_get.status_code == 200
-    assert fresh_get.json() == after["game_state"][0]["state"]
+    assert fresh_get.json() == {
+        **after["game_state"][0]["state"],
+        "game_id": score_pg.game_id,
+        "revision": after["game_state"][0]["revision"],
+    }
     assert len({id(session) for session in score_pg.sessions}) == len(score_pg.sessions)
     assert len(set(score_pg.request_pids)) == len(score_pg.request_pids)
     for hole in correction_payload()["holes"]:
@@ -158,7 +162,11 @@ def test_failure_after_earlier_writes_rolls_back_and_the_next_save_succeeds(scor
     assert score_pg.commits == []
     assert snapshot(score_pg) == before
     state = score_pg.client.get(f"/games/{score_pg.game_id}/state").json()
-    assert state == before["game_state"][0]["state"]
+    assert state == {
+        **before["game_state"][0]["state"],
+        "game_id": score_pg.game_id,
+        "revision": before["game_state"][0]["revision"],
+    }
     events = _events(caplog)
     assert [e["event"] for e in events] == ["score_save_attempt", "score_save_failed"]
     assert all(e["request_id"] == "rollback-save-123" for e in events)

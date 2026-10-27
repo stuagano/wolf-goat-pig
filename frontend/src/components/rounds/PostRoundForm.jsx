@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import LegacyNameSelector from "../auth/LegacyNameSelector";
 import { useLegacyPlayers } from "../../hooks/useLegacyPlayers";
 import { usePlayerProfile } from "../../hooks/usePlayerProfile";
@@ -107,6 +107,8 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
     needsReauth: false,
   });
   const [showLinkFlow, setShowLinkFlow] = useState(false);
+  const request = useRef(null);
+  const [roundLink, setRoundLink] = useState('');
 
   const legacyName = profile?.legacy_name || "";
 
@@ -147,17 +149,25 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
     }
 
     try {
-      const posted = await postMyRound(getToken, {
+      const payload = {
         date: form.date,
         results: members.map(member => ({ member, score: Number(form.scores[member]) })),
         location: form.location.trim() || undefined,
         group: form.group.trim() || undefined,
         duration: form.duration.trim() || undefined,
-      });
+      };
+      const fingerprint = JSON.stringify(payload);
+      if (!request.current || request.current.fingerprint !== fingerprint) {
+        request.current = { fingerprint, key: crypto.randomUUID() };
+      }
+      const posted = await postMyRound(getToken, payload, request.current.key);
+      setRoundLink(posted.game_id ? `/game/${posted.game_id}` : '/rounds/reconciliation');
+      request.current = null;
       setSubmitState({
         loading: false,
         error: "",
-        success: `Results posted for all ${posted.rounds.length} players. They count immediately on the honor system.`,
+        success: posted.status === 'held' ? 'Round identity needs review. No duplicate round was created.'
+          : `Results posted for all ${posted.rounds?.length ?? members.length} players.`,
         canRetry: false,
         needsReauth: false,
       });
@@ -325,7 +335,10 @@ const PostRoundForm = ({ onPosted, compact = false }) => {
             )}
           </div>
         )}
-        {submitState.success && <div className="pr-alert success">{submitState.success}</div>}
+        {submitState.success && <div className="pr-alert success">{submitState.success}
+          {roundLink && <><a href={roundLink}>Open round / review</a>
+            <button type="button" onClick={() => navigator.clipboard.writeText(`${window.location.origin}${roundLink}`)}>Copy link</button></>}
+        </div>}
 
         <button type="submit" className="pr-submit" disabled={submitState.loading || rosterLoading || !legacyName}>
           {submitState.loading ? "Posting..." : "Post foursome results"}

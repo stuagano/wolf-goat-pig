@@ -26,39 +26,19 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
   const [showPhoto, setShowPhoto] = useState(false);
   const knownPlayers = pickedPlayers.length > 0;
 
-  // When pickedPlayers are known, reorder extraction so index i = pickedPlayers[i].
-  // This prevents the single-scan path from attributing one player's scores to another's name.
-  const { players: extractedPlayers, running_totals: rawTotals } = (() => {
-    if (!knownPlayers) return extraction;
-    const scanPlayers = extraction.players;
-    const reorderedPlayers = pickedPlayers.map((picked, i) => {
-      const normPicked = norm(picked);
-      const match = scanPlayers.find(sp => norm(sp.name) === normPicked);
-      return match ?? scanPlayers[i] ?? { name: picked, confidence: null };
-    });
-    // Build index map: old scan index → new picked index.
-    // First pass: exact name matches (always win over positional fallbacks).
-    // Second pass: positional fallback for unmatched picked players — mirrors
-    // the scanPlayers[i] fallback used by reorderedPlayers above so that a
-    // garbled OCR name still picks up that scan row's running_totals.
-    const oldToNew = {};
-    pickedPlayers.forEach((picked, newIdx) => {
-      const normPicked = norm(picked);
-      const oldIdx = extraction.players.findIndex(sp => norm(sp.name) === normPicked);
-      if (oldIdx !== -1) oldToNew[oldIdx] = newIdx;
-    });
-    pickedPlayers.forEach((picked, newIdx) => {
-      const normPicked = norm(picked);
-      const oldIdx = extraction.players.findIndex(sp => norm(sp.name) === normPicked);
-      if (oldIdx === -1 && newIdx < scanPlayers.length && !(newIdx in oldToNew)) {
-        oldToNew[newIdx] = newIdx;
-      }
-    });
-    const reorderedTotals = extraction.running_totals
-      .filter(t => t.player_index in oldToNew)
-      .map(t => ({ ...t, player_index: oldToNew[t.player_index] }));
-    return { players: reorderedPlayers, running_totals: reorderedTotals };
-  })();
+  // Retain OCR row identity. Never attribute a garbled row by its position.
+  const { players: extractedPlayers, running_totals: rawTotals } = extraction;
+  const targetNames = knownPlayers ? pickedPlayers : (!isNewRound ? players.map(p => p.name) : []);
+  const [slotMapping, setSlotMapping] = useState(() => extractedPlayers.map(ep => {
+    const matches = targetNames.map((name, i) => norm(name) && norm(name) === norm(ep.name) ? i : -1).filter(i => i >= 0);
+    return matches.length === 1 ? String(matches[0]) : '';
+  }));
+  const needsSlotMapping = knownPlayers || !isNewRound;
+  const mappingValid = !needsSlotMapping || (
+    slotMapping.length === targetNames.length && slotMapping.every(i => i !== '') &&
+    new Set(slotMapping).size === slotMapping.length &&
+    (isNewRound || slotMapping.every(i => players[Number(i)]?.id))
+  );
 
   const bestRosterMatch = (name) => {
     const lower = (name || '').trim().toLowerCase();
@@ -66,9 +46,8 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
     // (startsWith('') matches everything) — leave it unlinked.
     if (!lower) return '__unlinked__';
     return (
-      rosterNames.find(r => r.toLowerCase() === lower) ||
-      rosterNames.find(r => r.toLowerCase().startsWith(lower)) ||
-      rosterNames.find(r => r.toLowerCase().includes(lower)) ||
+      (rosterNames.filter(r => r.toLowerCase() === lower).length === 1
+        ? rosterNames.find(r => r.toLowerCase() === lower) : null) ||
       '__unlinked__'
     );
   };
@@ -90,10 +69,7 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
 
   const [values, setValues] = useState(initialValues);
 
-  // Totals-first (new-round): the final total per player, pre-filled from the scan's
-  // reading of the legible total column (the reliable part). The per-hole grid is
-  // optional; saving from totals lands the amount on hole 18 so standings (= sum of
-  // quarters) equal the totals, with per-hole left blank to fill in later.
+  // Explicit final totals are independent of optional per-hole evidence.
   const initialTotals = useMemo(() => {
     const byPlayer = {};
     for (const e of rawTotals) {
@@ -167,32 +143,26 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
 
   const totalsFilled = totals.every(t => parseQuarter(t) != null);
   const totalsSum = totals.reduce((a, t) => a + (parseQuarter(t) ?? 0), 0);
-  const canConfirm = (isNewRound && totalsMode)
+  const canConfirm = mappingValid && ((isNewRound && totalsMode)
     ? totalsFilled
-    : allFilled && (isNewRound || unbalancedHoles.length === 0);
+    : allFilled && (isNewRound || unbalancedHoles.length === 0));
 
   // Shared player payload for both new-round paths (totals + grid).
   const buildNewRoundPlayers = () =>
     extractedPlayers.map((ep, pi) =>
       knownPlayers
-        ? { name: pickedPlayers[pi] ?? ep.name, player_profile_id: null }
+        ? { name: pickedPlayers[Number(slotMapping[pi])], player_profile_id: null }
         : (mapping[pi] === '__unlinked__'
             // explicit "keep as typed" — backend must NOT auto-link by name
             ? { name: ep.name, player_profile_id: null, unlinked: true }
             : { name: mapping[pi], player_profile_id: null }));
 
   const handleConfirm = () => {
+    if (!canConfirm) return;
     if (isNewRound && totalsMode) {
-      // Totals-only: land each player's total on hole 18 so standings (= sum of
-      // quarters) equal the totals; per-hole stays blank to fill in later.
-      const perHole = [];
-      for (let pi = 0; pi < extractedPlayers.length; pi++) {
-        const total = parseQuarter(totals[pi]) ?? 0;
-        for (let h = 1; h <= 18; h++) {
-          perHole.push({ player_index: pi, hole: h, quarters: h === 18 ? total : 0 });
-        }
-      }
-      onConfirm({ players: buildNewRoundPlayers(), per_hole_quarters: perHole, played_at: playedAt });
+      onConfirm({ detail_coverage: 'totals_only', players: buildNewRoundPlayers().map((p, pi) => ({
+        ...p, quarters: parseQuarter(totals[pi]),
+      })), played_at: playedAt });
       return;
     }
     if (isNewRound) {
@@ -202,7 +172,7 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
           perHole.push({ player_index: pi, hole: h, quarters: allDeltas[pi]?.[h] ?? 0 });
         }
       }
-      onConfirm({ players: buildNewRoundPlayers(), per_hole_quarters: perHole, played_at: playedAt });
+      onConfirm({ detail_coverage: 'per_hole_complete', players: buildNewRoundPlayers(), per_hole_quarters: perHole, played_at: playedAt });
       return;
     }
     // attach mode — quarters by hole for the scores endpoint
@@ -210,8 +180,8 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
     for (let h = 1; h <= 18; h++) {
       quartersByHole[String(h)] = {};
       for (let pi = 0; pi < extractedPlayers.length; pi++) {
-        const playerName = players[pi]?.name || extractedPlayers[pi]?.name || `Player ${pi + 1}`;
-        quartersByHole[String(h)][playerName] = allDeltas[pi]?.[h] ?? 0;
+        const slotId = players[Number(slotMapping[pi])].id;
+        quartersByHole[String(h)][slotId] = allDeltas[pi][h];
       }
     }
     onConfirm(quartersByHole);
@@ -238,6 +208,22 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
           </>
         )}
       </p>
+
+      {needsSlotMapping && (
+        <fieldset>
+          <legend>Confirm scanned player mapping</legend>
+          {extractedPlayers.map((ep, pi) => (
+            <label key={pi} className="block text-sm">
+              {ep.name || `Scanned row ${pi + 1}`}
+              <select aria-label={`Map scanned row ${pi + 1}`} value={slotMapping[pi]}
+                onChange={e => setSlotMapping(prev => prev.map((v, i) => i === pi ? e.target.value : v))}>
+                <option value="">Select player</option>
+                {targetNames.map((name, i) => <option key={i} value={String(i)}>{name}</option>)}
+              </select>
+            </label>
+          ))}
+        </fieldset>
+      )}
 
       {photoUrl && (
         <button
@@ -432,7 +418,7 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel, mode = 'att
       >
         {canConfirm
           ? (isNewRound && totalsMode ? '✅ Confirm Totals' : '✅ Confirm Quarters')
-          : (isNewRound && totalsMode
+          : (!mappingValid ? 'Confirm player mapping to continue' : isNewRound && totalsMode
               ? 'Enter each total to continue'
               : unbalancedHoles.length > 0
                 ? `Fix ${unbalancedHoles.length} unbalanced hole${unbalancedHoles.length > 1 ? 's' : ''}`

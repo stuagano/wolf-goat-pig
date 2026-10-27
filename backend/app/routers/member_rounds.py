@@ -11,7 +11,7 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -113,8 +113,14 @@ def post_my_round(
     body: PostRoundRequest,
     current_user: PlayerProfile = Depends(get_current_user),
     db: Session = Depends(get_db),
+    response: Response = None,
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
 ) -> dict[str, Any]:
     """Post every participant's result atomically, without peer attestation."""
+    from ..schemas.round_identity import RoundDraft
+    from ..services.round_writes import create_observation, writer_mode
+
+    mode = writer_mode(db)
     if not current_user.legacy_name:
         raise HTTPException(status_code=400, detail="Link your roster name before posting results")
     try:
@@ -144,7 +150,7 @@ def post_my_round(
         )
         .first()
     )
-    if existing:
+    if existing and mode == "legacy":
         raise HTTPException(status_code=409, detail=f"{existing.member} already has a posted result for that date")
 
     profiles = (
@@ -153,6 +159,48 @@ def post_my_round(
         .all()
     )
     profile_ids = {p.legacy_name.lower(): p.id for p in profiles}
+    canonical_result = None
+    receipt = None
+    if mode == "canonical":
+        if len(profile_ids) != len(profiles):
+            raise HTTPException(400, "Ambiguous profile mapping; review roster links")
+        draft = RoundDraft(
+            played_on=parsed_date.date(),
+            raw_date=body.date,
+            course_name=body.location,
+            group=body.group,
+            players=[
+                {
+                    "participant_id": f"p{i}",
+                    "name": name,
+                    "profile_id": profile_ids.get(name.lower()),
+                    "quarters": score,
+                }
+                for i, (name, score) in enumerate(results.items(), 1)
+            ],
+            roster_complete=True,
+            actor_profile_id=current_user.id,
+        )
+        receipt, canonical_result = create_observation(
+            db, current_user.id, idempotency_key, body.model_dump(mode="json"), draft, "manual"
+        )
+        if "rounds" in canonical_result:
+            if canonical_result["game_id"] is None:
+                response.status_code = 202
+            return canonical_result
+        if canonical_result["game_id"] is None:
+            canonical_result["rounds"] = []
+            receipt.outcome = canonical_result
+            db.commit()
+            response.status_code = 202
+            return canonical_result
+        # Preserve the old index until coordinated cutover. Confirmed distinct
+        # same-day games retain their UUID without making competing legacy rows.
+        if existing:
+            canonical_result["rounds"] = []
+            receipt.outcome = canonical_result
+            db.commit()
+            return canonical_result
     now = utc_now().isoformat()
     rows = [
         LegacyRound(
@@ -169,11 +217,17 @@ def post_my_round(
             player_profile_id=profile_ids.get(name.lower()),
             submitted_by_profile_id=current_user.id,
             foursome=[partner for partner in results if partner != name],
+            game_id=canonical_result["game_id"] if canonical_result else None,
         )
         for name, score in results.items()
     ]
     db.add_all(rows)
     try:
+        db.flush()
+        result = {"rounds": [_serialize(row) for row in rows]}
+        if canonical_result:
+            result.update(canonical_result)
+            receipt.outcome = result
         db.commit()
     except IntegrityError as exc:
         db.rollback()
@@ -185,7 +239,7 @@ def post_my_round(
                 status_code=409, detail="A result for this group was already posted for that date"
             ) from exc
         raise
-    return {"rounds": [_serialize(row) for row in rows]}
+    return result
 
 
 @router.get("/players/me/rounds")

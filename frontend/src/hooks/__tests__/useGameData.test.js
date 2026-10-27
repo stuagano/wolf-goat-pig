@@ -38,6 +38,8 @@ describe('normalizeGameState', () => {
       courseName: 'Test GC',
       baseWager: 2,
       isComplete: false,
+      gameStatus: 'in_progress',
+      expectedRevision: undefined,
     });
   });
 });
@@ -118,7 +120,7 @@ describe('useGameData', () => {
       });
       // A fatal error would make SimpleScorekeeperPage hide this usable round.
       expect(result.current.error).toBeNull();
-      expect(result.current.syncError).toMatch(/could not queue.*unable to store/i);
+      expect(result.current.syncError).toMatch(/reload before submitting/i);
       expect(result.current.syncError).not.toMatch(/will retry|pending sync/i);
       expect(syncManager.getSyncQueue()).toEqual([]);
       expect(syncManager.loadLocalGameState('queue-storage-failure')).toMatchObject(cached);
@@ -148,7 +150,7 @@ describe('useGameData', () => {
     try {
       const { result } = renderHook(() => useGameData('retry-cache'));
       await waitFor(() => expect(result.current.loading).toBe(false));
-      expect(result.current.syncError).toMatch(/unable to store/i);
+      expect(result.current.syncError).toMatch(/reload/i);
       const loadedGame = result.current.game;
       // Retry must re-read current saved scores, not the hook's older snapshot.
       syncManager.saveLocalGameState('retry-cache', {
@@ -157,18 +159,14 @@ describe('useGameData', () => {
       storageFails = !succeeds;
       let queued;
       act(() => { queued = result.current.retrySync(); });
-      expect(queued).toBe(succeeds);
+      expect(queued).toBe(false);
       expect(result.current.loading).toBe(false);
       expect(result.current.game).toBe(loadedGame);
       expect(result.current.error).toBeNull();
       expect(global.fetch).toHaveBeenCalledTimes(1);
-      if (succeeds) {
-        expect(result.current.syncError).toBeNull();
-        expect(syncManager.getSyncQueue()[0].payload.optional_details['1'].gross_scores.p1).toBe(6);
-      } else {
-        expect(result.current.syncError).toMatch(/unable to store/i);
-        expect(syncManager.getSyncQueue()).toEqual([]);
-      }
+      expect(result.current.syncError).toMatch(/reload/i);
+      expect(syncManager.getSyncQueue()).toEqual([]);
+      expect(syncManager.loadLocalGameState('retry-cache').holeHistory[0].gross_scores.p1).toBe(6);
     } finally {
       localStorage.setItem.mockImplementation(setItem);
       localStorage.clear();

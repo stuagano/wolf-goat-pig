@@ -108,24 +108,20 @@ test.each([true, false])('real hook preserves an unsaved editor draft when retry
   useGameData.mockImplementation(realUseGameData);
   try {
     render(<Page />);
-    expect(await screen.findByRole('alert')).toHaveTextContent(/could not queue/i);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/reload/i);
     const input = screen.getByRole('textbox', { name: 'Unsaved strokes' });
     fireEvent.change(input, { target: { value: '7' } });
     storageFails = !succeeds;
     fireEvent.click(screen.getByRole('button', { name: 'Retry sync' }));
     await waitFor(() => {
-      if (succeeds) expect(screen.queryByRole('alert')).toBeNull();
-      else expect(screen.getByRole('alert')).toHaveTextContent(/unable to store/i);
+      // A failed read establishes no server revision, so no upload is authorized.
+      expect(screen.getByRole('alert')).toHaveTextContent(/reload/i);
       expect(screen.getByRole('textbox', { name: 'Unsaved strokes' })).toHaveValue('7');
     });
     expect(screen.getByRole('textbox', { name: 'Unsaved strokes' })).toBe(input);
     expect(screen.queryByText('Loading Game...')).toBeNull();
     expect(global.fetch).toHaveBeenCalledTimes(1);
-    expect(syncManager.getSyncQueue()).toHaveLength(succeeds ? 1 : 0);
-    if (succeeds) {
-      // Retry queues the saved cache, not the still-unsubmitted editor draft.
-      expect(syncManager.getSyncQueue()[0].payload.optional_details['1'].gross_scores.p1).toBe(5);
-    }
+    expect(syncManager.getSyncQueue()).toHaveLength(0);
     expect(screen.queryByText(/saved to the server/i)).toBeNull();
   } finally {
     vi.restoreAllMocks();

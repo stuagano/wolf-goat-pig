@@ -1850,6 +1850,17 @@
       },
       "HoleEventPatch": {
         "properties": {
+          "expected_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Revision"
+          },
           "quarters": {
             "anyOf": [
               {
@@ -4030,6 +4041,17 @@
       },
       "ScorecardBackfillRequest": {
         "properties": {
+          "expected_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Revision"
+          },
           "per_hole_quarters": {
             "items": {
               "$ref": "#/components/schemas/ScorecardRoundHoleQuarter"
@@ -4084,6 +4106,17 @@
             ],
             "title": "Player Profile Id"
           },
+          "quarters": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quarters"
+          },
           "unlinked": {
             "default": false,
             "title": "Unlinked",
@@ -4108,6 +4141,11 @@
               }
             ],
             "title": "Course Name"
+          },
+          "detail_coverage": {
+            "default": "per_hole_complete",
+            "title": "Detail Coverage",
+            "type": "string"
           },
           "image_base64": {
             "anyOf": [
@@ -4147,8 +4185,7 @@
           }
         },
         "required": [
-          "players",
-          "per_hole_quarters"
+          "players"
         ],
         "title": "ScorecardRoundRequest",
         "type": "object"
@@ -4159,6 +4196,17 @@
             "default": 18,
             "title": "Current Hole",
             "type": "integer"
+          },
+          "expected_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Revision"
           },
           "holes": {
             "items": {
@@ -9833,6 +9881,24 @@
       "post": {
         "description": "Record a completed round straight from a scanned scorecard.\n\nBuilds a completed game (players + per-hole quarters) and persists the\nsame GameRecord/GamePlayerResult rows a live-scored game would, so a\nscanned round shows up in standings/history identically.",
         "operationId": "create_round_from_scorecard_games_from_scorecard_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -10994,7 +11060,7 @@
     },
     "/games/{game_id}/scores": {
       "post": {
-        "description": "Submit hole scores for a game. Each hole must sum to zero. Upserts — safe to call repeatedly.",
+        "description": "Replace the full scored-hole snapshot (not a one-hole patch).",
         "operationId": "save_scores_games__game_id__scores_post",
         "parameters": [
           {
@@ -14102,6 +14168,24 @@
       "post": {
         "description": "Post every participant's result atomically, without peer attestation.",
         "operationId": "post_my_round_players_me_round_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {

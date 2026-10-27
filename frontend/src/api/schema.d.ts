@@ -2661,7 +2661,7 @@ export interface paths {
         put?: never;
         /**
          * Save Scores
-         * @description Submit hole scores for a game. Each hole must sum to zero. Upserts — safe to call repeatedly.
+         * @description Replace the full scored-hole snapshot (not a one-hole patch).
          */
         post: operations["save_scores_games__game_id__scores_post"];
         delete?: never;
@@ -5870,6 +5870,8 @@ export interface components {
         };
         /** HoleEventPatch */
         HoleEventPatch: {
+            /** Expected Revision */
+            expected_revision?: number | null;
             /** Quarters */
             quarters?: number | null;
             /** Score */
@@ -6755,6 +6757,8 @@ export interface components {
         };
         /** ScorecardBackfillRequest */
         ScorecardBackfillRequest: {
+            /** Expected Revision */
+            expected_revision?: number | null;
             /** Per Hole Quarters */
             per_hole_quarters: components["schemas"]["ScorecardRoundHoleQuarter"][];
         };
@@ -6773,6 +6777,8 @@ export interface components {
             name: string;
             /** Player Profile Id */
             player_profile_id?: number | null;
+            /** Quarters */
+            quarters?: number | null;
             /**
              * Unlinked
              * @default false
@@ -6783,10 +6789,15 @@ export interface components {
         ScorecardRoundRequest: {
             /** Course Name */
             course_name?: string | null;
+            /**
+             * Detail Coverage
+             * @default per_hole_complete
+             */
+            detail_coverage: string;
             /** Image Base64 */
             image_base64?: string | null;
             /** Per Hole Quarters */
-            per_hole_quarters: components["schemas"]["ScorecardRoundHoleQuarter"][];
+            per_hole_quarters?: components["schemas"]["ScorecardRoundHoleQuarter"][];
             /** Played At */
             played_at?: string | null;
             /** Players */
@@ -6799,6 +6810,8 @@ export interface components {
              * @default 18
              */
             current_hole: number;
+            /** Expected Revision */
+            expected_revision?: number | null;
             /** Holes */
             holes: components["schemas"]["HoleScore"][];
         };
@@ -10399,7 +10412,9 @@ export interface operations {
     create_round_from_scorecard_games_from_scorecard_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -13277,7 +13292,9 @@ export interface operations {
     post_my_round_players_me_round_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };

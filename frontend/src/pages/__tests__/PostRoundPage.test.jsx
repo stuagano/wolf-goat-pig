@@ -38,7 +38,7 @@ test('one submission posts individual results for all four players without attes
       { member: 'Stuart Gano', score: 5 }, { member: 'Jeff Smith', score: -3 },
       { member: 'Bob Jones', score: -2 }, { member: 'Alice Park', score: 0 },
     ],
-  })));
+  }), expect.any(String)));
   expect(await screen.findByText(/Results posted for all 4 players/)).toBeInTheDocument();
   expect(fetchPendingAttestations).not.toHaveBeenCalled();
   expect(screen.queryByText(/Awaiting Your Attestation/)).not.toBeInTheDocument();
@@ -64,7 +64,7 @@ test('preserves a leading minus while typing and posts negative quarters', async
   fireEvent.click(screen.getByRole('button', { name: 'Post foursome results' }));
   await waitFor(() => expect(postMyRound).toHaveBeenCalledWith(token, expect.objectContaining({
     results: [{ member: 'Stuart Gano', score: -5 }, { member: 'Jeff Smith', score: 5 }],
-  })));
+  }), expect.any(String)));
 });
 
 test('keeps group results for correction when another player already posted', async () => {
