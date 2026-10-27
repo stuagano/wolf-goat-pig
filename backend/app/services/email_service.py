@@ -316,20 +316,21 @@ class EmailService:
         )
 
     def send_same_day_signup_notification(
-        self, *, to_email: str, player_name: str, joining_player_name: str, signup_date: str
+        self, *, to_email: str, player_name: str, joining_player_name: str, signup_date: str, signed_up_count: int
     ) -> bool:
         """Tell an opted-in player who just joined a day they are playing."""
+        headcount = f"There are now {signed_up_count} player{'' if signed_up_count == 1 else 's'} signed up."
         subject = f"Someone joined your golf day - {signup_date}"
         content = (
             f"<h2>Someone joins your day</h2><p>Hi {html.escape(player_name)},</p>"
             f"<p><strong>{html.escape(joining_player_name)}</strong> just signed up for "
             f"Wolf Goat Pig on <strong>{html.escape(signup_date)}</strong>, "
-            "a day you're already signed up for.</p>"
+            f"a day you're already signed up for.</p><p>{headcount}</p>"
         )
         html_body = Template(self._get_base_template()).render(subject=subject, content=content)
         text_body = (
             f"Hi {player_name},\n\n{joining_player_name} just signed up for Wolf Goat Pig "
-            f"on {signup_date}, a day you're already signed up for.\n\n"
+            f"on {signup_date}, a day you're already signed up for.\n\n{headcount}\n\n"
             f"Manage your email preferences: {self._preferences_url()}\n"
         )
         return self._send_email(to_email, subject, html_body, text_body)

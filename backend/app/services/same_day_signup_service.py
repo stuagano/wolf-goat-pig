@@ -30,6 +30,9 @@ def deliver_same_day_signup_notifications(signup_id: int) -> None:
         if not sender.is_configured():
             logger.warning("Same-day signup alerts skipped: email provider not configured (signup %s)", signup_id)
             return
+        signed_up_count = (
+            db.query(DailySignup).filter(DailySignup.date == signup.date, DailySignup.status == "signed_up").count()
+        )
         recipients = (
             db.query(PlayerProfile)
             .join(EmailPreferences, EmailPreferences.player_profile_id == PlayerProfile.id)
@@ -65,6 +68,7 @@ def deliver_same_day_signup_notifications(signup_id: int) -> None:
                     player_name=player.name or "Golfer",
                     joining_player_name=signup.player_name,
                     signup_date=signup.date,
+                    signed_up_count=signed_up_count,
                 )
                 if accepted:
                     db.add(

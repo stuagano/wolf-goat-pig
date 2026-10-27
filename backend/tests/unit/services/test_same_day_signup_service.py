@@ -86,6 +86,7 @@ def test_only_existing_opted_in_players_on_same_date_receive_alert(db, email):
         player_name="Alice",
         joining_player_name="Bob",
         signup_date="2026-11-01",
+        signed_up_count=7,
     )
     assert db.query(models.SameDaySignupNotification).count() == 1
 
@@ -134,6 +135,7 @@ def test_admin_signup_delivers_alert_and_keeps_own_confirmation(db, email, monke
         player_name="Alice",
         joining_player_name="Bob",
         signup_date=day,
+        signed_up_count=2,
     )
     assert db.query(models.SameDaySignupNotification).count() == 1
 
@@ -159,6 +161,7 @@ def test_reactivation_through_update_alerts_existing_players_once(db, email, mon
         player_name="Alice",
         joining_player_name="Bob",
         signup_date=event.date,
+        signed_up_count=2,
     )
 
 
@@ -197,6 +200,7 @@ def test_email_content_names_the_joiner_and_date_and_escapes_html(monkeypatch):
         player_name="Alice",
         joining_player_name="Bob <script>",
         signup_date="2026-11-01",
+        signed_up_count=4,
     )
     address, subject, html_body, text_body = send.call_args.args
     assert address == "alice@example.com"
@@ -206,6 +210,8 @@ def test_email_content_names_the_joiner_and_date_and_escapes_html(monkeypatch):
     assert "2026-11-01" in html_body
     assert "Bob <script>" in text_body
     assert "Manage your email preferences" in text_body
+    assert "There are now 4 players signed up." in html_body
+    assert "There are now 4 players signed up." in text_body
 
 
 def test_cancelled_event_and_unconfigured_sender_do_not_send(db, email):
