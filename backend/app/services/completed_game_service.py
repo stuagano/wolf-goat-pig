@@ -131,6 +131,7 @@ def persist_final_results(
     draft: RoundDraft,
     *,
     retracted: bool | None = None,
+    accepted_roster_complete: bool | None = None,
     restore_participants: tuple[str, ...] = (),
 ) -> int:
     """Materialize accepted input without committing or inventing gameplay.
@@ -203,7 +204,11 @@ def persist_final_results(
     if draft.played_on is not None:
         settings["played_at"] = draft.played_on.isoformat()
     added_slots = set(effective_players) - set(prior_players)
-    record.roster_complete = bool(draft.roster_complete or (record.roster_complete and not added_slots))
+    record.roster_complete = (
+        accepted_roster_complete
+        if accepted_roster_complete is not None
+        else bool(draft.roster_complete or (record.roster_complete and not added_slots))
+    )
     record.detail_coverage = coverage
     record.total_holes_played = len(history) if history else None
     discrepancies = {}

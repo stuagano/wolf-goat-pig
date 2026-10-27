@@ -88,6 +88,47 @@ def patch(draft, participant, field, value):
     return RoundDraft.model_validate(data)
 
 
+def review_signal(db, source, observation, head, kind, value, *, unhealthy):
+    """Track both failure and recovery; only changed failing evidence enqueues."""
+    current = (
+        db.query(models.RoundIssue)
+        .filter_by(source_id=source.id, participant_id=head.participant_id, field=head.field, status="open")
+        .all()
+    )
+    if head.raw_present and head.raw_value == value:
+        return current if unhealthy else []
+    head.raw_present, head.raw_value = True, value
+    head.observation_id = observation.id
+    head.revision += 1
+    head.proposed_present = unhealthy
+    head.proposed_value = value if unhealthy else None
+    for old in current:
+        old.status = "superseded"
+        old.revision += 1
+    return [issue_for(db, source, observation, kind, head=head, value=value)] if unhealthy else []
+
+
+def missing_source_slots(db, source, draft, accepted, observation, head_for):
+    """A complete trusted source may report absence, never accepted deletion."""
+    if not draft.roster_complete:
+        return []
+    supplied = {p.participant_id for p in draft.players}
+    known = {
+        h.participant_id
+        for h in db.query(models.RoundFieldHead).filter_by(source_id=source.id)
+        if h.participant_id and h.field in {"name", "roster"}
+    }
+    issues = []
+    for player in accepted.players:
+        slot = player.participant_id
+        if slot not in known:
+            continue
+        missing = slot not in supplied and slot not in accepted.removed_participant_ids
+        head = head_for(db, source, slot, "source_presence", {})
+        issues.extend(review_signal(db, source, observation, head, "missing_participant", missing, unhealthy=missing))
+    return issues
+
+
 def issue_for(db, source, observation, kind, *, head=None, candidates=(), value=None):
     participant, field = (head.participant_id, head.field) if head else ("", kind)
     issues = db.query(models.RoundIssue).filter_by(source_id=source.id, participant_id=participant, field=field).all()

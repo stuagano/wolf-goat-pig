@@ -14,7 +14,15 @@ from app.utils.admin_auth import is_admin_profile
 from app.utils.time import utc_now
 
 from .completed_game_service import persist_final_results
-from .round_evidence import accepted_draft, draft_values, fingerprint, issue_for, patch
+from .round_evidence import (
+    accepted_draft,
+    draft_values,
+    fingerprint,
+    issue_for,
+    missing_source_slots,
+    patch,
+    review_signal,
+)
 from .round_identity import acquire_reconciliation_lock, candidate_games, retain_alias
 
 
@@ -114,15 +122,15 @@ def observe_round(
         ]
     )
     prior = db.query(models.RoundObservation).filter_by(source_id=row.id, observation_key=observation_key).one_or_none()
-    if prior:
-        if prior.content_fingerprint != content:
-            raise HTTPException(409, "Observation key reused with different parsed evidence")
+    if prior and prior.content_fingerprint != content:
+        raise HTTPException(409, "Observation key reused with different parsed evidence")
+    if prior and (not row.game_id or row.latest_observation_key != observation_key):
         issues = db.query(models.RoundIssue).filter_by(source_id=row.id, status="open").all()
         outcome = _outcome(db, row, issues)
         if row.game_id is None:
             outcome.status = "held"
         return outcome
-    observation = models.RoundObservation(
+    observation = prior or models.RoundObservation(
         source_id=row.id,
         observation_key=observation_key,
         raw_payload={
@@ -177,7 +185,7 @@ def observe_round(
             "holes": sorted(game.state["hole_history"], key=lambda h: h["hole"]),
         }
     baseline[("", "is_retracted")] = db.query(models.GameRecord).filter_by(game_id=row.game_id).one().is_retracted
-    issues = []
+    issues = missing_source_slots(db, row, draft, accepted, observation, _head)
     clears = set(draft.clear_fields)
     new_slots = {
         p.participant_id: p.model_dump(mode="json")
@@ -205,8 +213,14 @@ def observe_round(
         if value is None and not explicit_clear:
             continue
         head = _head(db, row, participant, field, baseline)
+        actual = baseline.get((participant, field))
+        baseline_changed = head.accepted_value != actual
+        if baseline_changed:
+            head.accepted_value = actual
+            head.accepted_present = actual is not None
+            head.accepted_revision += 1
         same_raw = head.raw_present and head.raw_value == value
-        if same_raw:
+        if same_raw and not baseline_changed:
             current = (
                 db.query(models.RoundIssue)
                 .filter_by(source_id=row.id, participant_id=participant, field=field, status="open")
@@ -222,15 +236,10 @@ def observe_round(
         head.revision += 1
         # Read the accepted projection rather than trusting another source's
         # cached baseline. Field baseline revisions change only with this field.
-        actual = baseline.get((participant, field))
         if participant and baseline.get((participant, "is_retracted")) and field != "is_retracted":
             # Historical evidence of removed slots stays immutable until a
             # separate explicit restoration review; do not revive it by fill.
             continue
-        if head.accepted_value != actual:
-            head.accepted_value = actual
-            head.accepted_present = actual is not None
-            head.accepted_revision += 1
         for old in (
             db.query(models.RoundIssue)
             .filter_by(source_id=row.id, participant_id=participant, field=field, status="open")
@@ -281,23 +290,14 @@ def observe_round(
             issues.append(issue_for(db, row, observation, "value" if known_slot else "roster", head=head, value=value))
     # Integrity observations never invent balancing values or infer row deletion.
     totals = [p.quarters for p in draft.players]
-    integrity = []
-    if raw_payload.get("parse_errors"):
-        integrity.append(("parse", raw_payload["parse_errors"]))
-    if not draft.roster_complete:
-        integrity.append(("roster_completeness", False))
-    if totals and all(v is not None for v in totals) and abs(sum(totals)) > 1e-9:
-        integrity.append(("non_zero_sum", sorted(totals)))
-    for kind, value in integrity:
-        head = _head(db, row, "", kind, {})
-        if not head.raw_present or head.raw_value != value:
-            head.raw_present = True
-            head.raw_value = value
-            head.revision += 1
-            head.observation_id = observation.id
-            issues.append(issue_for(db, row, observation, kind, head=head, value=value))
-        else:
-            issues.extend(db.query(models.RoundIssue).filter_by(source_id=row.id, field=kind, status="open").all())
+    integrity = [("roster_completeness", draft.roster_complete, not draft.roster_complete)]
+    if totals and all(v is not None for v in totals):
+        imbalanced = abs(sum(totals)) > 1e-9
+        integrity.append(("non_zero_sum", sorted(totals) if imbalanced else None, imbalanced))
+    for kind, value, unhealthy in integrity:
+        issues.extend(
+            review_signal(db, row, observation, _head(db, row, "", kind, {}), kind, value, unhealthy=unhealthy)
+        )
     row.latest_observation_key = observation_key
     row.snapshot_fingerprint = content
     retain_alias(db, row.game_id, accepted)
@@ -328,7 +328,8 @@ def resolve_issue(db, issue_id, decision, *, actor_profile_id):
         or issue.head_revision != decision.expected_head_revision
         or (head and head.revision != decision.expected_head_revision)
         or (game is not None and game.revision != decision.expected_game_revision)
-        or (game is None and decision.action != "bind_existing" and decision.expected_game_revision is not None)
+        or row.game_id != issue.game_id
+        or (game is None and decision.expected_game_revision is not None)
     ):
         raise HTTPException(409, "Stale reconciliation decision")
     if head and game and issue.kind == "value":
@@ -362,7 +363,7 @@ def resolve_issue(db, issue_id, decision, *, actor_profile_id):
             target = None
         if target:
             target_game = _game(db, target)
-            if target_game and target_game.revision != decision.expected_game_revision:
+            if (target_game.revision if target_game else None) != decision.expected_target_game_revision:
                 raise HTTPException(409, "Binding target revision advanced")
         previous_game_id = row.game_id
         game = _bind(db, row, proposed, target, actor_profile_id)
@@ -423,7 +424,13 @@ def resolve_issue(db, issue_id, decision, *, actor_profile_id):
             else:
                 if issue.kind != "roster":
                     accepted = patch(accepted, issue.participant_id, issue.field, selected)
-                persist_final_results(db, game, accepted, restore_participants=restored)
+                persist_final_results(
+                    db,
+                    game,
+                    accepted,
+                    restore_participants=restored,
+                    accepted_roster_complete=selected if issue.field == "roster_complete" else None,
+                )
             head.accepted_value = selected
             head.accepted_present = selected is not None
             head.accepted_revision += 1

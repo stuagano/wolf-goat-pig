@@ -65,6 +65,11 @@ def decide(db, issue, action="keep", value=None, target=None):
             target_game_id=target,
             reason="Reviewed fixture evidence",
             expected_game_revision=game.revision if game else None,
+            expected_target_game_revision=(
+                db.query(models.GameStateModel).filter_by(game_id=target).one().revision
+                if target and db.query(models.GameStateModel).filter_by(game_id=target).count()
+                else None
+            ),
             expected_issue_revision=issue.revision,
             expected_head_revision=issue.head_revision,
         ),

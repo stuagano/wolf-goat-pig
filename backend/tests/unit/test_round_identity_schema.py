@@ -7,6 +7,23 @@ from sqlalchemy.exc import IntegrityError
 from tests.unit.round_identity_support import bound_round, conflicted_round, identity_db, saved_game
 
 
+@pytest.mark.parametrize("revision", [-1, True, "2"])
+def test_target_revision_precondition_is_independent_and_strict(revision):
+    from app.schemas.round_identity import ResolutionDecision
+
+    payload = {
+        "action": "bind_existing",
+        "reason": "Reviewed",
+        "expected_game_revision": 1,
+        "expected_issue_revision": 1,
+        "expected_head_revision": 1,
+    }
+    valid = ResolutionDecision(**payload, expected_target_game_revision=2)
+    assert valid.expected_game_revision == 1 and valid.expected_target_game_revision == 2
+    with pytest.raises(ValidationError):
+        ResolutionDecision(**payload, expected_target_game_revision=revision)
+
+
 def test_unknown_is_not_zero():
     from app.schemas.round_identity import RoundParticipant
 

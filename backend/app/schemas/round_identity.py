@@ -82,6 +82,7 @@ class ResolutionDecision(BaseModel):
     target_game_id: str | None = None
     reason: str = Field(min_length=1)
     expected_game_revision: int | None = None
+    expected_target_game_revision: int | None = Field(default=None, ge=0, strict=True)
     expected_issue_revision: int
     expected_head_revision: int
 

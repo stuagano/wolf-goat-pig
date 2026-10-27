@@ -239,6 +239,26 @@ def test_existing_hole_quarters_tracks_merged_history(identity_db):
     assert row.state["hole_quarters"]["1"] == {"guest-a": 2, "guest-b": -2}
 
 
+def test_explicit_completeness_operation_preserves_ordinary_sparse_semantics(identity_db):
+    from app.services.completed_game_service import persist_final_results
+
+    row = game(identity_db)
+    value = draft()
+    value.players[1].quarters = 0
+    persist(identity_db, row, value)
+    sparse = RoundDraft(players=value.players[:1], roster_complete=False)
+    persist(identity_db, row, sparse)
+    identity_db.commit()
+    identity_db.expire_all()
+    assert identity_db.query(models.GameRecord).one().roster_complete is True
+    persist_final_results(identity_db, row, sparse, accepted_roster_complete=False)
+    identity_db.commit()
+    identity_db.expire_all()
+    record = identity_db.query(models.GameRecord).one()
+    assert record.roster_complete is False and record.score_eligible is False
+    assert record.final_scores == {"guest-a": 0, "guest-b": 0}
+
+
 def test_build_history_rejects_duplicate_cells_and_unknown_indices():
     entries = [{"hole": 1, "player_index": 0, "quarters": 0}]
     for bad in [entries + deepcopy(entries), [{"hole": 1, "player_index": 9, "quarters": 0}]]:
