@@ -336,6 +336,7 @@ class GameRecord(Base):
     detail_coverage = Column(String, nullable=True)
     roster_complete = Column(Boolean, nullable=True)
     score_eligible = Column(Boolean, nullable=True)
+    is_retracted = Column(Boolean, nullable=False, default=False, server_default=text("false"))
     accepted_revision = Column(Integer, nullable=False, default=0, server_default="0")
     game_duration_minutes = Column(Integer, nullable=True)
     created_at = Column(String)
@@ -349,6 +350,7 @@ class GamePlayerResult(Base):
     __table_args__ = (UniqueConstraint("game_record_id", "participant_id", name="uq_game_result_participant"),)
     id = Column(Integer, primary_key=True, index=True)
     participant_id = Column(String, nullable=True)  # staged for existing rows until offline accounting
+    is_retracted = Column(Boolean, nullable=False, default=False, server_default=text("false"))
     game_record_id = Column(Integer, index=True)  # References GameRecord.id
     player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
     player_name = Column(String)  # Denormalized for easier querying
@@ -999,4 +1001,15 @@ class AccountClaim(Base):
 
 
 # Register identity evidence only after existing model declarations.
-from . import models_round_identity as _round_identity_models  # noqa: E402, F401
+from .models_round_identity import (  # noqa: E402, F401
+    RoundAlias,
+    RoundDelivery,
+    RoundFieldHead,
+    RoundIdentityLease,
+    RoundIssue,
+    RoundMigrationCheckpoint,
+    RoundObservation,
+    RoundRequest,
+    RoundResolution,
+    RoundSource,
+)

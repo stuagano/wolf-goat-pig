@@ -55,6 +55,33 @@ def test_sqlite_rebuild_requirement_fails_explicitly_and_keeps_data(local_engine
         assert conn.execute(text("SELECT id, total_earnings FROM game_player_results")).all() == [(4, 7.5)]
 
 
+def test_retraction_columns_expand_without_rewriting_existing_rows(local_engine):
+    with local_engine.begin() as conn:
+        conn.execute(text("CREATE TABLE game_records (id INTEGER PRIMARY KEY)"))
+        conn.execute(text("CREATE TABLE game_player_results (id INTEGER PRIMARY KEY, game_record_id INTEGER)"))
+        conn.execute(text("INSERT INTO game_records VALUES (8)"))
+        conn.execute(text("INSERT INTO game_player_results VALUES (9, 8)"))
+    database.expand_round_identity_schema(local_engine)
+    database.expand_round_identity_schema(local_engine)
+    with local_engine.connect() as conn:
+        assert conn.execute(text("SELECT id, is_retracted FROM game_records")).all() == [(8, 0)]
+        assert conn.execute(text("SELECT id, is_retracted FROM game_player_results")).all() == [(9, 0)]
+
+
+def test_old_delivery_sqlite_requires_explicit_offline_upgrade(local_engine):
+    with local_engine.begin() as conn:
+        conn.execute(
+            text(
+                "CREATE TABLE round_deliveries (id VARCHAR PRIMARY KEY, recipient_profile_id INTEGER NOT NULL, delivery_key VARCHAR)"
+            )
+        )
+        conn.execute(text("INSERT INTO round_deliveries VALUES ('preserve', 7, 'old')"))
+    with pytest.raises(RuntimeError, match="offline SQLite upgrade"):
+        database.expand_round_identity_schema(local_engine)
+    with local_engine.connect() as conn:
+        assert conn.execute(text("SELECT * FROM round_deliveries")).all() == [("preserve", 7, "old")]
+
+
 def test_missing_status_view_is_skipped(local_engine):
     with local_engine.begin() as conn:
         conn.execute(text("CREATE TABLE legacy_rounds (id INTEGER PRIMARY KEY)"))
@@ -137,5 +164,6 @@ def test_postgres_expansion_is_simple_restart_safe_ddl_only():
             "IF NOT EXISTS" in normalized
             or "DROP NOT NULL" in normalized
             or "DROP DEFAULT" in normalized
+            or "SET NOT NULL" in normalized
             or "CREATE OR REPLACE VIEW" in normalized
         )

@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS round_requests (
 );
 CREATE TABLE IF NOT EXISTS round_deliveries (
     id VARCHAR PRIMARY KEY, issue_id VARCHAR REFERENCES round_issues(id), issue_event_key VARCHAR NOT NULL,
-    recipient_profile_id INTEGER NOT NULL, channel VARCHAR NOT NULL, delivery_key VARCHAR UNIQUE,
+    recipient_profile_id INTEGER, channel VARCHAR NOT NULL, delivery_key VARCHAR NOT NULL UNIQUE,
     status VARCHAR NOT NULL, attempts INTEGER NOT NULL, lease_owner VARCHAR, lease_expires_at VARCHAR,
     provider_receipt VARCHAR, error VARCHAR, created_at VARCHAR NOT NULL, delivered_at VARCHAR,
     CONSTRAINT uq_round_delivery_event UNIQUE(issue_event_key, recipient_profile_id, channel)
@@ -127,6 +127,11 @@ CREATE TABLE IF NOT EXISTS round_migration_checkpoints (
     operation_key VARCHAR NOT NULL, outcome JSON, created_at VARCHAR NOT NULL,
     CONSTRAINT uq_round_migration_operation UNIQUE(manifest_checksum, game_id, operation_key)
 );
+ALTER TABLE game_records ADD COLUMN IF NOT EXISTS is_retracted BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE game_player_results ADD COLUMN IF NOT EXISTS is_retracted BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE round_deliveries ALTER COLUMN recipient_profile_id DROP NOT NULL;
+-- Never fabricate missing keys on existing intents. Offline accounting is required.
+ALTER TABLE round_deliveries ALTER COLUMN delivery_key SET NOT NULL;
 CREATE INDEX IF NOT EXISTS ix_round_sources_game_id ON round_sources(game_id);
 CREATE INDEX IF NOT EXISTS ix_round_issues_game_id ON round_issues(game_id);
 CREATE INDEX IF NOT EXISTS ix_round_aliases_game_id ON round_aliases(game_id);

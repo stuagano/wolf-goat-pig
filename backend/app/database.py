@@ -177,8 +177,9 @@ ROUND_IDENTITY_COLUMNS = {
         "roster_complete",
         "score_eligible",
         "accepted_revision",
+        "is_retracted",
     ),
-    "game_player_results": ("participant_id",),
+    "game_player_results": ("participant_id", "is_retracted"),
     "legacy_rounds": ("game_id", "participant_id"),
     "round_comments": ("game_id",),
     "round_reactions": ("game_id",),
@@ -214,6 +215,12 @@ def expand_round_identity_schema(bind) -> None:
                     f"Round identity requires an offline SQLite upgrade for {table_name}.{column['name']}; "
                     "boot will not rebuild tables or discard data"
                 )
+    if "round_deliveries" in tables:
+        columns = {c["name"]: c for c in inspector.get_columns("round_deliveries")}
+        if not columns["recipient_profile_id"]["nullable"] or columns["delivery_key"]["nullable"]:
+            raise RuntimeError(
+                "Round delivery requires an offline SQLite upgrade; boot will not rebuild evidence tables"
+            )
     with bind.begin() as conn:
         for table_name, names in ROUND_IDENTITY_COLUMNS.items():
             if table_name not in tables:

@@ -1,7 +1,7 @@
-"""Conservative associations between sheet summaries and saved scorecards.
+"""Persisted source identity and globally serialized candidate discovery.
 
-Score suppression is deliberately separate: historical imports can be approximate,
-whereas a link or per-hole detail must never be borrowed from a guessed game.
+Legacy summary helpers below remain pre-cutover compatibility only. They are
+never evidence for canonical binding and are retired with the legacy readers.
 """
 
 import re
@@ -12,6 +12,59 @@ if TYPE_CHECKING:
     from .unified_data_service import UnifiedRound
 
 _CLUB_SUFFIX = re.compile(r"(\s+(golf|country|club|course|&|and|g&cc|gcc|gc|cc))+$")
+
+
+def acquire_reconciliation_lock(db) -> None:
+    """One application transaction lock, before fresh candidate reads.
+
+    SQLite test fixtures serialize transactions themselves; this is not a
+    substitute for PostgreSQL concurrency verification.
+    """
+    from sqlalchemy import text
+
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": 870284190311})
+
+
+def resolve_round_alias(db, date_key: str, group: str, location: str) -> list[str]:
+    from app.models import RoundAlias
+
+    return sorted(
+        {r.game_id for r in db.query(RoundAlias).filter_by(date_key=date_key, group=group, location=location).all()}
+    )
+
+
+def candidate_games(db, draft) -> list[str]:
+    """Conservative identity candidates, never score matching or auto-binding."""
+    from app import models
+
+    candidates = set()
+    for record in db.query(models.GameRecord).populate_existing().all():
+        if draft.played_on and record.played_on and draft.played_on != record.played_on:
+            continue
+        if (
+            draft.course_name
+            and record.course_name
+            and course_name(draft.course_name) != course_name(record.course_name)
+        ):
+            continue
+        candidates.add(record.game_id)
+    # Include live containers and orphan UUIDs lacking a record. Unknown dates
+    # cannot evade coordination, and no total signature grants identity.
+    for game in db.query(models.GameStateModel).populate_existing().all():
+        if db.query(models.GameRecord).filter_by(game_id=game.game_id).first() is None:
+            candidates.add(game.game_id)
+    return sorted(candidates)
+
+
+def retain_alias(db, game_id, draft):
+    from app.models import RoundAlias
+
+    for key in {draft.raw_date, draft.played_on.isoformat() if draft.played_on else None} - {None}:
+        values = {"date_key": key, "group": draft.group or "", "location": draft.course_name or "", "game_id": game_id}
+        if db.query(RoundAlias).filter_by(**values).first() is None:
+            db.add(RoundAlias(**values, evidence={"kind": "accepted_projection"}))
+    db.flush()
 
 
 def normalized(value: str) -> str:

@@ -41,6 +41,8 @@ class RoundDraft(BaseModel):
     detail_coverage: Literal["totals_only", "partial", "per_hole_complete"] = "totals_only"
     hole_history: list[dict] = Field(default_factory=list)
     actor_profile_id: int | None = None
+    clear_fields: list[str] = Field(default_factory=list)
+    removed_participant_ids: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def unique_participants(self):
@@ -48,6 +50,16 @@ class RoundDraft(BaseModel):
         profiles = [p.profile_id for p in self.players if p.profile_id is not None]
         if len(tokens) != len(set(tokens)) or len(profiles) != len(set(profiles)):
             raise ValueError("Duplicate participant token or profile ID")
+        allowed = {"played_on", "raw_date", "course_name", "group"}
+        allowed.update(f"players.{token}.{field}" for token in tokens for field in ("quarters", "profile_id"))
+        if len(self.clear_fields) != len(set(self.clear_fields)) or not set(self.clear_fields) <= allowed:
+            raise ValueError("Unknown or duplicate explicit clear field")
+        if len(self.removed_participant_ids) != len(set(self.removed_participant_ids)) or not set(
+            self.removed_participant_ids
+        ) <= set(tokens):
+            raise ValueError("Removal requires distinct known stable participant slots")
+        if any("." in token for token in tokens):
+            raise ValueError("Participant tokens cannot contain a field-path separator")
         return self
 
 

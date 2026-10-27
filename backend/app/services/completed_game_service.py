@@ -125,7 +125,14 @@ def merge_hole_history(existing: list[dict], incoming: list[dict]) -> list[dict]
     return [merged[h] for h in sorted(merged)]
 
 
-def persist_final_results(db: Session, game: Any, draft: RoundDraft) -> int:
+def persist_final_results(
+    db: Session,
+    game: Any,
+    draft: RoundDraft,
+    *,
+    retracted: bool | None = None,
+    restore_participants: tuple[str, ...] = (),
+) -> int:
     """Materialize accepted input without committing or inventing gameplay.
 
     This is an accepted-projection writer, not source reconciliation. Task 3
@@ -238,6 +245,8 @@ def persist_final_results(db: Session, game: Any, draft: RoundDraft) -> int:
                 result = models.GamePlayerResult(game_record_id=record.id, created_at=now)
                 db.add(result)
                 rows.append(result)
+        if result.is_retracted and pid not in restore_participants:
+            continue
         result.participant_id = pid
         result.player_name = participant.name
         if participant.profile_id is not None:
@@ -248,6 +257,7 @@ def persist_final_results(db: Session, game: Any, draft: RoundDraft) -> int:
         if (
             draft.detail_coverage == "per_hole_complete"
             and participant.quarters is None
+            and f"players.{pid}.quarters" not in settings.get("explicit_clears", [])
             and (total is None or provenance.get(f"players.{pid}.quarters", {}).get("kind") == "complete_detail")
         ):
             total = computed[pid]
@@ -309,6 +319,11 @@ def persist_final_results(db: Session, game: Any, draft: RoundDraft) -> int:
             state[field] = getattr(record, field)
     game.state = state
     game.game_status = "completed"
+    from .round_projection_operations import apply_projection_operations
+
+    apply_projection_operations(
+        game, record, rows, draft, retracted=retracted, restore_participants=restore_participants
+    )
     if is_new or before != _projection_snapshot(record, rows):
         game.revision = (game.revision or 0) + 1
         record.accepted_revision = game.revision
@@ -329,9 +344,11 @@ def _projection_snapshot(record: Any, rows: list) -> tuple:
         "final_scores",
         "game_settings",
         "score_eligible",
+        "is_retracted",
     )
     result_fields = (
         "participant_id",
+        "is_retracted",
         "player_name",
         "player_profile_id",
         "total_earnings",
