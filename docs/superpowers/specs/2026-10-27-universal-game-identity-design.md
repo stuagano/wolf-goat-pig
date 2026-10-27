@@ -1,7 +1,7 @@
 # Universal game identity: scores are the foundation
 
 Date: 2026-10-27 (America/Los_Angeles)
-Status: Draft for written-spec approval; conceptual direction approved, implementation not authorized.
+Status: Written spec approved by the user on 2026-10-27 ("loosk good"); implementation planning authorized. Application implementation and production operations are not authorized by that approval.
 Scope: One coherent consolidation of round identity, results, history navigation, and reconciliation.
 
 ## 1. Approval boundary and outcome
@@ -18,9 +18,9 @@ Scope: One coherent consolidation of round identity, results, history navigation
 - Preserve imported and saved conflicting values side by side, let the user resolve them, and retain an audit record.
 - Notify the user through BOTH email and in-app notifications. An unchanged unresolved conflict must not repeatedly alert.
 
-### Recommendations awaiting approval with this written spec
+### Technical recommendations accepted through written-spec review
 
-Sections 3–10 specify recommended technical behavior, not additional decisions already made by the user. In particular, stable spreadsheet tokens, provisional counting policy, conflict lifecycle, targeted recipient configuration, and migration safeguards require written-spec review.
+Sections 3–10 were technical recommendations rather than prior conceptual decisions. The user's written-spec approval accepts them as the basis for implementation planning, including stable spreadsheet tokens, provisional counting policy, conflict lifecycle, targeted recipient configuration, and migration safeguards. Actual source writes, recipient confirmation, production migration, and deployment still require the separate operational approvals described below.
 
 This document authorizes no application changes, implementation plan, source-sheet writes, real notifications, merge, deployment, or production-data mutation. After spec review and commit, stop for written approval. Only then invoke `writing-plans`; production migration remains a separate explicit operational approval.
 
