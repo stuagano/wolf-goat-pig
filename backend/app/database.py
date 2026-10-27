@@ -140,17 +140,14 @@ def ensure_legacy_rounds_official_view(bind) -> None:
     Skips when the ``status`` column is missing (pre-attestation schema).
     """
     dialect = bind.dialect.name
+    inspector = inspect(bind)
+    if not inspector.has_table("legacy_rounds") or "status" not in {
+        column["name"] for column in inspector.get_columns("legacy_rounds")
+    }:
+        logger.warning("Skipping legacy_rounds_official view — legacy_rounds.status column missing")
+        return
     with bind.begin() as conn:
         if dialect == "postgresql":
-            has_status = conn.execute(
-                text(
-                    "SELECT 1 FROM information_schema.columns "
-                    "WHERE table_name = 'legacy_rounds' AND column_name = 'status'"
-                )
-            ).first()
-            if not has_status:
-                logger.warning("Skipping legacy_rounds_official view — legacy_rounds.status column missing")
-                return
             conn.execute(
                 text(
                     "CREATE OR REPLACE VIEW legacy_rounds_official AS "
@@ -168,6 +165,78 @@ def ensure_legacy_rounds_official_view(bind) -> None:
         )
 
 
+# Only additive columns at boot. Backfill, old index retirement, and legacy
+# foreign-key accounting belong to the explicit offline migration.
+ROUND_IDENTITY_COLUMNS = {
+    "game_state": ("revision",),
+    "game_records": (
+        "played_on",
+        "raw_date",
+        "group",
+        "detail_coverage",
+        "roster_complete",
+        "score_eligible",
+        "accepted_revision",
+    ),
+    "game_player_results": ("participant_id",),
+    "legacy_rounds": ("game_id", "participant_id"),
+    "round_comments": ("game_id",),
+    "round_reactions": ("game_id",),
+    "pending_sheet_syncs": ("game_id", "source_round_token", "source_scope", "operation_key", "expected_revision"),
+    "notifications": ("delivery_key",),
+}
+
+
+def expand_round_identity_schema(bind) -> None:
+    """Expand disposable/restored SQLite without rebuilding any existing table.
+
+    PostgreSQL expansion is handled by the restart-safe SQL migration. SQLite
+    cannot relax NOT NULL or remove defaults without a table rebuild; fail
+    explicitly so a restored database must be upgraded offline, never erased.
+    """
+    if bind.dialect.name != "sqlite":
+        return
+    from sqlalchemy.schema import CreateColumn
+
+    from . import models  # noqa: F401
+
+    inspector = inspect(bind)
+    tables = set(inspector.get_table_names())
+    for table_name in ("game_records", "game_player_results"):
+        if table_name not in tables:
+            continue
+        for column in inspector.get_columns(table_name):
+            model_column = Base.metadata.tables[table_name].columns.get(column["name"])
+            if model_column is None or not model_column.nullable:
+                continue
+            if not column["nullable"] or (model_column.default is None and column["default"] is not None):
+                raise RuntimeError(
+                    f"Round identity requires an offline SQLite upgrade for {table_name}.{column['name']}; "
+                    "boot will not rebuild tables or discard data"
+                )
+    with bind.begin() as conn:
+        for table_name, names in ROUND_IDENTITY_COLUMNS.items():
+            if table_name not in tables:
+                continue
+            existing = {column["name"] for column in inspector.get_columns(table_name)}
+            table = Base.metadata.tables[table_name]
+            for name in names:
+                if name not in existing:
+                    ddl = str(CreateColumn(table.c[name]).compile(dialect=bind.dialect))
+                    conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN {ddl}'))
+        # New nullable keys contain no legacy values; safe without backfill.
+        if "notifications" in tables:
+            conn.execute(
+                text("CREATE UNIQUE INDEX IF NOT EXISTS uq_notifications_delivery_key ON notifications(delivery_key)")
+            )
+        if "game_player_results" in tables:
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS uq_game_result_participant ON game_player_results(game_record_id, participant_id)"
+                )
+            )
+
+
 def init_db():
     """Initialize database tables"""
     try:
@@ -176,6 +245,7 @@ def init_db():
 
         # Create all tables
         Base.metadata.create_all(bind=engine)
+        expand_round_identity_schema(engine)
         # Preserve existing local data when upgrading the group-posting audit field.
         # Production PostgreSQL uses add_member_round_submitter_postgres.sql.
         if engine.dialect.name == "sqlite":
