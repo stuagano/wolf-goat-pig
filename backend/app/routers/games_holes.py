@@ -11,7 +11,12 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from .. import database, models
 from ..observability.score_save import log_score_commit
-from ..services.completed_game_service import REQUIRED_HOLES, persist_completed_game, validate_round_scores
+from ..services.completed_game_service import (
+    REQUIRED_HOLES,
+    merge_hole_history,
+    persist_completed_game,
+    validate_round_scores,
+)
 from ..utils.round_card import require_round_member_or_admin
 from ..utils.time import utc_now
 
@@ -115,12 +120,9 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
 
-        # Collapse duplicate hole entries within this payload (last write wins).
-        # Offline sync can replay a hole, sending the same hole_number twice in
-        # one request. Left unmerged that double-counts standings (inflated money)
-        # and crashes the hole_events upsert on the (game,hole,player) unique
-        # constraint. Dedup by hole_number, preserving first-seen order.
-        holes = list({h.hole_number: h for h in request.holes}.values())
+        # Replays are safe across requests, but competing entries within one
+        # request are ambiguous and must be rejected rather than last-write-wins.
+        holes = request.holes
         validate_round_scores(
             (game.state or {}).get("players", []),
             [{"hole": h.hole_number, "points_delta": h.quarters} for h in holes],
@@ -202,6 +204,10 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
             }
             for h in sorted(holes, key=lambda x: x.hole_number)
         ]
+        submitted_holes = {h["hole"] for h in hole_history}
+        hole_history = merge_hole_history(
+            [h for h in game_state.get("hole_history", []) if h["hole"] in submitted_holes], hole_history
+        )
         game_state["hole_history"] = hole_history
 
         holes_with_data = len(holes)
@@ -232,8 +238,7 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
         results_created = 0
         if game_complete:
             results_created = persist_completed_game(db, game)
-        else:
-            db.commit()
+        db.commit()
         # Only now is the write provable.
         log_score_commit()
 
@@ -338,12 +343,13 @@ async def patch_hole_event(
         player["total_points"] = standings.get(player["id"], 0)
     game.state = state
     flag_modified(game, "state")
+    saved_score = existing.score
+    saved_quarters = existing.quarters
     try:
         if game.game_status == "completed":
             validate_round_scores(state["players"], history)
             persist_completed_game(db, game)
-        else:
-            db.commit()
+        db.commit()
     except Exception:
         db.rollback()
         raise
@@ -352,8 +358,8 @@ async def patch_hole_event(
         "game_id": game_id,
         "hole_number": hole_number,
         "player_id": player_id,
-        "score": patch.score if patch.score is not None else (existing.score if existing else None),
-        "quarters": patch.quarters if patch.quarters is not None else (existing.quarters if existing else 0.0),
+        "score": saved_score,
+        "quarters": saved_quarters,
     }
 
 

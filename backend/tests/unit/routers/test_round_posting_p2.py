@@ -53,7 +53,7 @@ def test_historical_scorecard_uses_played_date_and_preserves_audit_time(round_ap
     now = datetime(2026, 10, 19, 18, tzinfo=UTC)
     monkeypatch.setattr("app.routers.games.utc_now", lambda: now)
     monkeypatch.setattr("app.utils.time.utc_now", lambda: now)
-    body = {**scan_body(), "played_at": "2026-01-15"}
+    body = {**scan_body(), "played_at": "2026-01-15", "course_name": "Wing Point"}
     response = client.post("/games/from-scorecard", json=body)
     assert response.status_code == 200, response.text
     with sessions() as db:

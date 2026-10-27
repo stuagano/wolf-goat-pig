@@ -9,7 +9,7 @@ from typing import Any, cast
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import case, func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
 
 from .. import database, models, schemas
@@ -32,6 +32,15 @@ router = APIRouter(prefix="/games", tags=["games"])
 
 class SetTeeOrderRequest(BaseModel):
     player_order: list[str] = Field(..., min_length=1)
+
+
+def _check_saved_game_achievements(sessions, game_id: str, record_id: int) -> None:
+    """Best-effort side effect after saving; never reuse the score transaction."""
+    try:
+        with sessions() as badge_db:
+            _check_game_achievements(badge_db, game_id, record_id)
+    except Exception:
+        logger.warning("Post-save badge processing failed for game %s", game_id)
 
 
 def _check_game_achievements(db: Session, game_id: str, record_id: int) -> None:
@@ -307,7 +316,6 @@ async def create_round_from_scorecard(
                 "id": f"p{i + 1}",
                 "name": name,
                 "player_profile_id": profile_id,
-                "handicap": 18.0,
             }
         )
     validate_round_players(players)
@@ -334,7 +342,7 @@ async def create_round_from_scorecard(
             game_status="completed",
             state={
                 "game_status": "completed",
-                "course_name": body.course_name or "Wing Point",
+                "course_name": body.course_name,
                 "player_count": len(players),
                 "players": players,
                 "hole_history": hole_history,
@@ -352,6 +360,7 @@ async def create_round_from_scorecard(
         db.add(game)
         db.flush()
         persist_completed_game(db, game)
+        db.commit()
         return {"game_id": game_id, "status": "completed", "warnings": warnings}
     except Exception as e:
         db.rollback()
@@ -959,8 +968,12 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
             results_created,
         )
 
-        # Check achievements for all players with a linked profile
-        _check_game_achievements(db, game_id, record_id)
+        # Snapshot IDs/factory before commit; source ORM session is never read
+        # afterwards. BadgeEngine owns separate best-effort transactions.
+        badge_sessions = sessionmaker(bind=db.get_bind())
+        saved_game_id = str(game.game_id)
+        db.commit()
+        _check_saved_game_achievements(badge_sessions, saved_game_id, record_id)
 
         return {
             "success": True,
@@ -1195,7 +1208,7 @@ async def backfill_scorecard(
 ) -> dict[str, Any]:
     """Backfill the per-hole quarters of a scanned round and recompute standings.
     Standings come out as the sum of the submitted per-hole (settle-up identity)."""
-    from ..services.completed_game_service import build_hole_history, persist_completed_game
+    from ..services.completed_game_service import build_hole_history, merge_hole_history, persist_completed_game
 
     game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
     if not game:
@@ -1210,7 +1223,7 @@ async def backfill_scorecard(
     per_hole = [q.model_dump() for q in body.per_hole_quarters]
     hole_history, standings = build_hole_history(players, per_hole)
     validate_round_scores(players, hole_history)
-    state["hole_history"] = hole_history
+    state["hole_history"] = merge_hole_history(state.get("hole_history", []), hole_history)
     state["hole_quarters"] = {str(e["hole"]): e["points_delta"] for e in hole_history}
     state["standings"] = standings
     mark_card_edited(state, editor)
