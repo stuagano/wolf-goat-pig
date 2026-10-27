@@ -238,6 +238,9 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
         results_created = 0
         if game_complete:
             results_created = persist_completed_game(db, game)
+            standings = dict(game.state["standings"])
+        if "hole_quarters" in game.state:
+            game.state["hole_quarters"] = {str(h["hole"]): dict(h["points_delta"]) for h in game.state["hole_history"]}
         db.commit()
         # Only now is the write provable.
         log_score_commit()

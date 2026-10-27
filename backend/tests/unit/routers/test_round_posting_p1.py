@@ -282,6 +282,45 @@ def test_quarters_only_correction_preserves_existing_detail(round_api):
         assert result.hole_scores[0]["notes"] == "keep"
 
 
+@pytest.mark.parametrize("endpoint", ["scores", "scorecard"])
+def test_detailed_response_reports_accepted_not_disputed_totals(round_api, endpoint):
+    from app.schemas.round_identity import RoundDraft
+    from app.services.completed_game_service import persist_final_results
+
+    client, app, sessions = round_api
+    sign_in(app)
+    with sessions() as db:
+        row = db.query(models.GameStateModel).one()
+        persist_final_results(
+            db,
+            row,
+            RoundDraft(
+                players=[
+                    {"participant_id": f"p{i}", "name": f"Player {i}", "profile_id": i, "quarters": 0}
+                    for i in range(1, 5)
+                ],
+                roster_complete=True,
+            ),
+        )
+        row.state = {**row.state, "hole_quarters": {"1": {"p1": 999}}}
+        db.commit()
+    if endpoint == "scores":
+        response = client.post("/games/round/scores", json=scores())
+    else:
+        response = client.patch("/games/round/scorecard", json={"per_hole_quarters": scan_body()["per_hole_quarters"]})
+    assert response.status_code == 200, response.text
+    accepted = {f"p{i}": 0 for i in range(1, 5)}
+    assert response.json()["standings"] == accepted
+    state = client.get("/games/round/state").json()
+    assert state["standings"] == accepted
+    assert state["hole_quarters"] == {str(h["hole"]): h["points_delta"] for h in state["hole_history"]}
+    with sessions() as db:
+        record = db.query(models.GameRecord).one()
+        assert record.final_scores == accepted
+        assert {r.participant_id: r.total_earnings for r in db.query(models.GamePlayerResult)} == accepted
+        assert record.game_settings["detail_discrepancies"]["p1"] == {"accepted": 0, "computed": 18}
+
+
 def test_scanned_gross_correction_preserves_quarters(round_api):
     client, app, sessions = round_api
     sign_in(app)

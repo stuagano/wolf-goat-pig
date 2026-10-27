@@ -1231,6 +1231,7 @@ async def backfill_scorecard(
     game.updated_at = utc_now().isoformat()
 
     persist_completed_game(db, game)
+    standings = dict(game.state["standings"])
     db.commit()
     return {"game_id": game_id, "standings": standings}
 

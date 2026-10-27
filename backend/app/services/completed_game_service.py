@@ -154,13 +154,37 @@ def persist_final_results(db: Session, game: Any, draft: RoundDraft) -> int:
     rows = db.query(models.GamePlayerResult).filter_by(game_record_id=record.id).all()
     before = _projection_snapshot(record, rows)
     state = deepcopy(dict(game.state or {}))
+    prior_players = {p["id"]: p for p in state.get("players", [])}
+    for result in rows:
+        if result.participant_id is not None:
+            prior_players.setdefault(
+                result.participant_id,
+                {
+                    "id": result.participant_id,
+                    "name": result.player_name,
+                    "player_profile_id": result.player_profile_id,
+                    "total_points": result.total_earnings,
+                },
+            )
+    effective_players = {**prior_players, **{p["id"]: p for p in players}}
     history = merge_hole_history(state.get("hole_history", []), draft.hole_history)
     # Coverage describes evidence actually retained, never a fabricated round.
     coverage = "totals_only"
     if history:
-        validate_round_scores(players, history, complete=False)
-        coverage = "per_hole_complete" if {h["hole"] for h in history} == REQUIRED_HOLES else "partial"
-    computed = {p.participant_id: sum(h["points_delta"][p.participant_id] for h in history) for p in draft.players}
+        # Historic holes can predate an accepted roster extension. Validate the
+        # cells that exist without manufacturing missing participant scores.
+        for hole in history:
+            observed = set(hole.get("points_delta") or {})
+            if not observed or not observed.issubset(effective_players):
+                raise HTTPException(status_code=400, detail="Retained detail contains unknown players")
+            validate_round_scores([effective_players[pid] for pid in observed], [hole], complete=False)
+        complete_cells = all(set(h["points_delta"]) == set(effective_players) for h in history)
+        coverage = (
+            "per_hole_complete" if complete_cells and {h["hole"] for h in history} == REQUIRED_HOLES else "partial"
+        )
+    computed = {
+        pid: sum(h["points_delta"][pid] for h in history if pid in h["points_delta"]) for pid in effective_players
+    }
     settings = deepcopy(record.game_settings or {})
     provenance = settings.setdefault("field_provenance", {})
     for field in ("played_on", "raw_date", "course_name", "group"):
@@ -171,12 +195,12 @@ def persist_final_results(db: Session, game: Any, draft: RoundDraft) -> int:
             setattr(record, field, value)
     if draft.played_on is not None:
         settings["played_at"] = draft.played_on.isoformat()
-    record.roster_complete = bool(record.roster_complete or draft.roster_complete)
+    added_slots = set(effective_players) - set(prior_players)
+    record.roster_complete = bool(draft.roster_complete or (record.roster_complete and not added_slots))
     record.detail_coverage = coverage
     record.total_holes_played = len(history) if history else None
     discrepancies = {}
     totals = dict(record.final_scores or {})
-    prior_players = {p["id"]: p for p in state.get("players", [])}
     # Flush state/events/record before results; any later failure still rolls
     # everything back through the caller-owned transaction.
     db.flush()
@@ -244,6 +268,7 @@ def persist_final_results(db: Session, game: Any, draft: RoundDraft) -> int:
                     "gross_score": (h.get("gross_scores") or {}).get(pid),
                 }
                 for h in history
+                if pid in h["points_delta"]
             ]
         if coverage == "per_hole_complete":
             result.holes_won = sum(h["points_delta"][pid] > 0 for h in history)
@@ -277,6 +302,8 @@ def persist_final_results(db: Session, game: Any, draft: RoundDraft) -> int:
     )
     if history:
         state["hole_history"] = history
+        if "hole_quarters" in state:
+            state["hole_quarters"] = {str(h["hole"]): deepcopy(h["points_delta"]) for h in history}
     for field in ("course_name", "group"):
         if getattr(record, field) is not None:
             state[field] = getattr(record, field)
