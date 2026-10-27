@@ -203,6 +203,65 @@ def test_legacy_config_lock_covers_mutation_and_failure_rolls_back(engine, monke
         assert fresh.query(models.GameRecord).count() == 0
 
 
+def test_publication_marker_tracks_accepted_revision_and_rolls_back_with_results(engine, monkeypatch):
+    from app.services import round_source_lease
+    from app.services.round_identity import sync_round_snapshot
+
+    # First accepted round has unknown earnings; a reviewed zero can fill it.
+    rows = [["6-Oct", "B", "Private fixture", "", "", "", "r1", "s1"]]
+    monkeypatch.setattr(
+        sheet, "_sheets_api_get", lambda _, range_: {"range": range_, "majorDimension": "ROWS", "values": rows}
+    )
+    first = sheet.fetch_round_snapshot("fixture:tab:2026", season_year=2026)
+    with Session(engine) as db:
+        assert sync_round_snapshot(db, first)[0].status == "accepted"
+    with Session(engine) as db:
+        source = db.query(models.RoundSource).one()
+        marker = source.binding_evidence["sheet_publication"]
+        assert marker["snapshot_fingerprint"] == first.fingerprint
+        assert marker["accepted_revision"] == db.query(models.GameStateModel).one().revision
+    rows[0][3] = 0
+    second = sheet.fetch_round_snapshot(first.scope, season_year=2026)
+    with Session(engine) as db:
+        db.add(
+            models.AppConfig(
+                name="round_source_reviews",
+                value={first.scope: {"fingerprint": second.fingerprint, "reviewer_profile_id": 7}},
+            )
+        )
+        db.commit()
+    original = round_source_lease.fence
+    calls = []
+
+    def fail_final_fence(db, lease):
+        calls.append(True)
+        if len(calls) == 2:
+            db.flush()
+            assert (
+                db.query(models.RoundSource).one().binding_evidence["sheet_publication"]["snapshot_fingerprint"]
+                == second.fingerprint
+            )
+            raise round_source_lease.SourceLeaseLostError("injected precommit lease loss")
+        return original(db, lease)
+
+    monkeypatch.setattr(round_source_lease, "fence", fail_final_fence)
+    with Session(engine) as db:
+        assert sync_round_snapshot(db, second)[0].status == "held"
+    with Session(engine) as db:
+        assert db.query(models.RoundSource).one().binding_evidence["sheet_publication"] == marker
+        assert db.query(models.GamePlayerResult).one().total_earnings is None
+        assert db.query(models.RoundObservation).count() == 1
+    monkeypatch.setattr(round_source_lease, "fence", original)
+    with Session(engine) as db:
+        assert sync_round_snapshot(db, second)[0].status == "accepted"
+    with Session(engine) as db:
+        assert db.query(models.GamePlayerResult).one().total_earnings == 0
+        assert (
+            db.query(models.RoundSource).one().binding_evidence["sheet_publication"]["snapshot_fingerprint"]
+            == second.fingerprint
+        )
+
+
 def test_writer_epoch_change_during_read_aborts_before_mutation(engine, monkeypatch):
     from app.services.round_identity import sync_round_snapshot
 

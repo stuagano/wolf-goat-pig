@@ -488,6 +488,85 @@ def test_old_trusted_snapshot_cannot_replay_after_newer_ingestion_commits(db, sh
     assert db.query(models.GamePlayerResult).one().total_earnings == 0
 
 
+def test_trusted_s1_replays_after_unreviewed_s2_is_held(db, sheets):
+    from app.services.round_identity import sync_round_snapshot
+
+    scope = "workbook:tab:2026"
+    first = sheet.fetch_round_snapshot(scope, season_year=2026)
+    db.add(
+        models.AppConfig(
+            name="round_source_reviews",
+            value={
+                scope: {
+                    "fingerprint": first.fingerprint,
+                    "reviewer_profile_id": 7,
+                    "round_bindings": {
+                        first.rounds[0].observation_key: {"round_token": "stable", "participant_ids": ["slot"]}
+                    },
+                }
+            },
+        )
+    )
+    db.commit()
+    accepted = sync_round_snapshot(db, first)[0]
+    sheets[0][0][3] = 5
+    second = sheet.fetch_round_snapshot(scope, season_year=2026)
+    assert all(o.status == "held" for o in sync_round_snapshot(db, second))
+    assert db.query(models.GamePlayerResult).one().total_earnings is None
+    sheets[0][0][3] = ""
+    db.get(models.AppConfig, "round_source_reviews").value = {}
+    db.commit()
+    replay = sync_round_snapshot(db, first)
+    assert any(o.status == "unchanged" and o.game_id == accepted.game_id for o in replay)
+    assert any(o.status == "unchanged" and o.game_id == accepted.game_id for o in sync_round_snapshot(db, first))
+    assert db.query(models.GameRecord).count() == 1
+    result = db.query(models.GamePlayerResult).one()
+    assert result.participant_id == "slot" and result.total_earnings is None
+
+
+def test_partial_snapshot_publication_fences_only_changed_round(db, sheets):
+    from app.services.round_identity import sync_round_snapshot
+
+    rows = sheets[0]
+    rows.append(["7-Oct", "C", "Blair", "", "", "", "r2", "s2"])
+    first = sheet.fetch_round_snapshot("fixture:tab:2026", season_year=2026)
+    original = sync_round_snapshot(db, first)
+    games = {r.round_token: r.game_id for r in db.query(models.RoundSource)}
+    assert all(o.status == "accepted" for o in original)
+    rows[0][3], rows[1][3] = 0, "invalid"
+    second = sheet.fetch_round_snapshot(first.scope, season_year=2026)
+    review(db, second)
+    published = sync_round_snapshot(db, second)
+    assert {o.status for o in published} == {"accepted", "held"}
+    rows[0][3], rows[1][3] = "", ""
+    db.get(models.AppConfig, "round_source_reviews").value = {}
+    db.commit()
+    restored = sync_round_snapshot(db, first)
+    assert any(o.status == "held" and o.game_id == games["r1"] for o in restored)
+    assert any(o.status == "unchanged" and o.game_id == games["r2"] for o in restored)
+    assert {r.participant_id: r.total_earnings for r in db.query(models.GamePlayerResult)} == {"s1": 0, "s2": None}
+    assert db.query(models.GameRecord).count() == 2
+
+
+def test_held_round_with_accepted_field_fill_still_fences_stale_snapshot(db, sheets):
+    from app.services.round_identity import sync_round_snapshot
+
+    first = sheet.fetch_round_snapshot("fixture:tab:2026", season_year=2026)
+    game = sync_round_snapshot(db, first)[0].game_id
+    sheets[0][0][3] = 5  # Known-slot fill publishes even though integrity is held.
+    second = sheet.fetch_round_snapshot(first.scope, season_year=2026)
+    review(db, second)
+    outcome = sync_round_snapshot(db, second)[0]
+    assert outcome.status == "held" and outcome.game_id == game
+    assert db.query(models.GamePlayerResult).one().total_earnings == 5
+    before = db.query(models.RoundObservation).count()
+    db.rollback()
+    sheets[0][0][3] = ""
+    assert sync_round_snapshot(db, first)[0].status == "held"
+    assert db.query(models.RoundObservation).count() == before
+    assert db.query(models.GamePlayerResult).one().total_earnings == 5
+
+
 def test_source_lease_rejects_concurrent_refresh_and_generation_increases(db):
     from app.services.round_source_lease import SourceLeaseLostError, source_lease
 

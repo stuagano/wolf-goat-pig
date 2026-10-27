@@ -122,9 +122,6 @@ def sync_round_snapshot(db, snapshot):
                     for o in evidence
                     if o.raw_payload.get("payload", {}).get("snapshot_fingerprint") == snapshot.fingerprint
                 ]
-                last = known_db.get(models.RoundIdentityLease, lease[0])
-                if prior_snapshot and last.snapshot_fingerprint and last.snapshot_fingerprint != snapshot.fingerprint:
-                    return [IngestOutcome(status="held")]
                 durable = {
                     o.raw_payload["payload"]["snapshot_mapping"]["observation_key"]: o.raw_payload["payload"][
                         "snapshot_mapping"
@@ -211,6 +208,27 @@ def sync_round_snapshot(db, snapshot):
                         if fresh.mode != "canonical" or fresh.epoch != epoch or fresh.season != snapshot.season_year:
                             raise SourceLeaseLostError("Writer fence advanced")
                         row = tx.query(models.RoundSource).filter_by(**item.source.model_dump()).one_or_none()
+                        game = (
+                            tx.query(models.GameStateModel).filter_by(game_id=row.game_id).one_or_none()
+                            if row and row.game_id
+                            else None
+                        )
+                        before_revision = game.revision if game else None
+                        publication = (row.binding_evidence or {}).get("sheet_publication", {}) if row else {}
+                        seen_generations = [
+                            o.raw_payload.get("payload", {}).get("connector_generation", 0)
+                            for o in evidence
+                            if row
+                            and o.source_id == row.id
+                            and o.raw_payload.get("payload", {}).get("snapshot_fingerprint") == snapshot.fingerprint
+                        ]
+                        if (
+                            seen_generations
+                            and publication.get("snapshot_fingerprint") != snapshot.fingerprint
+                            and max(seen_generations) < publication.get("generation", 0)
+                        ):
+                            outcomes.append(IngestOutcome(status="held", game_id=row.game_id))
+                            continue
                         trusted = approved or (
                             bool(item.raw_payload.get("snapshot_mapping")) and item.continuity_verified
                         )
@@ -239,6 +257,25 @@ def sync_round_snapshot(db, snapshot):
                             raw_payload=raw,
                             continuity_verified=trusted and not raw.get("parse_errors"),
                         )
+                        # A held outcome can still publish safe unknown-field
+                        # fills before raising another field/integrity issue.
+                        # Track actual accepted revision changes per source, not
+                        # status or the lease's merely processed fingerprint.
+                        published_source = tx.query(models.RoundSource).filter_by(**item.source.model_dump()).one()
+                        published_game = (
+                            tx.query(models.GameStateModel).filter_by(game_id=outcome.game_id).one_or_none()
+                            if outcome.game_id
+                            else None
+                        )
+                        if published_game and published_game.revision != before_revision:
+                            published_source.binding_evidence = {
+                                **(published_source.binding_evidence or {}),
+                                "sheet_publication": {
+                                    "snapshot_fingerprint": snapshot.fingerprint,
+                                    "generation": lease[2],
+                                    "accepted_revision": published_game.revision,
+                                },
+                            }
                         lease_row.snapshot_fingerprint = snapshot.fingerprint
                         lease_row.source_version = snapshot.source_version
                         fence(tx, lease)
