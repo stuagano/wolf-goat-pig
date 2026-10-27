@@ -592,9 +592,9 @@ export interface paths {
         put?: never;
         /**
          * Trigger Legacy Rounds Sync
-         * @description Manually trigger a sync of Google Sheets data into the legacy_rounds table.
+         * @description Manually trigger the shared complete-snapshot ingestion boundary.
          *
-         *     Normally runs automatically every 2 hours. Use this to force an immediate refresh.
+         *     Normally runs every two hours; held evidence never replaces accepted data.
          */
         post: operations["trigger_legacy_rounds_sync_admin_spreadsheet_sync_legacy_rounds_post"];
         delete?: never;
@@ -1945,9 +1945,7 @@ export interface paths {
         put?: never;
         /**
          * Sync Sheets To Db
-         * @description Pull all rounds from Google Sheets and upsert into legacy_rounds table.
-         *
-         *     Safe to run repeatedly — clears and repopulates the table each time.
+         * @description Refresh through the complete-snapshot boundary, never cache replacement.
          */
         post: operations["sync_sheets_to_db_data_sync_sheets_post"];
         delete?: never;

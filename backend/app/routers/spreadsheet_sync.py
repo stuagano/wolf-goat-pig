@@ -268,45 +268,13 @@ def get_sync_queue_status(
 
 @router.post("/sync-legacy-rounds")
 def trigger_legacy_rounds_sync(db: Session = Depends(get_db)) -> Any:
-    """Manually trigger a sync of Google Sheets data into the legacy_rounds table.
+    """Manually trigger the shared complete-snapshot ingestion boundary.
 
-    Normally runs automatically every 2 hours. Use this to force an immediate refresh.
+    Normally runs every two hours; held evidence never replaces accepted data.
     """
-    from datetime import UTC
-    from datetime import datetime as dt
+    from ..services.spreadsheet_sync_service import refresh_round_history
 
-    from ..models import LegacyRound
-    from ..services.unified_data_service import get_unified_data_service
-
-    try:
-        svc = get_unified_data_service(db=db)
-        rounds = svc.get_all_rounds(include_database=False, use_sheet_cache=False)
-        if not rounds:
-            return {"success": False, "message": "No rounds returned from Google Sheets — OAuth may be expired"}
-
-        synced_at = dt.now(UTC).isoformat()
-        db.query(LegacyRound).filter(LegacyRound.source.in_(["primary_sheet", "writable_sheet"])).delete(
-            synchronize_session=False
-        )
-        for r in rounds:
-            db.add(
-                LegacyRound(
-                    date=r.date_sortable,
-                    group=r.group,
-                    member=r.member,
-                    score=r.score,
-                    location=r.location or "",
-                    duration=r.duration,
-                    source=r.source,
-                    synced_at=synced_at,
-                )
-            )
-        db.commit()
-        return {"success": True, "rows_synced": len(rounds), "synced_at": synced_at}
-    except Exception as exc:
-        db.rollback()
-        logger.error("Manual legacy rounds sync failed: %s", exc)
-        raise HTTPException(status_code=500, detail=f"Sync failed: {exc}") from exc
+    return refresh_round_history(db)
 
 
 @router.get("/config")

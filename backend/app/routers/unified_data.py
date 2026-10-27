@@ -793,39 +793,7 @@ def get_data_status(db: Session = Depends(get_db)) -> Any:
 
 @router.post("/sync-sheets", dependencies=[Depends(require_admin)])
 def sync_sheets_to_db(db: Session = Depends(get_db)) -> Any:
-    """Pull all rounds from Google Sheets and upsert into legacy_rounds table.
+    """Refresh through the complete-snapshot boundary, never cache replacement."""
+    from ..services.spreadsheet_sync_service import refresh_round_history
 
-    Safe to run repeatedly — clears and repopulates the table each time.
-    """
-    service = get_unified_data_service(db=db)
-
-    try:
-        all_rounds = service.get_all_rounds(include_database=False, use_sheet_cache=False)
-    except Exception as exc:
-        return {"success": False, "error": str(exc), "synced": 0}
-
-    if not all_rounds:
-        return {"success": False, "error": "No rounds returned from sheets", "synced": 0}
-
-    synced_at = utc_now().isoformat()
-
-    # Clear existing sheet-sourced rows and repopulate
-    db.query(models.LegacyRound).filter(models.LegacyRound.source.in_(["primary_sheet", "writable_sheet"])).delete(
-        synchronize_session=False
-    )
-
-    for r in all_rounds:
-        db.add(
-            models.LegacyRound(
-                date=r.date_sortable,
-                group=r.group,
-                member=r.member,
-                score=r.score,
-                location=r.location or "",
-                source=r.source,
-                synced_at=synced_at,
-            )
-        )
-
-    db.commit()
-    return {"success": True, "synced": len(all_rounds), "synced_at": synced_at}
+    return refresh_round_history(db)

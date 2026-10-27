@@ -67,6 +67,163 @@ def retain_alias(db, game_id, draft):
     db.flush()
 
 
+def sync_round_snapshot(db, snapshot):
+    """One complete-snapshot boundary, committing only whole source rounds.
+
+    Production continuity requires reviewed snapshot evidence. Repetition can
+    replay trusted evidence, but a changed token/data association cannot fill
+    even an unknown accepted field without review (Gate B remains unsatisfied).
+    """
+    from sqlalchemy.orm import Session
+
+    from app import models
+    from app.schemas.round_identity import IngestOutcome, RoundDraft, SourceRef, read_round_identity_config
+
+    from . import spreadsheet_sync_service as sheet
+    from .round_reconciliation import observe_round
+    from .round_source_lease import SourceLeaseLostError, fence, heartbeat, source_lease
+
+    if not snapshot.complete or snapshot.errors or not snapshot.rounds:
+        return [IngestOutcome(status="held")]
+    engine = db.get_bind()
+    # Caller may have read configuration, but must not carry a transaction or
+    # stale identity map across network reads / dedicated lease ownership.
+    if db.new or db.dirty or db.deleted:
+        raise ValueError("Snapshot ingestion requires a clean caller session")
+    db.rollback()
+    outcomes = []
+    try:
+        with source_lease(engine, snapshot.scope) as lease:
+            with Session(engine) as config_db:
+                config = read_round_identity_config(config_db)
+                epoch = config.epoch
+                approval = config_db.get(models.AppConfig, "round_source_reviews")
+                reviewed = (approval.value if approval else {}).get(snapshot.scope, {})
+                approved = reviewed.get("fingerprint") == snapshot.fingerprint and bool(
+                    reviewed.get("reviewer_profile_id")
+                )
+            if config.mode != "canonical" or config.season != snapshot.season_year:
+                return [IngestOutcome(status="held")]
+            # Capture known source rounds before processing disappearance signals.
+            with Session(engine) as known_db:
+                known = [
+                    (r.round_token, r.id)
+                    for r in known_db.query(models.RoundSource).filter_by(kind="sheet", scope=snapshot.scope)
+                ]
+            present = {
+                reviewed.get("round_bindings", {}).get(r.observation_key, {}).get("round_token", r.source.round_token)
+                if approved
+                else r.source.round_token
+                for r in snapshot.rounds
+            }
+            work = list(snapshot.rounds)
+            for token, source_id in known:
+                if token in present:
+                    continue
+                with Session(engine) as evidence_db:
+                    old = (
+                        evidence_db.query(models.RoundObservation)
+                        .filter_by(source_id=source_id)
+                        .order_by(models.RoundObservation.observed_at.desc())
+                        .first()
+                    )
+                    if old:
+                        work.append(
+                            sheet.SheetRound(
+                                SourceRef(kind="sheet", scope=snapshot.scope, round_token=token),
+                                RoundDraft.model_validate(old.parsed_values),
+                                {
+                                    "parse_errors": ["source_round_missing"],
+                                    "snapshot_fingerprint": snapshot.fingerprint,
+                                },
+                                f"missing:{snapshot.fingerprint}:{token}",
+                                False,
+                            )
+                        )
+            for item in work:
+                # Offline reviewed manifests map exact snapshot evidence to
+                # stable source/participant tokens; never infer them from rows.
+                if approved:
+                    binding = reviewed.get("round_bindings", {}).get(item.observation_key)
+                    if binding:
+                        from dataclasses import replace
+
+                        slots = binding.get("participant_ids", [])
+                        if len(slots) != len(item.draft.players) or not binding.get("round_token"):
+                            outcomes.append(IngestOutcome(status="held"))
+                            continue
+                        draft_data = item.draft.model_dump(mode="json")
+                        for player, slot in zip(draft_data["players"], slots, strict=True):
+                            player["participant_id"] = slot
+                        raw = {**item.raw_payload}
+                        raw["parse_errors"] = [
+                            e for e in raw.get("parse_errors", []) if e != "missing_participant_token"
+                        ]
+                        item = replace(
+                            item,
+                            source=SourceRef(kind="sheet", scope=snapshot.scope, round_token=binding["round_token"]),
+                            draft=RoundDraft.model_validate(draft_data),
+                            raw_payload=raw,
+                        )
+                heartbeat(engine, lease)
+                # Sheets has no atomic revision precondition: content and grid
+                # are read again under lease outside the game transaction.
+                current = sheet.fetch_round_snapshot(snapshot.scope, season_year=snapshot.season_year)
+                if (
+                    not current.complete
+                    or current.errors
+                    or current.source_version != snapshot.source_version
+                    or current.fingerprint != snapshot.fingerprint
+                ):
+                    outcomes.append(IngestOutcome(status="held"))
+                    break
+                with Session(engine) as tx:
+                    with tx.begin():
+                        lease_row = fence(tx, lease)
+                        acquire_reconciliation_lock(tx)
+                        # A cutover update cannot race between this epoch check
+                        # and publication of the whole round.
+                        tx.query(models.AppConfig).filter_by(name="round_identity").with_for_update().one()
+                        fresh = read_round_identity_config(tx)
+                        if fresh.mode != "canonical" or fresh.epoch != epoch or fresh.season != snapshot.season_year:
+                            raise SourceLeaseLostError("Writer fence advanced")
+                        row = tx.query(models.RoundSource).filter_by(**item.source.model_dump()).one_or_none()
+                        trusted = approved
+                        if snapshot.scope.startswith("fixture:") and row is None:
+                            trusted = item.continuity_verified
+                        if row:
+                            prior = (
+                                tx.query(models.RoundObservation)
+                                .filter_by(source_id=row.id, continuity_verified=True)
+                                .all()
+                            )
+                            trusted = trusted or any(
+                                o.raw_payload.get("payload", {}).get("snapshot_fingerprint") == snapshot.fingerprint
+                                for o in prior
+                            )
+                        raw = {
+                            **item.raw_payload,
+                            "snapshot_fingerprint": snapshot.fingerprint,
+                            "connector_generation": lease[2],
+                        }
+                        outcome = observe_round(
+                            tx,
+                            item.source,
+                            item.draft,
+                            observation_key=f"{lease[2]}:{item.observation_key}",
+                            raw_payload=raw,
+                            continuity_verified=trusted and not raw.get("parse_errors"),
+                        )
+                        lease_row.snapshot_fingerprint = snapshot.fingerprint
+                        lease_row.source_version = snapshot.source_version
+                        fence(tx, lease)
+                    outcomes.append(outcome)
+    except SourceLeaseLostError:
+        outcomes.append(IngestOutcome(status="held"))
+    db.expire_all()
+    return outcomes
+
+
 def normalized(value: str) -> str:
     return " ".join(value.casefold().split())
 

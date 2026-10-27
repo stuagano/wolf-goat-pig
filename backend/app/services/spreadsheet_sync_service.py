@@ -34,6 +34,62 @@ from datetime import datetime
 from typing import Any
 
 from ..observability.report import report_exception
+from .round_snapshot import SheetRound, SheetSnapshot, fetch_round_snapshot  # noqa: F401
+
+
+def refresh_round_history(db) -> dict[str, Any]:
+    """Shared entry for scheduler and both admin refreshes; no cache fallback."""
+    from app.schemas.round_identity import read_round_identity_config
+
+    from .round_identity import sync_round_snapshot
+
+    config = read_round_identity_config(db)
+    db.rollback()
+    if config.mode != "canonical":
+        # Old cache remains readable pre-cutover, but this converted importer
+        # cannot replace it. Paused/unconfigured runs publish only safe health.
+        return {
+            "success": False,
+            "status": "held",
+            "reason": "canonical_ingestion_not_enabled",
+            "held": 1,
+            "synced": 0,
+            "rows_synced": 0,
+        }
+    scope = f"{PRIMARY_SHEET_ID}:{PRIMARY_SHEET_TAB_GID}:{config.season if config.season is not None else 'unknown'}"
+    snapshot = fetch_round_snapshot(scope, season_year=config.season)
+    outcomes = sync_round_snapshot(db, snapshot)
+    held = sum(o.status == "held" for o in outcomes)
+    accepted = sum(o.status == "accepted" for o in outcomes)
+    return {
+        "success": not held,
+        "status": "held" if held else "ok",
+        "complete": snapshot.complete,
+        "parse_errors": len(snapshot.errors) + sum(bool(r.raw_payload.get("parse_errors")) for r in snapshot.rounds),
+        "held": held,
+        "accepted": accepted,
+        "unchanged": sum(o.status == "unchanged" for o in outcomes),
+        "synced": accepted,
+        "rows_synced": accepted,
+    }
+
+
+def _sheets_metadata_get(sheet_id: str) -> dict[str, Any] | None:
+    """Fetch tab IDs/dimensions; never guess a title or a history ceiling."""
+    token = _get_access_token()
+    if not token:
+        return None
+    url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}?fields=sheets.properties"
+    request = urllib.request.Request(
+        url, headers={"Authorization": f"Bearer {token}", "x-goog-user-project": QUOTA_PROJECT}
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return json.loads(response.read())
+    except Exception:
+        logger.warning("Sheets metadata read failed")
+        return None
+
 
 logger = logging.getLogger(__name__)
 

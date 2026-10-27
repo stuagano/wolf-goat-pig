@@ -1,0 +1,137 @@
+"""Physical PostgreSQL refresh serialization and commit-fence tests (local only)."""
+
+import os
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
+from uuid import uuid4
+
+import pytest
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
+from sqlalchemy.orm import Session
+from sqlalchemy.pool import NullPool
+
+from app import models
+from app.services import spreadsheet_sync_service as sheet
+
+
+@pytest.fixture
+def engine(monkeypatch):
+    raw = os.environ.get("SCORE_SAVE_TEST_DATABASE_URL")
+    if not raw:
+        pytest.skip("Requires disposable localhost PostgreSQL *_test database")
+    url = make_url(raw)
+    assert url.host in {"127.0.0.1", "localhost", "::1"} and url.database.endswith("_test") and not url.query
+    schema = "snapshot_" + uuid4().hex
+    admin = create_engine(url.set(drivername="postgresql+psycopg2"), poolclass=NullPool)
+    with admin.begin() as tx:
+        tx.execute(text(f'CREATE SCHEMA "{schema}"'))
+    engine = create_engine(
+        url.set(drivername="postgresql+psycopg2"),
+        poolclass=NullPool,
+        connect_args={"options": f"-csearch_path={schema} -cstatement_timeout=10000"},
+    )
+    models.Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        db.add(models.AppConfig(name="round_identity", value={"mode": "canonical", "epoch": 2, "season": 2026}))
+        db.commit()
+    monkeypatch.setattr(sheet, "PRIMARY_SHEET_ID", "fixture")
+    monkeypatch.setattr(sheet, "PRIMARY_SHEET_TAB_GID", "tab")
+    monkeypatch.setattr(
+        sheet,
+        "_sheets_metadata_get",
+        lambda *_: {
+            "sheets": [
+                {
+                    "properties": {
+                        "sheetId": "tab",
+                        "title": "Details",
+                        "gridProperties": {"rowCount": 2, "columnCount": 8},
+                    }
+                }
+            ],
+            "fixture_token_contract": True,
+        },
+    )
+    monkeypatch.setattr(
+        sheet,
+        "_sheets_api_get",
+        lambda _, range_: {
+            "range": range_,
+            "majorDimension": "ROWS",
+            "values": [["6-Oct", "B", "Private fixture", "0", "", "", "r1", "s1"]],
+        },
+    )
+    try:
+        yield engine
+    finally:
+        engine.dispose()
+        with admin.begin() as tx:
+            tx.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
+        admin.dispose()
+
+
+def test_concurrent_refresh_endpoints_one_uuid_and_physical_readback(engine, monkeypatch):
+    from app.routers.spreadsheet_sync import trigger_legacy_rounds_sync
+    from app.routers.unified_data import sync_sheets_to_db
+
+    entered, release = Event(), Event()
+    original = sheet.fetch_round_snapshot
+    counts = {}
+
+    def fetch(*args, **kwargs):
+        from threading import get_ident
+
+        tid = get_ident()
+        counts[tid] = counts.get(tid, 0) + 1
+        if counts[tid] == 2:
+            entered.set()
+            assert release.wait(10)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(sheet, "fetch_round_snapshot", fetch)
+
+    def call(endpoint):
+        with Session(engine) as db:
+            return endpoint(db)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first = executor.submit(call, trigger_legacy_rounds_sync)
+        assert entered.wait(10)
+        try:
+            second = executor.submit(call, sync_sheets_to_db).result(timeout=10)
+            assert second["status"] == "held"
+        finally:
+            release.set()
+        assert first.result(timeout=10)["success"]
+    with Session(engine) as fresh:
+        assert fresh.query(models.GameStateModel).count() == 1
+        assert fresh.query(models.GameRecord).count() == 1
+        assert fresh.query(models.GamePlayerResult).one().total_earnings == 0
+        game_id = fresh.query(models.RoundSource).one().game_id
+    assert call(sync_sheets_to_db)["success"]
+    with Session(engine) as fresh:
+        assert fresh.query(models.RoundSource).one().game_id == game_id
+        assert fresh.query(models.RoundIdentityLease).one().epoch == 2
+
+
+def test_writer_epoch_change_during_read_aborts_before_mutation(engine, monkeypatch):
+    from app.services.round_identity import sync_round_snapshot
+
+    snapshot = sheet.fetch_round_snapshot("fixture:tab:2026", season_year=2026)
+    original = sheet.fetch_round_snapshot
+
+    def changed(*args, **kwargs):
+        with Session(engine) as other:
+            config = other.get(models.AppConfig, "round_identity")
+            config.value = {**config.value, "epoch": 3}
+            other.commit()
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(sheet, "fetch_round_snapshot", changed)
+    with Session(engine) as db:
+        assert sync_round_snapshot(db, snapshot)[0].status == "held"
+    with Session(engine) as fresh:
+        assert fresh.query(models.GameRecord).count() == 0
+        assert fresh.query(models.RoundObservation).count() == 0
+        assert fresh.query(models.RoundDelivery).count() == 0

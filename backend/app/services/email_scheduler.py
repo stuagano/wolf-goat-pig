@@ -187,55 +187,17 @@ class EmailScheduler:
             db.close()
 
     def _sync_legacy_rounds(self):
-        """Sync Google Sheets round history into the legacy_rounds DB table.
+        """Refresh through the same complete-snapshot boundary as admin callers.
 
-        Runs every 2 hours. Direct DB call — safe to run in background thread.
+        Runs every two hours; no destructive legacy-cache fallback.
         """
-        from datetime import UTC
-        from datetime import datetime as dt
+        from .spreadsheet_sync_service import refresh_round_history
 
-        from ..models import LegacyRound
-        from ..services.unified_data_service import get_unified_data_service
-
-        logger.info("Syncing legacy rounds from Google Sheets...")
         db = self._get_db()
         try:
-            svc = get_unified_data_service(db=db)
-            rounds = svc.get_all_rounds(include_database=False, use_sheet_cache=False)
-            if not rounds:
-                logger.warning("Legacy rounds sync: no rounds returned from sheets")
-                return
-
-            synced_at = dt.now(UTC).isoformat()
-            db.query(LegacyRound).filter(LegacyRound.source.in_(["primary_sheet", "writable_sheet"])).delete(
-                synchronize_session=False
-            )
-            for r in rounds:
-                db.add(
-                    LegacyRound(
-                        date=r.date_sortable,
-                        group=r.group,
-                        member=r.member,
-                        score=r.score,
-                        location=r.location or "",
-                        duration=r.duration,
-                        source=r.source,
-                        synced_at=synced_at,
-                    )
-                )
-            db.commit()
-            logger.info("Legacy rounds sync complete: %d rows written", len(rounds))
-
-            # Keep the canonical player roster in lockstep with the dropdown by
-            # reconciling it against the players seen in round history. Isolated
-            # so a roster-sync bug can never take down the load-bearing rounds
-            # sync (rounds are already committed above).
-            try:
-                from ..services.legacy_player_service import sync_roster_from_members
-
-                sync_roster_from_members({r.member for r in rounds}, db=db)
-            except Exception as roster_exc:
-                logger.warning("Roster reconcile skipped (rounds sync unaffected): %s", roster_exc)
+            health = refresh_round_history(db)
+            logger.info("Round snapshot refresh: status=%s held=%s", health["status"], health["held"])
+            return health
         except Exception as exc:
             logger.error("Legacy rounds sync failed: %s", exc)
             db.rollback()
