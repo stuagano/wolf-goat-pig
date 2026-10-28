@@ -94,9 +94,15 @@ class ResolutionDecision(BaseModel):
         return value
 
 
+class RecipientAttestation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    confirmed: Literal[True]
+
+
 class RecipientConfirmation(BaseModel):
     model_config = ConfigDict(extra="forbid")
     profile_id: int = Field(gt=0, strict=True)
+    attestation_id: str | None = None
     confirmed: Literal[True]
     reason: str = Field(min_length=1, max_length=1000)
 

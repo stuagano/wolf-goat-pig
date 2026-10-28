@@ -10,6 +10,7 @@ from app.database import get_db
 from app.routers.notifications import RoundRequeue, requeue_round_alerts, round_delivery_health
 from app.schemas.round_identity import (
     IngestOutcome,
+    RecipientAttestation,
     RecipientConfirmation,
     ResolutionDecision,
     RoundAliasResult,
@@ -90,6 +91,37 @@ def health(user=Depends(reviewer), db: Session = Depends(get_db)):
         ],
         "manifest_verifier_available": False,
     }
+
+
+@router.post("/recipient/attest")
+def attest(
+    request: RecipientAttestation,
+    user=Depends(get_current_user),
+    claims=Depends(get_current_auth0_user),
+    db: Session = Depends(get_db),
+):
+    from app.services.round_recipient import attest_recipient
+
+    try:
+        result = attest_recipient(db, user.id, claims)
+        db.commit()
+        return result
+    except Exception:
+        db.rollback()
+        raise
+
+
+@router.post("/recipient/attest/revoke")
+def revoke(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.services.round_recipient import revoke_attestation
+
+    try:
+        revoke_attestation(db, user.id)
+        db.commit()
+        return {"revoked": True}
+    except Exception:
+        db.rollback()
+        raise
 
 
 @router.put("/recipient")
@@ -188,7 +220,15 @@ def issue_detail(issue_id: str, user=Depends(reviewer), db: Session = Depends(ge
     }
 
 
-@router.post("/issues/{issue_id}/resolve", response_model=IngestOutcome)
+@router.post(
+    "/issues/{issue_id}/resolve",
+    response_model=IngestOutcome,
+    responses={
+        202: {"model": IngestOutcome, "description": "Accepted decision; outstanding evidence held"},
+        404: {"description": "Issue or target unavailable"},
+        409: {"description": "Stale revision or paused writer fence"},
+    },
+)
 def resolve(
     issue_id: str,
     decision: ResolutionDecision,
@@ -198,6 +238,9 @@ def resolve(
 ):
     try:
         writer_mode(db)  # Acquires the shared fence; review cannot bypass pause.
+        # Authorization is revalidated under that lock from refreshed rows: a
+        # revoked confirmation/linkage before the lock must not still resolve.
+        require_reviewer(db, user)
         outcome = resolve_issue(db, issue_id, decision, actor_profile_id=user.id)
         db.commit()
         if outcome.status == "held":

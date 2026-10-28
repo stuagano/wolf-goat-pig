@@ -45,12 +45,12 @@ def confirmed_recipient(db):
     claim. A changed subject/email or duplicate subject invalidates confirmation.
     No email address or credential is stored in delivery diagnostics.
     """
-    config = read_round_identity_config(db)
-    profile = db.get(models.PlayerProfile, config.reviewer_profile_id) if config.reviewer_profile_id else None
+    from app.services.round_recipient import fresh_config, fresh_profile, valid_attestation
+
+    row, config = fresh_config(db)
+    profile = fresh_profile(db, config.reviewer_profile_id) if config.reviewer_profile_id else None
     actor = (
-        db.get(models.PlayerProfile, config.routing_confirmed_by_profile_id)
-        if config.routing_confirmed_by_profile_id
-        else None
+        fresh_profile(db, config.routing_confirmed_by_profile_id) if config.routing_confirmed_by_profile_id else None
     )
     evidence = config.routing_linkage_evidence
     try:
@@ -78,8 +78,14 @@ def confirmed_recipient(db):
         and evidence.get("email_sha256") == sha256(profile.email.strip().lower().encode()).hexdigest()
     ):
         return None
+    proof_id = (row.value or {}).get("routing_attestation_id") if row else None
+    if not valid_attestation(db, proof_id, profile):
+        return None
     linked = (
-        db.query(models.PlayerProfile).filter(models.PlayerProfile.preferences["auth0_id"].as_string() == subject).all()
+        db.query(models.PlayerProfile)
+        .filter(models.PlayerProfile.preferences["auth0_id"].as_string() == subject)
+        .populate_existing()
+        .all()
     )
     return profile if len(linked) == 1 and linked[0].id == profile.id else None
 

@@ -1,7 +1,6 @@
 """Task 6 review regressions; real local transactions, mocked transports."""
 
 from concurrent.futures import ThreadPoolExecutor
-from hashlib import sha256
 from threading import Event
 
 import pytest
@@ -14,7 +13,7 @@ from app.database import get_db
 from app.routers import notifications
 from app.services import round_delivery as delivery
 from app.services.auth_service import get_current_user
-from tests.unit.services.test_round_delivery import enqueue, harness, make_due, read
+from tests.unit.services.test_round_delivery import configure_recipient, enqueue, harness, make_due, read
 
 
 def route(factory, recipient):
@@ -26,17 +25,7 @@ def route(factory, recipient):
                 )
             )
             db.flush()
-        profile = db.get(models.PlayerProfile, recipient)
-        config = dict(db.get(models.AppConfig, "round_identity").value)
-        config.update(
-            reviewer_profile_id=recipient,
-            routing_linkage_evidence={
-                "auth0_id": profile.preferences["auth0_id"],
-                "email_verified": True,
-                "email_sha256": sha256(profile.email.encode()).hexdigest(),
-            },
-        )
-        db.get(models.AppConfig, "round_identity").value = config
+        configure_recipient(db, recipient)
         db.commit()
 
 

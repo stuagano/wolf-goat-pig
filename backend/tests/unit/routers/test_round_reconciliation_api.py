@@ -256,23 +256,23 @@ def test_requeue_transaction_and_confirmed_reviewer(round_api):
     with sessions() as db:
         assert db.query(models.RoundResolution).one().action == "routing_requeue"
         assert db.query(models.RoundDelivery).filter_by(recipient_profile_id=8, status="pending").count() == 2
-        # Synthetic setup exercises a non-admin confirmed reviewer's permission.
-        from hashlib import sha256
-
-        from app.utils.time import utc_now
-
-        config = db.get(models.AppConfig, "round_identity")
-        config.value = {
-            **config.value,
-            "reviewer_profile_id": 7,
-            "routing_confirmed_at": utc_now().isoformat(),
-            "routing_linkage_evidence": {
-                "auth0_id": "auth0|review",
-                "email_verified": True,
-                "email_sha256": sha256(b"review@example.invalid").hexdigest(),
+    # Exercise the real self-attestation -> explicit other-admin selection path.
+    login(app, sessions, 7)
+    proof = client.post("/round-reconciliation/recipient/attest", json={"confirmed": True})
+    assert proof.status_code == 200
+    login(app, sessions)
+    assert (
+        client.put(
+            "/round-reconciliation/recipient",
+            json={
+                "profile_id": 7,
+                "attestation_id": proof.json()["attestation_id"],
+                "confirmed": True,
+                "reason": "Synthetic explicit selection",
             },
-        }
-        db.commit()
+        ).status_code
+        == 200
+    )
     login(app, sessions, 7)
     assert client.get("/round-reconciliation/issues", params={"limit": 1}).json()["total"] == 2
     assert client.get(f"/round-reconciliation/issues/{issue}").status_code == 200

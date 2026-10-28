@@ -1,7 +1,5 @@
 """Safe HTTP projections and routing confirmation on existing round records."""
 
-from hashlib import sha256
-
 from fastapi import HTTPException
 
 from app import models
@@ -13,8 +11,11 @@ from app.utils.time import utc_now
 
 
 def require_reviewer(db, actor):
+    from app.services.round_recipient import fresh_profile
+
+    actor = fresh_profile(db, actor.id)
     recipient = confirmed_recipient(db)
-    if not actor.is_active or not (is_admin_profile(actor) or (recipient and recipient.id == actor.id)):
+    if not actor or not actor.is_active or not (is_admin_profile(actor) or (recipient and recipient.id == actor.id)):
         raise HTTPException(403, "Active confirmed reviewer or administrator required")
     return actor
 
@@ -27,6 +28,21 @@ def public_round(db, game_id):
     if not game or not record:
         raise HTTPException(404, "Round unavailable")
     return game, record
+
+
+def detail_agrees(record, rows, history):
+    if record.detail_coverage != "per_hole_complete" or (record.game_settings or {}).get("detail_discrepancies"):
+        return False
+    slots = {row.participant_id for row in rows}
+    if not slots or None in slots or len(history) != 18 or {h.get("hole") for h in history} != set(range(1, 19)):
+        return False
+    if any(set(h.get("points_delta") or {}) != slots for h in history):
+        return False
+    return all(
+        row.total_earnings is not None
+        and abs(sum(h["points_delta"][row.participant_id] for h in history) - row.total_earnings) <= 1e-9
+        for row in rows
+    )
 
 
 def round_summary(db, game_id):
@@ -67,7 +83,7 @@ def round_summary(db, game_id):
             for slot, values in (record.game_settings or {}).get("detail_discrepancies", {}).items()
             if slot in {row.participant_id for row in rows}
         },
-        "detail_reconciled": bool(holes) and not (record.game_settings or {}).get("detail_discrepancies"),
+        "detail_reconciled": detail_agrees(record, rows, history),
         "proposed_detail": {
             "label": "proposed",
             "available_to_reviewer": db.query(models.RoundIssue)
@@ -86,32 +102,23 @@ def round_summary(db, game_id):
 
 
 def confirm_routing(db, request, actor, claims):
-    """Only server-verified, subject-matched claims can establish linkage.
+    """Explicit admin selection of a current, trusted self-attestation."""
+    from app.services.round_recipient import attest_recipient, fresh_profile, valid_attestation
 
-    Other profiles cannot be verified from an admin's token. Until an independent
-    trusted linkage collector exists, they must not be configured by assertion.
-    Caller owns transaction; selection alone never requeues or sends anything.
-    """
     acquire_reconciliation_lock(db)
-    row = db.query(models.AppConfig).filter_by(name="round_identity").with_for_update().one_or_none()
-    profile = db.get(models.PlayerProfile, request.profile_id)
-    subject = (profile.preferences or {}).get("auth0_id") if profile else None
-    if not (
-        profile
-        and profile.is_active
-        and not profile.is_ai
-        and profile.email
-        and subject
-        and claims.get("sub") == subject
-        and claims.get("email_verified") is True
-        and (claims.get("email") or "").strip().lower() == profile.email.strip().lower()
-    ):
-        raise HTTPException(422, "Recipient requires active verified account linkage; caller claims must match")
-    linked = (
-        db.query(models.PlayerProfile).filter(models.PlayerProfile.preferences["auth0_id"].as_string() == subject).all()
+    actor = fresh_profile(db, actor.id)
+    if not actor or not actor.is_active or not is_admin_profile(actor):
+        raise HTTPException(403, "Active administrator required")
+    row = (
+        db.query(models.AppConfig).filter_by(name="round_identity").populate_existing().with_for_update().one_or_none()
     )
-    if len(linked) != 1:
-        raise HTTPException(422, "Recipient account linkage is ambiguous")
+    profile = fresh_profile(db, request.profile_id)
+    proof_id = request.attestation_id
+    if not proof_id and actor.id == request.profile_id:
+        proof_id = attest_recipient(db, actor.id, claims)["attestation_id"]
+    evidence = valid_attestation(db, proof_id, profile, for_selection=True) if profile else None
+    if not evidence:
+        raise HTTPException(422, "Recipient requires a current matching self-attestation")
     old = dict(row.value or {}) if row else {}
     config = read_round_identity_config(db)
     stamp = utc_now().isoformat()
@@ -123,6 +130,7 @@ def confirm_routing(db, request, actor, claims):
             "profile_id": profile.id,
             "reason": request.reason,
             "confirmed_at": stamp,
+            "attestation_id": proof_id,
         }
     )
     value = {
@@ -131,11 +139,8 @@ def confirm_routing(db, request, actor, claims):
         "routing_confirmed": True,
         "routing_confirmed_by_profile_id": actor.id,
         "routing_confirmed_at": stamp,
-        "routing_linkage_evidence": {
-            "auth0_id": subject,
-            "email_verified": True,
-            "email_sha256": sha256(profile.email.strip().lower().encode()).hexdigest(),
-        },
+        "routing_linkage_evidence": evidence,
+        "routing_attestation_id": proof_id,
         "routing_audit": audit,
     }
     if row:

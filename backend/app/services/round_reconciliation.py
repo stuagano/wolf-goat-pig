@@ -9,8 +9,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 
 from app import models
-from app.schemas.round_identity import IngestOutcome, RoundDraft, SourceRef, read_round_identity_config
-from app.utils.admin_auth import is_admin_profile
+from app.schemas.round_identity import IngestOutcome, RoundDraft, SourceRef
 from app.utils.time import utc_now
 
 from .completed_game_service import persist_final_results
@@ -306,11 +305,12 @@ def observe_round(
 
 def resolve_issue(db, issue_id, decision, *, actor_profile_id):
     acquire_reconciliation_lock(db)
+    from app.services.round_review import require_reviewer
+
     actor = db.query(models.PlayerProfile).filter_by(id=actor_profile_id).populate_existing().one_or_none()
-    config = read_round_identity_config(db)
-    if not actor or not actor.is_active or not (is_admin_profile(actor) or config.reviewer_profile_id == actor.id):
-        raise HTTPException(403, "Active designated reviewer or administrator required")
-    acquire_reconciliation_lock(db)
+    if actor is None:
+        raise HTTPException(403, "Active confirmed reviewer or administrator required")
+    require_reviewer(db, actor)
     issue = db.query(models.RoundIssue).filter_by(id=issue_id).populate_existing().one_or_none()
     if issue is None:
         raise HTTPException(404, "Issue not found")

@@ -3811,9 +3811,35 @@
         "title": "PublicPlayerProfileResponse",
         "type": "object"
       },
+      "RecipientAttestation": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmed": {
+            "const": true,
+            "title": "Confirmed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "confirmed"
+        ],
+        "title": "RecipientAttestation",
+        "type": "object"
+      },
       "RecipientConfirmation": {
         "additionalProperties": false,
         "properties": {
+          "attestation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attestation Id"
+          },
           "confirmed": {
             "const": true,
             "title": "Confirmed",
@@ -16242,6 +16268,22 @@
             },
             "description": "Successful Response"
           },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestOutcome"
+                }
+              }
+            },
+            "description": "Accepted decision; outstanding evidence held"
+          },
+          "404": {
+            "description": "Issue or target unavailable"
+          },
+          "409": {
+            "description": "Stale revision or paused writer fence"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -16303,6 +16345,74 @@
           }
         ],
         "summary": "Recipient",
+        "tags": [
+          "round-reconciliation"
+        ]
+      }
+    },
+    "/round-reconciliation/recipient/attest": {
+      "post": {
+        "operationId": "attest_round_reconciliation_recipient_attest_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipientAttestation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Attest",
+        "tags": [
+          "round-reconciliation"
+        ]
+      }
+    },
+    "/round-reconciliation/recipient/attest/revoke": {
+      "post": {
+        "operationId": "revoke_round_reconciliation_recipient_attest_revoke_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revoke",
         "tags": [
           "round-reconciliation"
         ]

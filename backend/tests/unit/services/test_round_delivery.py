@@ -2,7 +2,6 @@
 
 import os
 from concurrent.futures import ThreadPoolExecutor
-from hashlib import sha256
 from threading import Event
 from unittest.mock import Mock
 from uuid import uuid4
@@ -61,22 +60,7 @@ def harness(tmp_path, monkeypatch, request):
         )
         db.flush()
         db.add(models.RoundIssue(id="issue", source_id="source", kind="identity", fingerprint="fixture"))
-        db.add(
-            models.AppConfig(
-                name="round_identity",
-                value={
-                    "reviewer_profile_id": 7,
-                    "routing_confirmed": True,
-                    "routing_confirmed_by_profile_id": 8,
-                    "routing_confirmed_at": utc_now().isoformat(),
-                    "routing_linkage_evidence": {
-                        "auth0_id": "auth0|fixture",
-                        "email_verified": True,
-                        "email_sha256": sha256(b"review@example.invalid").hexdigest(),
-                    },
-                },
-            )
-        )
+        configure_recipient(db, 7)
         db.commit()
     # Prevent any application lifespan scheduler from calling real providers.
     monkeypatch.setenv("RUN_INPROCESS_SCHEDULERS", "false")
@@ -86,6 +70,34 @@ def harness(tmp_path, monkeypatch, request):
         with admin.begin() as tx:
             tx.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
         admin.dispose()
+
+
+def configure_recipient(db, profile_id):
+    from app.schemas.round_identity import RecipientConfirmation
+    from app.services.round_recipient import attest_recipient
+    from app.services.round_review import confirm_routing
+
+    profile = db.get(models.PlayerProfile, profile_id)
+    proof = attest_recipient(
+        db,
+        profile_id,
+        {
+            "sub": profile.preferences["auth0_id"],
+            "email": profile.email,
+            "email_verified": True,
+        },
+    )
+    confirm_routing(
+        db,
+        RecipientConfirmation(
+            profile_id=profile_id,
+            attestation_id=proof["attestation_id"],
+            confirmed=True,
+            reason="Synthetic test selection",
+        ),
+        db.get(models.PlayerProfile, 8),
+        {},
+    )
 
 
 def enqueue(factory):
@@ -226,16 +238,8 @@ def test_recipient_change_requires_explicit_audited_requeue(harness):
                 preferences={"auth0_id": "auth0|new"},
             )
         )
-        config = dict(db.get(models.AppConfig, "round_identity").value)
-        config.update(
-            reviewer_profile_id=9,
-            routing_linkage_evidence={
-                "auth0_id": "auth0|new",
-                "email_verified": True,
-                "email_sha256": sha256(b"new@example.invalid").hexdigest(),
-            },
-        )
-        db.get(models.AppConfig, "round_identity").value = config
+        db.flush()
+        configure_recipient(db, 9)
         db.commit()
     delivery.dispatch_round_deliveries()
     transport.send_round_conflict_notification.assert_not_called()

@@ -4577,6 +4577,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/round-reconciliation/recipient/attest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Attest */
+        post: operations["attest_round_reconciliation_recipient_attest_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/round-reconciliation/recipient/attest/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke */
+        post: operations["revoke_round_reconciliation_recipient_attest_revoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/round-reconciliation/requeue": {
         parameters: {
             query?: never;
@@ -6866,8 +6900,18 @@ export interface components {
             /** Venmo Handle */
             venmo_handle?: string | null;
         };
+        /** RecipientAttestation */
+        RecipientAttestation: {
+            /**
+             * Confirmed
+             * @constant
+             */
+            confirmed: true;
+        };
         /** RecipientConfirmation */
         RecipientConfirmation: {
+            /** Attestation Id */
+            attestation_id?: string | null;
             /**
              * Confirmed
              * @constant
@@ -14706,6 +14750,29 @@ export interface operations {
                     "application/json": components["schemas"]["IngestOutcome"];
                 };
             };
+            /** @description Accepted decision; outstanding evidence held */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngestOutcome"];
+                };
+            };
+            /** @description Issue or target unavailable */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Stale revision or paused writer fence */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14746,6 +14813,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    attest_round_reconciliation_recipient_attest_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecipientAttestation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_round_reconciliation_recipient_attest_revoke_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };
