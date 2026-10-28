@@ -165,6 +165,66 @@ def test_invalid_detail_is_rejected_before_projection(identity_db, coverage, his
     assert identity_db.query(models.GameRecord).count() == 0
 
 
+@pytest.mark.parametrize("coverage", ["partial", "per_hole_complete"])
+def test_detail_cannot_omit_an_active_slot_even_if_draft_roster_omits_it(identity_db, coverage):
+    row = game(identity_db)
+    persist(identity_db, row, draft())  # guest-b has unknown total but is active.
+    identity_db.commit()
+    narrow = RoundDraft(
+        players=[{"participant_id": "guest-a", "name": "A", "quarters": 0}],
+        detail_coverage=coverage,
+        hole_history=[
+            {"hole": h, "points_delta": {"guest-a": 1}} for h in range(1, 19 if coverage == "per_hole_complete" else 2)
+        ],
+    )
+    with pytest.raises(HTTPException, match="every roster player"):
+        persist(identity_db, row, narrow)
+    assert row.revision == 1 and not row.state.get("hole_history")
+    assert identity_db.query(models.GamePlayerResult).filter_by(participant_id="guest-b").one().total_earnings is None
+
+
+@pytest.mark.parametrize("operation", ["retract", "already_retracted", "restore"])
+def test_detail_roster_uses_explicit_retraction_and_restoration_not_observed_cells(identity_db, operation):
+    from app.services.completed_game_service import persist_final_results
+    from app.services.round_evidence import accepted_draft, patch
+
+    row = game(identity_db)
+    persist(identity_db, row, draft(detail_coverage="per_hole_complete", hole_history=detail()))
+    identity_db.commit()
+    original_b = identity_db.query(models.GamePlayerResult).filter_by(participant_id="guest-b").one()
+    original_id, original_history = original_b.id, deepcopy(original_b.hole_scores)
+    if operation != "retract":
+        persist(identity_db, row, draft(removed_participant_ids=["guest-b"]))
+        identity_db.commit()
+    value = patch(
+        accepted_draft(identity_db, row.game_id),
+        "",
+        "detail",
+        {
+            "coverage": "partial",
+            "holes": [{"hole": 1, "points_delta": {"guest-a": 3}}],
+        },
+    )
+    if operation == "retract":
+        value.removed_participant_ids = ["guest-b"]
+    if operation == "restore":
+        # Explicit restoration means the participant is required again.
+        with pytest.raises(HTTPException, match="every roster player"):
+            persist_final_results(identity_db, row, value, restore_participants=("guest-b",))
+        value.hole_history[0]["points_delta"]["guest-b"] = -3
+    persist_final_results(identity_db, row, value, restore_participants=("guest-b",) if operation == "restore" else ())
+    identity_db.commit()
+    result = identity_db.get(models.GamePlayerResult, original_id)
+    assert result.is_retracted == (operation != "restore")
+    assert row.state["hole_history"][0]["points_delta"] == {
+        "guest-a": 3,
+        "guest-b": -3 if operation == "restore" else -1,
+    }
+    if operation == "already_retracted":
+        assert result.hole_scores == original_history
+    assert row.state["hole_history"][1:] == detail()[1:]
+
+
 def test_detailed_entry_point_is_strict_and_never_commits(identity_db):
     row = game(identity_db)
     row.state = {"players": [{"id": "guest-a", "name": "A"}, {"id": "guest-b", "name": "B"}], "hole_history": detail()}

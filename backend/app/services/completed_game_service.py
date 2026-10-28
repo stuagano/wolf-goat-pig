@@ -149,11 +149,25 @@ def persist_final_results(
         raise HTTPException(status_code=400, detail="Round requires a nonblank roster")
     if draft.detail_coverage == "totals_only" and draft.hole_history:
         raise HTTPException(status_code=400, detail="Totals-only input cannot contain hole history")
+    record = db.query(models.GameRecord).filter_by(game_id=game.game_id).one_or_none()
+    rows = db.query(models.GamePlayerResult).filter_by(game_record_id=record.id).all() if record else []
     if draft.detail_coverage != "totals_only":
-        validate_round_scores(players, draft.hole_history, complete=draft.detail_coverage == "per_hole_complete")
+        # Historical participants remain in accepted_draft and stored results.
+        # New detail must cover exactly the effective ACTIVE roster, including
+        # active slots omitted from the draft (omission never retracts them).
+        # Only persisted retraction or explicit adjudicated operations change it;
+        # never infer the roster from the cells being validated.
+        inactive = ({r.participant_id for r in rows if r.is_retracted} - set(restore_participants)) | set(
+            draft.removed_participant_ids
+        )
+        required = (
+            {r.participant_id for r in rows if r.participant_id is not None} | {p["id"] for p in players}
+        ) - inactive
+        validate_round_scores(
+            [{"id": pid} for pid in required], draft.hole_history, complete=draft.detail_coverage == "per_hole_complete"
+        )
 
     now = utc_now().isoformat()
-    record = db.query(models.GameRecord).filter_by(game_id=game.game_id).one_or_none()
     is_new = record is None
     if is_new:
         record = models.GameRecord(game_id=game.game_id, created_at=game.created_at or now, completed_at=now)
