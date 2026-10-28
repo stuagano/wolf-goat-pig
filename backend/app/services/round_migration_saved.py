@@ -104,6 +104,27 @@ def original_history(record, results):
     return [history[h] for h in sorted(history)]
 
 
+def retained_history(history, state):
+    """Retain richer fields only from the original same-hole state evidence."""
+    old = (state or {}).get("hole_history") or []
+    if not old:
+        return history
+    if (
+        not isinstance(old, list)
+        or len(old) != len(history)
+        or any(not isinstance(h, dict) or type(h.get("hole")) is not int for h in old)
+        or {h["hole"] for h in old} != {h["hole"] for h in history}
+    ):
+        raise ValueError("Original detail requires explicit hold: state hole identities conflict")
+    result = []
+    for hole in history:
+        existing = next(h for h in old if h["hole"] == hole["hole"])
+        if any(existing.get(k) != v for k, v in hole.items()):
+            raise ValueError("Original detail requires explicit hold: state conflicts with result cells")
+        result.append(deepcopy(existing))
+    return result
+
+
 def apply_saved(db, item):
     decision = item["decision"]
     if decision["action"] != "publish_original":
@@ -112,6 +133,11 @@ def apply_saved(db, item):
     results = (
         db.query(models.GamePlayerResult).filter_by(game_record_id=record.id).order_by(models.GamePlayerResult.id).all()
     )
+    # The ordinary shared writer infers NULL totals from complete detail. That
+    # is a correction, not publication of original accepted facts. Refuse before
+    # slot/state mutation or any per-game checkpoint can commit.
+    if any(r.total_earnings is None for r in results):
+        raise ValueError("Original unknown total requires explicit reviewed hold; score inference is not approved")
     mapping = decision.get("result_slots", {})
     for result in results:
         if result.participant_id is None:
@@ -138,15 +164,7 @@ def apply_saved(db, item):
     # accepted_draft deliberately omits history for ordinary scalar corrections.
     # Repair cannot rely on missing state to carry original evidence forward.
     history = original_history(record, results)
-    old_history = (game.state or {}).get("hole_history") or []
-    if old_history and not history:
-        raise ValueError("Original detail requires explicit hold: state-only detail needs review")
-    if old_history and history and old_history != history:
-        # Existing richer gameplay is not replaced by a transposed sparse copy.
-        for hole in history:
-            existing = next((h for h in old_history if h.get("hole") == hole["hole"]), {})
-            if any(existing.get(k) != v for k, v in hole.items()):
-                raise ValueError("Original detail requires explicit hold: state conflicts with result cells")
+    history = retained_history(history, game.state)
     draft = draft.model_copy(
         update={
             "hole_history": history,
@@ -212,6 +230,21 @@ def verify_saved(db, manifest):
             if not row or any(getattr(row, key) != before[key] for key in before if key != "participant_id"):
                 errors.append("Original saved detail/result metadata changed")
         if item["decision"]["action"] != "publish_original":
+            if not record or any(primitive(getattr(record, key)) != value for key, value in before_record.items()):
+                errors.append("Held original record/eligibility changed")
+            if any(
+                not current.get(r["id"]) or current[r["id"]].participant_id != r["participant_id"] for r in original
+            ):
+                errors.append("Held original slot changed")
+            original_game = next(
+                (e["before"] for e in manifest["inventory"]["game_state"] if e["before"]["game_id"] == item["game_id"]),
+                None,
+            )
+            if (original_game is None and game is not None) or (
+                original_game is not None
+                and (not game or any(primitive(getattr(game, key)) != value for key, value in original_game.items()))
+            ):
+                errors.append("Held original accepted state changed")
             continue
         try:
             mapped = [
@@ -231,11 +264,47 @@ def verify_saved(db, manifest):
                 ):
                     errors.append("Original saved detail slot mapping changed")
             expected_history = original_history(SimpleNamespace(**before_record), mapped)
+            original_state = next(
+                (
+                    e["before"]["state"]
+                    for e in manifest["inventory"]["game_state"]
+                    if e["before"]["game_id"] == item["game_id"]
+                ),
+                {},
+            )
+            expected_history = retained_history(expected_history, original_state)
             actual_history = (game.state or {}).get("hole_history", []) if game else []
-            for hole in expected_history:
-                actual = next((h for h in actual_history if h.get("hole") == hole["hole"]), {})
-                if any(actual.get(k) != value for k, value in hole.items()):
-                    errors.append("Original saved detail missing from shared projection")
+            if (
+                not isinstance(actual_history, list)
+                or len(actual_history) != len(expected_history)
+                or any(not isinstance(h, dict) or type(h.get("hole")) is not int for h in actual_history)
+                or {h["hole"] for h in actual_history} != {h["hole"] for h in expected_history}
+                or any(
+                    next(h for h in actual_history if h["hole"] == expected["hole"]) != expected
+                    for expected in expected_history
+                )
+            ):
+                errors.append("Original saved detail identities/cardinality/fields changed")
+            expected_totals = {r.participant_id: r.total_earnings for r in mapped}
+            expected_eligible = bool(
+                item["decision"]["roster_complete"] and mapped and all(r.total_earnings is not None for r in mapped)
+            )
+            state = (game.state or {}) if game else {}
+            players = state.get("players") or []
+            if (
+                not record
+                or record.score_eligible != expected_eligible
+                or record.roster_complete != item["decision"]["roster_complete"]
+                or record.final_scores != expected_totals
+                or state.get("standings") != expected_totals
+                or state.get("game_status") != "completed"
+                or not game
+                or game.game_status != "completed"
+                or len(players) != len(mapped)
+                or {p.get("id") for p in players} != set(expected_totals)
+                or any(p.get("total_points") != expected_totals.get(p.get("id")) for p in players)
+            ):
+                errors.append("Original saved accepted state/eligibility changed")
             expected_coverage = (
                 "per_hole_complete" if len(expected_history) == 18 else "partial" if expected_history else "totals_only"
             )

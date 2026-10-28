@@ -74,7 +74,31 @@ def migration_pg(request):
 @pytest.mark.parametrize("variable", ["ROUND_MIGRATION_PG17_URL", "ROUND_MIGRATION_PG15_URL"])
 @pytest.mark.parametrize(
     "partial_canonical",
-    [False, True, "original_detail", "detail_missing", "detail_conflict", "detail_retracted", "detail_tamper"],
+    [
+        False,
+        True,
+        "original_detail",
+        "detail_missing",
+        "detail_conflict",
+        "detail_retracted",
+        "detail_tamper",
+        "unknown_single",
+        "unknown_mixed",
+    ]
+    + [
+        f"history_{kind}_{coverage}"
+        for kind in (
+            "added",
+            "duplicate",
+            "missing",
+            "replaced",
+            "malformed",
+            "invented_field",
+            "eligibility",
+            "standings",
+        )
+        for coverage in ("complete", "partial")
+    ],
 )
 def test_actual_postgres_cli_rehearsal(variable, migration_fixture, tmp_path, partial_canonical):
     from tests.unit.services.test_round_migration_cli import (
@@ -103,7 +127,24 @@ def test_actual_postgres_cli_rehearsal(variable, migration_fixture, tmp_path, pa
                     writer.add(model(**{a.key: getattr(row, a.key) for a in model.__mapper__.column_attrs}))
                 writer.flush()
             writer.commit()
-        if partial_canonical == "original_detail":
+        if isinstance(partial_canonical, str) and partial_canonical.startswith("unknown_"):
+            from tests.unit.services.test_round_saved_invariants import (
+                test_unknown_original_total_requires_hold_before_commit,
+            )
+
+            test_unknown_original_total_requires_hold_before_commit(
+                (engine, snapshot), tmp_path, partial_canonical == "unknown_mixed"
+            )
+        elif isinstance(partial_canonical, str) and partial_canonical.startswith("history_"):
+            from tests.unit.services.test_round_saved_invariants import (
+                test_exact_original_history_and_projection_reject_resealed_tamper,
+            )
+
+            kind, coverage = partial_canonical.removeprefix("history_").rsplit("_", 1)
+            test_exact_original_history_and_projection_reject_resealed_tamper(
+                (engine, snapshot), tmp_path, coverage == "partial", kind
+            )
+        elif partial_canonical == "original_detail":
             from tests.unit.services.test_round_saved_detail import prove_detail
 
             prove_detail(engine, snapshot, tmp_path)
