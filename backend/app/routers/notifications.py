@@ -30,16 +30,44 @@ def get_notifications(
     types: str | None = None,
     current_user: PlayerProfile = Depends(get_current_user),
     db: Session = Depends(get_db),
+    include_delivery_health: bool = False,
 ):
+    from sqlalchemy import and_, or_
+
+    from ..models import RoundDelivery, RoundIssue
+
+    # Persistent health uses the existing recipient-scoped notification, not a
+    # new alert. Read state must not hide trouble on a still-outstanding issue.
+    troubled_issue_ids = (
+        db.query(RoundDelivery.issue_id)
+        .join(
+            RoundIssue,
+            RoundIssue.id == RoundDelivery.issue_id,
+        )
+        .filter(
+            RoundDelivery.recipient_profile_id == current_user.id,
+            RoundDelivery.channel == "email",
+            RoundDelivery.status.in_(["failed", "uncertain"]),
+            RoundIssue.status == "open",
+        )
+    )
+    persistent_health = and_(
+        Notification.notification_type == "round_conflict",
+        Notification.data["issue_id"].as_string().in_(troubled_issue_ids),
+    )
     query = db.query(Notification).filter(Notification.player_profile_id == current_user.id)
     if unread_only:
-        query = query.filter(Notification.is_read == False)
+        query = query.filter(
+            or_(Notification.is_read == False, persistent_health)
+            if include_delivery_health
+            else Notification.is_read == False
+        )
     if types:
         query = query.filter(Notification.notification_type.in_(types.split(",")))
+    if include_delivery_health:
+        query = query.order_by(persistent_health.desc())
     notifications = query.order_by(Notification.created_at.desc()).limit(limit).all()
     # Expose channel trouble on the existing item, never enqueue recursively.
-    from ..models import RoundDelivery
-
     issue_ids = [n.data.get("issue_id") for n in notifications if n.notification_type == "round_conflict" and n.data]
     trouble = {}
     if issue_ids:

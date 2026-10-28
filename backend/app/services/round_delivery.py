@@ -134,7 +134,9 @@ def requeue_round_deliveries(db, issue_ids, *, actor_profile_id, reason):
         for channel in ("email", "in_app"):
             existing = next((r for r in rows if r.channel == channel and r.recipient_profile_id == recipient.id), None)
             if existing:
-                if existing.status == "unconfigured":
+                # Replaced intents came only from unsent states. Never reset
+                # acceptance/uncertainty, or an exhausted attempt budget.
+                if existing.status in {"unconfigured", "replaced"} and existing.attempts < MAX_ATTEMPTS:
                     existing.status, existing.error = "pending", None
                     existing.lease_expires_at = None
                     count += 1
@@ -223,32 +225,27 @@ def _dispatch_one():
             return "failed"
         row.attempts += 1
         if row.channel == "in_app":
-            row_id, attempts = row.id, row.attempts
             try:
-                get_notification_service().send_notification(
-                    recipient.id,
-                    "round_conflict",
-                    "A round needs review",
-                    db,
-                    data={"path": path, "issue_id": issue.id},
-                    delivery_key=row.delivery_key,
-                    commit=False,
-                )
+                # The row lock predates this savepoint. A failed notification
+                # rolls back only its insert, never releases the owning lock.
+                # Attempt accounting and backoff commit under that same lock.
+                with db.begin_nested():
+                    get_notification_service().send_notification(
+                        recipient.id,
+                        "round_conflict",
+                        "A round needs review",
+                        db,
+                        data={"path": path, "issue_id": issue.id},
+                        delivery_key=row.delivery_key,
+                        commit=False,
+                    )
                 row.status, row.delivered_at = "delivered", now
                 row.error = None
-                db.commit()
-                return "delivered"
             except Exception:
-                db.rollback()
-                # Atomic rollback includes the notification flush and marker.
-                row = db.query(models.RoundDelivery).filter_by(id=row_id).with_for_update().one()
-                if row.status != "pending":
-                    return row.status
-                row.attempts = attempts
                 _retry(row, "notification_transaction_failed")
-                status = row.status
-                db.commit()
-                return status
+            status = row.status
+            db.commit()
+            return status
         if row.channel != "email":
             row.status, row.error = "failed", "unsupported_channel"
             db.commit()

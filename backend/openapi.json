@@ -12931,6 +12931,16 @@
               ],
               "title": "Types"
             }
+          },
+          {
+            "in": "query",
+            "name": "include_delivery_health",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Delivery Health",
+              "type": "boolean"
+            }
           }
         ],
         "responses": {

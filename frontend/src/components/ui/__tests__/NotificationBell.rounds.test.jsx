@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import NotificationBell from '../NotificationBell';
 
@@ -34,6 +34,47 @@ describe('round conflict bell', () => {
     expect(fetch.mock.calls[0][0]).toContain('round_conflict');
     expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/notifications/12/read'), expect.objectContaining({ method: 'POST' }));
     expect(navigate).toHaveBeenCalledWith('/game/fixture');
+  });
+
+  it('polls later email failure after read and keeps it visible after dismissing again', async () => {
+    let isRead = false;
+    let failed = false;
+    let poll;
+    const originalInterval = globalThis.setInterval;
+    vi.spyOn(globalThis, 'setInterval').mockImplementation((callback, delay, ...args) => {
+      if (delay === 60_000) { poll = callback; return 123; }
+      return originalInterval(callback, delay, ...args);
+    });
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url, options) => {
+      if (options?.method) {
+        isRead = true;
+        return { ok: true, json: async () => ({ ok: true }) };
+      }
+      const requestedHealth = url.includes('include_delivery_health=true');
+      return { ok: true, json: async () => (!isRead || (requestedHealth && failed)) ? [{
+        id: 12, notification_type: 'round_conflict', message: 'Round needs review', is_read: isRead,
+        data: { path: '/game/fixture', delivery_health: failed ? { email: 'failed' } : {} },
+      }] : [] };
+    }));
+    try {
+      render(<NotificationBell />);
+      fireEvent.click(await screen.findByRole('button', { name: '1 unread notification' }));
+      fireEvent.click(screen.getByText('Round needs review'));
+      await waitFor(() => expect(navigate).toHaveBeenCalledWith('/game/fixture'));
+      expect(screen.queryByText('🔔')).not.toBeInTheDocument();
+      failed = true;
+      await act(async () => { await poll(); });
+      fireEvent.click(await screen.findByRole('button', { name: '1 unread notification' }));
+      expect(screen.getByText('· Email delivery needs attention')).toBeInTheDocument();
+      fireEvent.click(screen.getByText('Mark all read'));
+      await act(async () => {});
+      expect(screen.getByText('· Email delivery needs attention')).toBeInTheDocument();
+      fireEvent.click(screen.getByText('Round needs review'));
+      await act(async () => {});
+      expect(screen.getByRole('button', { name: '1 unread notification' })).toBeInTheDocument();
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 
   it('opens the reconciliation inbox for an unbound issue', async () => {

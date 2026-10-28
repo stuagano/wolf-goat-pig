@@ -21,6 +21,9 @@ const safePath = (path) => {
   }
 };
 
+const hasDeliveryTrouble = (n) => n.notification_type === 'round_conflict' &&
+  Object.values(n.data?.delivery_health || {}).some(status => status === 'failed' || status === 'uncertain');
+
 const relativeTime = (isoStr) => {
   if (!isoStr) return '';
   const diff = Date.now() - new Date(isoStr).getTime();
@@ -44,7 +47,7 @@ const NotificationBell = () => {
     if (!isAuthenticated) return;
     try {
       const token = await getToken();
-      const res = await fetch(`${API_URL}/notifications?unread_only=true&limit=10&types=${[...BELL_TYPES].join(',')}`, {
+      const res = await fetch(`${API_URL}/notifications?unread_only=true&include_delivery_health=true&limit=10&types=${[...BELL_TYPES].join(',')}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -81,7 +84,7 @@ const NotificationBell = () => {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
-      setNotifications([]);
+      setNotifications(prev => prev.filter(hasDeliveryTrouble));
     } catch {
       // silent
     }
@@ -97,7 +100,7 @@ const NotificationBell = () => {
     } catch {
       // silent
     }
-    setNotifications(prev => prev.filter(x => x.id !== n.id));
+    setNotifications(prev => prev.filter(x => x.id !== n.id || hasDeliveryTrouble(x)));
     setOpen(false);
     const isRound = n.notification_type === 'round_comment' || n.notification_type === 'round_conflict';
     navigate((isRound && safePath(n.data?.path)) || '/account');
@@ -207,7 +210,7 @@ const NotificationBell = () => {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, color: '#1f2937', lineHeight: 1.4 }}>
                       {n.message}
-                      {Object.values(n.data?.delivery_health || {}).some(status => status === 'failed' || status === 'uncertain') && (
+                      {hasDeliveryTrouble(n) && (
                         <span> · Email delivery needs attention</span>
                       )}
                     </div>

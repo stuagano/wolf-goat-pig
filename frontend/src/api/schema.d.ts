@@ -12437,6 +12437,7 @@ export interface operations {
                 unread_only?: boolean;
                 limit?: number;
                 types?: string | null;
+                include_delivery_health?: boolean;
             };
             header?: never;
             path?: never;
