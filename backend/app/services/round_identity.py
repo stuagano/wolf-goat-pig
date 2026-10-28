@@ -188,7 +188,13 @@ def sync_round_snapshot(db, snapshot):
                 heartbeat(engine, lease)
                 # Sheets has no atomic revision precondition: content and grid
                 # are read again under lease outside the game transaction.
-                current = sheet.fetch_round_snapshot(snapshot.scope, season_year=snapshot.season_year)
+                from .round_sheet_contract import approved_contract
+
+                with Session(engine) as contract_db:
+                    contract = approved_contract(contract_db, snapshot.scope)
+                current = sheet.fetch_round_snapshot(
+                    snapshot.scope, season_year=snapshot.season_year, **({"contract": contract} if contract else {})
+                )
                 if (
                     not current.complete
                     or current.errors
@@ -232,6 +238,28 @@ def sync_round_snapshot(db, snapshot):
                         trusted = approved or (
                             bool(item.raw_payload.get("snapshot_mapping")) and item.continuity_verified
                         )
+                        if contract and row:
+                            from .round_evidence import fingerprint
+
+                            # Only the exact verified outbound snapshot/payload is an
+                            # authorized echo. A valid operation marker alone is not.
+                            echoes = (
+                                tx.query(models.PendingSheetSync)
+                                .filter_by(
+                                    game_id=row.game_id,
+                                    source_scope=snapshot.scope,
+                                    source_round_token=item.source.round_token,
+                                    status="done",
+                                )
+                                .all()
+                            )
+                            trusted = trusted or any(
+                                job.verified_readback
+                                and job.verified_readback.get("source_version") == snapshot.source_version
+                                and job.verified_readback.get("round_fingerprint")
+                                == fingerprint(item.raw_payload.get("rows"))
+                                for job in echoes
+                            )
                         if snapshot.scope.startswith("fixture:") and row is None:
                             trusted = item.continuity_verified
                         if row:

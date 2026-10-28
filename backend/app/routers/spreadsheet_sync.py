@@ -7,7 +7,6 @@ These endpoints allow admins to:
 """
 
 import logging
-from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -24,7 +23,6 @@ from ..services.spreadsheet_sync_service import (
     get_reconciliation_service,
 )
 from ..utils.admin_auth import require_admin
-from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -43,13 +41,16 @@ class PlayerScoreInput(BaseModel):
 
 
 class SyncRoundRequest(BaseModel):
-    """Request to sync a completed round to the spreadsheet."""
+    """Queue accepted UUID results, never client date/name guesses."""
 
-    date: str = Field(..., description="Date in YYYY-MM-DD format")
-    group: str = Field("A", description="Group letter (A, B, C, D)")
-    location: str = Field("Wing Point", description="Course name")
-    duration: str | None = Field(None, description="Duration in HH:MM:SS format")
-    player_scores: list[PlayerScoreInput] = Field(..., description="List of player scores")
+    game_id: str
+    source_scope: str = Field(min_length=1)
+    source_round_token: str = Field(min_length=1)
+    operation_key: str = Field(min_length=1)
+    expected_revision: int = Field(ge=0, strict=True)
+    expected_epoch: int = Field(ge=0, strict=True)
+    expected_source_version: str = Field(min_length=1)
+    action: str = Field(pattern="^(insert|update)$")
 
 
 class LeaderboardEntry(BaseModel):
@@ -275,50 +276,16 @@ def get_player_history(member_name: str, db: Session = Depends(get_db)) -> Any:
 
 @router.post("/sync-round", status_code=202)
 def sync_round_to_spreadsheet(request: SyncRoundRequest, db: Session = Depends(get_db)) -> Any:
-    """Enqueue a completed round for background sync to Google Sheets.
+    """Enqueue a revision-bound accepted UUID; Gate B must already be approved."""
+    from ..services.round_sheet_delivery import enqueue_sheet_sync
 
-    Returns 202 immediately. The background processor runs every 5 minutes,
-    deduplicates against existing legacy_rounds, and writes new/updated rounds
-    to the sheet.
-
-    Dedup logic:
-      - Same date + group + same player set + same scores → skipped as duplicate
-      - Same date + group + same player set but different scores → written as update
-      - New player set for that date/group → written as new round
-
-    NOTE: player_scores should be summed totals (not per-hole). The app tracks
-    per-hole detail internally; the legacy sheet only stores round totals.
-    """
     try:
-        datetime.strptime(request.date, "%Y-%m-%d")
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
-
-    total = sum(p.score for p in request.player_scores)
-    if total != 0:
-        logger.warning(f"Scores for {request.date} group={request.group} sum to {total}, not 0")
-
-    job = PendingSheetSync(
-        date=request.date,
-        group=request.group,
-        location=request.location,
-        duration=request.duration,
-        player_scores={p.name: p.score for p in request.player_scores},
-        status="pending",
-        created_at=utc_now().isoformat(),
-    )
-    db.add(job)
-    db.commit()
-    db.refresh(job)
-
-    return {
-        "status": "queued",
-        "job_id": job.id,
-        "message": "Round queued for background sync. Check /admin/spreadsheet/sync-status for progress.",
-        "date": request.date,
-        "group": request.group,
-        "players": [p.name for p in request.player_scores],
-    }
+        job = enqueue_sheet_sync(db, **request.model_dump())
+        db.commit()
+        return {"status": "queued", "job_id": job.id, "game_id": job.game_id}
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.get("/sync-status")

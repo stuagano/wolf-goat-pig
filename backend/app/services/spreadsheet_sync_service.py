@@ -58,7 +58,11 @@ def refresh_round_history(db) -> dict[str, Any]:
             "rows_synced": 0,
         }
     scope = f"{PRIMARY_SHEET_ID}:{PRIMARY_SHEET_TAB_GID}:{config.season if config.season is not None else 'unknown'}"
-    snapshot = fetch_round_snapshot(scope, season_year=config.season)
+    from .round_sheet_contract import approved_contract
+
+    contract = approved_contract(db, scope)
+    db.rollback()
+    snapshot = fetch_round_snapshot(scope, season_year=config.season, **({"contract": contract} if contract else {}))
     outcomes = sync_round_snapshot(db, snapshot)
     held = sum(o.status == "held" for o in outcomes)
     accepted = sum(o.status == "accepted" for o in outcomes)
@@ -267,13 +271,15 @@ def _get_access_token() -> str | None:
         return None
 
 
-def _sheets_api_get(sheet_id: str, range_spec: str) -> dict[str, Any] | None:
+def _sheets_api_get(sheet_id: str, range_spec: str, *, identity: bool = False) -> dict[str, Any] | None:
     """Make a GET request to the Sheets API."""
     token = _get_access_token()
     if not token:
         return None
 
-    url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{range_spec}"
+    url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{urllib.parse.quote(range_spec, safe='')}"
+    if identity:
+        url += "?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING"
 
     req = urllib.request.Request(
         url,
@@ -292,20 +298,33 @@ def _sheets_api_get(sheet_id: str, range_spec: str) -> dict[str, Any] | None:
         return None
 
 
-def _sheets_api_append(sheet_id: str, range_spec: str, values: list[list[Any]]) -> bool:
-    """Append rows to a sheet."""
+def _sheets_identity_write(sheet_id, range_spec, values, *, updates=None):
+    """One RAW request; never retries an ambiguous network response."""
     token = _get_access_token()
     if not token:
-        return False
+        raise ValueError("Sheets credentials unavailable")
+    if updates is None:
+        endpoint = (
+            f"values/{urllib.parse.quote(range_spec, safe='')}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS"
+        )
+        body = {"values": values}
+    else:
+        endpoint = "values:batchUpdate"
+        title = range_spec.rsplit("!", 1)[0]
+        from .round_sheet_contract import column_name
 
-    url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{range_spec}:append"
-    url += "?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS"
-
-    data = json.dumps({"values": values}).encode("utf-8")
-
-    req = urllib.request.Request(
-        url,
-        data=data,
+        body = {
+            "valueInputOption": "RAW",
+            "data": [
+                {"range": f"{title}!{column_name(col + 1)}{index}", "values": [[value]]}
+                for index, row, old in updates
+                for col, value in enumerate(row)
+                if value != (old[col] if col < len(old) else "")
+            ],
+        }
+    request = urllib.request.Request(
+        f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/{endpoint}",
+        data=json.dumps(body).encode(),
         method="POST",
         headers={
             "Authorization": f"Bearer {token}",
@@ -313,15 +332,40 @@ def _sheets_api_append(sheet_id: str, range_spec: str, values: list[list[Any]]) 
             "Content-Type": "application/json",
         },
     )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        receipt = json.loads(response.read())
+    if receipt.get("spreadsheetId") != sheet_id:
+        raise ValueError("Unexpected Sheets receipt")
+    return receipt
 
-    try:
-        with urllib.request.urlopen(req, timeout=30) as response:
-            json.loads(response.read())
-            logger.info(f"Appended {len(values)} rows to {range_spec}")
-            return True
-    except Exception as e:
-        logger.error(f"Sheets API append failed: {e}")
-        return False
+
+def write_identity_round(job, contract, snapshot):
+    """Called only by the fenced queue processor; never a date/name append."""
+    from .round_sheet_contract import column_name
+    from .round_sheet_delivery import _rows
+
+    rows = _rows(job, contract, snapshot)
+    width = len(rows[0])
+    title = "'" + contract.tab_title.replace("'", "''") + "'"
+    range_ = f"{title}!A:{column_name(width)}"
+    updates = None
+    if job.dedup_action == "update":
+        # Positions are fetched under the shared source lease, never persisted as
+        # identity. Token/slot/complete snapshot was checked immediately before.
+        data = _sheets_api_get(
+            contract.scope.rsplit(":", 2)[0], f"{title}!A2:{column_name(width)}{snapshot.grid_rows}", identity=True
+        )
+        if not data or data.get("values") != snapshot.source_rows:
+            raise ValueError("Source moved before token update")
+        desired = {r[contract.participant_column - 1]: r for r in rows}
+        updates = [
+            (i + 2, desired[r[contract.participant_column - 1]], r)
+            for i, r in enumerate(data["values"])
+            if len(r) >= contract.round_column and r[contract.round_column - 1] == job.source_round_token
+        ]
+        if len(updates) != len(rows):
+            raise ValueError("Mapped source token missing")
+    return _sheets_identity_write(contract.scope.rsplit(":", 2)[0], range_, rows, updates=updates)
 
 
 class SpreadsheetSyncService:
@@ -433,29 +477,9 @@ class SpreadsheetSyncService:
         Returns:
             True if successful, False otherwise
         """
-        if not results:
-            return False
-
-        # Validate: scores should sum to 0
-        total = sum(r.score for r in results)
-        if total != 0:
-            logger.warning(f"Round scores sum to {total}, not 0. Adding anyway.")
-
-        # Convert to sheet rows
-        rows = []
-        for r in results:
-            rows.append(
-                [
-                    r.date,
-                    r.group,
-                    r.member,
-                    r.score,
-                    r.location,
-                    r.duration or "",
-                ]
-            )
-
-        return _sheets_api_append(self.sheet_id, "Details!A:F", rows)
+        # Unbound historical callers cannot bypass the UUID queue/Gate B.
+        # Keep the public helper available but never fall back to name append.
+        return False
 
     def format_date_for_sheet(self, dt: datetime) -> str:
         """Convert datetime to sheet format (DD-Mon)."""

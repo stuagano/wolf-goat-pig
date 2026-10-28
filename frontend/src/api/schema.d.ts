@@ -637,19 +637,7 @@ export interface paths {
         put?: never;
         /**
          * Sync Round To Spreadsheet
-         * @description Enqueue a completed round for background sync to Google Sheets.
-         *
-         *     Returns 202 immediately. The background processor runs every 5 minutes,
-         *     deduplicates against existing legacy_rounds, and writes new/updated rounds
-         *     to the sheet.
-         *
-         *     Dedup logic:
-         *       - Same date + group + same player set + same scores → skipped as duplicate
-         *       - Same date + group + same player set but different scores → written as update
-         *       - New player set for that date/group → written as new round
-         *
-         *     NOTE: player_scores should be summed totals (not per-hole). The app tracks
-         *     per-hole detail internally; the legacy sheet only stores round totals.
+         * @description Enqueue a revision-bound accepted UUID; Gate B must already be approved.
          */
         post: operations["sync_round_to_spreadsheet_admin_spreadsheet_sync_round_post"];
         delete?: never;
@@ -6657,22 +6645,6 @@ export interface components {
              */
             score: number;
         };
-        /**
-         * PlayerScoreInput
-         * @description Input for a single player's score.
-         */
-        PlayerScoreInput: {
-            /**
-             * Name
-             * @description Player name (must match spreadsheet names)
-             */
-            name: string;
-            /**
-             * Score
-             * @description Quarters won (positive) or lost (negative)
-             */
-            score: number;
-        };
         /** PlayerStatisticsResponse */
         PlayerStatisticsResponse: {
             /** Avg Earnings Per Hole */
@@ -7392,36 +7364,25 @@ export interface components {
         };
         /**
          * SyncRoundRequest
-         * @description Request to sync a completed round to the spreadsheet.
+         * @description Queue accepted UUID results, never client date/name guesses.
          */
         SyncRoundRequest: {
-            /**
-             * Date
-             * @description Date in YYYY-MM-DD format
-             */
-            date: string;
-            /**
-             * Duration
-             * @description Duration in HH:MM:SS format
-             */
-            duration?: string | null;
-            /**
-             * Group
-             * @description Group letter (A, B, C, D)
-             * @default A
-             */
-            group: string;
-            /**
-             * Location
-             * @description Course name
-             * @default Wing Point
-             */
-            location: string;
-            /**
-             * Player Scores
-             * @description List of player scores
-             */
-            player_scores: components["schemas"]["PlayerScoreInput"][];
+            /** Action */
+            action: string;
+            /** Expected Epoch */
+            expected_epoch: number;
+            /** Expected Revision */
+            expected_revision: number;
+            /** Expected Source Version */
+            expected_source_version: string;
+            /** Game Id */
+            game_id: string;
+            /** Operation Key */
+            operation_key: string;
+            /** Source Round Token */
+            source_round_token: string;
+            /** Source Scope */
+            source_scope: string;
         };
         /** TeamContentUpdate */
         TeamContentUpdate: {

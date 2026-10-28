@@ -57,6 +57,18 @@ ALTER TABLE pending_sheet_syncs ADD COLUMN IF NOT EXISTS source_round_token VARC
 ALTER TABLE pending_sheet_syncs ADD COLUMN IF NOT EXISTS source_scope VARCHAR;
 ALTER TABLE pending_sheet_syncs ADD COLUMN IF NOT EXISTS operation_key VARCHAR;
 ALTER TABLE pending_sheet_syncs ADD COLUMN IF NOT EXISTS expected_revision INTEGER;
+ALTER TABLE pending_sheet_syncs ADD COLUMN IF NOT EXISTS expected_epoch INTEGER;
+ALTER TABLE pending_sheet_syncs ADD COLUMN IF NOT EXISTS expected_source_version VARCHAR;
+ALTER TABLE pending_sheet_syncs ADD COLUMN IF NOT EXISTS payload_fingerprint VARCHAR;
+ALTER TABLE pending_sheet_syncs ADD COLUMN IF NOT EXISTS contract_fingerprint VARCHAR;
+ALTER TABLE pending_sheet_syncs ADD COLUMN IF NOT EXISTS payload JSON;
+ALTER TABLE pending_sheet_syncs ADD COLUMN IF NOT EXISTS lease_owner VARCHAR;
+ALTER TABLE pending_sheet_syncs ADD COLUMN IF NOT EXISTS lease_expires_at VARCHAR;
+ALTER TABLE pending_sheet_syncs ADD COLUMN IF NOT EXISTS claim_generation INTEGER;
+ALTER TABLE pending_sheet_syncs ADD COLUMN IF NOT EXISTS prewrite JSON;
+ALTER TABLE pending_sheet_syncs ADD COLUMN IF NOT EXISTS provider_receipt JSON;
+ALTER TABLE pending_sheet_syncs ADD COLUMN IF NOT EXISTS verified_readback JSON;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sheet_sync_operation ON pending_sheet_syncs(operation_key);
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS delivery_key VARCHAR;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_notifications_delivery_key ON notifications(delivery_key);
 -- Both new keys are nullable on old rows, so no legacy-data uniqueness assumption.

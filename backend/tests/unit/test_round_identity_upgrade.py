@@ -82,6 +82,22 @@ def test_old_delivery_sqlite_requires_explicit_offline_upgrade(local_engine):
         assert conn.execute(text("SELECT * FROM round_deliveries")).all() == [("preserve", 7, "old")]
 
 
+def test_sheet_queue_expansion_preserves_historical_unbound_job(local_engine):
+    with local_engine.begin() as conn:
+        conn.execute(text("CREATE TABLE pending_sheet_syncs (id INTEGER PRIMARY KEY, status VARCHAR)"))
+        conn.execute(text("INSERT INTO pending_sheet_syncs VALUES (17, 'processing')"))
+    database.expand_round_identity_schema(local_engine)
+    database.expand_round_identity_schema(local_engine)
+    with local_engine.connect() as conn:
+        assert conn.execute(
+            text("SELECT id, status, prewrite, lease_owner, expected_epoch FROM pending_sheet_syncs")
+        ).all() == [(17, "processing", None, None, None)]
+    assert any(
+        i["name"] == "uq_sheet_sync_operation" and i["unique"]
+        for i in inspect(local_engine).get_indexes("pending_sheet_syncs")
+    )
+
+
 def test_missing_status_view_is_skipped(local_engine):
     with local_engine.begin() as conn:
         conn.execute(text("CREATE TABLE legacy_rounds (id INTEGER PRIMARY KEY)"))

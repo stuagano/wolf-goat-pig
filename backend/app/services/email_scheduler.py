@@ -212,86 +212,12 @@ class EmailScheduler:
             db.close()
 
     def _process_pending_sheet_syncs(self):
-        """Drain the pending_sheet_syncs queue.
-
-        For each pending row:
-          1. Dedup against legacy_rounds (same date + group + player set)
-             - All players present AND all scores match → "duplicate", skip
-             - Players match but any score differs → "update", overwrite in sheet
-             - No matching round found → "new", append to sheet
-          2. Write to sheet if new/update
-          3. Mark row processed; trigger a legacy_rounds refresh on any writes.
-
-        The app records per-hole scores; the legacy sheet stores only round totals.
-        player_scores in the queue are expected to be the summed totals.
-        """
-        from datetime import UTC
-        from datetime import datetime as dt
-
-        from ..models import PendingSheetSync
-        from .spreadsheet_sync_service import get_spreadsheet_sync_service
+        """Drain the existing queue through the single UUID-bound processor."""
+        from .round_sheet_delivery import process_pending_sheet_syncs
 
         db = self._get_db()
         try:
-            pending = (
-                db.query(PendingSheetSync)
-                .filter(PendingSheetSync.status == "pending")
-                .order_by(PendingSheetSync.created_at)
-                .all()
-            )
-            if not pending:
-                return
-
-            logger.info("Processing %d pending sheet sync(s)", len(pending))
-            wrote_any = False
-
-            for job in pending:
-                job.status = "processing"
-                db.commit()
-
-                try:
-                    action = self._dedup_action(db, job)
-                    job.dedup_action = action
-
-                    if action == "duplicate":
-                        logger.info("Skipping duplicate round %s group=%s", job.date, job.group)
-                    else:
-                        logger.info(
-                            "Writing %s round %s group=%s to sheet",
-                            action,
-                            job.date,
-                            job.group,
-                        )
-                        game_date = dt.strptime(job.date, "%Y-%m-%d")
-                        svc = get_spreadsheet_sync_service()
-                        success = svc.sync_completed_game(
-                            game_date=game_date,
-                            group=job.group,
-                            location=job.location,
-                            player_scores=job.player_scores,
-                            duration=job.duration,
-                        )
-                        if not success:
-                            raise RuntimeError("sync_completed_game returned False")
-                        wrote_any = True
-
-                    job.status = "done"
-                    job.processed_at = dt.now(UTC).isoformat()
-                    db.commit()
-
-                except Exception as exc:
-                    logger.error("Sheet sync job %d failed: %s", job.id, exc)
-                    job.status = "failed"
-                    job.error = str(exc)
-                    job.processed_at = dt.now(UTC).isoformat()
-                    db.commit()
-
-            if wrote_any:
-                logger.info("Sheet writes completed — refreshing legacy_rounds cache")
-                self._sync_legacy_rounds()
-
-        except Exception as exc:
-            logger.error("_process_pending_sheet_syncs failed: %s", exc)
+            process_pending_sheet_syncs(db.get_bind())
         finally:
             db.close()
 

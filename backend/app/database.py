@@ -237,7 +237,24 @@ ROUND_IDENTITY_COLUMNS = {
     "legacy_rounds": ("game_id", "participant_id"),
     "round_comments": ("game_id",),
     "round_reactions": ("game_id",),
-    "pending_sheet_syncs": ("game_id", "source_round_token", "source_scope", "operation_key", "expected_revision"),
+    "pending_sheet_syncs": (
+        "game_id",
+        "source_round_token",
+        "source_scope",
+        "operation_key",
+        "expected_revision",
+        "expected_epoch",
+        "expected_source_version",
+        "payload_fingerprint",
+        "contract_fingerprint",
+        "payload",
+        "lease_owner",
+        "lease_expires_at",
+        "claim_generation",
+        "prewrite",
+        "provider_receipt",
+        "verified_readback",
+    ),
     "notifications": ("delivery_key",),
 }
 
@@ -286,6 +303,10 @@ def expand_round_identity_schema(bind) -> None:
                     ddl = str(CreateColumn(table.c[name]).compile(dialect=bind.dialect))
                     conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN {ddl}'))
         # New nullable keys contain no legacy values; safe without backfill.
+        if "pending_sheet_syncs" in tables:
+            conn.execute(
+                text("CREATE UNIQUE INDEX IF NOT EXISTS uq_sheet_sync_operation ON pending_sheet_syncs(operation_key)")
+            )
         if "notifications" in tables:
             conn.execute(
                 text("CREATE UNIQUE INDEX IF NOT EXISTS uq_notifications_delivery_key ON notifications(delivery_key)")

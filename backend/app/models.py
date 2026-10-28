@@ -394,6 +394,18 @@ class PendingSheetSync(Base):
     source_scope = Column(String, nullable=True)
     operation_key = Column(String, nullable=True)
     expected_revision = Column(Integer, nullable=True)
+    expected_epoch = Column(Integer, nullable=True)
+    expected_source_version = Column(String, nullable=True)
+    payload_fingerprint = Column(String, nullable=True)
+    contract_fingerprint = Column(String, nullable=True)
+    payload = Column(JSON, nullable=True)
+    lease_owner = Column(String, nullable=True)
+    lease_expires_at = Column(String, nullable=True)
+    claim_generation = Column(Integer, nullable=True)
+    prewrite = Column(JSON, nullable=True)
+    provider_receipt = Column(JSON, nullable=True)
+    verified_readback = Column(JSON, nullable=True)
+    __table_args__ = (Index("uq_sheet_sync_operation", "operation_key", unique=True),)
     date = Column(String, index=True)  # YYYY-MM-DD
     group = Column(String)  # "A"-"D"
     location = Column(String)

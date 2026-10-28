@@ -3271,27 +3271,6 @@
         "title": "PlayerRoundResult",
         "type": "object"
       },
-      "PlayerScoreInput": {
-        "description": "Input for a single player's score.",
-        "properties": {
-          "name": {
-            "description": "Player name (must match spreadsheet names)",
-            "title": "Name",
-            "type": "string"
-          },
-          "score": {
-            "description": "Quarters won (positive) or lost (negative)",
-            "title": "Score",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "name",
-          "score"
-        ],
-        "title": "PlayerScoreInput",
-        "type": "object"
-      },
       "PlayerStatisticsResponse": {
         "properties": {
           "avg_earnings_per_hole": {
@@ -5351,49 +5330,57 @@
         "type": "object"
       },
       "SyncRoundRequest": {
-        "description": "Request to sync a completed round to the spreadsheet.",
+        "description": "Queue accepted UUID results, never client date/name guesses.",
         "properties": {
-          "date": {
-            "description": "Date in YYYY-MM-DD format",
-            "title": "Date",
+          "action": {
+            "pattern": "^(insert|update)$",
+            "title": "Action",
             "type": "string"
           },
-          "duration": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Duration in HH:MM:SS format",
-            "title": "Duration"
+          "expected_epoch": {
+            "minimum": 0.0,
+            "title": "Expected Epoch",
+            "type": "integer"
           },
-          "group": {
-            "default": "A",
-            "description": "Group letter (A, B, C, D)",
-            "title": "Group",
+          "expected_revision": {
+            "minimum": 0.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "expected_source_version": {
+            "minLength": 1,
+            "title": "Expected Source Version",
             "type": "string"
           },
-          "location": {
-            "default": "Wing Point",
-            "description": "Course name",
-            "title": "Location",
+          "game_id": {
+            "title": "Game Id",
             "type": "string"
           },
-          "player_scores": {
-            "description": "List of player scores",
-            "items": {
-              "$ref": "#/components/schemas/PlayerScoreInput"
-            },
-            "title": "Player Scores",
-            "type": "array"
+          "operation_key": {
+            "minLength": 1,
+            "title": "Operation Key",
+            "type": "string"
+          },
+          "source_round_token": {
+            "minLength": 1,
+            "title": "Source Round Token",
+            "type": "string"
+          },
+          "source_scope": {
+            "minLength": 1,
+            "title": "Source Scope",
+            "type": "string"
           }
         },
         "required": [
-          "date",
-          "player_scores"
+          "game_id",
+          "source_scope",
+          "source_round_token",
+          "operation_key",
+          "expected_revision",
+          "expected_epoch",
+          "expected_source_version",
+          "action"
         ],
         "title": "SyncRoundRequest",
         "type": "object"
@@ -7165,7 +7152,7 @@
     },
     "/admin/spreadsheet/sync-round": {
       "post": {
-        "description": "Enqueue a completed round for background sync to Google Sheets.\n\nReturns 202 immediately. The background processor runs every 5 minutes,\ndeduplicates against existing legacy_rounds, and writes new/updated rounds\nto the sheet.\n\nDedup logic:\n  - Same date + group + same player set + same scores → skipped as duplicate\n  - Same date + group + same player set but different scores → written as update\n  - New player set for that date/group → written as new round\n\nNOTE: player_scores should be summed totals (not per-hole). The app tracks\nper-hole detail internally; the legacy sheet only stores round totals.",
+        "description": "Enqueue a revision-bound accepted UUID; Gate B must already be approved.",
         "operationId": "sync_round_to_spreadsheet_admin_spreadsheet_sync_round_post",
         "requestBody": {
           "content": {

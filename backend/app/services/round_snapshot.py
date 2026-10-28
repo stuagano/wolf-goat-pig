@@ -31,6 +31,8 @@ class SheetSnapshot:
     rounds: list[SheetRound] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     season_year: int | None = None
+    grid_rows: int | None = None
+    source_rows: list = field(default_factory=list)
 
 
 def _date(raw, year):
@@ -59,7 +61,7 @@ def _a1_bounds(value):
     return (quoted.replace("''", "'") if quoted else bare, start_col, int(start_row), end_col, int(end_row))
 
 
-def fetch_round_snapshot(scope: str, *, season_year: int | None) -> SheetSnapshot:
+def fetch_round_snapshot(scope: str, *, season_year: int | None, contract=None) -> SheetSnapshot:
     from . import spreadsheet_sync_service as connector
 
     failed = SheetSnapshot(scope, "", False, None, season_year=season_year)
@@ -74,31 +76,49 @@ def fetch_round_snapshot(scope: str, *, season_year: int | None) -> SheetSnapsho
         if rows < 2 or columns < 6:
             raise ValueError("Source dimensions unavailable")
         fixture = workbook == "fixture" and metadata.get("fixture_token_contract") is True
-        end = "H" if fixture and columns >= 8 else "F"
+        from .round_sheet_contract import column_name
+
+        width = (
+            max(contract.round_column, contract.participant_column, contract.operation_column)
+            if contract
+            else (8 if (contract or fixture) and columns >= 8 else 6)
+        )
+        if contract and (
+            contract.scope != scope
+            or contract.season != season_year
+            or contract.tab_title != properties["title"]
+            or columns < width
+        ):
+            raise ValueError("Contract/source mismatch")
+        end = column_name(width)
         title = properties["title"].replace("'", "''")
         requested = f"'{title}'!A2:{end}{rows}"
-        data = connector._sheets_api_get(workbook, requested)
+        data = connector._sheets_api_get(workbook, requested, **({"identity": True} if contract else {}))
         if not data or _a1_bounds(data.get("range")) != _a1_bounds(requested) or data.get("majorDimension") != "ROWS":
             raise ValueError("Incomplete source range")
         values = data.get("values")
-        if (
-            not isinstance(values, list)
-            or len(values) > rows - 1
-            or any(len(r) > (8 if end == "H" else 6) for r in values)
-        ):
+        if not isinstance(values, list) or len(values) > rows - 1 or any(len(r) > width for r in values):
             raise ValueError("Invalid source coverage")
         # Sheets omits trailing empty rows. An exact bounded response range plus
         # verified grid dimensions accounts for those, not a magic row ceiling.
         digest = fingerprint([scope, properties, sorted(values, key=lambda r: fingerprint(r))])
-        snapshot = SheetSnapshot(scope, digest, True, digest, season_year=season_year)
+        snapshot = SheetSnapshot(
+            scope, digest, True, digest, season_year=season_year, grid_rows=rows, source_rows=values
+        )
         if not any(any(v not in (None, "") for v in r) for r in values):
-            snapshot.errors.append("empty_source")
+            if not contract:
+                snapshot.errors.append("empty_source")
             return snapshot
         groups = {}
         for row in values:
             if not any(v not in (None, "") for v in row):
                 continue
-            token = str(row[6]).strip() if fixture and len(row) > 6 and row[6] else ""
+            round_index = contract.round_column - 1 if contract else 6
+            token = (
+                str(row[round_index]).strip()
+                if (contract or fixture) and len(row) > round_index and row[round_index]
+                else ""
+            )
             # Unapproved/absent tokens identify quarantine evidence only, never a
             # UUID or an automatically accepted association.
             token = token or f"unbound:{fingerprint([row[:2], row[4:5]])}"
@@ -118,13 +138,18 @@ def fetch_round_snapshot(scope: str, *, season_year: int | None) -> SheetSnapsho
             for index, row in enumerate(group):
                 if (row[:2], row[4:5]) != (group[0][:2], group[0][4:5]):
                     errors.append("incompatible_round_token")
-                slot = str(row[7]).strip() if fixture and len(row) > 7 and row[7] else ""
+                slot_index = contract.participant_column - 1 if contract else 7
+                slot = (
+                    str(row[slot_index]).strip()
+                    if (contract or fixture) and len(row) > slot_index and row[slot_index]
+                    else ""
+                )
                 if not slot or "." in slot:
                     errors.append("missing_participant_token")
                     slot = f"unbound-{index}"
-                if fixture and slot in seen:
+                if (contract or fixture) and slot in seen:
                     errors.append("duplicate_participant_token")
-                if fixture:
+                if contract or fixture:
                     seen.add(slot)
                 name = row[2] if len(row) > 2 else None
                 total = row[3] if len(row) > 3 and row[3] != "" else None
@@ -142,7 +167,7 @@ def fetch_round_snapshot(scope: str, *, season_year: int | None) -> SheetSnapsho
                 "presence": [
                     [
                         "missing" if i >= len(r) else "null" if r[i] is None else "blank" if r[i] == "" else "value"
-                        for i in range(8)
+                        for i in range(width)
                     ]
                     for r in group
                 ],
@@ -164,7 +189,7 @@ def fetch_round_snapshot(scope: str, *, season_year: int | None) -> SheetSnapsho
                     draft,
                     payload,
                     fingerprint([token, sorted(group, key=fingerprint)]),
-                    fixture and not errors and not token.startswith("unbound:"),
+                    bool(contract or fixture) and not errors and not token.startswith("unbound:"),
                 )
             )
         # A copied slot corrupts all affected rounds, not only the last row.
@@ -173,7 +198,7 @@ def fetch_round_snapshot(scope: str, *, season_year: int | None) -> SheetSnapsho
             for player in round_.draft.players:
                 counts[player.participant_id] = counts.get(player.participant_id, 0) + 1
         for round_ in snapshot.rounds:
-            if fixture and any(counts[p.participant_id] > 1 for p in round_.draft.players):
+            if (contract or fixture) and any(counts[p.participant_id] > 1 for p in round_.draft.players):
                 round_.raw_payload["parse_errors"].append("duplicate_participant_token")
                 round_.continuity_verified = False
         return snapshot
