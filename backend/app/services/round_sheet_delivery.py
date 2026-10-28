@@ -17,6 +17,7 @@ from app.utils.time import utc_now
 from .round_evidence import accepted_draft, fingerprint, issue_for
 from .round_identity import acquire_reconciliation_lock
 from .round_sheet_contract import approved_contract
+from .round_sheet_values import cell_fingerprint, date_cell
 from .round_source_lease import SourceLeaseLostError, fence, source_lease
 
 
@@ -64,23 +65,6 @@ def enqueue_sheet_sync(
     ):
         raise ValueError("Current accepted complete participant mapping required")
     payload = draft.model_dump(mode="json")
-    digest = fingerprint(
-        [
-            game_id,
-            source_scope,
-            source_round_token,
-            action,
-            expected_revision,
-            expected_epoch,
-            expected_source_version,
-            payload,
-        ]
-    )
-    old = db.query(models.PendingSheetSync).filter_by(operation_key=operation_key).one_or_none()
-    if old:
-        if old.payload_fingerprint != digest:
-            raise ValueError("Operation key reused with different payload")
-        return old
     source = (
         db.query(models.RoundSource)
         .filter_by(kind="sheet", scope=source_scope, round_token=source_round_token)
@@ -114,6 +98,26 @@ def enqueue_sheet_sync(
             binding_evidence={"outbound_operation": operation_key},
         )
         db.add(source)
+    from .round_sheet_values import participant_tokens
+
+    payload["source_participant_tokens"] = participant_tokens(db, source, draft)
+    digest = fingerprint(
+        [
+            game_id,
+            source_scope,
+            source_round_token,
+            action,
+            expected_revision,
+            expected_epoch,
+            expected_source_version,
+            payload,
+        ]
+    )
+    old = db.query(models.PendingSheetSync).filter_by(operation_key=operation_key).one_or_none()
+    if old:
+        if old.payload_fingerprint != digest:
+            raise ValueError("Operation key reused with different payload")
+        return old
     job = models.PendingSheetSync(
         game_id=game_id,
         source_scope=source_scope,
@@ -143,6 +147,7 @@ def _rows(job, contract, snapshot=None):
     width = max(contract.round_column, contract.participant_column, contract.operation_column)
     rows = []
     for player in job.payload["players"]:
+        token = job.payload["source_participant_tokens"][player["participant_id"]]
         existing = (
             next(
                 (
@@ -150,7 +155,7 @@ def _rows(job, contract, snapshot=None):
                     for r in snapshot.source_rows
                     if len(r) >= max(contract.round_column, contract.participant_column)
                     and r[contract.round_column - 1] == job.source_round_token
-                    and r[contract.participant_column - 1] == player["participant_id"]
+                    and r[contract.participant_column - 1] == token
                 ),
                 None,
             )
@@ -159,7 +164,7 @@ def _rows(job, contract, snapshot=None):
         )
         row = list(existing) + [""] * (width - len(existing)) if existing else [""] * width
         row[:6] = [
-            job.payload["played_on"] or job.payload["raw_date"] or "",
+            date_cell(job.payload, contract),
             job.payload["group"] or "",
             player["name"],
             player["quarters"] if player["quarters"] is not None else "",
@@ -168,7 +173,7 @@ def _rows(job, contract, snapshot=None):
         ]
         for index, value in (
             (contract.round_column, job.source_round_token),
-            (contract.participant_column, player["participant_id"]),
+            (contract.participant_column, token),
             (contract.operation_column, job.operation_key),
         ):
             row[index - 1] = value
@@ -246,6 +251,14 @@ def _guard(db, job, lease):
     )
     if digest != job.payload_fingerprint:
         raise ValueError("Queued payload changed")
+    source = (
+        db.query(models.RoundSource)
+        .filter_by(kind="sheet", scope=job.source_scope, round_token=job.source_round_token)
+        .one_or_none()
+    )
+    mapping = job.payload.get("source_participant_tokens")
+    if not mapping or not source or (source.binding_evidence or {}).get("participant_tokens") != mapping:
+        raise ValueError("Reviewed participant token mapping changed")
     record = db.query(models.GameRecord).filter_by(game_id=job.game_id).one_or_none()
     if not game or game.revision != job.expected_revision or not record or record.is_retracted:
         raise ValueError("Accepted revision changed")
@@ -303,11 +316,11 @@ def _verified(job, snapshot, matches, wanted, contract):
         and not snapshot.errors
         and len(matches) == 1
         and matches[0].continuity_verified
-        and matches[0].raw_payload["rows"] == wanted
+        and cell_fingerprint(matches[0].raw_payload["rows"]) == cell_fingerprint(wanted)
         and job.prewrite
         and job.prewrite.get("source_version") == job.expected_source_version
         and job.prewrite.get("operation") == job.operation_key
-        and job.prewrite.get("written_rows") == fingerprint(matches[0].raw_payload["rows"])
+        and job.prewrite.get("written_rows") == cell_fingerprint(matches[0].raw_payload["rows"])
         and job.prewrite.get("payload_fingerprint") == job.payload_fingerprint
         and job.prewrite.get("contract_fingerprint") == fingerprint(contract.model_dump())
         and job.prewrite.get("other_rows") == _other_rows(snapshot, job, contract)
@@ -406,7 +419,7 @@ def _deliver(engine, job_id, claim, lease):
             _held(db, job, "Unreviewed external source version change", snapshot)
             return
         if matches:
-            expected_slots = {p["participant_id"] for p in job.payload["players"]}
+            expected_slots = set(job.payload["source_participant_tokens"].values())
             if (
                 not matches[0].continuity_verified
                 or {p.participant_id for p in matches[0].draft.players} != expected_slots
@@ -422,7 +435,7 @@ def _deliver(engine, job_id, claim, lease):
             "contract_fingerprint": fingerprint(contract.model_dump()),
             "approved_contract": db.get(models.AppConfig, "round_sheet_contracts").value[job.source_scope],
             "other_rows": _other_rows(snapshot, job, contract),
-            "written_rows": fingerprint(wanted),
+            "written_rows": cell_fingerprint(wanted),
         }
     # Recheck under the same source lease. Config/global locks remain held across
     # the one write and readback; no helper commits can release them underneath us.

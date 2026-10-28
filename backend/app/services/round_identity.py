@@ -165,11 +165,15 @@ def sync_round_snapshot(db, snapshot):
                 if token in present:
                     continue
                 with Session(engine) as evidence_db:
-                    old = (
-                        evidence_db.query(models.RoundObservation)
-                        .filter_by(source_id=source_id)
-                        .order_by(models.RoundObservation.observed_at.desc())
-                        .first()
+                    old = next(
+                        (
+                            o
+                            for o in evidence_db.query(models.RoundObservation)
+                            .filter_by(source_id=source_id)
+                            .order_by(models.RoundObservation.observed_at.desc())
+                            if o.parsed_values is not None
+                        ),
+                        None,
                     )
                     if old:
                         work.append(
@@ -255,7 +259,8 @@ def sync_round_snapshot(db, snapshot):
                             )
                             trusted = trusted or any(
                                 job.verified_readback
-                                and job.verified_readback.get("source_version") == snapshot.source_version
+                                and job.verified_readback.get("operation") == job.operation_key
+                                and job.verified_readback.get("payload_fingerprint") == job.payload_fingerprint
                                 and job.verified_readback.get("round_fingerprint")
                                 == fingerprint(item.raw_payload.get("rows"))
                                 for job in echoes
@@ -277,10 +282,12 @@ def sync_round_snapshot(db, snapshot):
                             "snapshot_fingerprint": snapshot.fingerprint,
                             "connector_generation": lease[2],
                         }
+                        from .round_sheet_values import mapped_draft
+
                         outcome = observe_round(
                             tx,
                             item.source,
-                            item.draft,
+                            mapped_draft(row, item.draft) if row else item.draft,
                             observation_key=f"{lease[2]}:{item.observation_key}",
                             raw_payload=raw,
                             continuity_verified=trusted and not raw.get("parse_errors"),
