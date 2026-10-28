@@ -136,7 +136,7 @@ def ensure_legacy_rounds_official_view(bind) -> None:
 
     The view excludes unattested member self-posts (``status='pending'``) and is
     the only legacy-rounds source the Commissioner's read-only SQL path may query.
-    Safe to call on every boot: ``CREATE OR REPLACE`` / ``CREATE IF NOT EXISTS``.
+    Explicit offline compatibility operation; boot does not install this view.
     Skips when the ``status`` column is missing (pre-attestation schema).
     """
     dialect = bind.dialect.name
@@ -146,21 +146,26 @@ def ensure_legacy_rounds_official_view(bind) -> None:
     }:
         logger.warning("Skipping legacy_rounds_official view — legacy_rounds.status column missing")
         return
+    # Explicit legacy compatibility columns: expansion must not silently alter
+    # a view's schema or make boot perform identity backfill/contraction.
+    names = [c["name"] for c in inspector.get_columns("legacy_rounds")]
+    projection = ", ".join(f'"{name}"' for name in names)
     with bind.begin() as conn:
         if dialect == "postgresql":
+            # Existing PostgreSQL views may have a pre-expansion column order.
+            # Appending columns is legal; never reorder or drop at boot.
             conn.execute(
                 text(
                     "CREATE OR REPLACE VIEW legacy_rounds_official AS "
-                    "SELECT * FROM legacy_rounds WHERE status <> 'pending'"
+                    f"SELECT {projection} FROM legacy_rounds WHERE status <> 'pending'"
                 )
             )
             return
-
-        # SQLite (dev/test)
+        conn.execute(text("DROP VIEW IF EXISTS legacy_rounds_official"))
         conn.execute(
             text(
-                "CREATE VIEW IF NOT EXISTS legacy_rounds_official AS "
-                "SELECT * FROM legacy_rounds WHERE status <> 'pending'"
+                "CREATE VIEW legacy_rounds_official AS "
+                f"SELECT {projection} FROM legacy_rounds WHERE status <> 'pending'"
             )
         )
 
@@ -216,7 +221,10 @@ def ensure_canonical_round_results_view(bind) -> None:
         if bind.dialect.name == "postgresql":
             conn.execute(text(f"CREATE OR REPLACE VIEW canonical_round_results AS {sql}"))
             return
-        conn.execute(text(f"CREATE VIEW IF NOT EXISTS canonical_round_results AS {sql.replace('false', '0')}"))
+        # SQLite has no CREATE OR REPLACE VIEW. Refresh in the same DDL
+        # transaction so an expanded definition never remains silently stale.
+        conn.execute(text("DROP VIEW IF EXISTS canonical_round_results"))
+        conn.execute(text(f"CREATE VIEW canonical_round_results AS {sql.replace('false', '0')}"))
 
 
 # Only additive columns at boot. Backfill, old index retirement, and legacy
@@ -349,9 +357,8 @@ def init_db():
         # Round stories and reactions are new tables; create_all covers fresh
         # SQLite. Production PostgreSQL uses add_round_comments_postgres.sql and
         # add_round_reactions_postgres.sql.
-        # Filtered view used by Commissioner SQL reads (SQLite dev; Postgres gets
-        # it from the attestation migration).
-        ensure_legacy_rounds_official_view(engine)
+        # Legacy compatibility view installation belongs to the explicit legacy
+        # migration, not boot. Canonical readers never depend on it.
         ensure_canonical_round_results_view(engine)
         logger.info("Database initialized successfully")
 

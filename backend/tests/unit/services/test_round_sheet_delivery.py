@@ -201,7 +201,7 @@ def test_prewrite_guards_no_side_effect(sheet_job_fixture, fault):
     worker()
     assert calls["append"] == calls["update"] == 0
     with Session(engine) as db:
-        assert db.get(models.PendingSheetSync, job_id).status == "held"
+        assert db.get(models.PendingSheetSync, job_id).status == ("pending" if fault == "paused" else "held")
 
 
 def test_historical_unbound_is_held_without_guess(sheet_job_fixture):

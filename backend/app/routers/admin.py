@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from .. import database, models, schemas
 from ..schemas.round_identity import RoundModeRequest
+from ..services.auth_service import get_current_user
 from ..services.email_service import EmailService, get_email_service
 from ..state.app_state import set_email_service_instance
 from ..utils.admin_auth import require_admin
@@ -39,26 +40,24 @@ class AdminTestEmailRequest(BaseModel):
 @router.put("/admin/round-identity/mode")
 def set_round_identity_mode(
     request: RoundModeRequest,
-    user=Depends(require_admin),
+    user=Depends(get_current_user),
+    _admin=Depends(require_admin),
     db: Session = Depends(database.get_db),
 ):
-    """Fail closed until Task 11's authoritative verifier/cutover exists.
+    """Activate only fresh server-stored verification plus separate Gate D.
 
-    A JSON report supplied by the caller is not verified migration evidence.
-    This endpoint never runs migration, resumes writers, or writes to Sheets.
+    Caller JSON selects a manifest checksum, never supplies passing evidence.
+    Connector and dispatch remain paused pending their separate approvals.
     """
-    from ..schemas.round_identity import read_round_identity_config
-    from ..services.round_identity import acquire_reconciliation_lock
+    from ..services.round_cutover import activate_canonical
 
     try:
-        acquire_reconciliation_lock(db)
-        db.query(models.AppConfig).filter_by(name="round_identity").with_for_update().first()
-        config = read_round_identity_config(db)
-        if request.expected_epoch != config.epoch:
-            raise HTTPException(409, "Writer epoch advanced")
-        raise HTTPException(409, "Authoritative manifest verification unavailable; mode remains unchanged")
-    finally:
+        result = activate_canonical(db, request, user.id)
+        db.commit()
+        return result
+    except Exception:
         db.rollback()
+        raise
 
 
 # =============================================================================

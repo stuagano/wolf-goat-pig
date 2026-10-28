@@ -50,7 +50,7 @@ function withReference(message, requestId) {
 
 // Convert internal queue payload {hole_quarters, optional_details, current_hole}
 // to the /scores API shape {holes: [...], current_hole}
-export function toScoresPayload({ hole_quarters, optional_details, current_hole, expected_revision }) {
+export function toScoresPayload({ hole_quarters, optional_details, current_hole, expected_revision, expected_epoch }) {
   const holes = Object.keys(hole_quarters || {}).map((holeStr) => {
     const details = (optional_details || {})[holeStr] || {};
     return {
@@ -73,7 +73,7 @@ export function toScoresPayload({ hole_quarters, optional_details, current_hole,
       carry_over_applied: details.carry_over_applied || false,
     };
   });
-  return { holes, current_hole, expected_revision };
+  return { holes, current_hole, expected_revision, expected_epoch };
 }
 
 /**
@@ -113,6 +113,7 @@ export function buildScoresPayloadFromLocal(localState) {
     optional_details,
     current_hole: localState?.currentHole || 1,
     expected_revision: localState?.expectedRevision,
+    expected_epoch: localState?.writerEpoch,
   };
 }
 
@@ -256,7 +257,8 @@ export function queueSync(gameId, type, payload, options = {}) {
   // This prevents duplicate syncs if user submits multiple holes while offline
   if (type === 'scores') {
     const existingIndex = queue.findIndex(
-      item => item.gameId === gameId && item.type === 'scores' && !item.reviewRequired
+      item => item.gameId === gameId && item.type === 'scores' && !item.reviewRequired &&
+        item.payload.expected_epoch === payload.expected_epoch
     );
     
     if (existingIndex >= 0) {
@@ -375,7 +377,7 @@ export async function processQueue(options = {}) {
           body = JSON.stringify(toScoresPayload(item.payload));
           break;
         case 'complete-game':
-          url = `${API_URL}/games/${item.gameId}/complete`;
+          url = `${API_URL}/games/${item.gameId}/complete${Number.isInteger(item.payload?.expected_epoch) ? `?expected_epoch=${item.payload.expected_epoch}` : ''}`;
           method = 'POST';
           body = JSON.stringify(item.payload || {});
           break;
@@ -652,6 +654,7 @@ export async function syncHoleData(gameId, holeQuarters, optionalDetails, curren
   const requestKey = crypto.randomUUID();
   const payload = {
     expected_revision: expectedRevision ?? loadLocalGameState(gameId)?.expectedRevision,
+    expected_epoch: loadLocalGameState(gameId)?.writerEpoch,
     hole_quarters: holeQuarters,
     optional_details: optionalDetails,
     current_hole: currentHole,
@@ -845,7 +848,8 @@ export function hasPendingSyncForGame(gameId) {
 export function ensureScoresQueued(gameId, serverState = null) {
   const localState = loadLocalGameState(gameId);
   if (!serverState || serverState.gameStatus === 'completed' || localState?.gameStatus === 'completed' ||
-      localState?.currentHole > 18 || serverState.expectedRevision !== localState?.expectedRevision) return false;
+      localState?.currentHole > 18 || serverState.expectedRevision !== localState?.expectedRevision ||
+      serverState.writerEpoch !== localState?.writerEpoch) return false;
   const needsSync =
     hasPendingSyncForGame(gameId) ||
     localHasUnsyncedHoles(localState, serverState);
@@ -881,10 +885,13 @@ export function reconcileOnLoad(gameId, serverState) {
   const queue = getSyncQueue();
   let changed = false;
   queue.forEach(item => {
-    if (item.gameId === gameId && (serverState.gameStatus === 'completed' ||
+    const staleEpoch = item.payload.expected_epoch !== serverState.writerEpoch;
+    if (item.gameId === gameId && (serverState.gameStatus === 'completed' || staleEpoch ||
         item.payload.expected_revision !== serverState.expectedRevision)) {
       item.reviewRequired = true;
-      item.lastError = 'Server round changed. Pending edits retained for review.';
+      item.lastError = staleEpoch
+        ? 'Round storage was migrated. Pending edits retained for review before resubmitting.'
+        : 'Server round changed. Pending edits retained for review.';
       changed = true;
     }
   });

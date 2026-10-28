@@ -4930,6 +4930,17 @@
             "title": "Current Hole",
             "type": "integer"
           },
+          "expected_epoch": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Epoch"
+          },
           "expected_revision": {
             "anyOf": [
               {
@@ -6623,7 +6634,7 @@
     },
     "/admin/round-identity/mode": {
       "put": {
-        "description": "Fail closed until Task 11's authoritative verifier/cutover exists.\n\nA JSON report supplied by the caller is not verified migration evidence.\nThis endpoint never runs migration, resumes writers, or writes to Sheets.",
+        "description": "Activate only fresh server-stored verification plus separate Gate D.\n\nCaller JSON selects a manifest checksum, never supplies passing evidence.\nConnector and dispatch remain paused pending their separate approvals.",
         "operationId": "set_round_identity_mode_admin_round_identity_mode_put",
         "requestBody": {
           "content": {
@@ -11276,6 +11287,22 @@
             "schema": {
               "title": "Game Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expected_epoch",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Expected Epoch"
             }
           }
         ],

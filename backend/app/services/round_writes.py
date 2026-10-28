@@ -6,22 +6,16 @@ from uuid import uuid4
 from fastapi import HTTPException
 
 from app import models
-from app.schemas.round_identity import RoundDraft, SourceRef, read_round_identity_config
+from app.schemas.round_identity import RoundDraft, SourceRef
 
 from .round_evidence import fingerprint
-from .round_identity import acquire_reconciliation_lock
 from .round_reconciliation import observe_round
 
 
 def writer_mode(db):
-    # Shared lock orders every writer before config/candidate/game reads. A
-    # cutover must acquire this same lock before changing mode/epoch.
-    acquire_reconciliation_lock(db)
-    db.query(models.AppConfig).filter_by(name="round_identity").populate_existing().with_for_update().first()
-    config = read_round_identity_config(db)
-    if config.mode == "paused":
-        raise HTTPException(409, "Round writes are paused for cutover")
-    return config.mode
+    from .round_cutover import guard_writer
+
+    return guard_writer(db).mode
 
 
 def request_receipt(db, actor_id, key, payload, *, required=True):

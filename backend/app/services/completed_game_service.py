@@ -144,6 +144,9 @@ def persist_final_results(
     from app import models
     from app.utils.time import utc_now
 
+    from .round_cutover import guard_writer
+
+    guard_writer(db)
     players = [{"id": p.participant_id, "name": p.name, "player_profile_id": p.profile_id} for p in draft.players]
     if not players or any(not p["name"].strip() for p in players):
         raise HTTPException(status_code=400, detail="Round requires a nonblank roster")

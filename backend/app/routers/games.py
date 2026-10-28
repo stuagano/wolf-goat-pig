@@ -953,7 +953,9 @@ async def delete_game(game_id: str, db: Session = Depends(database.get_db)):  # 
 
 
 @router.post("/{game_id}/complete", dependencies=[Depends(require_round_member_or_admin)])
-async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db)):
+async def mark_game_complete(
+    game_id: str, expected_epoch: int | None = Query(None), db: Session = Depends(database.get_db)
+):
     """
     Mark a game as completed and persist results to GameRecord / GamePlayerResult.
 
@@ -961,9 +963,9 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
     permanent results tables so it's queryable by the Commissioner data explorer.
     """
     try:
-        from ..services.round_writes import writer_mode
+        from ..services.round_cutover import guard_client_epoch
 
-        writer_mode(db)
+        guard_client_epoch(db, expected_epoch if isinstance(expected_epoch, int) else None)
         game = (
             db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).populate_existing().first()
         )
@@ -1078,9 +1080,18 @@ async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
 
+        from ..schemas.round_identity import read_round_identity_config
+
+        writer_epoch = read_round_identity_config(db).epoch
         # If game is completed, just return the saved state
         if game.game_status == "completed":
-            return {**(game.state or {}), "game_id": game_id, "game_status": "completed", "revision": game.revision}
+            return {
+                **(game.state or {}),
+                "game_id": game_id,
+                "game_status": "completed",
+                "revision": game.revision,
+                "writer_epoch": writer_epoch,
+            }
 
         # If game is in setup, return lobby info
         if game.game_status == "setup":
@@ -1117,6 +1128,7 @@ async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_
         saved_state = game.state.copy() if game.state else {}  # type: ignore
         saved_state["game_id"] = game_id
         saved_state["revision"] = game.revision
+        saved_state["writer_epoch"] = writer_epoch
         saved_state["game_status"] = "in_progress"
 
         # Get players from database to ensure fresh data

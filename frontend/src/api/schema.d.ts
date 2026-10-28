@@ -363,10 +363,10 @@ export interface paths {
         get?: never;
         /**
          * Set Round Identity Mode
-         * @description Fail closed until Task 11's authoritative verifier/cutover exists.
+         * @description Activate only fresh server-stored verification plus separate Gate D.
          *
-         *     A JSON report supplied by the caller is not verified migration evidence.
-         *     This endpoint never runs migration, resumes writers, or writes to Sheets.
+         *     Caller JSON selects a manifest checksum, never supplies passing evidence.
+         *     Connector and dispatch remain paused pending their separate approvals.
          */
         put: operations["set_round_identity_mode_admin_round_identity_mode_put"];
         post?: never;
@@ -7192,6 +7192,8 @@ export interface components {
              * @default 18
              */
             current_hole: number;
+            /** Expected Epoch */
+            expected_epoch?: number | null;
             /** Expected Revision */
             expected_revision?: number | null;
             /** Holes */
@@ -11154,7 +11156,9 @@ export interface operations {
     };
     mark_game_complete_games__game_id__complete_post: {
         parameters: {
-            query?: never;
+            query?: {
+                expected_epoch?: number | null;
+            };
             header?: never;
             path: {
                 game_id: string;

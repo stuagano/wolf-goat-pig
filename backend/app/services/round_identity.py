@@ -24,6 +24,9 @@ def acquire_reconciliation_lock(db) -> None:
 
     if db.get_bind().dialect.name == "postgresql":
         db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": 870284190311})
+        # All converted callers retain this shared configuration row lock until
+        # their outer commit/rollback. The offline cutover upgrades it exclusively.
+        db.execute(text("SELECT name FROM app_config WHERE name = 'round_identity' FOR SHARE"))
 
 
 def resolve_round_alias(db, date_key: str, group: str, location: str) -> list[str]:

@@ -19,7 +19,7 @@ def set_mode(db, mode):
 
 
 def test_result_writer_locks_before_branch_selection(canonical_history, monkeypatch):
-    import app.services.round_writes as writes
+    import app.services.round_identity as writes
 
     db = canonical_history
     save(db, "complete", [8, -8])

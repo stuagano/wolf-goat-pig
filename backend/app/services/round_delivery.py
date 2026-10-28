@@ -195,6 +195,12 @@ def _retry(row, code):
 
 def _dispatch_one():
     with SessionLocal() as db:
+        from .round_cutover import configuration_lock
+
+        configuration_lock(db)
+        config = db.get(models.AppConfig, "round_identity")
+        if config and (config.value.get("mode") == "paused" or config.value.get("dispatch_paused")):
+            return None
         now = utc_now().isoformat()
         row = (
             db.query(models.RoundDelivery)

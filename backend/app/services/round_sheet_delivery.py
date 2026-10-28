@@ -185,6 +185,12 @@ def _claim(engine, job_id):
     owner = str(uuid4())
     now = utc_now().isoformat()
     with Session(engine) as db, db.begin():
+        from .round_cutover import configuration_lock
+
+        configuration_lock(db)
+        config = read_round_identity_config(db)
+        if config.mode != "canonical":
+            return None
         claimed = db.execute(
             update(models.PendingSheetSync)
             .where(

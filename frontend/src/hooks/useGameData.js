@@ -27,6 +27,7 @@ export function normalizeGameState(data) {
     isComplete,
     gameStatus: data.game_status,
     expectedRevision: data.revision,
+    writerEpoch: data.writer_epoch,
   };
 }
 
@@ -84,6 +85,7 @@ export default function useGameData(gameId) {
         courseName: data.course_name,
         gameStatus: data.game_status,
         expectedRevision: data.revision,
+    writerEpoch: data.writer_epoch,
       });
       localStorage.setItem('wgp_current_game', gameId);
       setGame({ ...normalizeGameState(data), readVerified: true });

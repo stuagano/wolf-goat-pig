@@ -303,8 +303,11 @@ class PlayerService:
             # Update player statistics
             self._update_player_statistics_from_game(game_result)
 
-            # Update last played
-            self.update_last_played(game_result.player_profile_id)
+            # Keep the configuration fence until the result/statistics commit;
+            # update_last_played() commits internally and would release it early.
+            player = self.db.get(PlayerProfile, game_result.player_profile_id)
+            if player:
+                player.last_played = utc_now().isoformat()
 
             self.db.commit()
             logger.info(f"Recorded game result for player {game_result.player_profile_id}")

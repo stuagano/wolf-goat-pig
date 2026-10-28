@@ -114,7 +114,9 @@ def test_two_failing_pg_workers_preserve_lock_attempts_and_backoff(harness, monk
             assert release_recovery.wait(10)
 
     def connection_seen(connection, cursor, statement, parameters, context, executemany):
-        if "FROM round_deliveries" in statement and "FOR UPDATE" in statement and rollback_entered.is_set():
+        # The cutover fence now serializes converted writers before delivery
+        # row locking. Observe the second physical connection at that boundary.
+        if "pg_advisory_xact_lock" in statement and rollback_entered.is_set():
             second_connected.set()
 
     event.listen(factory.class_, "after_soft_rollback", on_rollback)

@@ -61,6 +61,7 @@ class ScoresRequest(BaseModel):
     holes: list[HoleScore]
     current_hole: int = 18
     expected_revision: int | None = None
+    expected_epoch: int | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -131,7 +132,9 @@ async def save_scores(
 ):
     """Replace the full scored-hole snapshot (not a one-hole patch)."""
     try:
-        mode = writer_mode(db)
+        from ..services.round_cutover import guard_client_epoch
+
+        mode = guard_client_epoch(db, request.expected_epoch).mode
         game = (
             db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).populate_existing().first()
         )

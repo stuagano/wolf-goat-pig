@@ -22,7 +22,7 @@ from .round_evidence import (
     patch,
     review_signal,
 )
-from .round_identity import acquire_reconciliation_lock, candidate_games, retain_alias
+from .round_identity import candidate_games, retain_alias
 
 
 def _game(db, game_id):
@@ -111,7 +111,9 @@ def _hold(db, row, observation, kind, value, candidates=()):
 def observe_round(
     db, source, draft, *, observation_key, raw_payload, continuity_verified, create_without_candidate=False
 ):
-    acquire_reconciliation_lock(db)
+    from .round_cutover import guard_writer
+
+    guard_writer(db)
     row = db.query(models.RoundSource).filter_by(**source.model_dump()).populate_existing().one_or_none()
     if row is None:
         row = models.RoundSource(**source.model_dump())
@@ -311,7 +313,9 @@ def observe_round(
 
 
 def resolve_issue(db, issue_id, decision, *, actor_profile_id):
-    acquire_reconciliation_lock(db)
+    from .round_cutover import guard_writer
+
+    guard_writer(db)
     from app.services.round_review import require_reviewer
 
     actor = db.query(models.PlayerProfile).filter_by(id=actor_profile_id).populate_existing().one_or_none()
