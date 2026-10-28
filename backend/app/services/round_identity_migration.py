@@ -121,6 +121,20 @@ def _checkpoints(db, manifest):
 def _drift(db, manifest):
     checkpoints = _checkpoints(db, manifest)
     if checkpoints:
+        from .round_migration_saved import verify_saved
+
+        if verify_saved(
+            db,
+            {
+                **manifest,
+                "saved_games": [
+                    w
+                    for w in manifest.get("saved_games", [])
+                    if w["operation_key"] in {c.operation_key for c in checkpoints}
+                ],
+            },
+        ):
+            raise ValueError("Original saved detail/publication drift invalidates replay")
         if checkpoints[-1].outcome["inventory_digest"] != current_inventory_digest(db):
             raise ValueError("Database drift invalidates reviewed decisions; rebuild manifest")
     else:

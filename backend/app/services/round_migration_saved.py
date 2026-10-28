@@ -1,5 +1,9 @@
 """Reviewed migration of saved games, independent of external sheet membership."""
 
+import math
+from copy import deepcopy
+from types import SimpleNamespace
+
 from app import models
 from app.schemas.round_identity import RoundDraft
 
@@ -37,6 +41,69 @@ def validate_saved(manifest, reviewed):
             raise ValueError("Original saved roster completeness requires explicit review")
 
 
+def original_history(record, results):
+    """Transpose only original scalar cells; never infer missing scores or slots.
+
+    Unknown/contradictory layouts require a reviewed hold. Auxiliary result notes
+    remain on the immutable original result payload, not public gameplay facts.
+    """
+    history = {}
+    for row in results:
+        cells = row.hole_scores or []
+        if not isinstance(cells, list):
+            raise ValueError("Original detail requires explicit hold: invalid cells")
+        seen = set()
+        for cell in cells:
+            if not isinstance(cell, dict):
+                raise ValueError("Original detail requires explicit hold: invalid cell")
+            hole, value = cell.get("hole"), cell.get("quarters")
+            if (
+                type(hole) is not int
+                or hole not in range(1, 19)
+                or hole in seen
+                or isinstance(value, bool)
+                or not isinstance(value, (float, int))
+                or not math.isfinite(value)
+            ):
+                raise ValueError("Original detail requires explicit hold: missing/duplicate score")
+            seen.add(hole)
+            target = history.setdefault(hole, {"hole": hole, "points_delta": {}})
+            target["points_delta"][row.participant_id] = value
+            if cell.get("points_delta") is not None and (
+                not isinstance(cell["points_delta"], dict) or cell["points_delta"].get(row.participant_id) != value
+            ):
+                raise ValueError("Original detail requires explicit hold: contradictory slot evidence")
+            if cell.get("gross_score") is not None:
+                target.setdefault("gross_scores", {})[row.participant_id] = cell["gross_score"]
+            if cell.get("par") is not None:
+                if "par" in target and target["par"] != cell["par"]:
+                    raise ValueError("Original detail requires explicit hold: contradictory par")
+                target["par"] = cell["par"]
+    slots = {r.participant_id for r in results}
+    if history and any(r.is_retracted for r in results):
+        raise ValueError("Original detail requires explicit hold: historical retracted roster needs review")
+    for row in results:
+        for cell in row.hole_scores or []:
+            for key in ("points_delta", "gross_scores"):
+                supplied = cell.get(key)
+                if supplied is not None and (
+                    not isinstance(supplied, dict)
+                    or any(
+                        slot not in slots or history[cell["hole"]].get(key, {}).get(slot) != value
+                        for slot, value in supplied.items()
+                    )
+                ):
+                    raise ValueError("Original detail requires explicit hold: contradictory cross-player cells")
+    if any(set(h["points_delta"]) != slots for h in history.values()):
+        raise ValueError("Original detail requires explicit hold: incomplete roster cells")
+    coverage = "per_hole_complete" if set(history) == set(range(1, 19)) else "partial" if history else "totals_only"
+    if (record.detail_coverage is not None and record.detail_coverage != coverage) or (
+        record.total_holes_played is not None and record.total_holes_played != len(history)
+    ):
+        raise ValueError("Original detail requires explicit hold: coverage/hole count cannot be reconstructed")
+    return [history[h] for h in sorted(history)]
+
+
 def apply_saved(db, item):
     decision = item["decision"]
     if decision["action"] != "publish_original":
@@ -68,7 +135,39 @@ def apply_saved(db, item):
         game = models.GameStateModel(game_id=record.game_id, state={}, game_status="completed")
         db.add(game)
         db.flush()
+    # accepted_draft deliberately omits history for ordinary scalar corrections.
+    # Repair cannot rely on missing state to carry original evidence forward.
+    history = original_history(record, results)
+    old_history = (game.state or {}).get("hole_history") or []
+    if old_history and not history:
+        raise ValueError("Original detail requires explicit hold: state-only detail needs review")
+    if old_history and history and old_history != history:
+        # Existing richer gameplay is not replaced by a transposed sparse copy.
+        for hole in history:
+            existing = next((h for h in old_history if h.get("hole") == hole["hole"]), {})
+            if any(existing.get(k) != v for k, v in hole.items()):
+                raise ValueError("Original detail requires explicit hold: state conflicts with result cells")
+    draft = draft.model_copy(
+        update={
+            "hole_history": history,
+            "detail_coverage": "per_hole_complete" if len(history) == 18 else "partial" if history else "totals_only",
+        }
+    )
+    metadata = deepcopy(record.game_settings)
+    preserved = {
+        r.id: {
+            key: deepcopy(getattr(r, key))
+            for key in ("hole_scores", "holes_won", "performance_metrics", "final_position")
+        }
+        for r in results
+    }
     persist_final_results(db, game, draft)
+    # The shared writer materializes state; repair does not rewrite original
+    # result notes, derived metrics, or audit metadata as new accepted evidence.
+    record.game_settings = metadata
+    for row in results:
+        for key, value in preserved[row.id].items():
+            setattr(row, key, value)
     if record.accepted_revision < 1:
         game.revision = max(game.revision or 0, 1)
         record.accepted_revision = game.revision
@@ -76,10 +175,10 @@ def apply_saved(db, item):
 
 
 def verify_saved(db, manifest):
+    from .round_migration_accounting import primitive
+
     errors = []
     for item in manifest.get("saved_games", []):
-        if item["decision"]["action"] != "publish_original":
-            continue
         record = db.get(models.GameRecord, item["record_id"])
         game = db.query(models.GameStateModel).filter_by(game_id=item["game_id"]).one_or_none()
         results = db.query(models.GamePlayerResult).filter_by(game_record_id=item["record_id"]).all()
@@ -89,6 +188,66 @@ def verify_saved(db, manifest):
             if e["before"]["game_record_id"] == item["record_id"]
         ]
         current = {r.id: r for r in results}
+        before_record = next(
+            e["before"] for e in manifest["inventory"]["game_records"] if e["before"]["id"] == item["record_id"]
+        )
+        for key in (
+            "detail_coverage",
+            "total_holes_played",
+            "game_settings",
+            "played_on",
+            "raw_date",
+            "course_name",
+            "group",
+            "game_mode",
+            "game_duration_minutes",
+            "created_at",
+            "completed_at",
+            "is_retracted",
+        ):
+            if before_record[key] is not None and (not record or primitive(getattr(record, key)) != before_record[key]):
+                errors.append("Original saved detail metadata changed")
+        for before in original:
+            row = current.get(before["id"])
+            if not row or any(getattr(row, key) != before[key] for key in before if key != "participant_id"):
+                errors.append("Original saved detail/result metadata changed")
+        if item["decision"]["action"] != "publish_original":
+            continue
+        try:
+            mapped = [
+                SimpleNamespace(
+                    **{
+                        **r,
+                        "participant_id": r["participant_id"]
+                        or item["decision"].get("result_slots", {}).get(str(r["id"])),
+                    }
+                )
+                for r in original
+            ]
+            for original_row in mapped:
+                if (
+                    original_row.id not in current
+                    or current[original_row.id].participant_id != original_row.participant_id
+                ):
+                    errors.append("Original saved detail slot mapping changed")
+            expected_history = original_history(SimpleNamespace(**before_record), mapped)
+            actual_history = (game.state or {}).get("hole_history", []) if game else []
+            for hole in expected_history:
+                actual = next((h for h in actual_history if h.get("hole") == hole["hole"]), {})
+                if any(actual.get(k) != value for k, value in hole.items()):
+                    errors.append("Original saved detail missing from shared projection")
+            expected_coverage = (
+                "per_hole_complete" if len(expected_history) == 18 else "partial" if expected_history else "totals_only"
+            )
+            if (
+                not record
+                or record.detail_coverage != expected_coverage
+                or record.total_holes_played != (len(expected_history) or None)
+                or (game and game.state.get("detail_coverage") != expected_coverage)
+            ):
+                errors.append("Original saved detail capabilities changed")
+        except ValueError as exc:
+            errors.append(str(exc))
         if (
             not game
             or not record

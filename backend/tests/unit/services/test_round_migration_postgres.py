@@ -72,7 +72,10 @@ def migration_pg(request):
 
 
 @pytest.mark.parametrize("variable", ["ROUND_MIGRATION_PG17_URL", "ROUND_MIGRATION_PG15_URL"])
-@pytest.mark.parametrize("partial_canonical", [False, True])
+@pytest.mark.parametrize(
+    "partial_canonical",
+    [False, True, "original_detail", "detail_missing", "detail_conflict", "detail_retracted", "detail_tamper"],
+)
 def test_actual_postgres_cli_rehearsal(variable, migration_fixture, tmp_path, partial_canonical):
     from tests.unit.services.test_round_migration_cli import (
         test_actual_cli_readonly_apply_rerun_verify_and_redacted_failure as prove_cli,
@@ -100,7 +103,26 @@ def test_actual_postgres_cli_rehearsal(variable, migration_fixture, tmp_path, pa
                     writer.add(model(**{a.key: getattr(row, a.key) for a in model.__mapper__.column_attrs}))
                 writer.flush()
             writer.commit()
-        prove_cli((engine, snapshot), tmp_path, partial_canonical)
+        if partial_canonical == "original_detail":
+            from tests.unit.services.test_round_saved_detail import prove_detail
+
+            prove_detail(engine, snapshot, tmp_path)
+        elif isinstance(partial_canonical, str) and partial_canonical.startswith("detail_"):
+            from tests.unit.services.test_round_saved_detail import (
+                test_insufficient_detail_requires_explicit_hold,
+                test_verifier_and_replay_reject_detail_loss_even_resealed_checkpoint,
+            )
+
+            if partial_canonical == "detail_tamper":
+                test_verifier_and_replay_reject_detail_loss_even_resealed_checkpoint(
+                    (engine, snapshot), tmp_path, "all"
+                )
+            else:
+                test_insufficient_detail_requires_explicit_hold(
+                    (engine, snapshot), partial_canonical.removeprefix("detail_")
+                )
+        else:
+            prove_cli((engine, snapshot), tmp_path, partial_canonical)
     finally:
         engine.dispose()
         with admin.connect() as conn:
