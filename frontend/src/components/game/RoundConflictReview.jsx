@@ -5,6 +5,16 @@ import { useAuthenticatedFetch } from '../../hooks/useAuthenticatedFetch';
 import { readRoundResponse, reviewUrl } from '../../services/roundIdentity';
 
 const shown = value => value === undefined ? 'Not supplied' : JSON.stringify(value, null, 2);
+// Mirrors resolve_issue: binding is identity/continuity only; integrity
+// evidence cannot accept/correct a value, and an unbound hold cannot retract.
+const decisionOptions = issue => [
+  ['keep', 'Keep accepted'],
+  ...(['identity', 'continuity'].includes(issue.kind)
+    ? [['bind_existing', 'Bind existing game'], ...(!issue.game_id ? [['confirm_distinct', 'Confirm distinct new round']] : [])] : []),
+  ...(issue.game_id && ['value', 'roster'].includes(issue.kind)
+    ? [['accept', 'Accept proposed'], ['correct', 'Correct value']] : []),
+  ...(issue.game_id ? [['retract', 'Retract']] : []),
+];
 export function IssueReview({ issueId, onResolved }) {
   const request = useAuthenticatedFetch();
   const [issue, setIssue] = useState(null);
@@ -21,7 +31,7 @@ export function IssueReview({ issueId, onResolved }) {
     setIssue(null);
     setError('');
     request(reviewUrl(`/issues/${encodeURIComponent(issueId)}`)).then(readRoundResponse)
-      .then(data => { if (!cancelled) { setIssue(data); setStale(false); setAction(data.game_id ? 'keep' : 'bind_existing'); } })
+      .then(data => { if (!cancelled) { setIssue(data); setStale(false); setAction(!data.game_id && ['identity', 'continuity'].includes(data.kind) ? 'bind_existing' : 'keep'); } })
       .catch(err => { if (!cancelled) setError(err.message); });
     return () => { cancelled = true; };
   }, [request, issueId, version]);
@@ -59,8 +69,7 @@ export function IssueReview({ issueId, onResolved }) {
       <details><summary>Resolution audit ({issue.audit.length})</summary>{issue.audit.map(a => <pre key={a.id}>{shown(a)}</pre>)}</details>
       {issue.status === 'open' && <form onSubmit={resolve}>
         <label>Decision<select value={action} onChange={e => setAction(e.target.value)} disabled={stale || busy}>
-          {issue.game_id && <><option value="keep">Keep accepted</option><option value="accept">Accept proposed</option><option value="correct">Correct value</option><option value="retract">Retract</option></>}
-          {!issue.game_id && <><option value="bind_existing">Bind existing game</option><option value="confirm_distinct">Confirm distinct new round</option></>}
+          {decisionOptions(issue).map(([key, label]) => <option key={key} value={key}>{label}</option>) }
         </select></label>
         {action === 'bind_existing' && <label>Target game UUID<input value={target} required onChange={e => setTarget(e.target.value)} /></label>}
         {(action === 'correct' || action === 'bind_existing') && <label>{action === 'correct' ? 'Corrected value (JSON)' : 'Target accepted revision'}<input value={value} required onChange={e => setValue(e.target.value)} /></label>}

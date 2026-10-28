@@ -73,7 +73,22 @@ def check_revision(db, game, expected, *, required=False):
         raise HTTPException(409, stale_round(db, game))
 
 
-def detailed_draft(game, history, actor_id=None):
+def completed_detail_players(db, game):
+    """Keep full-state indices at the wire, but never invent removed-slot cells."""
+    from .round_evidence import accepted_draft
+
+    accepted = accepted_draft(db, game.game_id)
+    roster = (game.state or {}).get("players", [])
+    if accepted is None:
+        raise HTTPException(409, "Accepted stable participant mapping missing")
+    active = {p.participant_id for p in accepted.players} - set(accepted.removed_participant_ids)
+    players = [p for p in roster if p.get("id") in active]
+    if len(players) != len(active) or {p.get("id") for p in players} != active:
+        raise HTTPException(409, "Accepted stable participant mapping missing")
+    return players
+
+
+def detailed_draft(game, history, actor_id=None, *, players=None):
     state = game.state or {}
     played = state.get("played_at")
     return RoundDraft(
@@ -83,7 +98,7 @@ def detailed_draft(game, history, actor_id=None):
         roster_complete=True,
         players=[
             {"participant_id": p["id"], "name": p["name"], "profile_id": p.get("player_profile_id")}
-            for p in state.get("players", [])
+            for p in (state.get("players", []) if players is None else players)
         ],
         detail_coverage="per_hole_complete" if len(history) == 18 else "partial",
         hole_history=history,
@@ -105,7 +120,14 @@ def propose_completed(db, game, history, actor_id=None):
         )
         db.add(row)
         db.flush()
-    draft = detailed_draft(game, history, actor_id)
+    players = completed_detail_players(db, game)
+    active = {p["id"] for p in players}
+    # Retained historical cells remain in accepted storage; they are not new
+    # detail evidence about retracted participants on this edit.
+    history = [
+        {**h, "points_delta": {pid: q for pid, q in h["points_delta"].items() if pid in active}} for h in history
+    ]
+    draft = detailed_draft(game, history, actor_id, players=players)
     if len(history) == 18:
         for p in draft.players:
             p.quarters = sum(h["points_delta"][p.participant_id] for h in history)

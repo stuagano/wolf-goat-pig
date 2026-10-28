@@ -1297,7 +1297,13 @@ async def backfill_scorecard(
 
     per_hole = [q.model_dump() for q in body.per_hole_quarters]
     hole_history, standings = build_hole_history(players, per_hole)
-    validate_round_scores(players, hole_history, complete=False)
+    if mode == "canonical" and game.game_status == "completed":
+        from ..services.round_writes import completed_detail_players
+
+        detail_players = completed_detail_players(db, game)
+    else:
+        detail_players = players
+    validate_round_scores(detail_players, hole_history, complete=False)
     history = merge_hole_history(state.get("hole_history", []), hole_history)
     if mode == "canonical" and game.game_status == "completed":
         detail = propose_completed(db, game, history, editor.id)

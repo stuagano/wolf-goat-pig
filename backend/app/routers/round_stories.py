@@ -7,13 +7,13 @@ from urllib.parse import unquote
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import PlayerProfile, RoundComment, RoundReaction
 from ..services.auth_service import get_current_auth0_user, get_current_user
 from ..services.player_name_index import profile_id_for_member, profile_ids_by_member
+from ..services.round_identity import acquire_reconciliation_lock
 from ..services.round_social import _date_keys, _notify_site_of_comment
 from ..services.unified_data_service import get_unified_data_service
 from ..utils.admin_auth import admin_role
@@ -98,7 +98,12 @@ def _round_players(date: str, group: str, location: str, db: Session) -> tuple[s
 
 def _reaction_buckets(rows, viewer_id: int | None) -> list[RoundReactionResponse]:
     grouped: dict[str, RoundReactionResponse] = {}
+    seen = set()
     for reaction, name in rows:
+        logical_key = (reaction.profile_id, reaction.emoji, reaction.comment_id)
+        if logical_key in seen:
+            continue
+        seen.add(logical_key)
         bucket = grouped.get(reaction.emoji)
         if bucket is None:
             bucket = RoundReactionResponse(emoji=reaction.emoji, count=0, reactor_names=[])
@@ -171,6 +176,7 @@ def delete_round_comment(
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
     """The author or an admin can remove a comment."""
+    acquire_reconciliation_lock(db)  # Serialize ownership lookup with alias binding and other social writes.
     comment = db.query(RoundComment).filter(RoundComment.id == comment_id).first()
     if comment is None:
         raise HTTPException(status_code=404, detail="Comment not found")
@@ -195,6 +201,7 @@ def toggle_comment_reaction(
     db: Session = Depends(get_db),
 ) -> Any:
     """Add this player's emoji to one comment, or remove it."""
+    acquire_reconciliation_lock(db)  # Serialize ownership lookup with alias binding and other social writes.
     comment = db.query(RoundComment).filter(RoundComment.id == comment_id).first()
     if comment is None:
         raise HTTPException(status_code=404, detail="Comment not found")
@@ -251,6 +258,7 @@ def uuid_comment(
 ):
     from ..services.round_social import require_game
 
+    acquire_reconciliation_lock(db)
     require_game(db, game_id)
     body = payload.body.strip()
     if not body:
@@ -281,16 +289,18 @@ def uuid_comment(
 def _toggle_uuid(db, game_id, emoji, comment_id, current_user):
     from ..services.round_social import owned_rows, require_game
 
+    acquire_reconciliation_lock(db)
     require_game(db, game_id)
     if emoji not in ROUND_REACTION_EMOJIS:
         raise HTTPException(422, "Pick one of the round reactions")
     existing = (
         owned_rows(db, RoundReaction, game_id)
         .filter_by(comment_id=comment_id, profile_id=current_user.id, emoji=emoji)
-        .first()
+        .all()
     )
     if existing:
-        db.delete(existing)
+        for row in existing:
+            db.delete(row)
     else:
         db.add(
             RoundReaction(
@@ -304,10 +314,7 @@ def _toggle_uuid(db, game_id, emoji, comment_id, current_user):
                 created_at=utc_now().isoformat(),
             )
         )
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()  # A concurrent insertion already established the unique reaction.
+    db.commit()
 
 
 @router.post("/uuid/{game_id}/reactions", response_model=list[RoundReactionResponse])
@@ -394,6 +401,7 @@ def add_round_comment(
     group = unquote(group)
     from ..services.round_social import alias_game
 
+    acquire_reconciliation_lock(db)
     game_id = alias_game(db, date, group, location)
     if game_id:
         return uuid_comment(game_id, payload, current_user, db)
@@ -479,6 +487,7 @@ def toggle_round_reaction(
         raise HTTPException(status_code=422, detail="Pick one of the round reactions")
     from ..services.round_social import alias_game
 
+    acquire_reconciliation_lock(db)
     game_id = alias_game(db, date, group, location)
     if game_id:
         return uuid_reaction(game_id, payload, current_user, db)

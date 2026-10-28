@@ -6,7 +6,7 @@ import { IssueReview } from '../../components/game/RoundConflictReview';
 const request = vi.fn();
 vi.mock('../../hooks/useAuthenticatedFetch', () => ({ useAuthenticatedFetch: () => request }));
 vi.mock('@auth0/auth0-react', () => ({ useAuth0: () => ({ isAuthenticated: true }) }));
-const issue = { id: 'i1', kind: 'score_conflict', field: 'quarters', status: 'open', game_id: 'g1', revision: 2, game_revision: 7, current_head_revision: 3, accepted_present: true, accepted_value: null, proposed_present: true, proposed_value: 2.5, source: { kind: 'sheet' }, observation: {}, audit: [] };
+const issue = { id: 'i1', kind: 'value', field: 'quarters', status: 'open', game_id: 'g1', revision: 2, game_revision: 7, current_head_revision: 3, accepted_present: true, accepted_value: null, proposed_present: true, proposed_value: 2.5, source: { kind: 'sheet' }, observation: {}, audit: [] };
 const response = (data, status = 200) => ({ ok: status < 400, status, json: async () => data });
 beforeEach(() => request.mockReset());
 it('shows accepted/proposed provenance and prevents stale 409 resubmission until reload', async () => {
@@ -27,6 +27,38 @@ it('shows accepted/proposed provenance and prevents stale 409 resubmission until
   expect(sent).toMatchObject({ expected_game_revision: 7, expected_issue_revision: 2, expected_head_revision: 3, reason: 'Checked evidence' });
   fireEvent.click(screen.getByRole('button', { name: 'Reload current evidence' }));
   await waitFor(() => expect(screen.getByLabelText('Reason')).toHaveValue(''));
+});
+it('offers reviewed rebinding for a bound continuity issue and hides unsupported value actions', async () => {
+  const continuity = { ...issue, kind: 'continuity', field: '', accepted_value: 'old-token', proposed_value: 'new-token' };
+  request.mockImplementation(async (url, options) => options?.method ? response({ status: 'accepted' }) : response(continuity));
+  render(<MemoryRouter><IssueReview issueId="i1" /></MemoryRouter>);
+  const menu = await screen.findByLabelText('Decision');
+  expect([...menu.options].map(o => o.value)).toEqual(['keep', 'bind_existing', 'retract']);
+  expect(screen.getByRole('link', { name: 'Open shared game' })).toBeVisible();
+  fireEvent.change(menu, { target: { value: 'bind_existing' } });
+  fireEvent.change(screen.getByLabelText('Target game UUID'), { target: { value: 'other-uuid' } });
+  fireEvent.change(screen.getByLabelText('Target accepted revision'), { target: { value: '4' } });
+  fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Source belongs to the other round' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Record reviewed decision' }));
+  await waitFor(() => expect(request.mock.calls.filter(([, o]) => o?.method === 'POST')).toHaveLength(1));
+  expect(JSON.parse(request.mock.calls.find(([, o]) => o?.method === 'POST')[1].body)).toEqual({
+    action: 'bind_existing', reason: 'Source belongs to the other round', target_game_id: 'other-uuid',
+    expected_target_game_revision: 4, expected_game_revision: 7, expected_issue_revision: 2, expected_head_revision: 3,
+  });
+});
+it('offers only keep for an unbound parse hold and never autosubmits a stale decision', async () => {
+  const parse = { ...issue, kind: 'parse', field: '', game_id: null, game_revision: null, proposed_present: false, proposed_value: undefined };
+  request.mockImplementation(async (url, options) => options?.method ? response({ detail: 'Stale reconciliation decision' }, 409) : response(parse));
+  render(<MemoryRouter><IssueReview issueId="i1" /></MemoryRouter>);
+  const menu = await screen.findByLabelText('Decision');
+  expect([...menu.options].map(o => o.value)).toEqual(['keep']);
+  expect(screen.getAllByText('Not supplied').length).toBeGreaterThan(0);
+  fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Unparsed evidence held' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Record reviewed decision' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(/Reload current evidence/);
+  expect(request.mock.calls.filter(([, o]) => o?.method === 'POST')).toHaveLength(1);
+  expect(JSON.parse(request.mock.calls.find(([, o]) => o?.method === 'POST')[1].body).expected_game_revision).toBeNull();
+  expect(screen.queryByText(/no game has been assigned/)).toBeVisible();
 });
 it('keeps an unbound issue UUID-free', async () => {
   request.mockResolvedValue(response({ ...issue, game_id: null }));

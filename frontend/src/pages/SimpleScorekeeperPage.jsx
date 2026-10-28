@@ -185,7 +185,9 @@ function RoundLifecycle({ gameId }) {
   const standings = Object.fromEntries(players.map(p => [p.id, p.quarters]));
   return <main style={{ maxWidth: 1000, margin: 'auto', padding: 20 }}>
     {editing ? <ScorecardBackfill gameId={gameId} players={players} holeHistory={summary.hole_history}
-      standings={standings} expectedRevision={summary.revision} onCancel={() => setEditing(false)}
+      standings={standings} expectedRevision={summary.revision}
+      statePlayers={snapshot.state.revision === summary.revision ? snapshot.state.players ?? null : null}
+      onCancel={() => setEditing(false)}
       onSaved={() => { setEditing(false); setVersion(v => v + 1); }} />
       : <CompletedRoundView gameId={gameId} players={players} holeHistory={summary.hole_history}
         summary={summary} isMarkedComplete onEditScores={() => setEditing(true)} />}

@@ -51,7 +51,9 @@ function holeHistoryToRunningTotals(holeHistory, players) {
  *
  * Props:
  *   gameId      — game identifier
- *   players     — [{id, name}, ...] (order = player_index)
+ *   players     — [{id, name}, ...] (visible cell/draft order)
+ *   statePlayers — full state.players roster for stable-ID → PATCH index lookup;
+ *                  omit only when players already IS the full state roster.
  *   holeHistory — [{hole, points_delta: {playerId: delta}}, ...]
  *   standings   — {playerId: signedTotal}
  *   onSaved     — called after a successful PATCH
@@ -65,6 +67,7 @@ const ScorecardBackfill = ({
   onSaved,
   onCancel,
   expectedRevision,
+  statePlayers,
 }) => {
   const authenticatedFetch = useAuthenticatedFetch();
   // Pre-fill running totals from existing hole_history
@@ -73,6 +76,15 @@ const ScorecardBackfill = ({
     [holeHistory, players],
   );
 
+  // Undefined preserves the existing full-state-roster caller contract. The
+  // summary caller must supply a full roster (or null to fail closed).
+  const [writeRoster, setWriteRoster] = useState(statePlayers === undefined ? players : statePlayers);
+  const writeIndices = players.map(player => {
+    const matches = (writeRoster || []).flatMap((slot, index) => slot.id === player.id ? [index] : []);
+    return matches.length === 1 ? matches[0] : null;
+  });
+  const mappingAvailable = new Set(players.map(p => p.id)).size === players.length
+    && writeIndices.every(index => index !== null);
   const [recovered] = useState(() => readDraft(gameId, 'backfill'));
   const sameSlots = recovered?.slots?.join('|') === players.map(p => p.id).join('|');
   const [values, setValues] = useState(sameSlots ? recovered.values : initialValues);
@@ -103,6 +115,11 @@ const ScorecardBackfill = ({
       if (!res.ok) throw new Error('Could not reload accepted round. Your draft is retained.');
       const snapshot = await res.json();
       if (!Number.isInteger(snapshot.revision)) throw new Error('Round revision unavailable.');
+      const roster = snapshot.players;
+      if (!Array.isArray(roster) || !players.every(p => roster.filter(slot => slot.id === p.id).length === 1)) {
+        throw new Error('Participant mapping unavailable. Reload the game page; retained cells remain tied to their original stable slot IDs.');
+      }
+      setWriteRoster(roster);
       setRevision(snapshot.revision);
       setAcceptedStandings(snapshot.standings || {});
       retain(values, snapshot.revision);
@@ -175,6 +192,10 @@ const ScorecardBackfill = ({
   }, [players, acceptedStandings, playerFinalTotals]);
 
   const handleSave = async () => {
+    if (!mappingAvailable) {
+      setSaveError('Participant mapping unavailable. Reload the game page before submitting detail; no positions or names were guessed.');
+      return;
+    }
     if (needsReview || !Number.isInteger(revision)) {
       setNeedsReview(true);
       setSaveError('Reload accepted round before submitting retained detail.');
@@ -192,7 +213,7 @@ const ScorecardBackfill = ({
     for (let i = 0; i < players.length; i++) {
       const deltas = allDeltas[i] || {};
       for (const h of HOLES) {
-        perHoleQuarters.push({ player_index: i, hole: h, quarters: deltas[h] });
+        perHoleQuarters.push({ player_index: writeIndices[i], hole: h, quarters: deltas[h] });
       }
     }
 

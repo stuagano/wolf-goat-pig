@@ -60,7 +60,7 @@ it('submits observed revision, retains stale edited draft across remount, and ex
   expect(screen.getByLabelText('running total One hole 18')).toHaveValue(0);
   fireEvent.click(screen.getByLabelText('Save hole detail'));
   expect(fetcher).toHaveBeenCalledOnce();
-  fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ revision: 5, standings: props.standings })));
+  fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ revision: 5, standings: props.standings, players })));
   fireEvent.click(screen.getByRole('button', { name: 'Reload accepted round' }));
   await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
   fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ revision: 6 })));
