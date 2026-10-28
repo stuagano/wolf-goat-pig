@@ -64,11 +64,10 @@ class StatisticsService:
 
     def __init__(self, db: Session):
         self.db = db
-        from .canonical_round_reads import canonical_mode, rebuild_player_statistics
+        from .canonical_round_reads import canonical_mode, profile_statistics
 
         self.canonical = canonical_mode(db)
-        if self.canonical:
-            rebuild_player_statistics(db)
+        self.projections = profile_statistics(db) if self.canonical else {}
 
     def _result_query(self, *columns):
         """All analytics share the accepted current-season eligibility boundary."""
@@ -86,13 +85,17 @@ class StatisticsService:
         """Calculate advanced performance metrics for a player."""
         try:
             # Get player data
-            player_stats = self.db.query(PlayerStatistics).filter(PlayerStatistics.player_id == player_id).first()
+            player_stats = self._statistics(player_id)
 
             if not player_stats or (self.canonical and not player_stats.games_played):
                 return {}
 
             # Get all players for comparison
-            all_stats = self.db.query(PlayerStatistics).filter(PlayerStatistics.games_played >= 5).all()
+            all_stats = (
+                [s for s in self.projections.values() if s.games_played >= 5]
+                if self.canonical
+                else self.db.query(PlayerStatistics).filter(PlayerStatistics.games_played >= 5).all()
+            )
 
             metrics = {}
 
@@ -166,17 +169,6 @@ class StatisticsService:
                     description=f"Your partnerships succeed {partnership_success:.1f}% of the time",
                 )
 
-            # Canonical consistency is unavailable unless observed positions exist.
-            if (
-                self.canonical
-                and not self._result_query(GamePlayerResult.id)
-                .filter(
-                    GamePlayerResult.player_profile_id == player_id,
-                    GamePlayerResult.final_position.isnot(None),
-                )
-                .count()
-            ):
-                return metrics
             # Consistency Score (inverse of variance)
             consistency_score = self._calculate_consistency_score(int(player_stats.player_id))
             all_consistency = [self._calculate_consistency_score(int(s.player_id)) for s in all_stats]
@@ -200,9 +192,10 @@ class StatisticsService:
     def get_performance_trends(self, player_id: int, days: int = 30) -> dict[str, list[TrendPoint]]:
         """Get performance trends over time."""
         if self.canonical:
-            from .canonical_round_reads import accepted_rows
+            from .canonical_round_reads import accepted_ranks, accepted_rows
 
             rows, _ = accepted_rows(self.db, eligible_only=True, season_only=True)
+            ranks = accepted_ranks(rows)
             cutoff = (utc_now() - timedelta(days=days)).date()
             trends = {key: [] for key in ("earnings", "position", "betting_success", "holes_won")}
             for record, result in sorted(rows, key=lambda pair: (pair[0].played_on, pair[0].game_id)):
@@ -210,7 +203,7 @@ class StatisticsService:
                     continue
                 values = {
                     "earnings": result.total_earnings,
-                    "position": 5 - result.final_position if result.final_position is not None else None,
+                    "position": 5 - ranks[result.id],
                     "holes_won": result.holes_won,
                     "betting_success": (
                         100 * result.successful_bets / result.total_bets
@@ -306,7 +299,7 @@ class StatisticsService:
 
             # Get player metrics
             metrics = self.get_advanced_player_metrics(player_id)
-            player_stats = self.db.query(PlayerStatistics).filter(PlayerStatistics.player_id == player_id).first()
+            player_stats = self._statistics(player_id)
 
             if not player_stats:
                 return insights
@@ -509,7 +502,36 @@ class StatisticsService:
                 .limit(limit)
             )
 
-            results = query.all()
+            if self.canonical:
+                from types import SimpleNamespace
+
+                from .canonical_round_reads import profile_statistics_pairs
+
+                results = []
+                fields = {
+                    "avg_earnings": "avg_earnings_per_hole",
+                    "betting_success": "betting_success_rate",
+                    "partnership_success": "partnership_success_rate",
+                    "consistency": "games_played",
+                }
+                for profile, stats in profile_statistics_pairs(self.db):
+                    if stats.games_played < 5:
+                        continue
+                    value = (
+                        stats.games_won / stats.games_played
+                        if metric == "win_rate"
+                        else getattr(stats, fields.get(metric, "total_earnings"))
+                    )
+                    if value is not None:
+                        results.append(
+                            SimpleNamespace(
+                                **{**vars(stats), "id": profile.id, "name": profile.name, "metric_value": value}
+                            )
+                        )
+                results.sort(key=lambda s: (-s.metric_value, s.id))
+                results = results[:limit]
+            else:
+                results = query.all()
 
             leaderboard = []
             for rank, result in enumerate(results, 1):
@@ -573,19 +595,11 @@ class StatisticsService:
 
                     mode_analytics[mode_key]["games_played"] += 1
                     mode_analytics[mode_key]["total_earnings"] += result.total_earnings
-                    won = result.final_position == 1
-                    if self.canonical:
-                        totals = [
-                            r.total_earnings
-                            for r in self._result_query(GamePlayerResult)
-                            .filter(GamePlayerResult.game_record_id == result.game_record_id)
-                            .all()
-                        ]
-                        won = result.total_earnings == max(totals)
-                    if won:
+                    position = self._rank(result)
+                    if position == 1:
                         mode_analytics[mode_key]["wins"] += 1
-                    if result.final_position is not None:
-                        mode_analytics[mode_key]["avg_position"] += result.final_position
+                    if position is not None:
+                        mode_analytics[mode_key]["avg_position"] += position
                         mode_analytics[mode_key]["position_count"] += 1
                     mode_analytics[mode_key]["player_count_breakdown"][game_record.player_count] += 1
 
@@ -607,7 +621,7 @@ class StatisticsService:
     def calculate_skill_rating(self, player_id: int) -> dict[str, float]:
         """Calculate skill ratings similar to ELO or Glicko systems."""
         try:
-            player_stats = self.db.query(PlayerStatistics).filter(PlayerStatistics.player_id == player_id).first()
+            player_stats = self._statistics(player_id)
 
             if not player_stats:
                 return {"overall": 1200.0, "confidence": 0.0}  # Default rating
@@ -660,6 +674,27 @@ class StatisticsService:
             logger.error(f"Error calculating skill rating for player {player_id}: {e}")
             return {"overall": 1200.0, "confidence": 0.0}
 
+    def _statistics(self, player_id):
+        if self.canonical:
+            return self.projections.get(player_id)
+        return self.db.query(PlayerStatistics).filter(PlayerStatistics.player_id == player_id).first()
+
+    def _rank(self, result):
+        if not self.canonical:
+            return result.final_position
+        from .canonical_round_reads import accepted_ranks, accepted_rows
+
+        rows, _ = accepted_rows(self.db, eligible_only=True, season_only=True)
+        return accepted_ranks(rows).get(result.id)
+
+    def _recent_ranks(self, player_id, limit):
+        from .canonical_round_reads import accepted_ranks, accepted_rows
+
+        rows, _ = accepted_rows(self.db, eligible_only=True, season_only=True)
+        ranks = accepted_ranks(rows)
+        sample = sorted(rows, key=lambda pair: (pair[0].played_on, pair[0].game_id), reverse=True)
+        return [ranks[r.id] for _, r in sample if r.player_profile_id == player_id][:limit]
+
     # Helper methods
     def _calculate_percentile(self, value: float, values: list[float]) -> float:
         """Calculate percentile rank for a value."""
@@ -672,19 +707,26 @@ class StatisticsService:
 
     def _analyze_win_rate_trend(self, player_id: int) -> str:
         """Analyze win rate trend over recent games."""
-        recent_results = (
-            self._result_query(GamePlayerResult.final_position)
-            .filter(GamePlayerResult.final_position.isnot(None))
-            .filter(GamePlayerResult.player_profile_id == player_id)
-            .order_by(desc(GameRecord.played_on) if self.canonical else desc(GamePlayerResult.created_at))
-            .limit(10)
-            .all()
-        )
+        if self.canonical:
+            recent_results = self._recent_ranks(player_id, 10)
+        else:
+            recent_results = (
+                self._result_query(GamePlayerResult.final_position)
+                .filter(GamePlayerResult.final_position.isnot(None))
+                .filter(GamePlayerResult.player_profile_id == player_id)
+                .order_by(desc(GameRecord.played_on) if self.canonical else desc(GamePlayerResult.created_at))
+                .limit(10)
+                .all()
+            )
 
         if len(recent_results) < 5:
             return "stable"
 
-        positions = [result.final_position for result in recent_results if result.final_position is not None]
+        positions = (
+            recent_results
+            if self.canonical
+            else [result.final_position for result in recent_results if result.final_position is not None]
+        )
         first_half = positions[: len(positions) // 2]
         second_half = positions[len(positions) // 2 :]
 
@@ -726,19 +768,26 @@ class StatisticsService:
 
     def _calculate_consistency_score(self, player_id: int) -> float:
         """Calculate consistency score (0-100, higher is more consistent)."""
-        recent_results = (
-            self._result_query(GamePlayerResult.final_position)
-            .filter(GamePlayerResult.final_position.isnot(None))
-            .filter(GamePlayerResult.player_profile_id == player_id)
-            .order_by(desc(GameRecord.played_on) if self.canonical else desc(GamePlayerResult.created_at))
-            .limit(20)
-            .all()
-        )
+        if self.canonical:
+            recent_results = self._recent_ranks(player_id, 20)
+        else:
+            recent_results = (
+                self._result_query(GamePlayerResult.final_position)
+                .filter(GamePlayerResult.final_position.isnot(None))
+                .filter(GamePlayerResult.player_profile_id == player_id)
+                .order_by(desc(GameRecord.played_on) if self.canonical else desc(GamePlayerResult.created_at))
+                .limit(20)
+                .all()
+            )
 
         if len(recent_results) < 5:
             return 50.0  # Default for insufficient data
 
-        positions = [result.final_position for result in recent_results if result.final_position is not None]
+        positions = (
+            recent_results
+            if self.canonical
+            else [result.final_position for result in recent_results if result.final_position is not None]
+        )
 
         # Calculate variance (lower variance = higher consistency)
         mean_position = sum(positions) / len(positions)
@@ -751,19 +800,26 @@ class StatisticsService:
 
     def _get_recent_position_variance(self, player_id: int) -> dict[str, Any]:
         """Get variance in recent finishing positions."""
-        recent_results = (
-            self._result_query(GamePlayerResult.final_position)
-            .filter(GamePlayerResult.final_position.isnot(None))
-            .filter(GamePlayerResult.player_profile_id == player_id)
-            .order_by(desc(GameRecord.played_on) if self.canonical else desc(GamePlayerResult.created_at))
-            .limit(15)
-            .all()
-        )
+        if self.canonical:
+            recent_results = self._recent_ranks(player_id, 15)
+        else:
+            recent_results = (
+                self._result_query(GamePlayerResult.final_position)
+                .filter(GamePlayerResult.final_position.isnot(None))
+                .filter(GamePlayerResult.player_profile_id == player_id)
+                .order_by(desc(GameRecord.played_on) if self.canonical else desc(GamePlayerResult.created_at))
+                .limit(15)
+                .all()
+            )
 
         if len(recent_results) < 3:
             return {"variance": 0.0, "games_analyzed": len(recent_results)}
 
-        positions = [result.final_position for result in recent_results if result.final_position is not None]
+        positions = (
+            recent_results
+            if self.canonical
+            else [result.final_position for result in recent_results if result.final_position is not None]
+        )
 
         try:
             variance = statistics.variance(positions)
@@ -934,9 +990,9 @@ class StatisticsService:
     def get_streak_analysis(self, player_id: int) -> dict[str, Any]:
         """Get detailed streak analysis for a player."""
         if self.canonical:
-            from .canonical_round_reads import rebuild_player_statistics
+            from .canonical_round_reads import profile_statistics
 
-            stats = rebuild_player_statistics(self.db, player_id).get(player_id)
+            stats = profile_statistics(self.db, player_id).get(player_id)
             if stats is None or not stats.games_played:
                 return {"status": "no_games"}
             return {
@@ -1028,7 +1084,7 @@ class StatisticsService:
     def get_special_event_analytics(self, player_id: int) -> dict[str, Any]:
         """Get analytics for special events (ping pong, invisible aardvark, etc.)."""
         try:
-            stats = self.db.query(PlayerStatistics).filter(PlayerStatistics.player_id == player_id).first()
+            stats = self._statistics(player_id)
 
             if not stats:
                 return {"status": "no_data"}
@@ -1116,7 +1172,7 @@ class StatisticsService:
     def get_score_performance_analytics(self, player_id: int) -> dict[str, Any]:
         """Get detailed score performance analytics."""
         try:
-            stats = self.db.query(PlayerStatistics).filter(PlayerStatistics.player_id == player_id).first()
+            stats = self._statistics(player_id)
 
             if not stats:
                 return {"status": "no_data"}

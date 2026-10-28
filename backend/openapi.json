@@ -3591,6 +3591,11 @@
             "title": "Preferred Player Count",
             "type": "integer"
           },
+          "scored_round_count": {
+            "default": 0,
+            "title": "Scored Round Count",
+            "type": "integer"
+          },
           "solo_attempts": {
             "anyOf": [
               {

@@ -45,7 +45,7 @@ def compute_highlights(db: Session, start: str, end: str) -> dict[str, Any] | No
         if r.date_sortable and start <= r.date_sortable < end
     ]
     week = [r for r in history if r.score_eligible and r.score is not None]
-    if not week:
+    if not history:
         return None
 
     net = defaultdict(float)
@@ -74,8 +74,8 @@ def compute_highlights(db: Session, start: str, end: str) -> dict[str, Any] | No
                     "course": r.location,
                 }
 
-    top = max(net, key=lambda n: net[n])
-    most = max(rounds.values())
+    top = max(net, key=lambda n: net[n]) if net else None
+    most = max(rounds.values(), default=0)
     return {
         # A round is one foursome: same grouping as GET /data/leaderboard/rounds.
         # Canonical rounds are one game UUID; the old key merged two same-day games.
@@ -83,10 +83,19 @@ def compute_highlights(db: Session, start: str, end: str) -> dict[str, Any] | No
         "known_participation_count": len(history),
         "scored_participation_count": len(week),
         "incomplete_rounds": len({r.game_id or r.game_key for r in history if not r.score_eligible}),
-        "courses": sorted({r.location for r in week if r.location is not None}),
-        "players": sorted(labels.values()),
+        "courses": sorted({r.location for r in history if r.location is not None}),
+        "players": sorted(
+            {
+                (
+                    ("profile", r.player_id)
+                    if r.player_id is not None
+                    else (("guest", r.game_id, r.participant_id) if r.source == "canonical" else r.member)
+                ): r.member
+                for r in history
+            }.values()
+        ),
         "biggest_round": biggest_round,
-        "top_earner": {"player": labels[top], "quarters": net[top], "rounds": rounds[top]},
+        "top_earner": {"player": labels[top], "quarters": net[top], "rounds": rounds[top]} if top is not None else None,
         "biggest_hole": biggest_hole if biggest_hole and biggest_hole["quarters"] > 0 else None,
         "ironman": {"players": sorted(labels[n] for n, c in rounds.items() if c == most), "rounds": most}
         if most > 1

@@ -6,6 +6,7 @@ keeps serving the last accepted canonical projection; it cannot revive caches.
 """
 
 from collections import defaultdict
+from types import SimpleNamespace
 
 from sqlalchemy.orm import Session
 
@@ -55,13 +56,23 @@ def accepted_rows(db: Session, *, eligible_only=False, season_only=False):
     return rows, valid
 
 
-def rebuild_player_statistics(db: Session, player_id: int | None = None):
-    """Replace derived observations, never increment imports; caller owns commit.
+def accepted_ranks(rows):
+    """Competition ranks from accepted totals; all tied maxima are winners."""
+    totals = defaultdict(list)
+    for record, result in rows:
+        totals[record.id].append(result.total_earnings)
+    return {r.id: 1 + sum(t > r.total_earnings for t in totals[rec.id]) for rec, r in rows}
 
-    Unknown detailed observations are SQL NULL, including when only part of the
-    eligible sample has detail. Profile preferences, badges and identity survive.
+
+def profile_statistics(db: Session, player_id: int | None = None):
+    """Compute canonical read DTOs without attaching or mutating ORM statistics.
+
+    Unknown detailed observations stay NULL across an incomplete detail sample.
+    No flush, write lock, transaction boundary or stored aggregate is required.
     """
-    rows, _ = accepted_rows(db, eligible_only=True, season_only=True)
+    appearances, eligible = accepted_rows(db, season_only=True)
+    rows = [(rec, r) for rec, r in appearances if rec.id in eligible]
+    ranks = accepted_ranks(rows)
     by_profile = defaultdict(list)
     for record, result in rows:
         if result.player_profile_id is not None:
@@ -95,23 +106,28 @@ def rebuild_player_statistics(db: Session, player_id: int | None = None):
         },
     }
     for profile in profiles:
-        stats = db.query(models.PlayerStatistics).filter_by(player_id=profile.id).first()
-        if stats is None:
-            stats = models.PlayerStatistics(player_id=profile.id)
-            db.add(stats)
-            db.flush()  # apply ORM defaults before explicitly setting unknowns
+        stored = db.query(models.PlayerStatistics).filter_by(player_id=profile.id).first()
+        stats = SimpleNamespace(
+            id=stored.id if stored else 0,
+            player_id=profile.id,
+            favorite_game_mode=stored.favorite_game_mode if stored else "wolf_goat_pig",
+            preferred_player_count=stored.preferred_player_count if stored else 4,
+            known_participation_count=sum(r.player_profile_id == profile.id for _, r in appearances),
+            incomplete_round_count=sum(
+                r.player_profile_id == profile.id and rec.id not in eligible for rec, r in appearances
+            ),
+        )
         sample = sorted(by_profile[profile.id], key=lambda pair: (pair[0].played_on, pair[0].game_id))
         results = [r for _, r in sample]
-        stats.games_played = len(results)
+        stats.games_played = stats.scored_round_count = len(results)
         stats.total_earnings = sum(r.total_earnings for r in results)
         # Winners are maximal accepted quarter totals, not fabricated positions.
-        winners = {record.id: max(r.total_earnings for rec, r in rows if rec.id == record.id) for record, _ in sample}
-        wins = [result.total_earnings == winners[record.id] for record, result in sample]
+        wins = [ranks[result.id] == 1 for _, result in sample]
         stats.games_won = sum(wins)
         for target, source in direct.items():
             values = [getattr(r, source) for r in results]
             setattr(stats, target, sum(values) if values and all(v is not None for v in values) else None)
-        holes = [rec.total_holes_played for rec, _ in sample]
+        holes = [rec.total_holes_played if rec.detail_coverage == "per_hole_complete" else None for rec, _ in sample]
         stats.holes_played = sum(holes) if holes and all(v is not None for v in holes) else None
         stats.avg_earnings_per_hole = stats.total_earnings / stats.holes_played if stats.holes_played else None
         for target, numerator, denominator in (
@@ -147,8 +163,7 @@ def rebuild_player_statistics(db: Session, player_id: int | None = None):
                 "participant_id": r.participant_id,
                 "game_date": rec.played_on.isoformat(),
                 "earnings": r.total_earnings,
-                "position": 1
-                + sum(other.total_earnings > r.total_earnings for game, other in rows if game.id == rec.id),
+                "position": ranks[r.id],
             }
             for rec, r in sample
         ]
@@ -157,5 +172,32 @@ def rebuild_player_statistics(db: Session, player_id: int | None = None):
         stats.worst_hole_performance = []
         stats.last_updated = str(max((rec.accepted_revision for rec, _ in sample), default=0))
         output[profile.id] = stats
+    return output
+
+
+def rebuild_player_statistics(db: Session, player_id: int | None = None):
+    """Explicit persisted rebuild for fenced writers only; never used by GETs."""
+    from .round_writes import writer_mode
+
+    if writer_mode(db) != "canonical":
+        raise ValueError("Canonical statistics rebuild requires canonical writer mode")
+    projections = profile_statistics(db, player_id)
+    output = {}
+    for pid in sorted(projections):
+        stats = db.query(models.PlayerStatistics).filter_by(player_id=pid).first()
+        if stats is None:
+            stats = models.PlayerStatistics(player_id=pid)
+            db.add(stats)
+        for key, value in vars(projections[pid]).items():
+            if key not in {"id", "known_participation_count", "incomplete_round_count", "scored_round_count"}:
+                setattr(stats, key, value)
+        output[pid] = stats
     db.flush()
     return output
+
+
+def profile_statistics_pairs(db: Session, *, active_only=True):
+    """Existing consumer pair shape, backed by the shared nonmutating projection."""
+    stats = profile_statistics(db)
+    profiles = db.query(models.PlayerProfile).order_by(models.PlayerProfile.id).all()
+    return [(p, stats[p.id]) for p in profiles if not active_only or (p.is_active == 1 and p.is_ai == 0)]

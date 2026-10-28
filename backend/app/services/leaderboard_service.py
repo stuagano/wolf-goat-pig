@@ -393,18 +393,17 @@ class LeaderboardService:
         Returns:
             List of leaderboard entries
         """
-        from .canonical_round_reads import canonical_mode, rebuild_player_statistics
+        from .canonical_round_reads import canonical_mode
 
         if canonical_mode(db):
-            rebuild_player_statistics(db)
+            from .canonical_round_reads import profile_statistics_pairs
+
+            pairs = profile_statistics_pairs(db)
+            if leaderboard_type in {"total_earnings", "games_played", "partnerships_won"}:
+                return self._canonical_stat_leaderboard(pairs, leaderboard_type, limit, offset)
             if leaderboard_type == "average_score":
                 # Positions are derived from accepted totals by the shared rebuild.
-                stats = (
-                    db.query(PlayerProfile, PlayerStatistics)
-                    .join(PlayerStatistics, PlayerStatistics.player_id == PlayerProfile.id)
-                    .filter(PlayerProfile.is_active == 1, PlayerProfile.is_ai == 0)
-                    .all()
-                )
+                stats = pairs
                 rows = [
                     (profile, sum(t["position"] for t in s.performance_trends) / s.games_played)
                     for profile, s in stats
@@ -452,6 +451,37 @@ class LeaderboardService:
         Returns:
             List of leaderboard entries
         """
+        from .canonical_round_reads import accepted_ranks, accepted_rows, canonical_mode
+
+        if canonical_mode(db):
+            rows, _ = accepted_rows(db, eligible_only=True, season_only=True)
+            ranks = accepted_ranks(rows)
+            grouped = {}
+            for record, result in rows:
+                if result.player_profile_id is not None and start_date.date() <= record.played_on <= end_date.date():
+                    grouped.setdefault(result.player_profile_id, []).append(result)
+            values = []
+            for profile in db.query(PlayerProfile).filter_by(is_active=1, is_ai=0).all():
+                sample = grouped.get(profile.id, [])
+                if not sample:
+                    continue
+                if leaderboard_type == "average_score":
+                    value = sum(ranks[r.id] for r in sample) / len(sample)
+                elif leaderboard_type == "games_played":
+                    value = len(sample)
+                elif leaderboard_type == "partnerships_won":
+                    if any(r.partnerships_won is None for r in sample):
+                        continue
+                    value = sum(r.partnerships_won for r in sample)
+                else:
+                    value = sum(r.total_earnings for r in sample)
+                values.append((profile, value))
+            values.sort(key=lambda pair: (pair[1] if leaderboard_type == "average_score" else -pair[1], pair[0].id))
+            return [
+                {"rank": i, "player_id": p.id, "player_name": p.name, "value": round(v, 2)}
+                for i, (p, v) in enumerate(values[:limit], 1)
+            ]
+
         # For time-filtered leaderboards, we need to query GamePlayerResult
         # and aggregate data for the specified time period
 
@@ -479,34 +509,6 @@ class LeaderboardService:
             )
             .group_by(GamePlayerResult.player_profile_id, PlayerProfile.name)
         )
-
-        from .canonical_round_reads import accepted_rows, canonical_mode
-
-        if canonical_mode(db):
-            rows, _ = accepted_rows(db, eligible_only=True, season_only=True)
-            ids = [r.id for record, r in rows if start_date.date() <= record.played_on <= end_date.date()]
-            # Replace upload-time constraints with the accepted played-date sample.
-            results_query = (
-                db.query(
-                    GamePlayerResult.player_profile_id,
-                    PlayerProfile.name.label("player_name"),
-                    func.sum(GamePlayerResult.total_earnings).label("total_earnings"),
-                    func.count(GamePlayerResult.id).label("games_played"),
-                    func.sum(GamePlayerResult.partnerships_won).label("partnerships_won"),
-                    func.avg(GamePlayerResult.final_position).label("avg_position"),
-                )
-                .join(PlayerProfile, PlayerProfile.id == GamePlayerResult.player_profile_id)
-                .filter(PlayerProfile.is_active == 1, PlayerProfile.is_ai == 0, GamePlayerResult.id.in_(ids))
-                .group_by(GamePlayerResult.player_profile_id, PlayerProfile.name)
-            )
-            if leaderboard_type == "partnerships_won":
-                results_query = results_query.having(
-                    func.count(GamePlayerResult.partnerships_won) == func.count(GamePlayerResult.id)
-                )
-            if leaderboard_type == "average_score":
-                results_query = results_query.having(
-                    func.count(GamePlayerResult.final_position) == func.count(GamePlayerResult.id)
-                )
 
         # Apply ordering based on leaderboard type
         if leaderboard_type == "total_earnings":
@@ -550,6 +552,14 @@ class LeaderboardService:
             )
 
         return leaderboard
+
+    def _canonical_stat_leaderboard(self, pairs, metric, limit, offset):
+        values = [(p, getattr(s, metric)) for p, s in pairs if s.games_played >= 1 and getattr(s, metric) is not None]
+        values.sort(key=lambda pair: (-pair[1], pair[0].id))
+        return [
+            {"rank": i, "player_id": p.id, "player_name": p.name, "value": round(v, 2)}
+            for i, (p, v) in enumerate(values[offset : offset + limit], offset + 1)
+        ]
 
     def _query_total_earnings(self, db: Session, limit: int, offset: int) -> list[dict[str, Any]]:
         """Query total earnings leaderboard."""

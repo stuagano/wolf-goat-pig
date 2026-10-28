@@ -379,10 +379,9 @@ class GHINService:
             List of player records with GHIN data integrated
         """
         try:
-            from .canonical_round_reads import canonical_mode, rebuild_player_statistics
+            from .canonical_round_reads import canonical_mode
 
-            if canonical_mode(self.db):
-                rebuild_player_statistics(self.db)
+            canonical = canonical_mode(self.db)
             # Get basic leaderboard data (exclude AI players)
             query = (
                 self.db.query(PlayerProfile, PlayerStatistics)
@@ -394,7 +393,14 @@ class GHINService:
                 .order_by(desc(PlayerStatistics.total_earnings))
             )
 
-            players_with_stats = query.limit(limit).all()
+            if canonical:
+                from .canonical_round_reads import profile_statistics_pairs
+
+                players_with_stats = sorted(
+                    profile_statistics_pairs(self.db), key=lambda pair: (-pair[1].total_earnings, pair[0].id)
+                )[:limit]
+            else:
+                players_with_stats = query.limit(limit).all()
 
             enhanced_leaderboard: list[dict[str, Any]] = []
             for profile, stats in players_with_stats:
@@ -429,6 +435,9 @@ class GHINService:
                     "rank": len(enhanced_leaderboard) + 1,
                     "player_name": profile.name,
                     "games_played": stats.games_played,
+                    "known_participation_count": getattr(stats, "known_participation_count", stats.games_played),
+                    "scored_round_count": stats.games_played,
+                    "incomplete_round_count": getattr(stats, "incomplete_round_count", 0),
                     "win_percentage": round(win_percentage, 1),
                     "avg_earnings": round(stats.avg_earnings_per_hole, 2)
                     if stats.avg_earnings_per_hole is not None

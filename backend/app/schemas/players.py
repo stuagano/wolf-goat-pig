@@ -119,6 +119,7 @@ class PlayerStatisticsResponse(BaseModel):
     games_played: int
     games_won: int
     known_participation_count: int = 0
+    scored_round_count: int = 0
     incomplete_round_count: int = 0
     total_earnings: float
     holes_played: int | None
@@ -224,6 +225,9 @@ class LeaderboardEntry(BaseModel):
     player_id: int
     player_name: str
     games_played: int
+    known_participation_count: int = 0
+    scored_round_count: int = 0
+    incomplete_round_count: int = 0
     win_percentage: float
     avg_earnings: float | None
     total_earnings: float

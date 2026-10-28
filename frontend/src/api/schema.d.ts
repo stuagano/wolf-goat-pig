@@ -6724,6 +6724,11 @@ export interface components {
             player_id: number;
             /** Preferred Player Count */
             preferred_player_count: number;
+            /**
+             * Scored Round Count
+             * @default 0
+             */
+            scored_round_count: number;
             /** Solo Attempts */
             solo_attempts: number | null;
             /** Solo Wins */

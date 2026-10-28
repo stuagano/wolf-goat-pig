@@ -347,10 +347,9 @@ class SheetIntegrationService:
     def export_current_data_to_sheet_format(self, mappings: list[SheetColumnMapping]) -> list[dict[str, Any]]:
         """Export current database data in sheet format for comparison."""
         try:
-            from .canonical_round_reads import canonical_mode, rebuild_player_statistics
+            from .canonical_round_reads import canonical_mode
 
-            if canonical_mode(self.db):
-                rebuild_player_statistics(self.db)
+            canonical = canonical_mode(self.db)
             # Get all active players with statistics
             query = (
                 self.db.query(PlayerProfile, PlayerStatistics)
@@ -358,7 +357,12 @@ class SheetIntegrationService:
                 .filter(PlayerProfile.is_active == 1)
             )
 
-            results = query.all()
+            if canonical:
+                from .canonical_round_reads import profile_statistics_pairs
+
+                results = [(p, s) for p, s in profile_statistics_pairs(self.db, active_only=False) if p.is_active == 1]
+            else:
+                results = query.all()
             sheet_data = []
 
             for player, stats in results:

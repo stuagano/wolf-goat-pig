@@ -296,12 +296,19 @@ class EmailService:
             f"{rounds} round{'s' if rounds != 1 else ''} at {esc(', '.join(highlights['courses']))} "
             f"with {len(highlights['players'])} players."
         )
+        coverage = (
+            f"{highlights.get('known_participation_count', len(highlights['players']))} known appearances; "
+            f"{highlights.get('scored_participation_count', len(highlights['players']))} scored appearances; "
+            f"{highlights.get('incomplete_rounds', 0)} incomplete round(s). "
+            "Incomplete rounds are visible but excluded from score awards."
+        )
         items = "".join(f"<li>{line}</li>" for line in lines)
         content = f"""
         <h2>&#9971; This week in Wolf Goat Pig</h2>
         <p>Hi {esc(player_name)},</p>
         {self._intro_html(highlights.get("intro"))}
         <p>{intro}</p>
+        <p>{coverage}</p>
         <ul>{items}</ul>
         <p style="color: #6b7280; font-size: 13px;">Played: {esc(", ".join(highlights["players"]))}</p>
         """
@@ -310,6 +317,7 @@ class EmailService:
             f"This week in Wolf Goat Pig\n\nHi {player_name},\n\n"
             + (f"{highlights['intro']}\n\n" if highlights.get("intro") else "")
             + f"{html.unescape(intro)}\n\n"
+            + f"{coverage}\n\n"
             + "".join(f"- {html.unescape(line)}\n" for line in lines)
             + f"\nPlayed: {', '.join(highlights['players'])}\n\n"
             f"Manage your email preferences: {self._preferences_url()}\n"

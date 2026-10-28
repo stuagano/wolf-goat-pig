@@ -235,23 +235,15 @@ class PlayerService:
     def get_player_statistics(self, player_id: int) -> PlayerStatisticsResponse | None:
         """Get player statistics."""
         try:
-            from .canonical_round_reads import canonical_mode, rebuild_player_statistics
+            from .canonical_round_reads import canonical_mode, profile_statistics
 
             if canonical_mode(self.db):
-                stats = rebuild_player_statistics(self.db, player_id).get(player_id)
+                stats = profile_statistics(self.db, player_id).get(player_id)
             else:
                 stats = self.db.query(PlayerStatistics).filter(PlayerStatistics.player_id == player_id).first()
 
             if stats:
                 response = PlayerStatisticsResponse.model_validate(stats)
-                if canonical_mode(self.db):
-                    from .unified_data_service import UnifiedDataService
-
-                    appearances = [
-                        r for r in UnifiedDataService(self.db).get_season_rounds() if r.player_id == player_id
-                    ]
-                    response.known_participation_count = len(appearances)
-                    response.incomplete_round_count = sum(not r.score_eligible for r in appearances)
                 return response
             return None
 
@@ -274,11 +266,9 @@ class PlayerService:
     # Game Results and Statistics Updates
     def record_game_result(self, game_result: GamePlayerResultCreate) -> bool:
         """Record a game result and update player statistics."""
-        from .canonical_round_reads import canonical_mode, rebuild_player_statistics
         from .round_writes import writer_mode
 
-        if canonical_mode(self.db):
-            writer_mode(self.db)
+        if writer_mode(self.db) == "canonical":
             # This old DTO carries no source/request/slot identity. It may replay
             # an accepted participant, never append or bypass reconciliation.
             result = (
@@ -299,6 +289,8 @@ class PlayerService:
                 or result.total_earnings != game_result.total_earnings
             ):
                 raise ValueError("Use the canonical final-result writer with stable participant identity")
+            from .canonical_round_reads import rebuild_player_statistics
+
             rebuild_player_statistics(self.db, game_result.player_profile_id)
             self.db.commit()
             return True
@@ -532,10 +524,9 @@ class PlayerService:
     def get_leaderboard(self, limit: int = 10) -> list[LeaderboardEntry]:
         """Get the player leaderboard (real players only, no AI)."""
         try:
-            from .canonical_round_reads import canonical_mode, rebuild_player_statistics
+            from .canonical_round_reads import canonical_mode
 
-            if canonical_mode(self.db):
-                rebuild_player_statistics(self.db)
+            canonical = canonical_mode(self.db)
             # Query for active real players with statistics (exclude AI players)
             query = (
                 self.db.query(PlayerProfile, PlayerStatistics)
@@ -547,7 +538,14 @@ class PlayerService:
                 .order_by(desc(PlayerStatistics.total_earnings))
             )
 
-            players_with_stats = query.limit(limit).all()
+            if canonical:
+                from .canonical_round_reads import profile_statistics_pairs
+
+                players_with_stats = sorted(
+                    profile_statistics_pairs(self.db), key=lambda pair: (-pair[1].total_earnings, pair[0].id)
+                )[:limit]
+            else:
+                players_with_stats = query.limit(limit).all()
 
             leaderboard = []
             for rank, (profile, stats) in enumerate(players_with_stats, 1):
@@ -560,6 +558,9 @@ class PlayerService:
                         player_id=profile.id,
                         player_name=profile.name,
                         games_played=stats.games_played,
+                        known_participation_count=getattr(stats, "known_participation_count", stats.games_played),
+                        scored_round_count=stats.games_played,
+                        incomplete_round_count=getattr(stats, "incomplete_round_count", 0),
                         win_percentage=round(win_percentage, 1),
                         avg_earnings=round(avg_earnings, 2) if avg_earnings is not None else None,
                         total_earnings=round(stats.total_earnings, 2),
@@ -591,10 +592,10 @@ class PlayerService:
 
     def _calculate_average_position(self, player_id: int) -> float:
         """Calculate average finishing position for a player."""
-        from .canonical_round_reads import canonical_mode, rebuild_player_statistics
+        from .canonical_round_reads import canonical_mode, profile_statistics
 
         if canonical_mode(self.db):
-            stats = rebuild_player_statistics(self.db, player_id).get(player_id)
+            stats = profile_statistics(self.db, player_id).get(player_id)
             positions = [r["position"] for r in stats.performance_trends] if stats else []
             return sum(positions) / len(positions) if positions else None
         results = (
@@ -611,10 +612,10 @@ class PlayerService:
 
     def _calculate_recent_form(self, player_id: int, games: int = 5) -> str:
         """Calculate recent form based on last N games."""
-        from .canonical_round_reads import canonical_mode, rebuild_player_statistics
+        from .canonical_round_reads import canonical_mode, profile_statistics
 
         if canonical_mode(self.db):
-            stats = rebuild_player_statistics(self.db, player_id).get(player_id)
+            stats = profile_statistics(self.db, player_id).get(player_id)
             positions = [r["position"] for r in stats.performance_trends[-games:]] if stats else []
             if not positions:
                 return "No recent games"
@@ -741,12 +742,15 @@ class PlayerService:
     def _get_comparative_analysis(self, player_id: int, stats: PlayerStatisticsResponse) -> dict[str, Any]:
         """Get comparative analysis against other players."""
         try:
-            from .canonical_round_reads import canonical_mode, rebuild_player_statistics
+            from .canonical_round_reads import canonical_mode, profile_statistics
 
-            if canonical_mode(self.db):
-                rebuild_player_statistics(self.db)
+            canonical = canonical_mode(self.db)
             # Get average stats for all players
-            all_stats = self.db.query(PlayerStatistics).filter(PlayerStatistics.games_played >= 5).all()
+            all_stats = (
+                [s for s in profile_statistics(self.db).values() if s.games_played >= 5]
+                if canonical
+                else self.db.query(PlayerStatistics).filter(PlayerStatistics.games_played >= 5).all()
+            )
 
             if not all_stats:
                 return {"status": "insufficient_data"}
@@ -893,10 +897,10 @@ class PlayerService:
 
     def _check_win_streak(self, player_id: int, streak_length: int) -> bool:
         """Check if player has a current win streak of specified length."""
-        from .canonical_round_reads import canonical_mode, rebuild_player_statistics
+        from .canonical_round_reads import canonical_mode, profile_statistics
 
         if canonical_mode(self.db):
-            stats = rebuild_player_statistics(self.db, player_id).get(player_id)
+            stats = profile_statistics(self.db, player_id).get(player_id)
             return stats is not None and stats.current_win_streak >= streak_length
         recent_results = (
             self._result_query(GamePlayerResult.final_position)
