@@ -31,6 +31,13 @@ def _game(db, game_id):
 
 def _bind(db, source, draft, game_id=None, actor=None):
     game_id = game_id or str(uuid4())
+    evidence = source.binding_evidence or {}
+    if evidence.get("participant_tokens") and source.game_id != game_id:
+        # Slot labels/names on another UUID do not prove the same participants.
+        # Keep the old association and evidence intact until explicit mapping
+        # review can describe the new target; ordinary binding cannot do that.
+        raise HTTPException(409, "Source participant mapping review required before binding a different UUID")
+    retained = evidence if source.game_id == game_id else {}
     game = _game(db, game_id)
     if game is None:
         game = models.GameStateModel(
@@ -42,7 +49,7 @@ def _bind(db, source, draft, game_id=None, actor=None):
     source.revision += 1
     source.bound_by_profile_id = actor
     source.bound_at = utc_now().isoformat()
-    source.binding_evidence = {"kind": "reviewed" if actor else "trusted_new_token"}
+    source.binding_evidence = {**retained, "kind": "reviewed" if actor else "trusted_new_token"}
     db.flush()
     if accepted_draft(db, game_id) is None:
         # An orphan record with no scores can acquire its original container;
@@ -386,7 +393,7 @@ def resolve_issue(db, issue_id, decision, *, actor_profile_id):
             SourceRef(kind=row.kind, scope=row.scope, round_token=row.round_token),
             proposed,
             observation_key=f"review-bind:{issue.id}",
-            raw_payload=observation.raw_payload,
+            raw_payload=observation.raw_payload.get("payload", observation.raw_payload),
             continuity_verified=True,
         )
     elif action in {"accept", "correct", "retract"}:
@@ -447,7 +454,12 @@ def resolve_issue(db, issue_id, decision, *, actor_profile_id):
             action=action,
             reason=decision.reason,
             value_present=issue.accepted_present if action == "keep" else True,
-            value=selected,
+            value=(
+                {"participant_tokens": dict(row.binding_evidence["participant_tokens"]), "game_id": row.game_id}
+                if action in {"bind_existing", "confirm_distinct"}
+                and (row.binding_evidence or {}).get("participant_tokens")
+                else selected
+            ),
             target_game_id=row.game_id,
             game_revision=game.revision if game else None,
             issue_revision=issue.revision,
