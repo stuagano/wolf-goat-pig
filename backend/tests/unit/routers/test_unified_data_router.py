@@ -28,6 +28,10 @@ def _make_mock_round(date="15-Mar", member="Alice", score=5, group="A", source="
     mock.source = source
     mock.game_id = None
     mock.game_key = None
+    mock.player_id = None
+    mock.participant_id = None
+    mock.score_eligible = True
+    mock.detail_coverage = None
     return mock
 
 
@@ -41,6 +45,9 @@ def _make_mock_leaderboard_entry(member="Alice", quarters=20, rounds=4, rank=1):
     mock.best_round = quarters // rounds + 2 if rounds else 0
     mock.worst_round = quarters // rounds - 1 if rounds else 0
     mock.sources = {"database", "primary_sheet"}
+    mock.player_id = None
+    mock.known_participation_count = rounds
+    mock.incomplete_round_count = 0
     return mock
 
 

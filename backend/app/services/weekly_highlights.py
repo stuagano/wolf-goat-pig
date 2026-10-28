@@ -39,17 +39,29 @@ def compute_highlights(db: Session, start: str, end: str) -> dict[str, Any] | No
     """
     # ponytail: app games are dated by their UTC completed_at in the unified service,
     # so one finishing after 5pm PT Sunday lands in the next week; fix there if it bites.
-    week = [r for r in get_unified_data_service(db=db).get_season_rounds() if start <= r.date_sortable < end]
+    history = [
+        r
+        for r in get_unified_data_service(db=db).get_season_rounds()
+        if r.date_sortable and start <= r.date_sortable < end
+    ]
+    week = [r for r in history if r.score_eligible and r.score is not None]
     if not week:
         return None
 
-    net: dict[str, int] = defaultdict(int)
-    rounds: dict[str, int] = defaultdict(int)
+    net = defaultdict(float)
+    rounds = defaultdict(int)
+    labels = {}
     biggest_round = None
     biggest_hole = None
     for r in week:
-        net[r.member] += r.score
-        rounds[r.member] += 1
+        identity = (
+            ("profile", r.player_id)
+            if r.player_id is not None
+            else (("guest", r.game_id, r.participant_id) if r.source == "canonical" else r.member)
+        )
+        labels[identity] = r.member
+        net[identity] += r.score
+        rounds[identity] += 1
         if biggest_round is None or r.score > biggest_round["quarters"]:
             biggest_round = {"player": r.member, "quarters": r.score, "course": r.location}
         for hole in r.hole_scores or []:
@@ -66,13 +78,19 @@ def compute_highlights(db: Session, start: str, end: str) -> dict[str, Any] | No
     most = max(rounds.values())
     return {
         # A round is one foursome: same grouping as GET /data/leaderboard/rounds.
-        "rounds": len({(r.date_sortable, r.group, r.location) for r in week}),
-        "courses": sorted({r.location for r in week}),
-        "players": sorted(rounds),
+        # Canonical rounds are one game UUID; the old key merged two same-day games.
+        "rounds": len({r.game_id or (r.date_sortable, r.group, r.location) for r in week}),
+        "known_participation_count": len(history),
+        "scored_participation_count": len(week),
+        "incomplete_rounds": len({r.game_id or r.game_key for r in history if not r.score_eligible}),
+        "courses": sorted({r.location for r in week if r.location is not None}),
+        "players": sorted(labels.values()),
         "biggest_round": biggest_round,
-        "top_earner": {"player": top, "quarters": net[top], "rounds": rounds[top]},
+        "top_earner": {"player": labels[top], "quarters": net[top], "rounds": rounds[top]},
         "biggest_hole": biggest_hole if biggest_hole and biggest_hole["quarters"] > 0 else None,
-        "ironman": {"players": sorted(n for n, c in rounds.items() if c == most), "rounds": most} if most > 1 else None,
+        "ironman": {"players": sorted(labels[n] for n, c in rounds.items() if c == most), "rounds": most}
+        if most > 1
+        else None,
     }
 
 

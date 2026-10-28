@@ -68,9 +68,11 @@ def _make_tools(db: Session, trace: dict[str, Any]):
     return [get_season_context, run_readonly_sql]
 
 
-def _build_instruction(data_context: str) -> str:
-    from app.routers.commissioner import DATA_SCHEMA, WGP_RULES
+def _build_instruction(data_context: str, *, canonical: bool = False) -> str:
+    from app.routers.commissioner import CANONICAL_DATA_SCHEMA, DATA_SCHEMA, WGP_RULES
 
+    if canonical:
+        return f"{WGP_RULES}\n\n{CANONICAL_DATA_SCHEMA}\n\n{data_context}\nUse the read-only SQL tools; never infer missing observations."
     return f"""{WGP_RULES}
 
 {DATA_SCHEMA}
@@ -112,10 +114,12 @@ async def run_data_chat_adk(db: Session, question: str, data_context: str) -> di
     _ensure_vertex_env()
     trace: dict[str, Any] = {}
 
+    from .canonical_round_reads import canonical_mode
+
     agent = Agent(
         name="commissioner_hover_over",
         model=_model_name(),
-        instruction=_build_instruction(data_context),
+        instruction=_build_instruction(data_context, canonical=canonical_mode(db)),
         tools=_make_tools(db, trace),
         generate_content_config=types.GenerateContentConfig(
             temperature=0.7,

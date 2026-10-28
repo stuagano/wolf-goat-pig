@@ -480,6 +480,9 @@ def test_history_aggregates_club_rounds(client, monkeypatch):
         "group": "A",
         "source": "primary_sheet",
         "game_id": "8571419c-c312-4b3c-a8bd-12ee060fd056",
+        "score_eligible": True,
+        "detail_coverage": None,
+        "participant_id": None,
     }
     assert data["recent_rounds"][1]["game_id"] is None
     fake.get_player_history.assert_called_once_with("Stuart Gano")

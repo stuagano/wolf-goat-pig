@@ -2232,7 +2232,24 @@
         "description": "A single entry in the leaderboard.",
         "properties": {
           "average": {
-            "title": "Average",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average"
+          },
+          "incomplete_round_count": {
+            "default": 0,
+            "title": "Incomplete Round Count",
+            "type": "integer"
+          },
+          "known_participation_count": {
+            "default": 0,
+            "title": "Known Participation Count",
             "type": "integer"
           },
           "member": {
@@ -2241,11 +2258,11 @@
           },
           "qb": {
             "title": "Qb",
-            "type": "integer"
+            "type": "number"
           },
           "quarters": {
             "title": "Quarters",
-            "type": "integer"
+            "type": "number"
           },
           "rank": {
             "title": "Rank",
@@ -3278,8 +3295,15 @@
       "PlayerStatisticsResponse": {
         "properties": {
           "avg_earnings_per_hole": {
-            "title": "Avg Earnings Per Hole",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Earnings Per Hole"
           },
           "best_hole_performance": {
             "default": [],
@@ -3296,28 +3320,59 @@
             "type": "integer"
           },
           "betting_success_rate": {
-            "title": "Betting Success Rate",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Betting Success Rate"
           },
           "big_dick_attempts": {
-            "default": 0,
-            "title": "Big Dick Attempts",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Big Dick Attempts"
           },
           "big_dick_wins": {
-            "default": 0,
-            "title": "Big Dick Wins",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Big Dick Wins"
           },
           "birdies": {
-            "default": 0,
-            "title": "Birdies",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birdies"
           },
           "bogeys": {
-            "default": 0,
-            "title": "Bogeys",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bogeys"
           },
           "current_loss_streak": {
             "default": 0,
@@ -3330,24 +3385,48 @@
             "type": "integer"
           },
           "double_bogeys": {
-            "default": 0,
-            "title": "Double Bogeys",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Double Bogeys"
           },
           "duncan_attempts": {
-            "default": 0,
-            "title": "Duncan Attempts",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duncan Attempts"
           },
           "duncan_wins": {
-            "default": 0,
-            "title": "Duncan Wins",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duncan Wins"
           },
           "eagles": {
-            "default": 0,
-            "title": "Eagles",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eagles"
           },
           "favorite_game_mode": {
             "title": "Favorite Game Mode",
@@ -3368,25 +3447,61 @@
             "type": "object"
           },
           "holes_played": {
-            "title": "Holes Played",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holes Played"
           },
           "holes_won": {
-            "title": "Holes Won",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holes Won"
           },
           "id": {
             "title": "Id",
             "type": "integer"
           },
-          "invisible_aardvark_appearances": {
+          "incomplete_round_count": {
             "default": 0,
-            "title": "Invisible Aardvark Appearances",
+            "title": "Incomplete Round Count",
             "type": "integer"
           },
+          "invisible_aardvark_appearances": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invisible Aardvark Appearances"
+          },
           "invisible_aardvark_wins": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invisible Aardvark Wins"
+          },
+          "known_participation_count": {
             "default": 0,
-            "title": "Invisible Aardvark Wins",
+            "title": "Known Participation Count",
             "type": "integer"
           },
           "last_updated": {
@@ -3394,21 +3509,48 @@
             "type": "string"
           },
           "pars": {
-            "default": 0,
-            "title": "Pars",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pars"
           },
           "partnership_success_rate": {
-            "title": "Partnership Success Rate",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partnership Success Rate"
           },
           "partnerships_formed": {
-            "title": "Partnerships Formed",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partnerships Formed"
           },
           "partnerships_won": {
-            "title": "Partnerships Won",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partnerships Won"
           },
           "performance_trends": {
             "default": [],
@@ -3420,14 +3562,26 @@
             "type": "array"
           },
           "ping_pong_count": {
-            "default": 0,
-            "title": "Ping Pong Count",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ping Pong Count"
           },
           "ping_pong_wins": {
-            "default": 0,
-            "title": "Ping Pong Wins",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ping Pong Wins"
           },
           "player_id": {
             "title": "Player Id",
@@ -3438,59 +3592,129 @@
             "type": "integer"
           },
           "solo_attempts": {
-            "title": "Solo Attempts",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Solo Attempts"
           },
           "solo_wins": {
-            "title": "Solo Wins",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Solo Wins"
           },
           "successful_bets": {
-            "title": "Successful Bets",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Successful Bets"
           },
           "times_as_aardvark": {
-            "default": 0,
-            "title": "Times As Aardvark",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Times As Aardvark"
           },
           "times_as_goat": {
-            "default": 0,
-            "title": "Times As Goat",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Times As Goat"
           },
           "times_as_pig": {
-            "default": 0,
-            "title": "Times As Pig",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Times As Pig"
           },
           "times_as_wolf": {
-            "default": 0,
-            "title": "Times As Wolf",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Times As Wolf"
           },
           "total_bets": {
-            "title": "Total Bets",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Bets"
           },
           "total_earnings": {
             "title": "Total Earnings",
             "type": "number"
           },
           "tunkarri_attempts": {
-            "default": 0,
-            "title": "Tunkarri Attempts",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tunkarri Attempts"
           },
           "tunkarri_wins": {
-            "default": 0,
-            "title": "Tunkarri Wins",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tunkarri Wins"
           },
           "worse_than_double": {
-            "default": 0,
-            "title": "Worse Than Double",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worse Than Double"
           },
           "worst_hole_performance": {
             "default": [],
@@ -4164,8 +4388,15 @@
         "description": "Response model for a round result.",
         "properties": {
           "date": {
-            "title": "Date",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
           },
           "duration": {
             "anyOf": [
@@ -4177,6 +4408,17 @@
               }
             ],
             "title": "Duration"
+          },
+          "game_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Game Id"
           },
           "group": {
             "anyOf": [
@@ -4204,9 +4446,32 @@
             "title": "Member",
             "type": "string"
           },
+          "participant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Id"
+          },
           "score": {
-            "title": "Score",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "score_eligible": {
+            "default": true,
+            "title": "Score Eligible",
+            "type": "boolean"
           }
         },
         "required": [
@@ -4705,6 +4970,17 @@
             "title": "Member",
             "type": "string"
           },
+          "participant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Id"
+          },
           "player_id": {
             "anyOf": [
               {
@@ -4717,8 +4993,20 @@
             "title": "Player Id"
           },
           "quarters": {
-            "title": "Quarters",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quarters"
+          },
+          "score_eligible": {
+            "default": true,
+            "title": "Score Eligible",
+            "type": "boolean"
           }
         },
         "required": [
@@ -4736,8 +5024,15 @@
             "type": "string"
           },
           "date_sortable": {
-            "title": "Date Sortable",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Sortable"
           },
           "game_id": {
             "anyOf": [
@@ -4755,8 +5050,15 @@
             "type": "string"
           },
           "location": {
-            "title": "Location",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
           },
           "players": {
             "items": {
@@ -4784,8 +5086,15 @@
             "type": "string"
           },
           "date_sortable": {
-            "title": "Date Sortable",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Sortable"
           },
           "game_id": {
             "anyOf": [
@@ -4803,8 +5112,15 @@
             "type": "string"
           },
           "location": {
-            "title": "Location",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
           },
           "member": {
             "title": "Member",
@@ -4823,7 +5139,7 @@
           },
           "quarters": {
             "title": "Quarters",
-            "type": "integer"
+            "type": "number"
           }
         },
         "required": [
@@ -5166,11 +5482,35 @@
         "description": "A player's aggregated stats.",
         "properties": {
           "average": {
-            "title": "Average",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average"
           },
           "best_round": {
-            "title": "Best Round",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Round"
+          },
+          "incomplete_round_count": {
+            "default": 0,
+            "title": "Incomplete Round Count",
+            "type": "integer"
+          },
+          "known_participation_count": {
+            "default": 0,
+            "title": "Known Participation Count",
             "type": "integer"
           },
           "member": {
@@ -5190,7 +5530,7 @@
           },
           "quarters": {
             "title": "Quarters",
-            "type": "integer"
+            "type": "number"
           },
           "rank": {
             "title": "Rank",
@@ -5208,8 +5548,15 @@
             "type": "array"
           },
           "worst_round": {
-            "title": "Worst Round",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worst Round"
           }
         },
         "required": [
@@ -5233,8 +5580,26 @@
             "type": "string"
           },
           "date_sortable": {
-            "title": "Date Sortable",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Sortable"
+          },
+          "detail_coverage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail Coverage"
           },
           "duration": {
             "anyOf": [
@@ -5263,16 +5628,46 @@
             "type": "string"
           },
           "location": {
-            "title": "Location",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
           },
           "member": {
             "title": "Member",
             "type": "string"
           },
+          "participant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Id"
+          },
           "score": {
-            "title": "Score",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "score_eligible": {
+            "default": true,
+            "title": "Score Eligible",
+            "type": "boolean"
           },
           "source": {
             "title": "Source",
@@ -6409,7 +6804,7 @@
     },
     "/admin/spreadsheet/player/{member_name}": {
       "get": {
-        "description": "Get all rounds for a specific player from legacy_rounds DB (synced every 2h).",
+        "description": "Get profile-associated history without assigning guests by display name.",
         "operationId": "get_player_history_admin_spreadsheet_player__member_name__get",
         "parameters": [
           {
@@ -6618,7 +7013,7 @@
     },
     "/admin/spreadsheet/rounds": {
       "get": {
-        "description": "Get all round results from legacy_rounds DB (synced every 2h).",
+        "description": "Get accepted canonical history, or the pre-cutover cache.",
         "operationId": "get_all_rounds_admin_spreadsheet_rounds_get",
         "parameters": [
           {

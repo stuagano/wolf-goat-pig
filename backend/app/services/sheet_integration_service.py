@@ -259,6 +259,10 @@ class SheetIntegrationService:
         self, sheet_data: list[dict[str, Any]], mappings: list[SheetColumnMapping]
     ) -> dict[str, Any]:
         """Sync sheet data to the database (create/update player profiles and statistics)."""
+        from .round_writes import writer_mode
+
+        if writer_mode(self.db) != "legacy":
+            raise ValueError("Aggregate sheet imports are disabled in canonical mode; ingest complete round snapshots")
         results: dict[str, Any] = {
             "players_processed": 0,
             "players_created": 0,
@@ -343,6 +347,10 @@ class SheetIntegrationService:
     def export_current_data_to_sheet_format(self, mappings: list[SheetColumnMapping]) -> list[dict[str, Any]]:
         """Export current database data in sheet format for comparison."""
         try:
+            from .canonical_round_reads import canonical_mode, rebuild_player_statistics
+
+            if canonical_mode(self.db):
+                rebuild_player_statistics(self.db)
             # Get all active players with statistics
             query = (
                 self.db.query(PlayerProfile, PlayerStatistics)

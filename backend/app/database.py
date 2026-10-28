@@ -165,6 +165,60 @@ def ensure_legacy_rounds_official_view(bind) -> None:
         )
 
 
+# Columns the Commissioner's read-only SQL path may read. Keep in sync with the
+# schema documented in routers/commissioner.py.
+CANONICAL_ROUND_RESULTS_VIEW = """
+SELECT r.game_id AS game_id, p.participant_id AS participant_id,
+       p.player_profile_id AS player_profile_id, p.player_name AS member,
+       p.total_earnings AS score, r.played_on AS played_on, r.raw_date AS raw_date,
+       r.course_name AS location, r."group" AS "group", r.detail_coverage AS detail_coverage,
+       r.score_eligible AS score_eligible, r.accepted_revision AS accepted_revision
+FROM game_records r
+JOIN game_player_results p ON p.game_record_id = r.id
+WHERE r.is_retracted = false AND p.is_retracted = false
+  AND r.accepted_revision > 0 AND p.participant_id IS NOT NULL
+"""
+
+
+def ensure_canonical_round_results_view(bind) -> None:
+    """Current-season eligible verified-profile results for Commissioner standings.
+
+    This scored-only projection matches the profile leaderboard, not all-time
+    history or guest-inclusive extreme scores. COUNT(*) is scored appearances;
+    known participation coverage comes from UnifiedDataService, not this view.
+    """
+    inspector = inspect(bind)
+    required = {"game_records": ("is_retracted", "accepted_revision"), "game_player_results": ("is_retracted",)}
+    for table, columns in required.items():
+        if not inspector.has_table(table) or not set(columns) <= {c["name"] for c in inspector.get_columns(table)}:
+            logger.warning("Skipping canonical_round_results view — %s expansion incomplete", table)
+            return
+    sql = (
+        CANONICAL_ROUND_RESULTS_VIEW
+        + """
+  AND r.score_eligible = true AND r.roster_complete = true
+  AND r.played_on IS NOT NULL AND p.total_earnings IS NOT NULL
+  AND p.player_profile_id IS NOT NULL
+  AND EXISTS (SELECT 1 FROM game_state g WHERE g.game_id = r.game_id)
+  AND r.player_count = (SELECT COUNT(*) FROM game_player_results x
+                       WHERE x.game_record_id = r.id AND x.is_retracted = false
+                       AND x.participant_id IS NOT NULL)
+   AND NOT EXISTS (SELECT 1 FROM game_player_results x
+                   WHERE x.game_record_id = r.id AND x.is_retracted = false
+                   AND x.participant_id IS NOT NULL AND x.total_earnings IS NULL)
+"""
+    )
+    if bind.dialect.name == "postgresql":
+        sql += " AND EXTRACT(YEAR FROM r.played_on) = (SELECT (value->>'season')::integer FROM app_config WHERE name = 'round_identity')"
+    else:
+        sql += " AND CAST(strftime('%Y', r.played_on) AS INTEGER) = (SELECT json_extract(value, '$.season') FROM app_config WHERE name = 'round_identity')"
+    with bind.begin() as conn:
+        if bind.dialect.name == "postgresql":
+            conn.execute(text(f"CREATE OR REPLACE VIEW canonical_round_results AS {sql}"))
+            return
+        conn.execute(text(f"CREATE VIEW IF NOT EXISTS canonical_round_results AS {sql.replace('false', '0')}"))
+
+
 # Only additive columns at boot. Backfill, old index retirement, and legacy
 # foreign-key accounting belong to the explicit offline migration.
 ROUND_IDENTITY_COLUMNS = {
@@ -277,6 +331,7 @@ def init_db():
         # Filtered view used by Commissioner SQL reads (SQLite dev; Postgres gets
         # it from the attestation migration).
         ensure_legacy_rounds_official_view(engine)
+        ensure_canonical_round_results_view(engine)
         logger.info("Database initialized successfully")
 
         # Test database connection

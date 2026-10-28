@@ -471,7 +471,7 @@ export interface paths {
         };
         /**
          * Get Player History
-         * @description Get all rounds for a specific player from legacy_rounds DB (synced every 2h).
+         * @description Get profile-associated history without assigning guests by display name.
          */
         get: operations["get_player_history_admin_spreadsheet_player__member_name__get"];
         put?: never;
@@ -571,7 +571,7 @@ export interface paths {
         };
         /**
          * Get All Rounds
-         * @description Get all round results from legacy_rounds DB (synced every 2h).
+         * @description Get accepted canonical history, or the pre-cutover cache.
          */
         get: operations["get_all_rounds_admin_spreadsheet_rounds_get"];
         put?: never;
@@ -6204,7 +6204,17 @@ export interface components {
          */
         LeaderboardEntry: {
             /** Average */
-            average: number;
+            average: number | null;
+            /**
+             * Incomplete Round Count
+             * @default 0
+             */
+            incomplete_round_count: number;
+            /**
+             * Known Participation Count
+             * @default 0
+             */
+            known_participation_count: number;
             /** Member */
             member: string;
             /** Qb */
@@ -6615,7 +6625,7 @@ export interface components {
         /** PlayerStatisticsResponse */
         PlayerStatisticsResponse: {
             /** Avg Earnings Per Hole */
-            avg_earnings_per_hole: number;
+            avg_earnings_per_hole: number | null;
             /**
              * Best Hole Performance
              * @default []
@@ -6629,27 +6639,15 @@ export interface components {
              */
             best_win_streak: number;
             /** Betting Success Rate */
-            betting_success_rate: number;
-            /**
-             * Big Dick Attempts
-             * @default 0
-             */
-            big_dick_attempts: number;
-            /**
-             * Big Dick Wins
-             * @default 0
-             */
-            big_dick_wins: number;
-            /**
-             * Birdies
-             * @default 0
-             */
-            birdies: number;
-            /**
-             * Bogeys
-             * @default 0
-             */
-            bogeys: number;
+            betting_success_rate: number | null;
+            /** Big Dick Attempts */
+            big_dick_attempts?: number | null;
+            /** Big Dick Wins */
+            big_dick_wins?: number | null;
+            /** Birdies */
+            birdies?: number | null;
+            /** Bogeys */
+            bogeys?: number | null;
             /**
              * Current Loss Streak
              * @default 0
@@ -6660,26 +6658,14 @@ export interface components {
              * @default 0
              */
             current_win_streak: number;
-            /**
-             * Double Bogeys
-             * @default 0
-             */
-            double_bogeys: number;
-            /**
-             * Duncan Attempts
-             * @default 0
-             */
-            duncan_attempts: number;
-            /**
-             * Duncan Wins
-             * @default 0
-             */
-            duncan_wins: number;
-            /**
-             * Eagles
-             * @default 0
-             */
-            eagles: number;
+            /** Double Bogeys */
+            double_bogeys?: number | null;
+            /** Duncan Attempts */
+            duncan_attempts?: number | null;
+            /** Duncan Wins */
+            duncan_wins?: number | null;
+            /** Eagles */
+            eagles?: number | null;
             /** Favorite Game Mode */
             favorite_game_mode: string;
             /** Games Played */
@@ -6694,34 +6680,35 @@ export interface components {
                 [key: string]: unknown;
             };
             /** Holes Played */
-            holes_played: number;
+            holes_played: number | null;
             /** Holes Won */
-            holes_won: number;
+            holes_won: number | null;
             /** Id */
             id: number;
             /**
-             * Invisible Aardvark Appearances
+             * Incomplete Round Count
              * @default 0
              */
-            invisible_aardvark_appearances: number;
+            incomplete_round_count: number;
+            /** Invisible Aardvark Appearances */
+            invisible_aardvark_appearances?: number | null;
+            /** Invisible Aardvark Wins */
+            invisible_aardvark_wins?: number | null;
             /**
-             * Invisible Aardvark Wins
+             * Known Participation Count
              * @default 0
              */
-            invisible_aardvark_wins: number;
+            known_participation_count: number;
             /** Last Updated */
             last_updated: string;
-            /**
-             * Pars
-             * @default 0
-             */
-            pars: number;
+            /** Pars */
+            pars?: number | null;
             /** Partnership Success Rate */
-            partnership_success_rate: number;
+            partnership_success_rate: number | null;
             /** Partnerships Formed */
-            partnerships_formed: number;
+            partnerships_formed: number | null;
             /** Partnerships Won */
-            partnerships_won: number;
+            partnerships_won: number | null;
             /**
              * Performance Trends
              * @default []
@@ -6729,65 +6716,38 @@ export interface components {
             performance_trends: {
                 [key: string]: unknown;
             }[];
-            /**
-             * Ping Pong Count
-             * @default 0
-             */
-            ping_pong_count: number;
-            /**
-             * Ping Pong Wins
-             * @default 0
-             */
-            ping_pong_wins: number;
+            /** Ping Pong Count */
+            ping_pong_count?: number | null;
+            /** Ping Pong Wins */
+            ping_pong_wins?: number | null;
             /** Player Id */
             player_id: number;
             /** Preferred Player Count */
             preferred_player_count: number;
             /** Solo Attempts */
-            solo_attempts: number;
+            solo_attempts: number | null;
             /** Solo Wins */
-            solo_wins: number;
+            solo_wins: number | null;
             /** Successful Bets */
-            successful_bets: number;
-            /**
-             * Times As Aardvark
-             * @default 0
-             */
-            times_as_aardvark: number;
-            /**
-             * Times As Goat
-             * @default 0
-             */
-            times_as_goat: number;
-            /**
-             * Times As Pig
-             * @default 0
-             */
-            times_as_pig: number;
-            /**
-             * Times As Wolf
-             * @default 0
-             */
-            times_as_wolf: number;
+            successful_bets: number | null;
+            /** Times As Aardvark */
+            times_as_aardvark?: number | null;
+            /** Times As Goat */
+            times_as_goat?: number | null;
+            /** Times As Pig */
+            times_as_pig?: number | null;
+            /** Times As Wolf */
+            times_as_wolf?: number | null;
             /** Total Bets */
-            total_bets: number;
+            total_bets: number | null;
             /** Total Earnings */
             total_earnings: number;
-            /**
-             * Tunkarri Attempts
-             * @default 0
-             */
-            tunkarri_attempts: number;
-            /**
-             * Tunkarri Wins
-             * @default 0
-             */
-            tunkarri_wins: number;
-            /**
-             * Worse Than Double
-             * @default 0
-             */
-            worse_than_double: number;
+            /** Tunkarri Attempts */
+            tunkarri_attempts?: number | null;
+            /** Tunkarri Wins */
+            tunkarri_wins?: number | null;
+            /** Worse Than Double */
+            worse_than_double?: number | null;
             /**
              * Worst Hole Performance
              * @default []
@@ -7034,17 +6994,26 @@ export interface components {
          */
         RoundResultResponse: {
             /** Date */
-            date: string;
+            date: string | null;
             /** Duration */
             duration?: string | null;
+            /** Game Id */
+            game_id?: string | null;
             /** Group */
             group?: string | null;
             /** Location */
             location?: string | null;
             /** Member */
             member: string;
+            /** Participant Id */
+            participant_id?: string | null;
             /** Score */
-            score: number;
+            score: number | null;
+            /**
+             * Score Eligible
+             * @default true
+             */
+            score_eligible: boolean;
         };
         /** RoundStoryResponse */
         RoundStoryResponse: {
@@ -7204,10 +7173,17 @@ export interface components {
         SeasonGamePlayerResponse: {
             /** Member */
             member: string;
+            /** Participant Id */
+            participant_id?: string | null;
             /** Player Id */
             player_id?: number | null;
             /** Quarters */
-            quarters: number;
+            quarters: number | null;
+            /**
+             * Score Eligible
+             * @default true
+             */
+            score_eligible: boolean;
         };
         /**
          * SeasonGameResponse
@@ -7217,13 +7193,13 @@ export interface components {
             /** Date */
             date: string;
             /** Date Sortable */
-            date_sortable: string;
+            date_sortable: string | null;
             /** Game Id */
             game_id?: string | null;
             /** Group */
             group: string;
             /** Location */
-            location: string;
+            location: string | null;
             /** Players */
             players: components["schemas"]["SeasonGamePlayerResponse"][];
         };
@@ -7235,13 +7211,13 @@ export interface components {
             /** Date */
             date: string;
             /** Date Sortable */
-            date_sortable: string;
+            date_sortable: string | null;
             /** Game Id */
             game_id?: string | null;
             /** Group */
             group: string;
             /** Location */
-            location: string;
+            location: string | null;
             /** Member */
             member: string;
             /** Player Id */
@@ -7428,9 +7404,19 @@ export interface components {
          */
         UnifiedLeaderboardEntryResponse: {
             /** Average */
-            average: number;
+            average: number | null;
             /** Best Round */
-            best_round: number;
+            best_round: number | null;
+            /**
+             * Incomplete Round Count
+             * @default 0
+             */
+            incomplete_round_count: number;
+            /**
+             * Known Participation Count
+             * @default 0
+             */
+            known_participation_count: number;
             /** Member */
             member: string;
             /** Player Id */
@@ -7444,7 +7430,7 @@ export interface components {
             /** Sources */
             sources: string[];
             /** Worst Round */
-            worst_round: number;
+            worst_round: number | null;
         };
         /**
          * UnifiedRoundResponse
@@ -7454,7 +7440,9 @@ export interface components {
             /** Date */
             date: string;
             /** Date Sortable */
-            date_sortable: string;
+            date_sortable: string | null;
+            /** Detail Coverage */
+            detail_coverage?: string | null;
             /** Duration */
             duration?: string | null;
             /** Game Id */
@@ -7462,11 +7450,18 @@ export interface components {
             /** Group */
             group: string;
             /** Location */
-            location: string;
+            location: string | null;
             /** Member */
             member: string;
+            /** Participant Id */
+            participant_id?: string | null;
             /** Score */
-            score: number;
+            score: number | null;
+            /**
+             * Score Eligible
+             * @default true
+             */
+            score_eligible: boolean;
             /** Source */
             source: string;
         };

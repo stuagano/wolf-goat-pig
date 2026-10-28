@@ -57,27 +57,75 @@ class LeaderboardEntry(BaseModel):
 
     rank: int
     member: str
-    quarters: int
-    average: int
+    quarters: float
+    average: float | None
     rounds: int
-    qb: int
+    qb: float
+    known_participation_count: int = 0
+    incomplete_round_count: int = 0
 
 
 class RoundResultResponse(BaseModel):
     """Response model for a round result."""
 
-    date: str
+    date: str | None
     # group/location are nullable: member-posted rounds may omit them.
     group: str | None = None
     member: str
-    score: int
+    score: float | None
+    game_id: str | None = None
+    participant_id: str | None = None
+    score_eligible: bool = True
     location: str | None = None
     duration: str | None = None
+
+
+def _canonical(db: Session):
+    """The one canonical read authority, or None before cutover."""
+    from ..services.canonical_round_reads import canonical_mode
+    from ..services.unified_data_service import get_unified_data_service
+
+    return get_unified_data_service(db) if canonical_mode(db) else None
+
+
+def _round_rows(rounds) -> list[RoundResultResponse]:
+    return [
+        RoundResultResponse(
+            date=r.date_sortable or r.date,
+            group=r.group,
+            member=r.member,
+            score=r.score,
+            location=r.location,
+            duration=r.duration,
+            game_id=r.game_id,
+            participant_id=r.participant_id,
+            score_eligible=r.score_eligible,
+        )
+        for r in rounds
+    ]
 
 
 @router.get("/leaderboard", response_model=list[LeaderboardEntry])
 def get_spreadsheet_leaderboard(db: Session = Depends(get_db)):
     """Get the current leaderboard computed from the legacy_rounds DB (synced every 2h)."""
+    service = _canonical(db)
+    if service is not None:
+        entries = service.get_unified_leaderboard()
+        leader = entries[0].quarters if entries else 0
+        return [
+            LeaderboardEntry(
+                rank=i,
+                member=e.member,
+                quarters=e.quarters,
+                rounds=e.rounds,
+                # Old integer floor-division misreported fractional averages.
+                average=round(e.average, 2) if e.average is not None else None,
+                qb=leader - e.quarters,
+                known_participation_count=e.known_participation_count,
+                incomplete_round_count=e.incomplete_round_count,
+            )
+            for i, e in enumerate(entries, 1)
+        ]
     rows = (
         db.query(
             LegacyRound.member,
@@ -118,7 +166,10 @@ def get_all_rounds(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of results"),
     db: Session = Depends(get_db),
 ) -> Any:
-    """Get all round results from legacy_rounds DB (synced every 2h)."""
+    """Get accepted canonical history, or the pre-cutover cache."""
+    service = _canonical(db)
+    if service is not None:
+        return _round_rows(service.get_all_rounds()[:limit])
     rows = (
         db.query(LegacyRound)
         .filter(LegacyRound.status != "pending")  # exclude unattested member rounds
@@ -145,6 +196,30 @@ def get_rounds_by_date(date: str, db: Session = Depends(get_db)) -> Any:
 
     Date format: YYYY-MM-DD (e.g., "2026-07-21").
     """
+    service = _canonical(db)
+    if service is not None:
+        summaries = {}
+        for r in service.get_all_rounds():
+            if r.date_sortable != date:
+                continue
+            summary = summaries.setdefault(
+                r.game_id,
+                {
+                    "game_id": r.game_id,
+                    "date": r.date_sortable,
+                    "group": r.group,
+                    "location": r.location,
+                    "duration": r.duration,
+                    "player_count": 0,
+                    "total_score": 0 if r.score_eligible else None,
+                    "players": [],
+                },
+            )
+            summary["player_count"] += 1
+            if summary["total_score"] is not None:
+                summary["total_score"] += r.score
+            summary["players"].append({"member": r.member, "score": r.score, "participant_id": r.participant_id})
+        return list(summaries.values())
     rows = (
         db.query(LegacyRound)
         .filter(LegacyRound.date == date, LegacyRound.status != "pending")
@@ -175,7 +250,10 @@ def get_rounds_by_date(date: str, db: Session = Depends(get_db)) -> Any:
 
 @router.get("/player/{member_name}", response_model=list[RoundResultResponse])
 def get_player_history(member_name: str, db: Session = Depends(get_db)) -> Any:
-    """Get all rounds for a specific player from legacy_rounds DB (synced every 2h)."""
+    """Get profile-associated history without assigning guests by display name."""
+    service = _canonical(db)
+    if service is not None:
+        return _round_rows(service.get_player_history(member_name))
     rows = (
         db.query(LegacyRound)
         .filter(LegacyRound.member == member_name, LegacyRound.status != "pending")

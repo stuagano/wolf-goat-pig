@@ -38,11 +38,14 @@ class UnifiedRoundResponse(BaseModel):
     """A round result from any source."""
 
     date: str
-    date_sortable: str
+    date_sortable: str | None
     group: str
     member: str
-    score: int
-    location: str
+    score: float | None
+    score_eligible: bool = True
+    detail_coverage: str | None = None
+    participant_id: str | None = None
+    location: str | None
     duration: str | None = None
     source: str
     game_id: str | None = None
@@ -54,11 +57,13 @@ class UnifiedLeaderboardEntryResponse(BaseModel):
     rank: int
     member: str
     player_id: int | None = None
-    quarters: int
+    quarters: float
     rounds: int
-    average: float
-    best_round: int
-    worst_round: int
+    average: float | None
+    best_round: float | None
+    worst_round: float | None
+    known_participation_count: int = 0
+    incomplete_round_count: int = 0
     sources: list[str]
 
 
@@ -66,11 +71,11 @@ class SeasonScoreResponse(BaseModel):
     """One player's result in a single current-season round."""
 
     date: str
-    date_sortable: str
+    date_sortable: str | None
     member: str
     player_id: int | None = None
-    quarters: int
-    location: str
+    quarters: float
+    location: str | None
     group: str
     game_id: str | None = None
 
@@ -78,15 +83,17 @@ class SeasonScoreResponse(BaseModel):
 class SeasonGamePlayerResponse(BaseModel):
     member: str
     player_id: int | None = None
-    quarters: int
+    participant_id: str | None = None
+    score_eligible: bool = True
+    quarters: float | None
 
 
 class SeasonGameResponse(BaseModel):
     """A foursome (or group) on one day at one course."""
 
     date: str
-    date_sortable: str
-    location: str
+    date_sortable: str | None
+    location: str | None
     group: str
     players: list[SeasonGamePlayerResponse]
     game_id: str | None = None
@@ -133,10 +140,12 @@ def get_unified_leaderboard(
         UnifiedLeaderboardEntryResponse(
             rank=i + 1,
             member=entry.member,
-            player_id=profile_id_for_member(entry.member, names),
+            player_id=entry.player_id if entry.sources == {"canonical"} else profile_id_for_member(entry.member, names),
+            known_participation_count=entry.known_participation_count,
+            incomplete_round_count=entry.incomplete_round_count,
             quarters=entry.quarters,
             rounds=entry.rounds,
-            average=round(entry.average, 1),
+            average=round(entry.average, 1) if entry.average is not None else None,
             best_round=entry.best_round,
             worst_round=entry.worst_round,
             sources=list(entry.sources),
@@ -157,14 +166,18 @@ def get_season_extreme_scores(
     Prior-season rounds are excluded using the same cutoff as /data/leaderboard.
     """
     service = get_unified_data_service(db=db)
-    ranked = sorted(service.get_season_rounds(), key=lambda r: r.score, reverse=kind == "best")
+    ranked = sorted(
+        (r for r in service.get_season_rounds() if r.score_eligible and r.score is not None),
+        key=lambda r: r.score,
+        reverse=kind == "best",
+    )
     names = profile_ids_by_member(db)
     return [
         SeasonScoreResponse(
             date=r.date,
             date_sortable=r.date_sortable,
             member=r.member,
-            player_id=profile_id_for_member(r.member, names),
+            player_id=r.player_id if r.source == "canonical" else profile_id_for_member(r.member, names),
             quarters=r.score,
             location=r.location,
             group=r.group,
@@ -204,8 +217,10 @@ def get_season_round_details(db: Session = Depends(get_db)) -> Any:
         game.players.append(
             SeasonGamePlayerResponse(
                 member=r.member,
-                player_id=profile_id_for_member(r.member, names),
+                player_id=r.player_id if r.source == "canonical" else profile_id_for_member(r.member, names),
                 quarters=r.score,
+                participant_id=r.participant_id,
+                score_eligible=r.score_eligible,
             )
         )
     return [games[key] for key in order]
@@ -646,6 +661,9 @@ def get_unified_rounds(
             duration=r.duration,
             source=r.source,
             game_id=r.game_id,
+            score_eligible=r.score_eligible,
+            detail_coverage=r.detail_coverage,
+            participant_id=r.participant_id,
         )
         for r in rounds[offset : offset + limit]
     ]
@@ -675,6 +693,9 @@ def get_rounds_by_date(
             duration=r.duration,
             source=r.source,
             game_id=r.game_id,
+            score_eligible=r.score_eligible,
+            detail_coverage=r.detail_coverage,
+            participant_id=r.participant_id,
         )
         for r in rounds
     ]
@@ -704,6 +725,9 @@ def get_player_history(
             duration=r.duration,
             source=r.source,
             game_id=r.game_id,
+            score_eligible=r.score_eligible,
+            detail_coverage=r.detail_coverage,
+            participant_id=r.participant_id,
         )
         for r in rounds
     ]
@@ -729,14 +753,21 @@ def get_player_stats(
             "message": "Player not found in any data source",
         }
 
-    total_quarters = sum(r.score for r in rounds)
-    round_count = len(rounds)
-    best = max(r.score for r in rounds)
-    worst = min(r.score for r in rounds)
+    from ..services.canonical_round_reads import canonical_mode
+
+    statistics_rounds = rounds
+    if canonical_mode(db):
+        season_keys = {r.game_key for r in service.get_season_rounds()}
+        statistics_rounds = [r for r in rounds if r.game_key in season_keys]
+    scored = [r for r in statistics_rounds if r.score_eligible and r.score is not None]
+    total_quarters = sum(r.score for r in scored)
+    round_count = len(scored)
+    best = max((r.score for r in scored), default=None)
+    worst = min((r.score for r in scored), default=None)
     sources = list(set(r.source for r in rounds))
 
     # Recent form (last 5 rounds)
-    recent = rounds[:5]
+    recent = scored[:5]
     recent_total = sum(r.score for r in recent)
 
     return {
@@ -744,14 +775,16 @@ def get_player_stats(
         "found": True,
         "total_quarters": total_quarters,
         "rounds_played": round_count,
-        "average_per_round": (round(total_quarters / round_count, 1) if round_count else 0),
+        "known_participation_count": len(statistics_rounds),
+        "incomplete_round_count": len(statistics_rounds) - round_count,
+        "average_per_round": (round(total_quarters / round_count, 1) if round_count else None),
         "best_round": best,
         "worst_round": worst,
         "sources": sources,
         "recent_form": {
             "rounds": len(recent),
             "total": recent_total,
-            "average": round(recent_total / len(recent), 1) if recent else 0,
+            "average": round(recent_total / len(recent), 1) if recent else None,
         },
         "first_round_date": rounds[-1].date if rounds else None,
         "last_round_date": rounds[0].date if rounds else None,

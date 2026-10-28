@@ -163,6 +163,12 @@ class LeaderboardService:
                     detail=f"Invalid leaderboard type. Must be one of: {', '.join(self.LEADERBOARD_TYPES)}",
                 )
 
+            from .canonical_round_reads import canonical_mode
+
+            if canonical_mode(db):
+                # A process cache must not outlive a correction, retraction or season change.
+                return self._generate_leaderboard(leaderboard_type, db, limit, offset)
+
             # Check cache
             cache_key = f"leaderboard:{leaderboard_type}:{limit}:{offset}"
             cached_data = self.cache.get(cache_key)
@@ -387,6 +393,28 @@ class LeaderboardService:
         Returns:
             List of leaderboard entries
         """
+        from .canonical_round_reads import canonical_mode, rebuild_player_statistics
+
+        if canonical_mode(db):
+            rebuild_player_statistics(db)
+            if leaderboard_type == "average_score":
+                # Positions are derived from accepted totals by the shared rebuild.
+                stats = (
+                    db.query(PlayerProfile, PlayerStatistics)
+                    .join(PlayerStatistics, PlayerStatistics.player_id == PlayerProfile.id)
+                    .filter(PlayerProfile.is_active == 1, PlayerProfile.is_ai == 0)
+                    .all()
+                )
+                rows = [
+                    (profile, sum(t["position"] for t in s.performance_trends) / s.games_played)
+                    for profile, s in stats
+                    if s.games_played >= 5
+                ]
+                rows.sort(key=lambda pair: (pair[1], pair[0].id))
+                return [
+                    {"rank": rank, "player_id": p.id, "player_name": p.name, "value": round(value, 2)}
+                    for rank, (p, value) in enumerate(rows[offset : offset + limit], offset + 1)
+                ]
         # Map leaderboard type to query method
         query_methods = {
             "total_earnings": self._query_total_earnings,
@@ -451,6 +479,34 @@ class LeaderboardService:
             )
             .group_by(GamePlayerResult.player_profile_id, PlayerProfile.name)
         )
+
+        from .canonical_round_reads import accepted_rows, canonical_mode
+
+        if canonical_mode(db):
+            rows, _ = accepted_rows(db, eligible_only=True, season_only=True)
+            ids = [r.id for record, r in rows if start_date.date() <= record.played_on <= end_date.date()]
+            # Replace upload-time constraints with the accepted played-date sample.
+            results_query = (
+                db.query(
+                    GamePlayerResult.player_profile_id,
+                    PlayerProfile.name.label("player_name"),
+                    func.sum(GamePlayerResult.total_earnings).label("total_earnings"),
+                    func.count(GamePlayerResult.id).label("games_played"),
+                    func.sum(GamePlayerResult.partnerships_won).label("partnerships_won"),
+                    func.avg(GamePlayerResult.final_position).label("avg_position"),
+                )
+                .join(PlayerProfile, PlayerProfile.id == GamePlayerResult.player_profile_id)
+                .filter(PlayerProfile.is_active == 1, PlayerProfile.is_ai == 0, GamePlayerResult.id.in_(ids))
+                .group_by(GamePlayerResult.player_profile_id, PlayerProfile.name)
+            )
+            if leaderboard_type == "partnerships_won":
+                results_query = results_query.having(
+                    func.count(GamePlayerResult.partnerships_won) == func.count(GamePlayerResult.id)
+                )
+            if leaderboard_type == "average_score":
+                results_query = results_query.having(
+                    func.count(GamePlayerResult.final_position) == func.count(GamePlayerResult.id)
+                )
 
         # Apply ordering based on leaderboard type
         if leaderboard_type == "total_earnings":
@@ -603,6 +659,7 @@ class LeaderboardService:
                     PlayerProfile.is_active == 1,
                     PlayerProfile.is_ai == 0,
                     PlayerStatistics.partnerships_formed >= 1,
+                    PlayerStatistics.partnerships_won.isnot(None),
                 )
             )
             .order_by(desc(PlayerStatistics.partnerships_won))

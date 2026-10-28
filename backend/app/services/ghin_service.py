@@ -379,6 +379,10 @@ class GHINService:
             List of player records with GHIN data integrated
         """
         try:
+            from .canonical_round_reads import canonical_mode, rebuild_player_statistics
+
+            if canonical_mode(self.db):
+                rebuild_player_statistics(self.db)
             # Get basic leaderboard data (exclude AI players)
             query = (
                 self.db.query(PlayerProfile, PlayerStatistics)
@@ -426,9 +430,13 @@ class GHINService:
                     "player_name": profile.name,
                     "games_played": stats.games_played,
                     "win_percentage": round(win_percentage, 1),
-                    "avg_earnings": round(stats.avg_earnings_per_hole, 2),
+                    "avg_earnings": round(stats.avg_earnings_per_hole, 2)
+                    if stats.avg_earnings_per_hole is not None
+                    else None,
                     "total_earnings": round(stats.total_earnings, 2),
-                    "partnership_success": round(stats.partnership_success_rate * 100, 1),
+                    "partnership_success": round(stats.partnership_success_rate * 100, 1)
+                    if stats.partnership_success_rate is not None
+                    else None,
                     # Always include stored handicap (last known value)
                     "handicap": profile.handicap,
                     "ghin_id": profile.ghin_id,

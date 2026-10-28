@@ -246,6 +246,10 @@ async def sync_wgp_sheet_data(
     Uses isolated sessions per player to ensure failures are isolated and
     don't cascade to other players' data.
     """
+    from ..services.round_writes import writer_mode
+
+    if writer_mode(db) != "legacy":
+        raise HTTPException(409, "CSV aggregate sync disabled in canonical mode; use complete round snapshots")
     try:
         # Rate limit: max once per hour (but bypass for scheduled jobs)
         is_scheduled_job = x_scheduled_job == "true"

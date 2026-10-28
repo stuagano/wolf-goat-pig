@@ -61,7 +61,9 @@ def _serialize(r: LegacyRound) -> dict[str, Any]:
     }
 
 
-def _history_from_rounds(member: str, rounds: list[Any], *, recent_limit: int = 5) -> dict[str, Any]:
+def _history_from_rounds(
+    member: str, rounds: list[Any], *, statistics_rounds=None, recent_limit: int = 5
+) -> dict[str, Any]:
     """Aggregate club history for the Account personal-stats panel.
 
     ``score`` on these rounds is quarters won/lost (not stroke play), matching
@@ -72,17 +74,21 @@ def _history_from_rounds(member: str, rounds: list[Any], *, recent_limit: int = 
             "found": False,
             "member": member,
             "rounds_played": 0,
+            "known_participation_count": 0,
+            "incomplete_round_count": 0,
             "total_quarters": 0,
-            "average_per_round": 0.0,
+            "average_per_round": None,
             "best_round": None,
             "worst_round": None,
             "recent_rounds": [],
         }
 
-    total_quarters = sum(r.score for r in rounds)
-    round_count = len(rounds)
-    best = max(r.score for r in rounds)
-    worst = min(r.score for r in rounds)
+    statistics_rounds = rounds if statistics_rounds is None else statistics_rounds
+    scored = [r for r in statistics_rounds if r.score_eligible and r.score is not None]
+    total_quarters = sum(r.score for r in scored)
+    round_count = len(scored)
+    best = max((r.score for r in scored), default=None)
+    worst = min((r.score for r in scored), default=None)
     recent = [
         {
             "date": r.date_sortable,
@@ -92,6 +98,9 @@ def _history_from_rounds(member: str, rounds: list[Any], *, recent_limit: int = 
             "group": r.group,
             "source": r.source,
             "game_id": r.game_id,
+            "score_eligible": r.score_eligible,
+            "detail_coverage": r.detail_coverage,
+            "participant_id": r.participant_id,
         }
         for r in rounds[:recent_limit]
     ]
@@ -100,8 +109,10 @@ def _history_from_rounds(member: str, rounds: list[Any], *, recent_limit: int = 
         "found": True,
         "member": rounds[0].member,
         "rounds_played": round_count,
+        "known_participation_count": len(statistics_rounds),
+        "incomplete_round_count": len(statistics_rounds) - round_count,
         "total_quarters": total_quarters,
-        "average_per_round": round(total_quarters / round_count, 1) if round_count else 0.0,
+        "average_per_round": round(total_quarters / round_count, 1) if round_count else None,
         "best_round": best,
         "worst_round": worst,
         "recent_rounds": recent,
@@ -248,6 +259,28 @@ def get_my_rounds(
     db: Session = Depends(get_db),
 ) -> list[dict[str, Any]]:
     """List results credited to the linked roster player, whoever submitted them."""
+    from ..services.canonical_round_reads import canonical_mode
+
+    if canonical_mode(db):
+        return [
+            {
+                "id": r.game_id,
+                "round_code": r.game_id,
+                "date": r.date_sortable,
+                "score": r.score,
+                "member": r.member,
+                "location": r.location,
+                "status": "accepted",
+                "foursome": [],
+                "attested_by": None,
+                "attested_at": None,
+                "game_id": r.game_id,
+                "participant_id": r.participant_id,
+                "score_eligible": r.score_eligible,
+                "detail_coverage": r.detail_coverage,
+            }
+            for r in get_unified_data_service(db).get_profile_history(current_user.id)
+        ]
     rows = (
         db.query(LegacyRound)
         .filter(
@@ -280,8 +313,16 @@ def get_my_history(
         return _history_from_rounds("", [], recent_limit=recent_limit)
 
     service = get_unified_data_service(db=db)
-    rounds = service.get_player_history(lookup_name)
-    return _history_from_rounds(lookup_name, rounds, recent_limit=recent_limit)
+    from ..services.canonical_round_reads import canonical_mode
+
+    rounds = (
+        service.get_profile_history(current_user.id) if canonical_mode(db) else service.get_player_history(lookup_name)
+    )
+    statistics_rounds = None
+    if canonical_mode(db):
+        season_keys = {r.game_key for r in service.get_season_rounds()}
+        statistics_rounds = [r for r in rounds if r.game_key in season_keys]
+    return _history_from_rounds(lookup_name, rounds, statistics_rounds=statistics_rounds, recent_limit=recent_limit)
 
 
 @router.get("/rounds/pending-attestation")
