@@ -213,45 +213,33 @@ class TestSyncSheetData:
 
 class TestExportCurrentData:
     @patch("app.services.leaderboard_service.LeaderboardService")
-    def test_returns_200_on_success(self, mock_cls):
-        mock_service = MagicMock()
-        mock_service.export_for_sheets.return_value = [
-            {"name": "Alice", "score": 10},
-        ]
-        mock_cls.return_value = mock_service
-
+    def test_retired_export_never_constructs_aggregate_service(self, mock_cls):
         resp = client.get(
             "/sheet-integration/export-current-data",
             params={"sheet_headers": ["Member", "Score"]},
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 410
+        mock_cls.assert_not_called()
 
-    @patch("app.services.leaderboard_service.LeaderboardService")
-    def test_returns_expected_fields(self, mock_cls):
-        mock_service = MagicMock()
-        mock_service.export_for_sheets.return_value = [{"name": "Alice"}]
-        mock_cls.return_value = mock_service
-
+    def test_retirement_points_to_canonical_reads_not_export_fields(self):
         resp = client.get(
             "/sheet-integration/export-current-data",
             params={"sheet_headers": ["Member"]},
         )
-        data = resp.json()
-        assert "data" in data
-        assert "headers" in data
-        assert "row_count" in data
-        assert "exported_at" in data
+        assert resp.status_code == 410
+        assert "/data/leaderboard" in resp.json()["detail"]
+        assert "data" not in resp.json()
 
     def test_returns_422_without_headers_param(self):
         resp = client.get("/sheet-integration/export-current-data")
         assert resp.status_code == 422
 
-    def test_returns_500_when_service_unavailable(self):
+    def test_returns_410_without_service(self):
         resp = client.get(
             "/sheet-integration/export-current-data",
             params={"sheet_headers": ["Member"]},
         )
-        assert resp.status_code == 500
+        assert resp.status_code == 410
 
 
 # =============================================================================

@@ -204,29 +204,19 @@ async def sync_sheet_data(request: dict, db: Session = Depends(get_db)) -> dict[
 def export_current_data_for_sheet(
     sheet_headers: list[str] = Query(...), db: Session = Depends(get_db)
 ) -> dict[str, Any]:
+    """Retired aggregate export: HTTP 410, with no statistics or source writes.
+
+    Read accepted standings through /data/leaderboard. Source publication is a
+    separate approved token-bound queue operation, never an arbitrary-header export.
     """
-    Export current database data in sheet format.
-
-    Returns current player statistics formatted for Google Sheets export.
-    """
-    try:
-        from ..services.leaderboard_service import LeaderboardService
-
-        leaderboard_service = LeaderboardService(db)
-        export_data = leaderboard_service.export_for_sheets(sheet_headers)  # type: ignore[attr-defined]
-
-        return {
-            "data": export_data,
-            "headers": sheet_headers,
-            "row_count": len(export_data),
-            "exported_at": utc_now().isoformat(),
-        }
-
-    except Exception as e:
-        logger.error(f"Error exporting current data: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to export current data: {e!s}")
-    finally:
-        db.close()
+    # This mounted legacy endpoint never had an implemented export contract.
+    # Do not recreate a cached aggregate authority or infer a writable source
+    # layout from arbitrary headers. Canonical reads and token-bound jobs own
+    # those separate responsibilities; Gate B is still operationally required.
+    raise HTTPException(
+        status_code=410,
+        detail="Legacy aggregate export retired; use canonical /data/leaderboard reads. Source writes require the approved token-bound queue contract.",
+    )
 
 
 @router.post("/sync-wgp-sheet")

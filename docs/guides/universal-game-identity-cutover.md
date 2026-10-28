@@ -154,5 +154,34 @@ old corrections into a new writer epoch.
    for every new game, comment and conflict since the backup. A database restore
    is not the automated rollback path.
 
-Do not proceed to Task 12 or a real operational window until independent review
-accepts the Task 11 report and all outstanding requirements are resolved.
+## Task 12 local verification and retirement
+
+Task 11 has been independently reviewed. Task 12's local evidence is recorded in
+`.superpowers/sdd/2026-10-27-universal-game-identity/task-12-report.md`; it is not
+operational permission. Rehearse old-schema nullable-column expansion before
+activation: PostgreSQL can add nullable columns/remove historical NOT NULL/defaults;
+SQLite tables with incompatible historical constraints require an explicit offline
+rebuild and must fail without deleting data. Refresh the explicit compatibility
+view after expansion, not before its referenced columns exist.
+
+The mounted `/sheet-integration/export-current-data` endpoint now returns **410**.
+It formerly called an absent export method and must not become a second outbound
+writer. Use only reviewed UUID/token/operation/revision/epoch-bound queue delivery,
+with the separately approved source contract; do not append exports as updates.
+The scheduler's date/player-set/score `_dedup_action` guesser is retired. Its
+pending-sync entry point delegates to the identity-bound queue processor.
+
+`link_saved_cards` and `_drop_sheet_duplicates` remain **legacy-only** compatibility
+behavior before approved cutover; canonical `get_all_rounds` returns before that
+branch. Keep `LegacyRound`, `PendingSheetSync`, legacy profile data and alias
+resolution as provenance/compatibility records. Do not delete them as obsolete
+counting authority. A pause retains the last verified reader authority.
+
+The client and queue pause/resume regressions use synthetic configuration
+transitions, not real Gate D approval. In-flight converted transactions drain;
+queued stale epochs stay retained/held without external writes. This cannot fence
+old binaries, direct SQL, or external editors that ignore the protocol. Inventory,
+stop/revoke and verify those writers in the authorized operational window.
+
+Do not proceed to a real operational window until independent review accepts the
+Task 12 report and all Gate B/C/D requirements are separately satisfied.

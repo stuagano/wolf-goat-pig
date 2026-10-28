@@ -4828,9 +4828,10 @@ export interface paths {
         };
         /**
          * Export Current Data For Sheet
-         * @description Export current database data in sheet format.
+         * @description Retired aggregate export: HTTP 410, with no statistics or source writes.
          *
-         *     Returns current player statistics formatted for Google Sheets export.
+         *     Read accepted standings through /data/leaderboard. Source publication is a
+         *     separate approved token-bound queue operation, never an arbitrary-header export.
          */
         get: operations["export_current_data_for_sheet_sheet_integration_export_current_data_get"];
         put?: never;

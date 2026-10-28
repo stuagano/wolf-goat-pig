@@ -81,6 +81,28 @@ it('resolves ambiguous old aliases without rendering sheet scores or guessing a 
   expect(screen.getByRole('link', { name: /first/ })).toHaveAttribute('href', '/game/first');
   expect(screen.getByRole('link', { name: /second/ })).toHaveAttribute('href', '/game/second');
 });
+it('resolves an old URL into the shared UUID page without a second score reader', async () => {
+  const requests = [];
+  const fallback = fetch.getMockImplementation();
+  fetch.mockImplementation(async (url, options) => {
+    requests.push(String(url));
+    if (String(url).includes('/aliases?')) return { ok: true, json: async () => ({ status: 'resolved', game_ids: ['fixture-round'] }) };
+    return fallback(url, options);
+  });
+  renderRound('/rounds/06-Oct/B?location=Old');
+  expect(await screen.findByText('Avery')).toBeVisible();
+  expect(requests.some(path => path.includes('/fixture-round/round-summary'))).toBe(true);
+  expect(requests.some(path => path.includes('/data/rounds/06-Oct'))).toBe(false);
+  expect(syncManager.queueSync).not.toHaveBeenCalled();
+});
+it('renders partial coverage and a conflict without fabricating a complete scorecard', async () => {
+  network({ detail_coverage: 'partial', conflict_count: 1, hole_history: [{ hole: 1, points_delta: { p1: 2.5 } }] });
+  renderRound();
+  expect((await screen.findAllByText('Avery'))[0]).toBeVisible();
+  expect(screen.queryByText('Live editor')).toBeNull();
+  expect(screen.getAllByText(/partial|review|conflict/i).length).toBeGreaterThan(0);
+  expect(syncManager.reconcileOnLoad).not.toHaveBeenCalled();
+});
 it('shows loading and then the actual summary error', async () => {
   fetch.mockImplementation(async (url) => String(url).includes('/state')
     ? { ok: true, json: async () => ({ game_status: 'completed' }) }

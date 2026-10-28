@@ -85,6 +85,18 @@ describe('leaderboard scorecard navigation', () => {
     expect(await screen.findByTestId('destination')).toHaveTextContent(`/game/${GAME_ID}`);
   });
 
+  test('totals-only rows preserve unknown scores and the server UUID', async () => {
+    api.GET.mockImplementation(async path => ({ data: path === '/data/leaderboard/rounds'
+      ? [{ ...round, players: [{ member: 'Alex', quarters: null }], detail_coverage: 'totals_only' }]
+      : path === '/data/leaderboard/scores' ? [] : {} }));
+    renderPage(<Leaderboard />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Rounds' }));
+    const card = await screen.findByRole('link', { name: /Scorecard/ });
+    expect(card).toHaveAttribute('href', `/game/${GAME_ID}`);
+    fireEvent.click(card);
+    expect(await screen.findByTestId('destination')).toHaveTextContent(`/game/${GAME_ID}`);
+  });
+
   test('same-date rounds open their own saved cards, never the first matching date', async () => {
     const secondId = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
     api.GET.mockImplementation(async (path) => ({ data: path === '/data/leaderboard/rounds'

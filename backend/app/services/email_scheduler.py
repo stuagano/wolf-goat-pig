@@ -221,33 +221,6 @@ class EmailScheduler:
         finally:
             db.close()
 
-    def _dedup_action(self, db, job) -> str:
-        """Return 'duplicate', 'update', or 'new' for a PendingSheetSync job.
-
-        Dedup key: date + group + exact set of player names.
-        Score comparison: app's summed player_scores vs. stored legacy scores.
-        """
-        from ..models import LegacyRound
-
-        incoming_players = set(job.player_scores.keys())
-
-        existing = db.query(LegacyRound).filter(LegacyRound.date == job.date, LegacyRound.group == job.group).all()
-        if not existing:
-            return "new"
-
-        existing_players = {r.member for r in existing}
-        if existing_players != incoming_players:
-            # Different player set — treat as a new (distinct) round
-            return "new"
-
-        # Same player set — compare scores
-        existing_scores = {r.member: r.score for r in existing}
-        for player, score in job.player_scores.items():
-            if existing_scores.get(player) != score:
-                return "update"
-
-        return "duplicate"
-
     def _sync_ghin_handicaps(self):
         """Sync GHIN handicaps for all players with GHIN IDs.
 
