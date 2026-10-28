@@ -18,7 +18,13 @@ CLI = Path(__file__).resolve().parents[3] / "scripts" / "migrate_round_identity.
 
 
 def invoke(engine, *args):
-    env = {**os.environ, "DATABASE_URL": str(engine.url), "RUN_INPROCESS_SCHEDULERS": "false"}
+    # str(URL) masks passwords, which breaks the real CLI on authenticated CI
+    # services. Pass the fixture DSN only via the child environment, never output.
+    env = {
+        **os.environ,
+        "DATABASE_URL": engine.url.render_as_string(hide_password=False),
+        "RUN_INPROCESS_SCHEDULERS": "false",
+    }
     # Fixed repository CLI and fixture-owned arguments, never shell evaluation.
     return subprocess.run(  # noqa: S603
         [sys.executable, str(CLI), *args], env=env, text=True, capture_output=True, timeout=30
