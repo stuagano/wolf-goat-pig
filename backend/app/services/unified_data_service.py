@@ -257,6 +257,10 @@ class UnifiedDataService:
                 reverse=True,
             )
 
+        return self.get_legacy_rounds(include_database=include_database, use_sheet_cache=use_sheet_cache)
+
+    def get_legacy_rounds(self, *, include_database=True, use_sheet_cache=True):
+        """Explicit pre-cutover authority, independent of writer/reader mode."""
         all_rounds: dict[tuple, UnifiedRound] = {}
 
         if use_sheet_cache:

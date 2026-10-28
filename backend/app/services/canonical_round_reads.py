@@ -15,7 +15,11 @@ from app.schemas.round_identity import read_round_identity_config
 
 
 def canonical_mode(db: Session) -> bool:
-    return read_round_identity_config(db).mode != "legacy"
+    config = read_round_identity_config(db)
+    row = db.get(models.AppConfig, "round_identity")
+    # A first pause fences writers, not readers. Subsequent recovery pauses keep
+    # canonical authority; they must never resurrect legacy counting.
+    return config.mode == "canonical" or bool(row and row.value.get("reader_mode") == "canonical")
 
 
 def accepted_rows(db: Session, *, eligible_only=False, season_only=False):

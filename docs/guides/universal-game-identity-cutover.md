@@ -49,8 +49,13 @@ backend/venv/bin/python backend/scripts/migrate_round_identity.py verify \
   --manifest <reviewed-local-manifest-json>
 ```
 
-Pause takes the exclusive configuration lock, waits for converted transactions,
-advances the epoch, and clears prior verification. Capture the final complete,
+Pause first drains the dispatch session-lock interval (durable email claim through
+external effect and receipt), then takes the exclusive configuration lock and waits
+for converted transactions, advances the epoch, and clears prior verification.
+PostgreSQL uses session advisory locks; SQLite rehearsal's process lock is not a
+multi-process production guarantee. Operational transport shutdown is still required.
+The first pause preserves legacy reader authority; activation records canonical
+reader authority, which subsequent pauses/forward rollback retain. Capture the final complete,
 fixed-season snapshot **after** draining writers. Dry-run uses a read-only
 transaction, performs no source reads/writes or notifications, and exclusively
 creates a new artifact (no overwrite/symlink following).
@@ -77,8 +82,24 @@ observations/heads/issues/resolutions, aliases, social rows, pending queues,
 deliveries and request identities. Preserve pending, retired, ambiguous and
 orphan rows. Review `baseline_pre_cutover` separately from
 `baseline_canonical_eligibility`; the former uses the existing cached counting
-caller. Approve the expected per-player standings in
-`approval.expected_standings` with actor/reason. Reseal reviewed artifacts using
+caller explicitly, independent of paused/canonical mode. Every saved record also
+has a `saved_games` work item, even with no sheet membership: approve
+`publish_original` with original-ID `result_slots` and reviewed `roster_complete`,
+or explicitly `hold`/`retire` with a per-game reason and actor. Publication repairs
+the original UUID container and uses only original saved facts, not source scores.
+Hold/retire preserve rows and do not themselves approve lost standings.
+
+Map every `baseline_contributions[].key` in `identity_mapping` to an explicit
+`profile:<id>` or `guest:<slot>` with actor/reason; duplicate labels are not identity.
+Approve `approval.expected_standings` and the exact `approval.deltas` ledger keyed
+by those identities. Each entry contains recomputed `old`, `new`, `delta` objects
+with `score`, `scored`, `participation`; every nonzero entry requires its own
+`actor_profile_id` and reason. `delta_ledger(manifest, expected_standings)` computes
+the review proposal but never approves it. Verification recomputes against actual
+published results. A generic reason or empty replacement standings is insufficient.
+`source_participant_tokens` maps canonical slots to raw external tokens; raw
+snapshot drafts stay unchanged and are translated separately before reconciliation.
+Reseal reviewed artifacts using
 `seal_manifest`; checksum agreement is integrity, not an independent approval.
 
 Apply commits one whole source game and its checkpoint atomically. A crash before
@@ -99,9 +120,9 @@ paused, matching-epoch session:
 - Install `install_evidence_guards(db)` and commit. PostgreSQL blocks direct SQL
   UPDATE/DELETE/TRUNCATE on observations/resolutions; SQLite blocks UPDATE/DELETE.
 - Refresh `ensure_canonical_round_results_view(engine)` explicitly if needed.
-  SQLite refresh is DROP/CREATE, PostgreSQL CREATE OR REPLACE. Boot does not create
-  `legacy_rounds_official`; old legacy Commissioner prompts still require that
-  compatibility view if serving legacy mode. Canonical Commissioner SQL rejects
+  SQLite refresh is DROP/CREATE, PostgreSQL CREATE OR REPLACE. Normal initialization
+  installs the explicit-column `legacy_rounds_official` compatibility view as DDL
+  only, without identity backfill. Canonical Commissioner SQL rejects
   legacy counting tables and uses `canonical_round_results` instead.
 - Run CLI `verify --manifest <reviewed-json> --store`. It recomputes accounting,
   requires paused epoch, probes physical guards using surviving rows in both

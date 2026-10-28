@@ -136,7 +136,7 @@ def ensure_legacy_rounds_official_view(bind) -> None:
 
     The view excludes unattested member self-posts (``status='pending'``) and is
     the only legacy-rounds source the Commissioner's read-only SQL path may query.
-    Explicit offline compatibility operation; boot does not install this view.
+    DDL-only boot compatibility; no identity rows are backfilled.
     Skips when the ``status`` column is missing (pre-attestation schema).
     """
     dialect = bind.dialect.name
@@ -357,8 +357,9 @@ def init_db():
         # Round stories and reactions are new tables; create_all covers fresh
         # SQLite. Production PostgreSQL uses add_round_comments_postgres.sql and
         # add_round_reactions_postgres.sql.
-        # Legacy compatibility view installation belongs to the explicit legacy
-        # migration, not boot. Canonical readers never depend on it.
+        # Legacy remains the default serving authority until accepted activation.
+        # View DDL is compatibility, never identity backfill or contraction.
+        ensure_legacy_rounds_official_view(engine)
         ensure_canonical_round_results_view(engine)
         logger.info("Database initialized successfully")
 

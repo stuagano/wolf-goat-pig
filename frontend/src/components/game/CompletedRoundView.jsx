@@ -7,6 +7,7 @@ import { SyncStatusBanner } from "../ui/SyncStatusIndicator";
 import { apiConfig } from "../../config/api.config";
 import { useAuthenticatedFetch } from "../../hooks/useAuthenticatedFetch";
 import useRoundCard from "../../hooks/useRoundCard";
+import syncManager from "../../services/syncManager";
 
 const API_URL = apiConfig.baseUrl;
 
@@ -71,7 +72,11 @@ const CompletedRoundView = ({
     }
 
     try {
-      const res = await authenticatedFetch(`${API_URL}/games/${gameId}/complete`, {
+      // Loaded by useGameData from writer_epoch. Never guess an epoch or
+      // silently refresh it over retained edits; stale epochs must return 409.
+      const epoch = syncManager.loadLocalGameState(gameId)?.writerEpoch;
+      const query = Number.isInteger(epoch) ? `?expected_epoch=${epoch}` : "";
+      const res = await authenticatedFetch(`${API_URL}/games/${gameId}/complete${query}`, {
         method: "POST",
       });
       if (!res.ok) {

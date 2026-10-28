@@ -21,9 +21,7 @@ def local_engine(tmp_path, monkeypatch):
 
 def test_fresh_init_and_repeat_preserve_view_and_legacy_default(local_engine):
     database.init_db()
-    assert "legacy_rounds_official" not in inspect(local_engine).get_view_names()
-    # Compatibility views are an explicit offline operation, never boot backfill.
-    database.ensure_legacy_rounds_official_view(local_engine)
+    assert "legacy_rounds_official" in inspect(local_engine).get_view_names()
     with local_engine.begin() as conn:
         conn.execute(text("INSERT INTO legacy_rounds (id, member, status) VALUES (10, 'Avery', 'attested')"))
         conn.execute(text("INSERT INTO legacy_rounds (id, member, status) VALUES (11, 'Blair', 'pending')"))

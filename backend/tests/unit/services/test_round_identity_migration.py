@@ -84,25 +84,50 @@ def approved(db, snapshot):
     from app.services.round_identity_migration import build_manifest, seal_manifest
 
     manifest = build_manifest(db, snapshot)
-    game_id = manifest["games"][0]["game_id"]
-    manifest["games"][0]["decision"] = {
-        "action": "confirm_distinct",
-        "reason": "Synthetic distinct evidence",
-        "actor_profile_id": 1,
-    }
+    game_id = manifest["games"][0]["game_id"] if manifest["games"] else None
+    for game in manifest["games"]:
+        game["decision"] = {
+            "action": "confirm_distinct",
+            "reason": "Synthetic distinct evidence",
+            "actor_profile_id": 1,
+        }
     for table, rows in manifest["inventory"].items():
         for row in rows:
             row["decision"] = {"action": "preserve", "reason": "Synthetic reviewed evidence", "actor_profile_id": 1}
-            if table in {"legacy_rounds", "round_comments", "round_reactions"}:
+            if game_id and table in {"legacy_rounds", "round_comments", "round_reactions"}:
                 row["decision"].update(action="attach", game_id=game_id)
                 if table == "legacy_rounds":
                     row["decision"]["participant_id"] = "slot-a"
+    for item in manifest["saved_games"]:
+        item["decision"] = {
+            "action": "publish_original",
+            "actor_profile_id": 1,
+            "reason": "Synthetic original saved roster",
+            "roster_complete": True,
+        }
     manifest["approval"] = {
         "actor_profile_id": 1,
         "reason": "Synthetic fixture only",
         "expected_standings": {"guest:slot-a": {"score": 0.0, "scored": 1, "participation": 1}},
     }
+    approve_deltas(manifest)
     return seal_manifest(manifest)
+
+
+def approve_deltas(manifest, identities=None):
+    """Synthetic operator decisions, not production automatic identity inference."""
+    from app.services.round_migration_deltas import delta_ledger
+
+    for contribution in manifest["baseline_contributions"]:
+        manifest["identity_mapping"][contribution["key"]] = {
+            "identity": (identities or {}).get(contribution["facts"]["member"], "guest:slot-a"),
+            "actor_profile_id": 1,
+            "reason": "Synthetic explicit contribution identity",
+        }
+    ledger = delta_ledger(manifest, manifest["approval"]["expected_standings"])
+    manifest["approval"]["deltas"] = {
+        k: {**v, "actor_profile_id": 1, "reason": "Synthetic reviewed individual correction"} for k, v in ledger.items()
+    }
 
 
 def test_manifest_rerun_keeps_uuid_and_social_ids(migration_fixture):
@@ -184,6 +209,7 @@ def test_hold_preserves_pending_retired_and_social_rows(migration_fixture):
             for entry in entries:
                 entry["decision"]["action"] = "hold"
         manifest["approval"]["expected_standings"] = {}
+        approve_deltas(manifest)
         manifest = seal_manifest(manifest)
         apply_manifest(db, manifest, expected_checksum=manifest["checksum"])
         report = verify_manifest(db, manifest)

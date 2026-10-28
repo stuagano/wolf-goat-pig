@@ -72,7 +72,8 @@ def migration_pg(request):
 
 
 @pytest.mark.parametrize("variable", ["ROUND_MIGRATION_PG17_URL", "ROUND_MIGRATION_PG15_URL"])
-def test_actual_postgres_cli_rehearsal(variable, migration_fixture, tmp_path):
+@pytest.mark.parametrize("partial_canonical", [False, True])
+def test_actual_postgres_cli_rehearsal(variable, migration_fixture, tmp_path, partial_canonical):
     from tests.unit.services.test_round_migration_cli import (
         test_actual_cli_readonly_apply_rerun_verify_and_redacted_failure as prove_cli,
     )
@@ -99,12 +100,25 @@ def test_actual_postgres_cli_rehearsal(variable, migration_fixture, tmp_path):
                     writer.add(model(**{a.key: getattr(row, a.key) for a in model.__mapper__.column_attrs}))
                 writer.flush()
             writer.commit()
-        prove_cli((engine, snapshot), tmp_path)
+        prove_cli((engine, snapshot), tmp_path, partial_canonical)
     finally:
         engine.dispose()
         with admin.connect() as conn:
             conn.execute(text(f'DROP DATABASE "{name}"'))
         admin.dispose()
+
+
+def test_normal_init_default_legacy_commissioner_endpoint(migration_pg, monkeypatch):
+    from tests.unit.services.test_round_cutover_review import test_normal_fresh_default_legacy_commissioner_http
+
+    with Session(migration_pg) as db:
+        db.add(
+            models.LegacyRound(
+                date="2026-10-01", group="A", member="Original", score=7, source="sheet", status="attested"
+            )
+        )
+        db.commit()
+        test_normal_fresh_default_legacy_commissioner_http(db, monkeypatch)
 
 
 def test_direct_sql_update_delete_truncate_blocked_with_surviving_readback(migration_pg):
@@ -118,7 +132,8 @@ def test_direct_sql_update_delete_truncate_blocked_with_surviving_readback(migra
         assert reader.query(models.RoundResolution).count() == 1
 
 
-def test_shared_writer_lock_survives_until_commit_and_cutover_drains(migration_pg):
+@pytest.mark.parametrize("caller", ["writer", "attest", "delete"])
+def test_shared_writer_lock_survives_until_commit_and_cutover_drains(migration_pg, caller, monkeypatch):
     entered, finished = Event(), Event()
 
     def cutover():
@@ -130,7 +145,30 @@ def test_shared_writer_lock_survives_until_commit_and_cutover_drains(migration_p
             return epoch
 
     with Session(migration_pg) as writer, ThreadPoolExecutor(max_workers=1) as pool:
-        guard_writer(writer)
+        if caller == "writer":
+            guard_writer(writer)
+        else:
+            import asyncio
+
+            from app.routers import games, member_rounds
+
+            with Session(migration_pg) as setup:
+                setup.add(models.GameStateModel(game_id="fenced-game", state={}))
+                setup.add(
+                    models.LegacyRound(id=99, source="member", status="pending", member="Author", foursome=["Witness"])
+                )
+                setup.commit()
+            # Intercept only the transaction boundary: the real caller must have
+            # acquired a fence before its state/ownership read and mutations.
+            commit = writer.commit
+            monkeypatch.setattr(writer, "commit", lambda: writer.flush())
+            if caller == "attest":
+                member_rounds.attest_round(
+                    99, models.PlayerProfile(id=1, name="Witness", legacy_name="Witness"), writer
+                )
+            else:
+                asyncio.run(games.delete_game("fenced-game", writer))
+            monkeypatch.setattr(writer, "commit", commit)
         future = pool.submit(cutover)
         assert entered.wait(2)
         assert not finished.wait(0.2)

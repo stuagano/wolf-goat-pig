@@ -49,6 +49,9 @@ def guard_client_epoch(db, expected_epoch):
 
 def pause_writers(db, *, expected_epoch, reason):
     """Exclusive row lock drains shared writers; outer caller commits the pause."""
+    from .round_dispatch_fence import drain_dispatch
+
+    drain_dispatch(db)
     row = configuration_lock(db, exclusive=True)
     config = read_round_identity_config(db)
     if row is None or config.epoch != expected_epoch or not reason.strip():
@@ -56,6 +59,7 @@ def pause_writers(db, *, expected_epoch, reason):
     value = deepcopy(row.value)
     value.update(
         mode="paused",
+        reader_mode="canonical" if config.mode == "canonical" or value.get("reader_mode") == "canonical" else "legacy",
         epoch=config.epoch + 1,
         dispatch_paused=True,
         paused_at=utc_now().isoformat(),
@@ -143,6 +147,7 @@ def activate_canonical(db, request, actor_id):
     value = deepcopy(row.value)
     value.update(
         mode="canonical",
+        reader_mode="canonical",
         epoch=config.epoch + 1,
         dispatch_paused=True,
         require_client_epoch=True,

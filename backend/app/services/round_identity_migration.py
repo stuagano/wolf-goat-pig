@@ -39,7 +39,13 @@ def _reviewed(decision):
 def _validate_review(manifest):
     if not _reviewed(manifest.get("approval")) or "expected_standings" not in manifest["approval"]:
         raise ValueError("Explicit reviewed counting deltas and reason required")
-    targets = {g["game_id"] for g in manifest["games"]}
+    from .round_migration_saved import validate_saved
+
+    validate_saved(manifest, _reviewed)
+    from .round_migration_deltas import validate_deltas
+
+    validate_deltas(manifest, manifest["approval"]["expected_standings"])
+    targets = {g["game_id"] for g in manifest["games"]} | {g["game_id"] for g in manifest.get("saved_games", [])}
     snapshot = manifest["snapshot"]
     if not snapshot.get("complete") or snapshot.get("errors") or snapshot.get("season_year") is None:
         raise ValueError("Complete fixed-season snapshot required")
@@ -84,8 +90,19 @@ def _validate_review(manifest):
                 ):
                     raise ValueError("Invalid association decision")
                 if table == "legacy_rounds":
-                    game = next(g for g in manifest["games"] if g["game_id"] == d["game_id"])
-                    if d.get("participant_id") not in {p["participant_id"] for p in game["draft"]["players"]}:
+                    game = next((g for g in manifest["games"] if g["game_id"] == d["game_id"]), None)
+                    if game:
+                        slots = set((game["decision"].get("source_participant_tokens") or {}).keys()) or {
+                            p["participant_id"] for p in game["draft"]["players"]
+                        }
+                    else:
+                        saved = next(g for g in manifest["saved_games"] if g["game_id"] == d["game_id"])
+                        slots = set(saved["decision"].get("result_slots", {}).values()) | {
+                            e["before"]["participant_id"]
+                            for e in manifest["inventory"]["game_player_results"]
+                            if e["before"]["game_record_id"] == saved["record_id"]
+                        }
+                    if d.get("participant_id") not in slots:
                         raise ValueError("Legacy participant requires explicit stable slot")
                     if entry["before"]["status"] == "pending":
                         raise ValueError("Pending legacy submissions cannot become accepted scores")
@@ -107,6 +124,14 @@ def _drift(db, manifest):
         if checkpoints[-1].outcome["inventory_digest"] != current_inventory_digest(db):
             raise ValueError("Database drift invalidates reviewed decisions; rebuild manifest")
     else:
+        from .round_migration_accounting import baseline, primitive
+        from .round_migration_deltas import contributions
+
+        season = manifest["snapshot"]["season_year"]
+        if manifest["baseline_contributions"] != primitive(contributions(db, season)) or manifest[
+            "baseline_pre_cutover"
+        ] != baseline(db, season):
+            raise ValueError("Published baseline drift; rebuild manifest")
         before = {t: [e["before"] for e in entries] for t, entries in manifest["inventory"].items()}
         actual = {t: [e["before"] for e in entries] for t, entries in inventory(db).items()}
         if before != actual:
@@ -158,6 +183,22 @@ def _apply_game(db, manifest, item):
             db.flush()
         if row.game_id not in (None, item["game_id"]):
             raise ValueError("Source is already bound to a different UUID")
+        tokens = decision.get("source_participant_tokens")
+        previous = (row.binding_evidence or {}).get("participant_tokens")
+        if previous and tokens and tokens != previous:
+            raise ValueError("Trusted source participant tokens cannot be reassigned")
+        tokens = tokens or previous
+        if tokens:
+            if set(tokens.values()) != {p.participant_id for p in draft.players} or len(set(tokens.values())) != len(
+                tokens
+            ):
+                raise ValueError("Explicit unique source-token to canonical-slot mapping required")
+            row.binding_evidence = {**(row.binding_evidence or {}), "participant_tokens": tokens}
+            if row.game_id is None:
+                row.game_id = item["game_id"]
+            from .round_sheet_values import mapped_draft
+
+            draft = mapped_draft(row, draft)
         # Mapping is by original result ID, never by names, order or scores.
         record = db.query(models.GameRecord).filter_by(game_id=item["game_id"]).one_or_none()
         if record:
@@ -171,17 +212,6 @@ def _apply_game(db, manifest, item):
                         raise ValueError("Every old result requires a reviewed original-ID to stable-slot mapping")
                     result.participant_id = slot
             db.flush()
-        tokens = decision.get("source_participant_tokens")
-        previous = (row.binding_evidence or {}).get("participant_tokens")
-        if previous and tokens and tokens != previous:
-            raise ValueError("Trusted source participant tokens cannot be reassigned")
-        if tokens:
-            if set(tokens) != {p.participant_id for p in draft.players} or len(set(tokens.values())) != len(tokens):
-                raise ValueError("Explicit unique source-token to canonical-slot mapping required")
-            row.binding_evidence = {**(row.binding_evidence or {}), "participant_tokens": tokens}
-            # _bind retains the same UUID's trusted mapping only.
-            if row.game_id is None:
-                row.game_id = item["game_id"]
         game = _bind(db, row, draft, game_id=item["game_id"], actor=decision["actor_profile_id"])
         if record and record.accepted_revision < 1:
             # Adopt the reviewed stable slots without accepting competing source
@@ -224,7 +254,9 @@ def apply_manifest(db, manifest, *, expected_checksum, batch_size=50):
         raise ValueError("Apply requires a clean session")
     db.rollback()
     try:
-        for item in manifest["games"]:
+        from .round_migration_saved import apply_saved
+
+        for item in manifest.get("saved_games", []) + manifest["games"]:
             configuration_lock(db, exclusive=True)
             config = read_round_identity_config(db)
             if config.mode != "paused" or config.epoch != manifest["epoch"]:
@@ -234,7 +266,9 @@ def apply_manifest(db, manifest, *, expected_checksum, batch_size=50):
                 db.rollback()
                 continue
             db.info["round_migration_transaction"] = True
-            outcome = _apply_game(db, manifest, item)
+            outcome = apply_saved(db, item) if "record_id" in item else _apply_game(db, manifest, item)
+            if "record_id" in item and item["decision"]["action"] == "publish_original":
+                _associate(db, manifest, item["game_id"])
             db.add(
                 models.RoundMigrationCheckpoint(
                     manifest_checksum=manifest["checksum"],
@@ -274,10 +308,21 @@ def verify_manifest(db, manifest):
         game = db.query(models.GameStateModel).filter_by(game_id=item["game_id"]).one_or_none()
         if not game:
             errors.append("Missing canonical UUID container")
+    from .round_migration_saved import verify_saved
+
+    errors.extend(verify_saved(db, manifest))
+    if any(w["operation_key"] not in completed for w in manifest.get("saved_games", [])):
+        errors.append("Uncheckpointed saved game")
     actual = standings(db, manifest["snapshot"]["season_year"])
     approved = (manifest.get("approval") or {}).get("expected_standings")
     if actual != approved:
         errors.append("Standings correction delta requires fresh explicit approval")
+    from .round_migration_deltas import validate_deltas
+
+    try:
+        validate_deltas(manifest, actual)
+    except ValueError as exc:
+        errors.append(str(exc))
     for table in ("round_comments", "round_reactions"):
         model = next(m for m in TABLES if m.__tablename__ == table)
         for entry in manifest["inventory"][table]:

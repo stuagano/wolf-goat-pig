@@ -357,6 +357,9 @@ def attest_round(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Attest a pending round posted by another foursome member."""
+    from app.services.round_cutover import guard_writer
+
+    guard_writer(db)
     row = db.query(LegacyRound).filter(LegacyRound.id == round_id).first()
     if row is None:
         raise HTTPException(status_code=404, detail="Round not found")

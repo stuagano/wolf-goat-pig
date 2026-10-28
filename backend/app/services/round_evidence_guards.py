@@ -4,7 +4,24 @@ DDL installation is explicit, never boot-time data mutation. PostgreSQL table
 owners/superusers can drop triggers: runtime role must not own evidence tables.
 """
 
+import sqlite3
+
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
+
+
+def _expected_refusal(exc, dialect):
+    if not isinstance(exc, DBAPIError):
+        return False
+    original = exc.orig
+    if dialect == "postgresql":
+        code = getattr(original, "pgcode", None) or getattr(original, "sqlstate", None)
+        return code == "42501" or (code == "P0001" and "Round evidence is immutable" in str(original))
+    return (
+        isinstance(original, sqlite3.IntegrityError)
+        and getattr(original, "sqlite_errorcode", None) == sqlite3.SQLITE_CONSTRAINT_TRIGGER
+        and "Round evidence is immutable" in str(original)
+    )
 
 
 def install_evidence_guards(db):
@@ -61,8 +78,8 @@ def prove_evidence_guards(db):
             savepoint = db.begin_nested()
             try:
                 db.execute(text(operation), {"id": original})
-            except Exception:
-                blocked = True
+            except Exception as exc:
+                blocked = _expected_refusal(exc, db.get_bind().dialect.name)
             finally:
                 savepoint.rollback()
             if (

@@ -253,8 +253,14 @@ def test_disputes_held_evidence_and_paused_reads(canonical_history):
         assert response.status_code == 200
         assert response.json()[0]["quarters"] == 8
         assert len(client.get("/data/leaderboard/rounds").json()) == 1
-    db.get(models.AppConfig, "round_identity").value = {"mode": "paused", "season": 2026}
+    # A recovery pause after activation keeps canonical reader authority; it is
+    # the real transition, not a hand-written configuration value.
+    from app.schemas.round_identity import read_round_identity_config
+    from app.services.round_cutover import pause_writers
+
+    pause_writers(db, expected_epoch=read_round_identity_config(db).epoch, reason="Fixture recovery pause")
     db.commit()
+    assert db.get(models.AppConfig, "round_identity").value["reader_mode"] == "canonical"
     assert UnifiedDataService(db).get_unified_leaderboard()[0].quarters == 8
 
 

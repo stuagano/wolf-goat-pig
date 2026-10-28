@@ -194,6 +194,15 @@ def _retry(row, code):
 
 
 def _dispatch_one():
+    from .round_dispatch_fence import dispatch_fence
+
+    # Session-level gate spans durable claim, provider uncertainty and receipt.
+    # Pause acquires it first, so a new worker can only observe paused config.
+    with dispatch_fence(SessionLocal.kw["bind"]):
+        return _dispatch_one_fenced()
+
+
+def _dispatch_one_fenced():
     with SessionLocal() as db:
         from .round_cutover import configuration_lock
 

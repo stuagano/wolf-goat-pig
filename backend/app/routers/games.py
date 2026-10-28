@@ -905,7 +905,13 @@ async def delete_game(game_id: str, db: Session = Depends(database.get_db)):  # 
         Success message with deletion details
     """
     try:
-        # Check if game exists
+        from app.services.canonical_round_reads import canonical_mode
+        from app.services.round_cutover import guard_writer
+
+        guard_writer(db)
+        if canonical_mode(db):
+            raise HTTPException(409, "Permanent round UUIDs cannot be deleted; use reviewed retraction")
+        # Check if game exists under the transaction fence, retained until commit.
         game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
 
         if not game:

@@ -111,15 +111,17 @@ def standings(db, season):
 
 
 def baseline(db, season):
-    """Capture the *current pre-cutover caller*, including its duplicate policy.
+    """Capture the *pre-cutover published caller*, including its duplicate policy.
 
-    No network: include_sheet=True is explicitly backed by the retained cache.
+    Reads the explicit legacy union regardless of the current writer/reader mode,
+    so a pause-first workflow still records the real pre-transition baseline.
+    No network: the sheet side is explicitly backed by the retained cache.
     Keep member labels as evidence, not an implicit profile/name merge.
     """
     from .unified_data_service import UnifiedDataService
 
     result = {}
-    for row in UnifiedDataService(db=db).get_all_rounds(use_sheet_cache=True):
+    for row in UnifiedDataService(db=db).get_legacy_rounds(use_sheet_cache=True):
         if not row.date_sortable or not row.date_sortable.startswith(f"{season}-"):
             continue
         key = row.member
@@ -134,7 +136,7 @@ def baseline(db, season):
 def build(db, snapshot):
     if db.new or db.dirty or db.deleted:
         raise ValueError("Dry run requires a clean read-only caller")
-    if not snapshot.complete or snapshot.errors or not snapshot.rounds or snapshot.season_year is None:
+    if not snapshot.complete or snapshot.errors or snapshot.season_year is None:
         raise ValueError("Complete fixed-season snapshot required")
     data = snapshot_data(snapshot)
     config = db.get(models.AppConfig, "round_identity")
@@ -161,6 +163,9 @@ def build(db, snapshot):
                 "decision": None,
             }
         )
+    from .round_migration_deltas import contributions
+    from .round_migration_saved import saved_work
+
     return seal_manifest(
         {
             "version": 1,
@@ -169,8 +174,11 @@ def build(db, snapshot):
             "configuration": value,
             "epoch": value.get("epoch", 0),
             "games": work,
+            "saved_games": saved_work(db),
             "inventory": inventory(db),
             "baseline_pre_cutover": baseline(db, snapshot.season_year),
+            "baseline_contributions": primitive(contributions(db, snapshot.season_year)),
+            "identity_mapping": {},
             "baseline_canonical_eligibility": standings(db, snapshot.season_year),
             "approval": None,
         }
