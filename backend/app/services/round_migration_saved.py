@@ -9,6 +9,7 @@ from app.schemas.round_identity import RoundDraft
 
 from .completed_game_service import persist_final_results
 from .round_evidence import accepted_draft, fingerprint
+from .round_projection_operations import active_projection
 
 
 def saved_work(db):
@@ -285,9 +286,8 @@ def verify_saved(db, manifest):
                 )
             ):
                 errors.append("Original saved detail identities/cardinality/fields changed")
-            expected_totals = {r.participant_id: r.total_earnings for r in mapped}
-            expected_eligible = bool(
-                item["decision"]["roster_complete"] and mapped and all(r.total_earnings is not None for r in mapped)
+            active, expected_totals, expected_eligible = active_projection(
+                SimpleNamespace(**before_record), mapped, roster_complete=item["decision"]["roster_complete"]
             )
             state = (game.state or {}) if game else {}
             players = state.get("players") or []
@@ -300,7 +300,8 @@ def verify_saved(db, manifest):
                 or state.get("game_status") != "completed"
                 or not game
                 or game.game_status != "completed"
-                or len(players) != len(mapped)
+                or record.player_count != len(active)
+                or len(players) != len(active)
                 or {p.get("id") for p in players} != set(expected_totals)
                 or any(p.get("total_points") != expected_totals.get(p.get("id")) for p in players)
             ):

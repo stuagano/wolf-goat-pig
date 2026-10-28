@@ -9,6 +9,16 @@ from copy import deepcopy
 from fastapi import HTTPException
 
 
+def active_projection(record, rows, *, roster_complete):
+    """Shared accepted roster policy; historical rows never imply active scores."""
+    active = [r for r in rows if not r.is_retracted]
+    totals = {r.participant_id: r.total_earnings for r in active}
+    eligible = bool(
+        not record.is_retracted and roster_complete and active and all(r.total_earnings is not None for r in active)
+    )
+    return active, totals, eligible
+
+
 def apply_projection_operations(game, record, rows, draft, *, retracted=None, restore_participants=()):
     by_slot = {r.participant_id: r for r in rows}
     requested = set(draft.removed_participant_ids) | set(restore_participants)
@@ -41,11 +51,8 @@ def apply_projection_operations(game, record, rows, draft, *, retracted=None, re
             setattr(row, {"quarters": "total_earnings", "profile_id": "player_profile_id"}[parts[2]], None)
     record.game_settings = settings
     previous_order = {p["id"]: i for i, p in enumerate((game.state or {}).get("players", []))}
-    active = sorted(
-        [r for r in rows if not r.is_retracted],
-        key=lambda r: (previous_order.get(r.participant_id, len(previous_order)), r.participant_id),
-    )
-    totals = {r.participant_id: r.total_earnings for r in active}
+    active, totals, eligible = active_projection(record, rows, roster_complete=record.roster_complete)
+    active.sort(key=lambda r: (previous_order.get(r.participant_id, len(previous_order)), r.participant_id))
     state = deepcopy(dict(game.state or {}))
     previous = {p["id"]: p for p in state.get("players", [])}
     state["players"] = [
@@ -64,12 +71,7 @@ def apply_projection_operations(game, record, rows, draft, *, retracted=None, re
             state.pop(field, None)
     record.final_scores = totals
     record.player_count = len(active)
-    record.score_eligible = bool(
-        not record.is_retracted
-        and record.roster_complete
-        and active
-        and all(r.total_earnings is not None for r in active)
-    )
+    record.score_eligible = eligible
     for rank, row in enumerate(sorted(active, key=lambda r: r.total_earnings or 0, reverse=True), 1):
         row.final_position = rank if record.score_eligible else None
     for row in rows:

@@ -85,6 +85,9 @@ def migration_pg(request):
         "unknown_single",
         "unknown_mixed",
     ]
+    + [f"retraction_{kind}" for kind in ("whole", "participant", "all", "incomplete")]
+    + [f"retraction_tamper_{kind}" for kind in ("whole_flag", "participant_flag", "remove_active")]
+    + [f"retraction_hold_{kind}" for kind in ("empty", "historical_null")]
     + [
         f"history_{kind}_{coverage}"
         for kind in (
@@ -127,7 +130,25 @@ def test_actual_postgres_cli_rehearsal(variable, migration_fixture, tmp_path, pa
                     writer.add(model(**{a.key: getattr(row, a.key) for a in model.__mapper__.column_attrs}))
                 writer.flush()
             writer.commit()
-        if isinstance(partial_canonical, str) and partial_canonical.startswith("unknown_"):
+        if isinstance(partial_canonical, str) and partial_canonical.startswith("retraction_"):
+            from tests.unit.services.test_round_saved_retractions import (
+                test_retained_retractions_cli_verify_replay_and_continue,
+                test_retraction_or_active_removal_resealed_checkpoint_is_not_approved,
+                test_unpublishable_originals_require_reviewed_hold_without_mutation,
+            )
+
+            kind = partial_canonical.removeprefix("retraction_")
+            if kind.startswith("tamper_"):
+                test_retraction_or_active_removal_resealed_checkpoint_is_not_approved(
+                    (engine, snapshot), tmp_path, kind.removeprefix("tamper_")
+                )
+            elif kind.startswith("hold_"):
+                test_unpublishable_originals_require_reviewed_hold_without_mutation(
+                    (engine, snapshot), tmp_path, kind.removeprefix("hold_")
+                )
+            else:
+                test_retained_retractions_cli_verify_replay_and_continue((engine, snapshot), tmp_path, kind)
+        elif isinstance(partial_canonical, str) and partial_canonical.startswith("unknown_"):
             from tests.unit.services.test_round_saved_invariants import (
                 test_unknown_original_total_requires_hold_before_commit,
             )
