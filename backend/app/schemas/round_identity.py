@@ -86,6 +86,68 @@ class ResolutionDecision(BaseModel):
     expected_issue_revision: int
     expected_head_revision: int
 
+    @field_validator("reason")
+    @classmethod
+    def meaningful_reason(cls, value):
+        if not value.strip():
+            raise ValueError("A review reason is required")
+        return value
+
+
+class RecipientConfirmation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    profile_id: int = Field(gt=0, strict=True)
+    confirmed: Literal[True]
+    reason: str = Field(min_length=1, max_length=1000)
+
+    @field_validator("reason")
+    @classmethod
+    def meaningful_reason(cls, value):
+        if not value.strip():
+            raise ValueError("A confirmation reason is required")
+        return value
+
+
+class RoundModeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    mode: Literal["legacy", "paused", "canonical"]
+    expected_epoch: int = Field(ge=0, strict=True)
+    verification_report: dict
+
+
+class RoundSummaryParticipant(BaseModel):
+    participant_id: str | None
+    name: str | None
+    profile_id: int | None
+    quarters: float | None
+    is_retracted: bool
+
+
+class RoundSummary(BaseModel):
+    game_id: str
+    revision: int
+    accepted_label: Literal["accepted"]
+    played_on: date | None
+    raw_date: str | None
+    course_name: str | None
+    detail_coverage: Literal["totals_only", "partial", "per_hole_complete"] | None
+    roster_complete: bool | None
+    score_eligible: bool
+    is_retracted: bool
+    players: list[RoundSummaryParticipant]
+    hole_history: list[dict]
+    detail_label: Literal["accepted_recorded_detail"]
+    detail_discrepancies: dict
+    detail_reconciled: bool
+    proposed_detail: dict
+    conflict_count: int
+    capabilities: dict[str, bool]
+
+
+class RoundAliasResult(BaseModel):
+    status: Literal["resolved", "ambiguous", "missing"]
+    game_ids: list[str]
+
 
 class RoundIdentityConfig(BaseModel):
     """Non-secret writer fence and routing state; absence never activates it."""

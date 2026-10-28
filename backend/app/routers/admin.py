@@ -20,6 +20,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .. import database, models, schemas
+from ..schemas.round_identity import RoundModeRequest
 from ..services.email_service import EmailService, get_email_service
 from ..state.app_state import set_email_service_instance
 from ..utils.admin_auth import require_admin
@@ -33,6 +34,31 @@ router = APIRouter(tags=["admin"])
 class AdminTestEmailRequest(BaseModel):
     test_email: str = Field(..., min_length=1)
     config: dict[str, Any] = Field(default_factory=dict)
+
+
+@router.put("/admin/round-identity/mode")
+def set_round_identity_mode(
+    request: RoundModeRequest,
+    user=Depends(require_admin),
+    db: Session = Depends(database.get_db),
+):
+    """Fail closed until Task 11's authoritative verifier/cutover exists.
+
+    A JSON report supplied by the caller is not verified migration evidence.
+    This endpoint never runs migration, resumes writers, or writes to Sheets.
+    """
+    from ..schemas.round_identity import read_round_identity_config
+    from ..services.round_identity import acquire_reconciliation_lock
+
+    try:
+        acquire_reconciliation_lock(db)
+        db.query(models.AppConfig).filter_by(name="round_identity").with_for_update().first()
+        config = read_round_identity_config(db)
+        if request.expected_epoch != config.epoch:
+            raise HTTPException(409, "Writer epoch advanced")
+        raise HTTPException(409, "Authoritative manifest verification unavailable; mode remains unchanged")
+    finally:
+        db.rollback()
 
 
 # =============================================================================

@@ -14,6 +14,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from .. import database, models, schemas
 from ..badge_engine import BadgeEngine
+from ..schemas.round_identity import RoundSummary
 from ..services.auth_service import get_current_user
 from ..services.completed_game_service import round_played_at, validate_round_players, validate_round_scores
 from ..services.game_lifecycle_service import get_game_lifecycle_service
@@ -1050,6 +1051,14 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
         db.rollback()
         logger.error(f"Error completing game {game_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Error completing game: {e!s}")
+
+
+@router.get("/{game_id}/round-summary", response_model=RoundSummary)
+def get_round_summary(game_id: str, db: Session = Depends(database.get_db)):
+    """Accepted final results and actual detail on the permanent UUID."""
+    from ..services.round_review import round_summary
+
+    return round_summary(db, game_id)
 
 
 @router.get("/{game_id}/state")

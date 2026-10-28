@@ -2135,6 +2135,53 @@
         "title": "HoleScore",
         "type": "object"
       },
+      "IngestOutcome": {
+        "properties": {
+          "game_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Game Id"
+          },
+          "issue_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Issue Ids",
+            "type": "array"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          },
+          "status": {
+            "enum": [
+              "accepted",
+              "unchanged",
+              "held"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "IngestOutcome",
+        "type": "object"
+      },
       "JoinGameRequest": {
         "properties": {
           "handicap": {
@@ -3764,6 +3811,140 @@
         "title": "PublicPlayerProfileResponse",
         "type": "object"
       },
+      "RecipientConfirmation": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmed": {
+            "const": true,
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "profile_id": {
+            "exclusiveMinimum": 0.0,
+            "title": "Profile Id",
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "confirmed",
+          "reason"
+        ],
+        "title": "RecipientConfirmation",
+        "type": "object"
+      },
+      "ResolutionDecision": {
+        "properties": {
+          "action": {
+            "enum": [
+              "keep",
+              "accept",
+              "correct",
+              "bind_existing",
+              "confirm_distinct",
+              "retract"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "expected_game_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Game Revision"
+          },
+          "expected_head_revision": {
+            "title": "Expected Head Revision",
+            "type": "integer"
+          },
+          "expected_issue_revision": {
+            "title": "Expected Issue Revision",
+            "type": "integer"
+          },
+          "expected_target_game_revision": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Target Game Revision"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "target_game_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Game Id"
+          },
+          "value": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "action",
+          "reason",
+          "expected_issue_revision",
+          "expected_head_revision"
+        ],
+        "title": "ResolutionDecision",
+        "type": "object"
+      },
+      "RoundAliasResult": {
+        "properties": {
+          "game_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Game Ids",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "resolved",
+              "ambiguous",
+              "missing"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "game_ids"
+        ],
+        "title": "RoundAliasResult",
+        "type": "object"
+      },
       "RoundCommentCreate": {
         "properties": {
           "body": {
@@ -3822,6 +4003,37 @@
           "created_at"
         ],
         "title": "RoundCommentResponse",
+        "type": "object"
+      },
+      "RoundModeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_epoch": {
+            "minimum": 0.0,
+            "title": "Expected Epoch",
+            "type": "integer"
+          },
+          "mode": {
+            "enum": [
+              "legacy",
+              "paused",
+              "canonical"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "verification_report": {
+            "additionalProperties": true,
+            "title": "Verification Report",
+            "type": "object"
+          }
+        },
+        "required": [
+          "mode",
+          "expected_epoch",
+          "verification_report"
+        ],
+        "title": "RoundModeRequest",
         "type": "object"
       },
       "RoundPlayerResponse": {
@@ -4039,6 +4251,220 @@
           "comments"
         ],
         "title": "RoundStoryResponse",
+        "type": "object"
+      },
+      "RoundSummary": {
+        "properties": {
+          "accepted_label": {
+            "const": "accepted",
+            "title": "Accepted Label",
+            "type": "string"
+          },
+          "capabilities": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Capabilities",
+            "type": "object"
+          },
+          "conflict_count": {
+            "title": "Conflict Count",
+            "type": "integer"
+          },
+          "course_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Course Name"
+          },
+          "detail_coverage": {
+            "anyOf": [
+              {
+                "enum": [
+                  "totals_only",
+                  "partial",
+                  "per_hole_complete"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail Coverage"
+          },
+          "detail_discrepancies": {
+            "additionalProperties": true,
+            "title": "Detail Discrepancies",
+            "type": "object"
+          },
+          "detail_label": {
+            "const": "accepted_recorded_detail",
+            "title": "Detail Label",
+            "type": "string"
+          },
+          "detail_reconciled": {
+            "title": "Detail Reconciled",
+            "type": "boolean"
+          },
+          "game_id": {
+            "title": "Game Id",
+            "type": "string"
+          },
+          "hole_history": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Hole History",
+            "type": "array"
+          },
+          "is_retracted": {
+            "title": "Is Retracted",
+            "type": "boolean"
+          },
+          "played_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played On"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/RoundSummaryParticipant"
+            },
+            "title": "Players",
+            "type": "array"
+          },
+          "proposed_detail": {
+            "additionalProperties": true,
+            "title": "Proposed Detail",
+            "type": "object"
+          },
+          "raw_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Date"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "roster_complete": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roster Complete"
+          },
+          "score_eligible": {
+            "title": "Score Eligible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "game_id",
+          "revision",
+          "accepted_label",
+          "played_on",
+          "raw_date",
+          "course_name",
+          "detail_coverage",
+          "roster_complete",
+          "score_eligible",
+          "is_retracted",
+          "players",
+          "hole_history",
+          "detail_label",
+          "detail_discrepancies",
+          "detail_reconciled",
+          "proposed_detail",
+          "conflict_count",
+          "capabilities"
+        ],
+        "title": "RoundSummary",
+        "type": "object"
+      },
+      "RoundSummaryParticipant": {
+        "properties": {
+          "is_retracted": {
+            "title": "Is Retracted",
+            "type": "boolean"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "participant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Id"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Id"
+          },
+          "quarters": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quarters"
+          }
+        },
+        "required": [
+          "participant_id",
+          "name",
+          "profile_id",
+          "quarters",
+          "is_retracted"
+        ],
+        "title": "RoundSummaryParticipant",
         "type": "object"
       },
       "Rule": {
@@ -5772,6 +6198,51 @@
         "summary": "Test Oauth2 Email",
         "tags": [
           "admin-oauth"
+        ]
+      }
+    },
+    "/admin/round-identity/mode": {
+      "put": {
+        "description": "Fail closed until Task 11's authoritative verifier/cutover exists.\n\nA JSON report supplied by the caller is not verified migration evidence.\nThis endpoint never runs migration, resumes writers, or writes to Sheets.",
+        "operationId": "set_round_identity_mode_admin_round_identity_mode_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoundModeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Round Identity Mode",
+        "tags": [
+          "admin"
         ]
       }
     },
@@ -10940,6 +11411,49 @@
         ]
       }
     },
+    "/games/{game_id}/round-summary": {
+      "get": {
+        "description": "Accepted final results and actual detail on the permanent UUID.",
+        "operationId": "get_round_summary_games__game_id__round_summary_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "game_id",
+            "required": true,
+            "schema": {
+              "title": "Game Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoundSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Round Summary",
+        "tags": [
+          "games"
+        ]
+      }
+    },
     "/games/{game_id}/scorecard": {
       "patch": {
         "description": "Backfill the per-hole quarters of a scanned round and recompute standings.\nStandings come out as the sum of the submitted per-hole (settle-up identity).",
@@ -15485,6 +15999,356 @@
         "summary": "Get Player Trends",
         "tags": [
           "players"
+        ]
+      }
+    },
+    "/round-reconciliation/aliases": {
+      "get": {
+        "operationId": "aliases_round_reconciliation_aliases_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date",
+            "required": true,
+            "schema": {
+              "title": "Date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "group",
+            "required": true,
+            "schema": {
+              "title": "Group",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "location",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Location",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoundAliasResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Aliases",
+        "tags": [
+          "round-reconciliation"
+        ]
+      }
+    },
+    "/round-reconciliation/health": {
+      "get": {
+        "operationId": "health_round_reconciliation_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Health",
+        "tags": [
+          "round-reconciliation"
+        ]
+      }
+    },
+    "/round-reconciliation/issues": {
+      "get": {
+        "operationId": "issues_round_reconciliation_issues_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Issues",
+        "tags": [
+          "round-reconciliation"
+        ]
+      }
+    },
+    "/round-reconciliation/issues/{issue_id}": {
+      "get": {
+        "operationId": "issue_detail_round_reconciliation_issues__issue_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "issue_id",
+            "required": true,
+            "schema": {
+              "title": "Issue Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Issue Detail",
+        "tags": [
+          "round-reconciliation"
+        ]
+      }
+    },
+    "/round-reconciliation/issues/{issue_id}/resolve": {
+      "post": {
+        "operationId": "resolve_round_reconciliation_issues__issue_id__resolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "issue_id",
+            "required": true,
+            "schema": {
+              "title": "Issue Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolutionDecision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestOutcome"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Resolve",
+        "tags": [
+          "round-reconciliation"
+        ]
+      }
+    },
+    "/round-reconciliation/recipient": {
+      "put": {
+        "operationId": "recipient_round_reconciliation_recipient_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipientConfirmation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Recipient",
+        "tags": [
+          "round-reconciliation"
+        ]
+      }
+    },
+    "/round-reconciliation/requeue": {
+      "post": {
+        "operationId": "requeue_round_reconciliation_requeue_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoundRequeue"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Requeue",
+        "tags": [
+          "round-reconciliation"
         ]
       }
     },

@@ -290,8 +290,9 @@ from .routers import unified_data
 
 app.include_router(unified_data.router)
 
-from .routers import round_stories
+from .routers import round_reconciliation, round_stories
 
+app.include_router(round_reconciliation.router)
 app.include_router(round_stories.router)
 
 # Include modular routers

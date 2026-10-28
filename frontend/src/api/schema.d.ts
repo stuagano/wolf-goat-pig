@@ -353,6 +353,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/round-identity/mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Round Identity Mode
+         * @description Fail closed until Task 11's authoritative verifier/cutover exists.
+         *
+         *     A JSON report supplied by the caller is not verified migration evidence.
+         *     This endpoint never runs migration, resumes writers, or writes to Sheets.
+         */
+        put: operations["set_round_identity_mode_admin_round_identity_mode_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/run-migration": {
         parameters: {
             query?: never;
@@ -2605,6 +2628,26 @@ export interface paths {
         patch: operations["update_player_handicap_games__game_id__players__player_slot_id__handicap_patch"];
         trace?: never;
     };
+    "/games/{game_id}/round-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Round Summary
+         * @description Accepted final results and actual detail on the permanent UUID.
+         */
+        get: operations["get_round_summary_games__game_id__round_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/games/{game_id}/scorecard": {
         parameters: {
             query?: never;
@@ -4432,6 +4475,125 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/round-reconciliation/aliases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Aliases */
+        get: operations["aliases_round_reconciliation_aliases_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/round-reconciliation/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Health */
+        get: operations["health_round_reconciliation_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/round-reconciliation/issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Issues */
+        get: operations["issues_round_reconciliation_issues_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/round-reconciliation/issues/{issue_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Issue Detail */
+        get: operations["issue_detail_round_reconciliation_issues__issue_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/round-reconciliation/issues/{issue_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve */
+        post: operations["resolve_round_reconciliation_issues__issue_id__resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/round-reconciliation/recipient": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Recipient */
+        put: operations["recipient_round_reconciliation_recipient_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/round-reconciliation/requeue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Requeue */
+        post: operations["requeue_round_reconciliation_requeue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rounds/pending-attestation": {
         parameters: {
             query?: never;
@@ -5977,6 +6139,20 @@ export interface components {
             /** Winner */
             winner?: string | null;
         };
+        /** IngestOutcome */
+        IngestOutcome: {
+            /** Game Id */
+            game_id?: string | null;
+            /** Issue Ids */
+            issue_ids?: string[];
+            /** Revision */
+            revision?: number | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "accepted" | "unchanged" | "held";
+        };
         /** JoinGameRequest */
         JoinGameRequest: {
             /** Handicap */
@@ -6690,6 +6866,50 @@ export interface components {
             /** Venmo Handle */
             venmo_handle?: string | null;
         };
+        /** RecipientConfirmation */
+        RecipientConfirmation: {
+            /**
+             * Confirmed
+             * @constant
+             */
+            confirmed: true;
+            /** Profile Id */
+            profile_id: number;
+            /** Reason */
+            reason: string;
+        };
+        /** ResolutionDecision */
+        ResolutionDecision: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "keep" | "accept" | "correct" | "bind_existing" | "confirm_distinct" | "retract";
+            /** Expected Game Revision */
+            expected_game_revision?: number | null;
+            /** Expected Head Revision */
+            expected_head_revision: number;
+            /** Expected Issue Revision */
+            expected_issue_revision: number;
+            /** Expected Target Game Revision */
+            expected_target_game_revision?: number | null;
+            /** Reason */
+            reason: string;
+            /** Target Game Id */
+            target_game_id?: string | null;
+            /** Value */
+            value?: unknown | null;
+        };
+        /** RoundAliasResult */
+        RoundAliasResult: {
+            /** Game Ids */
+            game_ids: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "resolved" | "ambiguous" | "missing";
+        };
         /** RoundCommentCreate */
         RoundCommentCreate: {
             /** Body */
@@ -6714,6 +6934,20 @@ export interface components {
             id: number;
             /** Reactions */
             reactions?: components["schemas"]["RoundReactionResponse"][];
+        };
+        /** RoundModeRequest */
+        RoundModeRequest: {
+            /** Expected Epoch */
+            expected_epoch: number;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "legacy" | "paused" | "canonical";
+            /** Verification Report */
+            verification_report: {
+                [key: string]: unknown;
+            };
         };
         /** RoundPlayerResponse */
         RoundPlayerResponse: {
@@ -6786,6 +7020,72 @@ export interface components {
             players: components["schemas"]["RoundPlayerResponse"][];
             /** Reactions */
             reactions?: components["schemas"]["RoundReactionResponse"][];
+        };
+        /** RoundSummary */
+        RoundSummary: {
+            /**
+             * Accepted Label
+             * @constant
+             */
+            accepted_label: "accepted";
+            /** Capabilities */
+            capabilities: {
+                [key: string]: boolean;
+            };
+            /** Conflict Count */
+            conflict_count: number;
+            /** Course Name */
+            course_name: string | null;
+            /** Detail Coverage */
+            detail_coverage: ("totals_only" | "partial" | "per_hole_complete") | null;
+            /** Detail Discrepancies */
+            detail_discrepancies: {
+                [key: string]: unknown;
+            };
+            /**
+             * Detail Label
+             * @constant
+             */
+            detail_label: "accepted_recorded_detail";
+            /** Detail Reconciled */
+            detail_reconciled: boolean;
+            /** Game Id */
+            game_id: string;
+            /** Hole History */
+            hole_history: {
+                [key: string]: unknown;
+            }[];
+            /** Is Retracted */
+            is_retracted: boolean;
+            /** Played On */
+            played_on: string | null;
+            /** Players */
+            players: components["schemas"]["RoundSummaryParticipant"][];
+            /** Proposed Detail */
+            proposed_detail: {
+                [key: string]: unknown;
+            };
+            /** Raw Date */
+            raw_date: string | null;
+            /** Revision */
+            revision: number;
+            /** Roster Complete */
+            roster_complete: boolean | null;
+            /** Score Eligible */
+            score_eligible: boolean;
+        };
+        /** RoundSummaryParticipant */
+        RoundSummaryParticipant: {
+            /** Is Retracted */
+            is_retracted: boolean;
+            /** Name */
+            name: string | null;
+            /** Participant Id */
+            participant_id: string | null;
+            /** Profile Id */
+            profile_id: number | null;
+            /** Quarters */
+            quarters: number | null;
         };
         /** Rule */
         Rule: {
@@ -7724,6 +8024,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["OAuth2TestEmailRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_round_identity_mode_admin_round_identity_mode_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoundModeRequest"];
             };
         };
         responses: {
@@ -11113,6 +11446,37 @@ export interface operations {
             };
         };
     };
+    get_round_summary_games__game_id__round_summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoundSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     backfill_scorecard_games__game_id__scorecard_patch: {
         parameters: {
             query?: never;
@@ -14188,6 +14552,224 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    aliases_round_reconciliation_aliases_get: {
+        parameters: {
+            query: {
+                date: string;
+                group: string;
+                location?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoundAliasResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    health_round_reconciliation_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    issues_round_reconciliation_issues_get: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number;
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    issue_detail_round_reconciliation_issues__issue_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issue_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_round_reconciliation_issues__issue_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issue_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolutionDecision"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngestOutcome"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recipient_round_reconciliation_recipient_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecipientConfirmation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    requeue_round_reconciliation_requeue_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoundRequeue"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
