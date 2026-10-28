@@ -433,6 +433,7 @@ const AdminPage = () => {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">🔧 Admin Dashboard</h1>
           <p className="text-gray-600">Manage email settings, sheets integration, and analytics</p>
+          <a href="/round-reconciliation">Round reconciliation, delivery status & confirmed recipient</a>
         </div>
 
         {/* Tab Navigation */}

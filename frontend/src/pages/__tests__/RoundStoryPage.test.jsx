@@ -3,6 +3,8 @@ import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import RoundStoryPage from '../RoundStoryPage';
+import RoundDiscussion from '../../components/game/RoundDiscussion';
+vi.mock('../../hooks/useAuthenticatedFetch', () => ({ useAuthenticatedFetch: () => fetch }));
 import { useAuth0 as mockUseAuth0 } from '@auth0/auth0-react';
 
 vi.mock('@auth0/auth0-react', () => ({
@@ -36,6 +38,7 @@ const renderStory = (query = '?location=Wing%20Point') => render(
   <MemoryRouter initialEntries={[`/rounds/2026-10-06/A${query}`]}>
     <Routes>
       <Route path="/rounds/:date/:group" element={<RoundStoryPage />} />
+      <Route path="/game/:gameId" element={<RoundDiscussion gameId="shared-uuid" />} />
     </Routes>
   </MemoryRouter>,
 );
@@ -46,46 +49,38 @@ beforeEach(() => {
     loginWithRedirect: vi.fn(),
     getAccessTokenSilently: vi.fn(),
   });
-  global.fetch = vi.fn(async () => ({ ok: true, json: async () => story }));
+  global.fetch = vi.fn(async url => ({ ok: true, json: async () => String(url).includes('/aliases?') ? { status: 'resolved', game_ids: ['shared-uuid'] } : story }));
 });
 
-describe('RoundStoryPage', () => {
-  test.each(['?location=Wing%20Point', ''])('saves a round reaction with the location query %s', async (query) => {
-    mockUseAuth0.mockReturnValue({
-      isAuthenticated: true,
-      getAccessTokenSilently: vi.fn().mockResolvedValue('test-token'),
-    });
+// Old /rounds links now resolve to the same UUID records rather than rendering
+// their own sheet-derived scores and a separate discussion.
+describe('old round links reaching the shared UUID discussion', () => {
+  test.each(['?location=Wing%20Point', ''])('toggles the same round reaction on the resolved UUID %s', async (query) => {
+    mockUseAuth0.mockReturnValue({ isAuthenticated: true, getAccessTokenSilently: vi.fn().mockResolvedValue('test-token') });
     global.fetch = vi.fn(async (url, options) => {
+      const path = String(url);
       if (options?.method === 'POST') {
-        const parsed = new URL(url, 'http://localhost');
-        const valid = parsed.pathname === '/data/rounds/2026-10-06/A/reactions'
-          && parsed.search === query;
-        return { ok: valid, json: async () => valid
-          ? [{ ...story.reactions[0], count: 3, mine: true }]
-          : { detail: 'Method Not Allowed' } };
+        const valid = new URL(url, 'http://localhost').pathname === '/data/rounds/uuid/shared-uuid/reactions';
+        return { ok: valid, status: valid ? 200 : 405, json: async () => valid ? [{ ...story.reactions[0], count: 3, mine: true }] : { detail: 'Method Not Allowed' } };
       }
-      return { ok: true, json: async () => url.endsWith('/players/me') ? { id: 2 } : story };
+      return { ok: true, json: async () => path.includes('/aliases?') ? { status: 'resolved', game_ids: ['shared-uuid'] }
+        : path.endsWith('/players/me') ? { id: 2 } : story };
     });
     renderStory(query);
     fireEvent.click(await screen.findByRole('button', { name: '😭 2' }));
     expect(await screen.findByRole('button', { name: '😭 3' })).toHaveAttribute('aria-pressed', 'true');
   });
 
-  test.each(['?location=Wing%20Point', ''])('posts a comment with the location query %s', async (query) => {
-    mockUseAuth0.mockReturnValue({
-      isAuthenticated: true,
-      getAccessTokenSilently: vi.fn().mockResolvedValue('test-token'),
-    });
+  test.each(['?location=Wing%20Point', ''])('posts onto the same UUID comment records %s', async (query) => {
+    mockUseAuth0.mockReturnValue({ isAuthenticated: true, getAccessTokenSilently: vi.fn().mockResolvedValue('test-token') });
     global.fetch = vi.fn(async (url, options) => {
+      const path = String(url);
       if (options?.method === 'POST') {
-        const parsed = new URL(url, 'http://localhost');
-        const valid = parsed.pathname === '/data/rounds/2026-10-06/A/comments'
-          && parsed.search === query;
-        return { ok: valid, json: async () => valid
-          ? { ...story.comments[0], id: 10, body: 'Great round!' }
-          : { detail: 'Method Not Allowed' } };
+        const valid = new URL(url, 'http://localhost').pathname === '/data/rounds/uuid/shared-uuid/comments';
+        return { ok: valid, status: valid ? 200 : 405, json: async () => valid ? { ...story.comments[0], id: 10, body: 'Great round!' } : { detail: 'Method Not Allowed' } };
       }
-      return { ok: true, json: async () => url.endsWith('/players/me') ? { id: 2 } : story };
+      return { ok: true, json: async () => path.includes('/aliases?') ? { status: 'resolved', game_ids: ['shared-uuid'] }
+        : path.endsWith('/players/me') ? { id: 2 } : story };
     });
     renderStory(query);
     fireEvent.change(await screen.findByLabelText('Add a comment'), { target: { value: 'Great round!' } });
@@ -94,17 +89,14 @@ describe('RoundStoryPage', () => {
     expect(screen.getByLabelText('Add a comment')).toHaveValue('');
   });
 
-  test('shows the foursome and Coulburn losing 400, with an empty comment thread', async () => {
+  test('keeps the existing comment IDs, authors and reaction counts, with no sheet scores', async () => {
     renderStory();
-    expect(await screen.findByText('Coulburn')).toBeInTheDocument();
-    expect(screen.getByText('-400')).toBeInTheDocument();
-    expect(screen.getByText('+200')).toBeInTheDocument();
-    expect(screen.getByText('Coulburn never recovered after the turn.')).toBeInTheDocument();
+    expect(await screen.findByText('Coulburn never recovered after the turn.')).toBeInTheDocument();
+    expect(screen.getByText('Jeff')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '😭 2' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '🔥 1' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Copy link' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Coulburn' })).toHaveAttribute('href', '/players/4');
-    expect(screen.getByText('Stuart Gano').closest('a')).toBeNull();
+    expect(screen.queryByText('-400')).toBeNull();
+    expect(screen.queryByText('+200')).toBeNull();
     expect(screen.getByRole('button', { name: 'Sign in to comment' })).toBeInTheDocument();
   });
 });

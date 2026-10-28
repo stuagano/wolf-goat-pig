@@ -67,6 +67,8 @@ export default function StandingsTable({
                   <div className="text-sm font-medium text-gray-900">
                     <PlayerName name={entry.member} playerId={entry.player_id} />
                   </div>
+                  {entry.known_participation_count != null && <div>Known appearances: {entry.known_participation_count} · scored: {entry.rounds}</div>}
+                  {entry.incomplete_round_count > 0 && <div>Incomplete / provisional: {entry.incomplete_round_count}</div>}
                   {showTeams && teamMap[entry.member] && (
                     <div className="text-xs text-blue-600 mt-0.5">⛳ {teamMap[entry.member].team}</div>
                   )}

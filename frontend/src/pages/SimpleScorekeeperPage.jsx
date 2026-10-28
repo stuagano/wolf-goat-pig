@@ -1,5 +1,10 @@
 // frontend/src/pages/SimpleScorekeeperPage.js
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import CompletedRoundView from '../components/game/CompletedRoundView';
+import RoundDiscussion from '../components/game/RoundDiscussion';
+import RoundConflictReview from '../components/game/RoundConflictReview';
+import { apiConfig } from '../config/api.config';
+import { readRoundResponse } from '../services/roundIdentity';
 import { useParams } from 'react-router-dom';
 import { SimpleScorekeeper } from '../components/game';
 import ScorecardBackfill from '../components/game/ScorecardBackfill';
@@ -7,17 +12,18 @@ import { Card } from '../components/ui';
 import { useTheme } from '../theme/Provider';
 import ErrorBoundary, { GameErrorFallback } from '../components/common/ErrorBoundary';
 import useGameData from '../hooks/useGameData';
-import useRoundCard from '../hooks/useRoundCard';
+
 
 /**
  * Wrapper page for SimpleScorekeeper that loads game data
  */
-const SimpleScorekeeperPage = () => {
+const ActiveScorekeeperPage = ({ onCompleted }) => {
   const { gameId } = useParams();
   const theme = useTheme();
-  const { loading, error, syncError, game, reload, retrySync } = useGameData(gameId);
-  const [showBackfill, setShowBackfill] = useState(false);
-  const { card } = useRoundCard(gameId);
+  const { loading, error, syncError, game, retrySync } = useGameData(gameId);
+  useEffect(() => {
+    if (game?.isComplete) onCompleted();
+  }, [game?.isComplete, onCompleted]);
 
   if (loading) {
     return (
@@ -109,7 +115,8 @@ const SimpleScorekeeperPage = () => {
     );
   }
 
-  const { players, currentHole, holeHistory, standings, strokeAllocation, courseName, baseWager, isComplete } = game;
+  if (game.isComplete) return <p>Loading accepted round…</p>;
+  const { players, currentHole, holeHistory, strokeAllocation, courseName, baseWager } = game;
 
   // Non-blocking by design: the round below is usable, so warn beside it rather
   // than replacing it, and never imply the scores were queued or will retry.
@@ -134,27 +141,6 @@ const SimpleScorekeeperPage = () => {
     </Card>
   ) : null;
 
-  // "Fill in holes" backfill editor — only available for completed rounds
-  if (isComplete && showBackfill) {
-    return (
-      <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
-        {syncWarning}
-        <ScorecardBackfill
-          gameId={gameId}
-          players={players}
-          holeHistory={holeHistory}
-          standings={standings}
-          expectedRevision={game.readVerified ? game.expectedRevision : undefined}
-          onSaved={() => {
-            setShowBackfill(false);
-            reload();
-          }}
-          onCancel={() => setShowBackfill(false)}
-        />
-      </div>
-    );
-  }
-
   return (
     <ErrorBoundary FallbackComponent={GameErrorFallback}>
       {syncWarning}
@@ -167,29 +153,48 @@ const SimpleScorekeeperPage = () => {
         courseName={courseName}
         initialStrokeAllocation={strokeAllocation}
       />
-      {isComplete && card?.can_edit && (
-        <div style={{ padding: '0 20px 20px', maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
-          <button
-            type="button"
-            onClick={() => setShowBackfill(true)}
-            style={{
-              padding: '12px 24px',
-              fontSize: '16px',
-              fontWeight: 'bold',
-              borderRadius: '8px',
-              border: '2px solid #f59e0b',
-              background: 'white',
-              color: '#b45309',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
-          >
-            ✏️ Fill in holes
-          </button>
-        </div>
-      )}
     </ErrorBoundary>
   );
 };
 
+// Lifecycle is read before mounting anything that can reconcile an offline queue.
+function RoundLifecycle({ gameId }) {
+  const [snapshot, setSnapshot] = useState(null);
+  const [error, setError] = useState('');
+  const [version, setVersion] = useState(0);
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    setSnapshot(null);
+    setError('');
+    (async () => {
+      try {
+        const state = await readRoundResponse(await fetch(`${apiConfig.baseUrl}/games/${gameId}/state`));
+        const summary = state.game_status === 'completed'
+          ? await readRoundResponse(await fetch(`${apiConfig.baseUrl}/games/${gameId}/round-summary`)) : null;
+        if (!cancelled) setSnapshot({ state, summary });
+      } catch (err) { if (!cancelled) setError(err.message); }
+    })();
+    return () => { cancelled = true; };
+  }, [gameId, version]);
+  if (error) return <div role="alert">{error}<button onClick={() => setVersion(v => v + 1)}>Reload round</button></div>;
+  if (!snapshot) return <p>Loading round…</p>;
+  if (!snapshot.summary) return <ActiveScorekeeperPage onCompleted={() => setVersion(v => v + 1)} />;
+  const summary = snapshot.summary;
+  const players = summary.players.filter(p => !p.is_retracted).map(p => ({ ...p, id: p.participant_id }));
+  const standings = Object.fromEntries(players.map(p => [p.id, p.quarters]));
+  return <main style={{ maxWidth: 1000, margin: 'auto', padding: 20 }}>
+    {editing ? <ScorecardBackfill gameId={gameId} players={players} holeHistory={summary.hole_history}
+      standings={standings} expectedRevision={summary.revision} onCancel={() => setEditing(false)}
+      onSaved={() => { setEditing(false); setVersion(v => v + 1); }} />
+      : <CompletedRoundView gameId={gameId} players={players} holeHistory={summary.hole_history}
+        summary={summary} isMarkedComplete onEditScores={() => setEditing(true)} />}
+    <RoundDiscussion key={gameId} gameId={gameId} />
+    <RoundConflictReview key={`${gameId}-${version}`} gameId={gameId} />
+  </main>;
+}
+const SimpleScorekeeperPage = () => {
+  const { gameId } = useParams();
+  return <RoundLifecycle key={gameId} gameId={gameId} />;
+};
 export default SimpleScorekeeperPage;

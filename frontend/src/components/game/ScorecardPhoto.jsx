@@ -78,7 +78,8 @@ const ScorecardPhoto = ({
   useEffect(() => () => { if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current); }, []);
 
   const enterManually = () => {
-    setExtraction(buildBlankExtraction(players));
+    const roster = players.length ? players : pickedPlayers.map(name => ({ name }));
+    setExtraction(buildBlankExtraction(roster));
     setStage('review');
   };
 

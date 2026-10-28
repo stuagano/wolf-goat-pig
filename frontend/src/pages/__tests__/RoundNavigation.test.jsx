@@ -80,7 +80,7 @@ describe('leaderboard scorecard navigation', () => {
     renderPage(<Leaderboard />);
     fireEvent.click(screen.getByRole('tab', { name: tab }));
     const card = await screen.findByRole('link', { name: /Scorecard/ });
-    expect(screen.getByRole('link', { name: '25-Oct' })).toHaveAttribute('href', storyPath);
+    expect(screen.getByRole('link', { name: '25-Oct' })).toHaveAttribute('href', `/game/${GAME_ID}`);
     fireEvent.click(card);
     expect(await screen.findByTestId('destination')).toHaveTextContent(`/game/${GAME_ID}`);
   });
@@ -119,7 +119,7 @@ describe('history scorecard navigation', () => {
     // must not become /game/null, /game/undefined, or guessed date-based URLs.
     expect(screen.getAllByRole('link', { name: /Scorecard/ })).toHaveLength(1);
     if (page === 'public profile') {
-      expect(screen.getByRole('link', { name: 'Oct 25, 2026' })).toHaveAttribute('href', storyPath);
+      expect(screen.getByRole('link', { name: 'Oct 25, 2026' })).toHaveAttribute('href', `/game/${GAME_ID}`);
     }
     fireEvent.click(card);
     expect(await screen.findByTestId('destination')).toHaveTextContent(`/game/${GAME_ID}`);
@@ -129,9 +129,9 @@ describe('history scorecard navigation', () => {
     mockHistory([historyRound]);
     renderPage(<PlayerProfilePage />, '/players/1');
     fireEvent.click(await screen.findByText('▾ hole-by-hole'));
-    expect(document.querySelector('.wgp-profile__hole-quarters')).toHaveTextContent('-16');
+    expect(document.querySelector('.wgp-profile__hole-cell .wgp-profile__hole-quarters')).toHaveTextContent('-16');
     fireEvent.click(screen.getByRole('link', { name: 'Oct 25, 2026' }));
-    expect(await screen.findByTestId('destination')).toHaveTextContent(storyPath);
+    expect(await screen.findByTestId('destination')).toHaveTextContent(`/game/${GAME_ID}`);
   });
 });
 

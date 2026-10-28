@@ -54,7 +54,7 @@ describe('useGameData', () => {
     vi.restoreAllMocks();
   });
 
-  test('loads, reconciles, and normalizes server state', async () => {
+  test('loads completed state without live reconciliation', async () => {
     global.fetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ players, game_status: 'completed', hole_history: [] }),
@@ -65,7 +65,33 @@ describe('useGameData', () => {
 
     expect(result.current.error).toBeNull();
     expect(result.current.game.isComplete).toBe(true);
+    // A round completed after the page's lifecycle read must not be reconciled
+    // through the active offline write buffer.
+    expect(syncManager.reconcileOnLoad).not.toHaveBeenCalled();
+  });
+
+  test('reconciles and normalizes an active round', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ players, game_status: 'in_progress', current_hole: 3, hole_history: [] }),
+    });
+
+    const { result } = renderHook(() => useGameData('g1'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.game).toMatchObject({ isComplete: false, currentHole: 3 });
     expect(syncManager.reconcileOnLoad).toHaveBeenCalledWith('g1', expect.objectContaining({ players }));
+  });
+
+  test('never serves a cached completed round as server truth', async () => {
+    global.fetch.mockRejectedValueOnce(new Error('offline'));
+    vi.spyOn(syncManager, 'loadLocalGameState').mockReturnValue({ players, currentHole: 19, gameStatus: 'completed', holeHistory: [] });
+
+    const { result } = renderHook(() => useGameData('g1'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.game).toBeNull();
+    expect(result.current.error).toBe('offline');
   });
 
   test('falls back to the local write-buffer when the server is unreachable', async () => {

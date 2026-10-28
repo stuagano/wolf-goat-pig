@@ -51,15 +51,16 @@ function Page() {
 }
 
 beforeEach(() => {
+  global.fetch.mockResolvedValue({ ok: true, json: async () => ({ game_status: 'in_progress' }) });
   reload.mockReset();
   retrySync.mockReset();
   useGameData.mockReset();
   useGameData.mockReturnValue({ loading: false, error: null, syncError, game, reload, retrySync });
 });
 
-test('shows an accessible sync warning alongside the usable cached round and retries without reload', () => {
+test('shows an accessible sync warning alongside the usable cached round and retries without reload', async () => {
   render(<Page />);
-  expect(screen.getByRole('alert')).toHaveTextContent(syncError);
+  expect(await screen.findByRole('alert')).toHaveTextContent(syncError);
   expect(screen.getByRole('region', { name: 'Playable round' })).toHaveTextContent('Alice: hole 2; saved strokes 5');
   expect(screen.getByRole('button', { name: 'Edit scores' })).toBeEnabled();
   expect(screen.queryByText(/Error Loading Game|Invalid Game Data/)).toBeNull();
@@ -69,22 +70,19 @@ test('shows an accessible sync warning alongside the usable cached round and ret
   expect(reload).not.toHaveBeenCalled();
 });
 
-test('keeps the warning and retry available in the completed-round backfill editor', () => {
+test('never mounts a cached completed editor after a failed lifecycle read', async () => {
+  global.fetch.mockRejectedValue(new Error('Lifecycle unavailable'));
   useGameData.mockReturnValue({ loading: false, error: null, syncError, game: { ...game, isComplete: true }, reload, retrySync });
   render(<Page />);
-  fireEvent.click(screen.getByRole('button', { name: /Fill in holes/ }));
-  expect(screen.getByRole('alert')).toHaveTextContent(syncError);
-  expect(screen.getByRole('region', { name: 'Backfill editor' })).toHaveTextContent('Alice: saved strokes 5');
-  expect(screen.getByRole('button', { name: 'Edit missing holes' })).toBeEnabled();
-  expect(screen.queryByText(/Error Loading Game|Invalid Game Data/)).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: 'Retry sync' }));
-  expect(retrySync).toHaveBeenCalledTimes(1);
-  expect(reload).not.toHaveBeenCalled();
+  expect(await screen.findByRole('alert')).toHaveTextContent('Lifecycle unavailable');
+  expect(useGameData).not.toHaveBeenCalled();
+  expect(screen.queryByRole('button', { name: 'Retry sync' })).toBeNull();
+  expect(screen.queryByRole('region', { name: 'Backfill editor' })).toBeNull();
 });
 
-test('removes stale warning after reload clears the sync error without losing the round', () => {
+test('removes stale warning after reload clears the sync error without losing the round', async () => {
   const { rerender } = render(<Page />);
-  expect(screen.getByRole('alert')).toBeInTheDocument();
+  expect(await screen.findByRole('alert')).toBeInTheDocument();
   useGameData.mockReturnValue({ loading: false, error: null, syncError: null, game, reload, retrySync });
   rerender(<Page />);
   expect(screen.queryByRole('alert')).toBeNull();
@@ -104,7 +102,7 @@ test.each([true, false])('real hook preserves an unsaved editor draft when retry
   vi.stubGlobal('navigator', { onLine: false });
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
-  global.fetch.mockRejectedValue(new Error('offline'));
+  global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ game_status: 'in_progress' }) }).mockRejectedValue(new Error('offline'));
   useGameData.mockImplementation(realUseGameData);
   try {
     render(<Page />);
@@ -120,7 +118,7 @@ test.each([true, false])('real hook preserves an unsaved editor draft when retry
     });
     expect(screen.getByRole('textbox', { name: 'Unsaved strokes' })).toBe(input);
     expect(screen.queryByText('Loading Game...')).toBeNull();
-    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
     expect(syncManager.getSyncQueue()).toHaveLength(0);
     expect(screen.queryByText(/saved to the server/i)).toBeNull();
   } finally {
@@ -131,10 +129,10 @@ test.each([true, false])('real hook preserves an unsaved editor draft when retry
   }
 });
 
-test('still shows the fatal load error when there is no usable round', () => {
+test('still shows the fatal load error when there is no usable round', async () => {
   useGameData.mockReturnValue({ loading: false, error: 'Failed to load game', syncError: null, game: null, reload });
   render(<Page />);
-  expect(screen.getByText(/Error Loading Game/)).toBeInTheDocument();
+  expect(await screen.findByText(/Error Loading Game/)).toBeInTheDocument();
   expect(screen.queryByRole('region', { name: 'Playable round' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Retry sync' })).toBeNull();
 });

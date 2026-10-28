@@ -10,9 +10,14 @@ vi.mock('../../hooks/useAuthenticatedFetch', () => ({ useAuthenticatedFetch: () 
 afterEach(() => { cleanup(); localStorage.clear(); vi.restoreAllMocks(); });
 it('real successful page read supplies the backfill PATCH revision', async () => {
   const players = ['One', 'Two', 'Three', 'Four'].map((name, i) => ({ id: `p${i}`, name }));
-  const fetcher = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
-    players, game_status: 'completed', revision: 9, standings: { p0: 0, p1: 0, p2: 0, p3: 0 }, hole_history: [],
-  }))).mockResolvedValueOnce(new Response(JSON.stringify({ revision: 10 })));
+  const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, options) => {
+    const path = String(url);
+    const data = options?.method === 'PATCH' ? { revision: 10 }
+      : path.endsWith('/state') ? { game_status: 'completed' }
+      : path.endsWith('/round-summary') ? { players: players.map(p => ({ ...p, participant_id: p.id, quarters: 0 })), revision: 9, hole_history: [], detail_coverage: 'totals_only' }
+      : path.endsWith('/discussion') ? { comments: [], reactions: [] } : null;
+    return new Response(JSON.stringify(data), { status: data ? 200 : 404 });
+  });
   render(<MemoryRouter initialEntries={['/game/round']}><Routes><Route path="/game/:gameId" element={<SimpleScorekeeperPage />} /></Routes></MemoryRouter>);
   fireEvent.click(await screen.findByRole('button', { name: /Fill in holes/ }));
   players.forEach(p => { for (let h = 1; h <= 18; h++) fireEvent.change(screen.getByLabelText(`running total ${p.name} hole ${h}`), { target: { value: '0' } }); });

@@ -67,6 +67,12 @@ export default function useGameData(gameId) {
       }
 
       const data = await response.json();
+      // A round may finish between the lifecycle gate and this read. Never
+      // reconcile completed evidence through the active write buffer.
+      if (data.game_status === 'completed') {
+        setGame({ ...normalizeGameState(data), readVerified: true });
+        return;
+      }
       // Reconcile the local cache against server truth: flush unsynced edits,
       // or heal a stale/duplicated cache by overwriting it with server state.
       syncManager.reconcileOnLoad(gameId, {
@@ -85,7 +91,7 @@ export default function useGameData(gameId) {
       console.error('Error loading game:', err);
       // Bad course signal: open from the local write-buffer if we have a roster.
       const local = syncManager.loadLocalGameState(gameId);
-      if (local?.players?.length) {
+      if (local?.players?.length && local.gameStatus !== 'completed' && !(local.currentHole > 18)) {
         // A failed read cannot establish a revision or authorize an upload.
         setSyncError('Offline cached round. Reload before submitting any corrections.');
         localStorage.setItem('wgp_current_game', gameId);

@@ -294,7 +294,7 @@ class TestRoundStory:
 
     @patch("app.routers.round_stories.admin_role", return_value="normal")
     def test_someone_else_cannot_delete(self, _role):
-        comment = SimpleNamespace(id=9, author_profile_id=123)
+        comment = SimpleNamespace(id=9, author_profile_id=123, game_id="existing-game")
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = comment
 
@@ -314,7 +314,7 @@ class TestRoundStory:
 
     @patch("app.routers.round_stories.admin_role", return_value="admin")
     def test_admin_can_delete(self, _role):
-        comment = SimpleNamespace(id=9, author_profile_id=123)
+        comment = SimpleNamespace(id=9, author_profile_id=123, game_id="existing-game")
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = comment
 
