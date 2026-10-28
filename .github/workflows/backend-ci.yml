@@ -24,14 +24,25 @@ jobs:
     strategy:
       matrix:
         python-version: ['3.11', '3.12']
-    
+
+    # Disposable loopback databases only. Individual fixtures isolate schemas or
+    # create their own *_test database; no production credentials are used.
+    env:
+      PGCLIENTENCODING: UTF8
+      RUN_INPROCESS_SCHEDULERS: 'false'
+      SCORE_SAVE_REQUIRE_POSTGRES: '1'
+      SCORE_SAVE_TEST_DATABASE_URL: postgresql+psycopg2://postgres:postgres@127.0.0.1:5432/round_identity_test
+      ROUND_IDENTITY_TEST_DATABASE_URL: postgresql+psycopg2://postgres:postgres@127.0.0.1:5432/round_identity_test
+      ROUND_MIGRATION_PG15_URL: postgresql+psycopg2://postgres:postgres@127.0.0.1:5432/round_identity_test
+      ROUND_MIGRATION_PG17_URL: postgresql+psycopg2://postgres:postgres@127.0.0.1:5433/round_identity_test
+
     services:
       postgres:
         image: postgres:15
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: wolf_goat_pig_test
+          POSTGRES_DB: round_identity_test
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -39,6 +50,19 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+      postgres17:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: round_identity_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432
 
     steps:
     - uses: actions/checkout@v7
@@ -91,13 +115,34 @@ jobs:
       # a separate cleanup pass. Re-enable as a hard gate once that's done.
       continue-on-error: true
     
+    - name: Verify disposable PostgreSQL fixture wiring
+      run: |
+        cd backend
+        python - <<'PY'
+        import os
+        from sqlalchemy import create_engine, text
+        from sqlalchemy.engine import make_url
+
+        for name, major in (
+            ("SCORE_SAVE_TEST_DATABASE_URL", 15),
+            ("ROUND_IDENTITY_TEST_DATABASE_URL", 15),
+            ("ROUND_MIGRATION_PG15_URL", 15),
+            ("ROUND_MIGRATION_PG17_URL", 17),
+        ):
+            url = make_url(os.environ[name])
+            assert url.host == "127.0.0.1" and url.database.endswith("round_identity_test")
+            assert url.drivername == "postgresql+psycopg2" and not url.query
+            engine = create_engine(url, connect_args={"connect_timeout": 5})
+            with engine.connect() as connection:
+                assert int(connection.scalar(text("SHOW server_version_num"))) // 10000 == major
+                assert connection.scalar(text("SHOW client_encoding")) == "UTF8"
+            engine.dispose()
+            print(f"{name}: PostgreSQL {major}, UTF8, disposable loopback database verified")
+        PY
+
     - name: Run tests with coverage
       env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/wolf_goat_pig_test
-        # Real commit/readback tests use isolated schemas in this disposable service.
-        # Missing configuration must fail CI rather than silently skip these tests.
-        SCORE_SAVE_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/wolf_goat_pig_test
-        SCORE_SAVE_REQUIRE_POSTGRES: '1'
+        DATABASE_URL: postgresql+psycopg2://postgres:postgres@127.0.0.1:5432/round_identity_test
         SECRET_KEY: test-secret-key-for-ci
         ENVIRONMENT: test
       run: |
