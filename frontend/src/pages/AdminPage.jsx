@@ -11,6 +11,7 @@ import FoursomesManager from './admin/FoursomesManager';
 import DatabaseManager from './admin/DatabaseManager';
 import AccountLinkingManager from './admin/AccountLinkingManager';
 import AdminManager from './admin/AdminManager';
+import ParticipantCorrection from './admin/ParticipantCorrection';
 import FeatureToggles from './admin/FeatureToggles';
 import { apiConfig } from '../config/api.config';
 
@@ -1013,7 +1014,7 @@ const AdminPage = () => {
         {activeTab === 'players' && <AccountLinkingManager />}
 
         {/* Admins Tab */}
-        {activeTab === 'admins' && <AdminManager />}
+        {activeTab === 'admins' && <><AdminManager /><div className="mt-6"><ParticipantCorrection /></div></>}
 
         {/* Banners Tab */}
         {activeTab === 'banners' && (

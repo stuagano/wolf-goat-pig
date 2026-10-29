@@ -1012,6 +1012,8 @@ class AccountClaim(Base):
     resolved_by = Column(String, nullable=True)
 
 
+from .models_participant_correction import ParticipantCorrectionAudit  # noqa: E402, F401
+
 # Register identity evidence only after existing model declarations.
 from .models_round_identity import (  # noqa: E402, F401
     RoundAlias,

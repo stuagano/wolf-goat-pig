@@ -2561,6 +2561,66 @@
         "title": "OddsCalculationResponse",
         "type": "object"
       },
+      "ParticipantCorrection": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmed": {
+            "const": true,
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "expected_epoch": {
+            "minimum": 0.0,
+            "title": "Expected Epoch",
+            "type": "integer"
+          },
+          "expected_old_profile_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Old Profile Id"
+          },
+          "expected_snapshot": {
+            "maxLength": 64,
+            "minLength": 64,
+            "title": "Expected Snapshot",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "replacement_profile_id": {
+            "exclusiveMinimum": 0.0,
+            "title": "Replacement Profile Id",
+            "type": "integer"
+          },
+          "request_key": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Request Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "replacement_profile_id",
+          "expected_old_profile_id",
+          "expected_epoch",
+          "expected_snapshot",
+          "reason",
+          "confirmed",
+          "request_key"
+        ],
+        "title": "ParticipantCorrection",
+        "type": "object"
+      },
       "PendingClaimInfo": {
         "description": "A claim this player made on an original profile, waiting for an admin.",
         "properties": {
@@ -6629,6 +6689,116 @@
         "summary": "Test Oauth2 Email",
         "tags": [
           "admin-oauth"
+        ]
+      }
+    },
+    "/admin/participant-results/{result_id}": {
+      "get": {
+        "operationId": "preview_participant_correction_admin_participant_results__result_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "result_id",
+            "required": true,
+            "schema": {
+              "title": "Result Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "replacement_profile_id",
+            "required": true,
+            "schema": {
+              "exclusiveMinimum": 0,
+              "title": "Replacement Profile Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preview Participant Correction",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/participant-results/{result_id}/correct": {
+      "post": {
+        "operationId": "correct_participant_admin_participant_results__result_id__correct_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "result_id",
+            "required": true,
+            "schema": {
+              "title": "Result Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParticipantCorrection"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Correct Participant",
+        "tags": [
+          "admin"
         ]
       }
     },
