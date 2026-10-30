@@ -9,6 +9,7 @@ const view = {
   game_id: 'a93b258a-3c0e-4531-b0ff-cab5a22d5073', game_record_id: 10, epoch: 0, snapshot: 'a'.repeat(64),
   result: { id: 20, player_name: 'Stuart Gano', player_profile_id: 21, total_earnings: -257 },
   current_profile: { id: 21, name: 'Kevin Gent' }, replacement_profile: { id: 20, name: 'Stuart Gano' },
+  eligibility: { roster_slot: 'p3', protected_blockers: {} },
 };
 const response = (data, ok = true) => ({ ok, json: async () => data });
 async function openPreview() {
@@ -27,6 +28,7 @@ describe('bounded participant correction', () => {
     expect(screen.getByText('#21 — Kevin Gent')).toBeInTheDocument();
     expect(screen.getByText('#20 — Stuart Gano')).toBeInTheDocument();
     expect(screen.getByText('-257')).toBeInTheDocument();
+    expect(screen.getByText('Slot p3 and any existing matching lobby row will be corrected atomically.')).toBeInTheDocument();
     const apply = screen.getByRole('button', { name: 'Confirm participant correction' });
     expect(apply).toBeDisabled();
     fireEvent.change(screen.getByLabelText('Reason for correction'), { target: { value: 'Verified identity' } });
@@ -53,6 +55,16 @@ describe('bounded participant correction', () => {
     fireEvent.change(screen.getByLabelText('Replacement profile ID'), { target: { value: '22' } });
     expect(screen.queryByRole('region', { name: 'Correction preview' })).not.toBeInTheDocument();
     expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows named eligibility blockers without exposing a confirmation form', async () => {
+    request.mockResolvedValueOnce(response({ detail: 'Identity review required [source_binding, issue_reference]; correction refused.' }, false));
+    render(<ParticipantCorrection />);
+    fireEvent.change(screen.getByLabelText('Saved result ID'), { target: { value: '20' } });
+    fireEvent.change(screen.getByLabelText('Replacement profile ID'), { target: { value: '20' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Preview correction' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('[source_binding, issue_reference]');
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   });
 
   it('shows stale rejection without success and requires a fresh preview', async () => {

@@ -56,6 +56,7 @@ def correct_participant(
     db: Session = Depends(database.get_db),
 ):
     from ..services.participant_correction import correct, result_values
+    from ..services.participant_correction_roster import readback_values
 
     try:
         audit_id = correct(db, user, result_id, request)
@@ -68,7 +69,7 @@ def correct_participant(
     audit = db.query(models.ParticipantCorrectionAudit).filter_by(id=audit_id).populate_existing().one()
     row = db.query(models.GamePlayerResult).filter_by(id=result_id).populate_existing().one()
     record = db.query(models.GameRecord).filter_by(id=row.game_record_id).populate_existing().one()
-    if result_values(row) != audit.after or record.game_id != audit.game_id:
+    if readback_values(db, row, audit.after) != audit.after or record.game_id != audit.game_id:
         raise HTTPException(409, "Committed correction changed during read-back; preview again")
     return {"audit_id": audit.id, "game_id": record.game_id, "result": result_values(row)}
 

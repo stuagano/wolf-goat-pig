@@ -58,8 +58,8 @@ export default function ParticipantCorrection() {
   return <Card className="p-6 space-y-5">
     <div>
       <h2 className="text-xl font-semibold">Correct participant</h2>
-      <p className="text-gray-600 mt-2">Change one saved result’s profile link only. The spreadsheet remains primary. Scores, earnings and game UUID stay unchanged. No profile merge, statistics recalculation, achievements, sheet writes or notifications.</p>
-      <p className="text-gray-600 mt-2">Canonical, already-mapped and conflicted games require separate identity review and cannot be corrected here.</p>
+      <p className="text-gray-600 mt-2">Correct one participant’s saved result and any exactly matching legacy roster links together. The spreadsheet remains primary. Scores, earnings and game UUID stay unchanged. No profile merge, statistics recalculation, achievements, sheet writes or notifications.</p>
+      <p className="text-gray-600 mt-2">Canonical revisions, source bindings, issues and migration checkpoints require round identity review. Ambiguous or inconsistent roster links are refused; the server reports the blocking categories.</p>
     </div>
     {error && <div role="alert" className="p-3 rounded-lg bg-red-50 text-red-800">{error}</div>}
     <form onSubmit={preview} className="flex flex-wrap items-end gap-3">
@@ -80,13 +80,14 @@ export default function ParticipantCorrection() {
         <div><dt className="font-medium">Current profile</dt><dd>{profileLabel(view.current_profile)}</dd></div>
         <div><dt className="font-medium">Proposed replacement</dt><dd>{profileLabel(view.replacement_profile)}</dd></div>
         <div><dt className="font-medium">Stored earnings (unchanged)</dt><dd>{view.result.total_earnings ?? 'Not recorded'}</dd></div>
+        <div><dt className="font-medium">Legacy roster update</dt><dd>{view.eligibility?.roster_slot ? `Slot ${view.eligibility.roster_slot} and any existing matching lobby row will be corrected atomically.` : 'No matching roster link will be changed.'}</dd></div>
       </dl>
       <label className="block">Reason for correction
         <textarea className={inputClass} required maxLength={1000} value={reason} disabled={busy} onChange={e => { setReason(e.target.value); setConfirmed(false); }} />
       </label>
       <label className="flex gap-2 items-start">
         <input type="checkbox" checked={confirmed} disabled={busy} onChange={e => setConfirmed(e.target.checked)} />
-        I verified this participant and confirm changing only this saved result’s profile link.
+        I verified this participant and confirm changing this saved result’s profile link and any matching legacy roster links shown above.
       </label>
       <button type="button" className={buttonClass} disabled={busy || !confirmed || !reason.trim()} onClick={apply}>Confirm participant correction</button>
     </section>}

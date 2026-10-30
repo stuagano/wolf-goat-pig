@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy import text
 
 from app import models
+from app.services.participant_correction_roster import apply_roster, readback_values, refuse, roster_context
 from app.services.round_cutover import guard_client_epoch, guard_writer
 from app.services.round_evidence import fingerprint
 from app.utils.admin_auth import is_admin_profile
@@ -26,7 +27,13 @@ def context(db, result_id, replacement_id):
     # Also protects absence/duplicate checks from legacy callers lacking the
     # advisory fence. These locks live through audit+link commit, never network IO.
     if db.get_bind().dialect.name == "postgresql":
-        db.execute(text("LOCK TABLE game_records, game_player_results IN SHARE ROW EXCLUSIVE MODE"))
+        db.execute(
+            text(
+                "LOCK TABLE game_records, game_player_results, game_state, game_players, "
+                "round_sources, round_issues, round_migration_checkpoints, legacy_rounds "
+                "IN SHARE ROW EXCLUSIVE MODE"
+            )
+        )
     result = (
         db.query(models.GamePlayerResult).filter_by(id=result_id).populate_existing().with_for_update().one_or_none()
     )
@@ -61,25 +68,29 @@ def context(db, result_id, replacement_id):
         .populate_existing()
         .all()
     )
-    game = db.query(models.GameStateModel).filter_by(game_id=record.game_id).populate_existing().one_or_none()
-    unsupported = (
-        record.accepted_revision
-        or record.is_retracted
-        or any(r.participant_id is not None or r.is_retracted for r in rows)
-        or db.query(models.RoundSource).filter_by(game_id=record.game_id).first()
-        or db.query(models.RoundIssue).filter_by(game_id=record.game_id).first()
-        or db.query(models.RoundMigrationCheckpoint).filter_by(game_id=record.game_id).first()
-        or db.query(models.LegacyRound).filter_by(game_id=record.game_id).first()
+    game = (
+        db.query(models.GameStateModel)
+        .filter_by(game_id=record.game_id)
+        .populate_existing()
+        .with_for_update()
+        .one_or_none()
     )
-    # A live state's mapped roster is another authority. Never silently diverge.
-    if game and (
-        game.revision or any(p.get("player_profile_id") is not None for p in (game.state or {}).get("players", []))
-    ):
-        unsupported = True
-    if unsupported:
-        raise HTTPException(
-            409, "Canonical, mapped or conflicted game requires identity review; legacy correction refused"
-        )
+    # Evaluate every protected category, including closed issues; never short-circuit diagnostics.
+    blockers = {
+        "accepted_revision": bool(record.accepted_revision),
+        "record_retracted": bool(record.is_retracted),
+        "participant_identity": any(r.participant_id is not None for r in rows),
+        "result_retracted": any(r.is_retracted for r in rows),
+        "source_binding": db.query(models.RoundSource).filter_by(game_id=record.game_id).first() is not None,
+        "issue_reference": db.query(models.RoundIssue).filter_by(game_id=record.game_id).first() is not None,
+        "migration_checkpoint": db.query(models.RoundMigrationCheckpoint).filter_by(game_id=record.game_id).first()
+        is not None,
+        "mapped_legacy_round": db.query(models.LegacyRound).filter_by(game_id=record.game_id).first() is not None,
+        "game_revision": bool(game and game.revision),
+    }
+    if any(blockers.values()):
+        refuse([code for code, blocked in blockers.items() if blocked])
+    game, players, roster, slot = roster_context(db, record, result, replacement_id)
     name = " ".join((result.player_name or "").split()).casefold()
     if not name or sum(" ".join((r.player_name or "").split()).casefold() == name for r in rows) != 1:
         raise HTTPException(409, "Participant name is blank or ambiguous in this game")
@@ -95,11 +106,12 @@ def context(db, result_id, replacement_id):
         "result": result_values(result),
         "current_profile": profile_view(profiles.get(result.player_profile_id)),
         "replacement_profile": profile_view(replacement),
+        "eligibility": {"protected_blockers": blockers, "roster_slot": slot},
     }
     view["snapshot"] = fingerprint(
-        {**view, "record": result_values(record), "roster": [result_values(r) for r in rows]}
+        {**view, "record": result_values(record), "roster": [result_values(r) for r in rows], "legacy_roster": roster}
     )
-    return result, view
+    return result, view, (game, players, roster, slot)
 
 
 def preview(db, user, result_id, replacement_id):
@@ -107,7 +119,7 @@ def preview(db, user, result_id, replacement_id):
     administrator(db, user)
     if config.mode != "legacy":
         raise HTTPException(409, "Only pre-canonical legacy corrections are supported")
-    _, view = context(db, result_id, replacement_id)
+    _, view, _ = context(db, result_id, replacement_id)
     return {**view, "epoch": config.epoch}
 
 
@@ -127,20 +139,32 @@ def correct(db, user, result_id, request):
         if prior.fingerprint != digest:
             raise HTTPException(409, "Request key reused with different content")
         row = db.query(models.GamePlayerResult).filter_by(id=result_id).populate_existing().one_or_none()
-        if row is None or result_values(row) != prior.after:
+        if row is None or readback_values(db, row, prior.after) != prior.after:
             raise HTTPException(409, "Correction has since changed; preview again")
         return prior.id
-    row, view = context(db, result_id, request.replacement_profile_id)
+    row, view, (game, players, roster, slot) = context(db, result_id, request.replacement_profile_id)
     if row.player_profile_id != request.expected_old_profile_id or view["snapshot"] != request.expected_snapshot:
         raise HTTPException(409, "Saved participant changed; preview again before confirming")
     if row.player_profile_id == request.replacement_profile_id:
         raise HTTPException(409, "Participant already linked to this profile")
     before = result_values(row)
+    if slot is not None:
+        before["_roster"] = roster
+    expected = deepcopy(before)
+    expected["player_profile_id"] = request.replacement_profile_id
+    if slot is not None:
+        next(p for p in expected["_roster"]["game"]["state"]["players"] if p["id"] == slot)["player_profile_id"] = (
+            request.replacement_profile_id
+        )
+        for p in expected["_roster"]["players"]:
+            if p["player_slot_id"] == slot:
+                p["player_profile_id"] = request.replacement_profile_id
+    apply_roster(game, players, slot, request.replacement_profile_id)
     row.player_profile_id = request.replacement_profile_id
     db.flush()
     db.refresh(row)
-    after = result_values(row)
-    if after != {**before, "player_profile_id": request.replacement_profile_id}:
+    after = readback_values(db, row, expected)
+    if after != expected:
         raise HTTPException(409, "Unexpected result changes; correction rolled back")
     audit = models.ParticipantCorrectionAudit(
         actor_profile_id=actor.id,
