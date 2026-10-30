@@ -106,6 +106,13 @@ class SMTPEmailProvider(EmailProvider):
 # --- Unified Email Service ---
 
 
+class RoundEmailRejectedError(Exception):
+    """Transport evidence proves rejection before acceptance; safe bounded retry.
+
+    Legacy Boolean False is NOT this evidence and must remain uncertain.
+    """
+
+
 class EmailService:
     """A unified service for sending emails using a configured provider."""
 
@@ -147,6 +154,21 @@ class EmailService:
         if self.provider is not None:
             return self.provider.send_email(to_email, subject, html_body, text_body)
         return False
+
+    def send_round_conflict_notification(self, *, to_email: str, issue_id: str, path: str) -> bool:
+        """Provider acceptance only; False cannot establish safe resend."""
+        from html import escape
+
+        from .round_delivery import safe_round_path
+
+        if not safe_round_path(path):
+            raise ValueError("Round notification requires a safe application path")
+        base = os.getenv("FRONTEND_URL", "https://seventh-country-232522.web.app").rstrip("/")
+        url = base + path
+        subject = "A Wolf Goat Pig round needs review"
+        content = f'<p>A round needs review.</p><p><a href="{escape(url, quote=True)}">Review round</a></p>'
+        html = Template(self._get_base_template()).render(subject=subject, content=content)
+        return self._send_email(to_email, subject, html, f"A round needs review.\n{url}\nIssue: {issue_id}")
 
     def send_test_email(self, to_email: str, admin_name: str = "Admin") -> bool:
         """Sends a test email to verify the current provider's configuration."""
@@ -274,12 +296,19 @@ class EmailService:
             f"{rounds} round{'s' if rounds != 1 else ''} at {esc(', '.join(highlights['courses']))} "
             f"with {len(highlights['players'])} players."
         )
+        coverage = (
+            f"{highlights.get('known_participation_count', len(highlights['players']))} known appearances; "
+            f"{highlights.get('scored_participation_count', len(highlights['players']))} scored appearances; "
+            f"{highlights.get('incomplete_rounds', 0)} incomplete round(s). "
+            "Incomplete rounds are visible but excluded from score awards."
+        )
         items = "".join(f"<li>{line}</li>" for line in lines)
         content = f"""
         <h2>&#9971; This week in Wolf Goat Pig</h2>
         <p>Hi {esc(player_name)},</p>
         {self._intro_html(highlights.get("intro"))}
         <p>{intro}</p>
+        <p>{coverage}</p>
         <ul>{items}</ul>
         <p style="color: #6b7280; font-size: 13px;">Played: {esc(", ".join(highlights["players"]))}</p>
         """
@@ -288,6 +317,7 @@ class EmailService:
             f"This week in Wolf Goat Pig\n\nHi {player_name},\n\n"
             + (f"{highlights['intro']}\n\n" if highlights.get("intro") else "")
             + f"{html.unescape(intro)}\n\n"
+            + f"{coverage}\n\n"
             + "".join(f"- {html.unescape(line)}\n" for line in lines)
             + f"\nPlayed: {', '.join(highlights['players'])}\n\n"
             f"Manage your email preferences: {self._preferences_url()}\n"

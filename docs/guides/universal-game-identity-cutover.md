@@ -1,0 +1,187 @@
+# Universal game identity: offline rehearsal and guarded cutover
+
+## Authorization boundary
+
+Task 11 implements tooling, not permission to run a production migration. This
+revision's CLI accepts only explicit SQLite files or loopback PostgreSQL databases
+whose names end in `_test`, with no URL query parameters. Use synthetic data or a
+separately approved disposable restore. Never pass production credentials. Source
+approval, final snapshot approval (Gates B/C), canonical activation (Gate D),
+recipient consent, connector writes, and notification dispatch are separate gates.
+No step below grants any of them implicitly.
+
+## Before the final window
+
+1. Inventory **all** writers: sheet history/statistics/leaderboard refreshes,
+   manual/scan/live completed saves, CSV/statistics repair scripts, social
+   association mutations, delivery workers, and administrative SQL tools.
+2. Converted writers acquire the reconciliation transaction lock and a shared
+   `app_config.round_identity` row lock. Keep that transaction open through the
+   actual commit. Do not insert an early commit between fence validation and
+   writing. The current reconciliation advisory lock serializes these writers;
+   this is deliberately conservative, not concurrent shared-writer throughput.
+3. Stop/drain incompatible binaries and scheduled jobs and revoke their database
+   write privileges in the separately authorized operational window. A new flag
+   cannot fence a binary that never checks it. Include raw SQL and repair tools.
+4. Disable connector/dispatch transports operationally. `dispatch_paused` remains
+   true after activation; recipient/dispatch approvals are not implied.
+5. Use a non-owner runtime database role with no trigger/DDL bypass rights.
+   Table owners and superusers can remove append-only triggers. SQLite filesystem
+   access likewise lies outside application authorization.
+
+## Rehearsal CLI
+
+Supply `DATABASE_URL` privately in the process environment. Do not print it or
+save it in the manifest/report. The CLI redacts exception detail and emits only
+status/checksum/mode/epoch. Manifests contain sensitive retained evidence; keep
+artifacts private and local, outside public serving paths.
+
+```bash
+# From the repository root, against an approved disposable database only.
+backend/venv/bin/python backend/scripts/migrate_round_identity.py pause \
+  --expect-epoch <current-epoch> --reason '<approved-window-reason>'
+backend/venv/bin/python backend/scripts/migrate_round_identity.py dry-run \
+  --snapshot <approved-local-json> --output <new-local-manifest-json>
+backend/venv/bin/python backend/scripts/migrate_round_identity.py apply \
+  --manifest <reviewed-local-manifest-json> --expect-checksum <reviewed-checksum> \
+  --ack-paused-writers
+backend/venv/bin/python backend/scripts/migrate_round_identity.py verify \
+  --manifest <reviewed-local-manifest-json>
+```
+
+Pause first drains the dispatch session-lock interval (durable email claim through
+external effect and receipt), then takes the exclusive configuration lock and waits
+for converted transactions, advances the epoch, and clears prior verification.
+PostgreSQL uses session advisory locks; SQLite rehearsal's process lock is not a
+multi-process production guarantee. Operational transport shutdown is still required.
+The first pause preserves legacy reader authority; activation records canonical
+reader authority, which subsequent pauses/forward rollback retain. Capture the final complete,
+fixed-season snapshot **after** draining writers. Dry-run uses a read-only
+transaction, performs no source reads/writes or notifications, and exclusively
+creates a new artifact (no overwrite/symlink following).
+
+### Manifest review
+
+Every snapshot round must appear exactly once with unchanged source, draft, raw
+payload, observation key and continuity evidence. UUIDs are proposed once in the
+manifest; applying never generates replacements. A regenerated dry-run is a new
+proposal, not a replacement for an already issued manifest.
+
+Review each game with `bind_existing`, `confirm_distinct`, or `hold`, and each
+inventoried row with `preserve`, `attach`, `hold`, or `retire`. Every decision
+requires `actor_profile_id` and a nonempty reason. Attach legacy rows only with
+explicit participant slots; pending submissions cannot become accepted scores.
+For existing scored results lacking slots, provide `result_slots` keyed by the
+original result ID. Use `source_participant_tokens` only from reviewed stable
+source evidence; duplicate source-global tokens are refused. Never infer merges
+from names, dates, roster order, or equal scores. `retire` records an accounting
+decision only: it does not delete or silently rewrite the row.
+
+The inventory includes legacy/source/participant projections, containers,
+observations/heads/issues/resolutions, aliases, social rows, pending queues,
+deliveries and request identities. Preserve pending, retired, ambiguous and
+orphan rows. Review `baseline_pre_cutover` separately from
+`baseline_canonical_eligibility`; the former uses the existing cached counting
+caller explicitly, independent of paused/canonical mode. Every saved record also
+has a `saved_games` work item, even with no sheet membership: approve
+`publish_original` with original-ID `result_slots` and reviewed `roster_complete`,
+or explicitly `hold`/`retire` with a per-game reason and actor. Publication repairs
+the original UUID container and uses only original saved facts, not source scores.
+Hold/retire preserve rows and do not themselves approve lost standings.
+
+Map every `baseline_contributions[].key` in `identity_mapping` to an explicit
+`profile:<id>` or `guest:<slot>` with actor/reason; duplicate labels are not identity.
+Approve `approval.expected_standings` and the exact `approval.deltas` ledger keyed
+by those identities. Each entry contains recomputed `old`, `new`, `delta` objects
+with `score`, `scored`, `participation`; every nonzero entry requires its own
+`actor_profile_id` and reason. `delta_ledger(manifest, expected_standings)` computes
+the review proposal but never approves it. Verification recomputes against actual
+published results. A generic reason or empty replacement standings is insufficient.
+`source_participant_tokens` maps canonical slots to raw external tokens; raw
+snapshot drafts stay unchanged and are translated separately before reconciliation.
+Reseal reviewed artifacts using
+`seal_manifest`; checksum agreement is integrity, not an independent approval.
+
+Apply commits one whole source game and its checkpoint atomically. A crash before
+checkpoint rolls back that entire game. Rerun the **same** manifest/checksum to
+resume. Database drift invalidates the proposal; do not bypass it by editing
+checkpoint digests. Rebuild, review deltas, and approve a new checksum. Held
+ambiguities remain explicit issues, not silently accepted scores or broadcasts.
+
+## Offline constraints, physical proof and activation
+
+These are explicit offline service operations, not boot backfills. With a clean,
+paused, matching-epoch session:
+
+- Run CLI `finalize --manifest <reviewed-json> --expect-checksum <checksum>
+  --ack-paused-writers` (or `finalize_constraints(db, manifest)` offline). It
+  commits constraints and evidence guard installation only after verification succeeds. Duplicate/null-slot/orphan results fail rather than being deleted.
+  It enforces result-slot/source uniqueness and removes the old member/day index.
+- Install `install_evidence_guards(db)` and commit. PostgreSQL blocks direct SQL
+  UPDATE/DELETE/TRUNCATE on observations/resolutions; SQLite blocks UPDATE/DELETE.
+- Refresh `ensure_canonical_round_results_view(engine)` explicitly if needed.
+  SQLite refresh is DROP/CREATE, PostgreSQL CREATE OR REPLACE. Normal initialization
+  installs the explicit-column `legacy_rounds_official` compatibility view as DDL
+  only, without identity backfill. Canonical Commissioner SQL rejects
+  legacy counting tables and uses `canonical_round_results` instead.
+- Run CLI `verify --manifest <reviewed-json> --store`. It recomputes accounting,
+  requires paused epoch, probes physical guards using surviving rows in both
+  evidence tables, and stores the manifest/inventory/epoch/proof server-side.
+  Empty evidence tables cannot establish physical proof; use legitimate reviewed
+  rehearsal evidence, not a fabricated passing flag.
+- Obtain **separate Gate D** authorization in `round_identity_gate_d`, bound to
+  `manifest_checksum`, `epoch`, `actor_profile_id`, `reason`, and `approved_at`.
+  This revision does not offer an endpoint to mint that approval.
+- The authenticated admin activation endpoint accepts canonical mode, current
+  `expected_epoch`, and `verification_report.manifest_checksum`. Arbitrary JSON
+  `passed` booleans have no authority. Activation rechecks inventory, manifest,
+  physical guards and Gate D, then advances epoch. Dispatch stays paused.
+
+Old clients without the required epoch are rejected after activation. Clients
+retain queued edits when epochs differ; reload and review rather than replaying
+old corrections into a new writer epoch.
+
+## Forward rollback
+
+1. Stop connector/dispatch transports; drain converted writers and call
+   `forward_rollback(db, expected_epoch=..., reason=...)`, committing the pause.
+2. Preserve issued UUIDs, all observations/resolutions, social IDs, queue evidence,
+   accepted revisions and post-migration writes. Do not renumber or delete them.
+3. Serve the last verified **compatible** read revision while writes stay paused.
+   Never reactivate a destructive legacy writer or a binary lacking the fence.
+4. Inventory the failure and reconcile forward under a new reviewed manifest and
+   epoch. Any backup restore needs a separate reconciliation/approval that accounts
+   for every new game, comment and conflict since the backup. A database restore
+   is not the automated rollback path.
+
+## Task 12 local verification and retirement
+
+Task 11 has been independently reviewed. Task 12's local evidence is recorded in
+`.superpowers/sdd/2026-10-27-universal-game-identity/task-12-report.md`; it is not
+operational permission. Rehearse old-schema nullable-column expansion before
+activation: PostgreSQL can add nullable columns/remove historical NOT NULL/defaults;
+SQLite tables with incompatible historical constraints require an explicit offline
+rebuild and must fail without deleting data. Refresh the explicit compatibility
+view after expansion, not before its referenced columns exist.
+
+The mounted `/sheet-integration/export-current-data` endpoint now returns **410**.
+It formerly called an absent export method and must not become a second outbound
+writer. Use only reviewed UUID/token/operation/revision/epoch-bound queue delivery,
+with the separately approved source contract; do not append exports as updates.
+The scheduler's date/player-set/score `_dedup_action` guesser is retired. Its
+pending-sync entry point delegates to the identity-bound queue processor.
+
+`link_saved_cards` and `_drop_sheet_duplicates` remain **legacy-only** compatibility
+behavior before approved cutover; canonical `get_all_rounds` returns before that
+branch. Keep `LegacyRound`, `PendingSheetSync`, legacy profile data and alias
+resolution as provenance/compatibility records. Do not delete them as obsolete
+counting authority. A pause retains the last verified reader authority.
+
+The client and queue pause/resume regressions use synthetic configuration
+transitions, not real Gate D approval. In-flight converted transactions drain;
+queued stale epochs stay retained/held without external writes. This cannot fence
+old binaries, direct SQL, or external editors that ignore the protocol. Inventory,
+stop/revoke and verify those writers in the authorized operational window.
+
+Do not proceed to a real operational window until independent review accepts the
+Task 12 report and all Gate B/C/D requirements are separately satisfied.

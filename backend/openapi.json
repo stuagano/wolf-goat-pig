@@ -1850,6 +1850,17 @@
       },
       "HoleEventPatch": {
         "properties": {
+          "expected_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Revision"
+          },
           "quarters": {
             "anyOf": [
               {
@@ -2124,6 +2135,53 @@
         "title": "HoleScore",
         "type": "object"
       },
+      "IngestOutcome": {
+        "properties": {
+          "game_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Game Id"
+          },
+          "issue_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Issue Ids",
+            "type": "array"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          },
+          "status": {
+            "enum": [
+              "accepted",
+              "unchanged",
+              "held"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "IngestOutcome",
+        "type": "object"
+      },
       "JoinGameRequest": {
         "properties": {
           "handicap": {
@@ -2174,7 +2232,24 @@
         "description": "A single entry in the leaderboard.",
         "properties": {
           "average": {
-            "title": "Average",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average"
+          },
+          "incomplete_round_count": {
+            "default": 0,
+            "title": "Incomplete Round Count",
+            "type": "integer"
+          },
+          "known_participation_count": {
+            "default": 0,
+            "title": "Known Participation Count",
             "type": "integer"
           },
           "member": {
@@ -2183,11 +2258,11 @@
           },
           "qb": {
             "title": "Qb",
-            "type": "integer"
+            "type": "number"
           },
           "quarters": {
             "title": "Quarters",
-            "type": "integer"
+            "type": "number"
           },
           "rank": {
             "title": "Rank",
@@ -2484,6 +2559,66 @@
           "confidence_level"
         ],
         "title": "OddsCalculationResponse",
+        "type": "object"
+      },
+      "ParticipantCorrection": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmed": {
+            "const": true,
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "expected_epoch": {
+            "minimum": 0.0,
+            "title": "Expected Epoch",
+            "type": "integer"
+          },
+          "expected_old_profile_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Old Profile Id"
+          },
+          "expected_snapshot": {
+            "maxLength": 64,
+            "minLength": 64,
+            "title": "Expected Snapshot",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "replacement_profile_id": {
+            "exclusiveMinimum": 0.0,
+            "title": "Replacement Profile Id",
+            "type": "integer"
+          },
+          "request_key": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Request Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "replacement_profile_id",
+          "expected_old_profile_id",
+          "expected_epoch",
+          "expected_snapshot",
+          "reason",
+          "confirmed",
+          "request_key"
+        ],
+        "title": "ParticipantCorrection",
         "type": "object"
       },
       "PendingClaimInfo": {
@@ -3196,32 +3331,18 @@
         "title": "PlayerRoundResult",
         "type": "object"
       },
-      "PlayerScoreInput": {
-        "description": "Input for a single player's score.",
-        "properties": {
-          "name": {
-            "description": "Player name (must match spreadsheet names)",
-            "title": "Name",
-            "type": "string"
-          },
-          "score": {
-            "description": "Quarters won (positive) or lost (negative)",
-            "title": "Score",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "name",
-          "score"
-        ],
-        "title": "PlayerScoreInput",
-        "type": "object"
-      },
       "PlayerStatisticsResponse": {
         "properties": {
           "avg_earnings_per_hole": {
-            "title": "Avg Earnings Per Hole",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Earnings Per Hole"
           },
           "best_hole_performance": {
             "default": [],
@@ -3238,28 +3359,59 @@
             "type": "integer"
           },
           "betting_success_rate": {
-            "title": "Betting Success Rate",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Betting Success Rate"
           },
           "big_dick_attempts": {
-            "default": 0,
-            "title": "Big Dick Attempts",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Big Dick Attempts"
           },
           "big_dick_wins": {
-            "default": 0,
-            "title": "Big Dick Wins",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Big Dick Wins"
           },
           "birdies": {
-            "default": 0,
-            "title": "Birdies",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birdies"
           },
           "bogeys": {
-            "default": 0,
-            "title": "Bogeys",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bogeys"
           },
           "current_loss_streak": {
             "default": 0,
@@ -3272,24 +3424,48 @@
             "type": "integer"
           },
           "double_bogeys": {
-            "default": 0,
-            "title": "Double Bogeys",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Double Bogeys"
           },
           "duncan_attempts": {
-            "default": 0,
-            "title": "Duncan Attempts",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duncan Attempts"
           },
           "duncan_wins": {
-            "default": 0,
-            "title": "Duncan Wins",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duncan Wins"
           },
           "eagles": {
-            "default": 0,
-            "title": "Eagles",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eagles"
           },
           "favorite_game_mode": {
             "title": "Favorite Game Mode",
@@ -3310,25 +3486,61 @@
             "type": "object"
           },
           "holes_played": {
-            "title": "Holes Played",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holes Played"
           },
           "holes_won": {
-            "title": "Holes Won",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holes Won"
           },
           "id": {
             "title": "Id",
             "type": "integer"
           },
-          "invisible_aardvark_appearances": {
+          "incomplete_round_count": {
             "default": 0,
-            "title": "Invisible Aardvark Appearances",
+            "title": "Incomplete Round Count",
             "type": "integer"
           },
+          "invisible_aardvark_appearances": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invisible Aardvark Appearances"
+          },
           "invisible_aardvark_wins": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invisible Aardvark Wins"
+          },
+          "known_participation_count": {
             "default": 0,
-            "title": "Invisible Aardvark Wins",
+            "title": "Known Participation Count",
             "type": "integer"
           },
           "last_updated": {
@@ -3336,21 +3548,48 @@
             "type": "string"
           },
           "pars": {
-            "default": 0,
-            "title": "Pars",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pars"
           },
           "partnership_success_rate": {
-            "title": "Partnership Success Rate",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partnership Success Rate"
           },
           "partnerships_formed": {
-            "title": "Partnerships Formed",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partnerships Formed"
           },
           "partnerships_won": {
-            "title": "Partnerships Won",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partnerships Won"
           },
           "performance_trends": {
             "default": [],
@@ -3362,14 +3601,26 @@
             "type": "array"
           },
           "ping_pong_count": {
-            "default": 0,
-            "title": "Ping Pong Count",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ping Pong Count"
           },
           "ping_pong_wins": {
-            "default": 0,
-            "title": "Ping Pong Wins",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ping Pong Wins"
           },
           "player_id": {
             "title": "Player Id",
@@ -3379,60 +3630,135 @@
             "title": "Preferred Player Count",
             "type": "integer"
           },
-          "solo_attempts": {
-            "title": "Solo Attempts",
+          "scored_round_count": {
+            "default": 0,
+            "title": "Scored Round Count",
             "type": "integer"
+          },
+          "solo_attempts": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Solo Attempts"
           },
           "solo_wins": {
-            "title": "Solo Wins",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Solo Wins"
           },
           "successful_bets": {
-            "title": "Successful Bets",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Successful Bets"
           },
           "times_as_aardvark": {
-            "default": 0,
-            "title": "Times As Aardvark",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Times As Aardvark"
           },
           "times_as_goat": {
-            "default": 0,
-            "title": "Times As Goat",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Times As Goat"
           },
           "times_as_pig": {
-            "default": 0,
-            "title": "Times As Pig",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Times As Pig"
           },
           "times_as_wolf": {
-            "default": 0,
-            "title": "Times As Wolf",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Times As Wolf"
           },
           "total_bets": {
-            "title": "Total Bets",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Bets"
           },
           "total_earnings": {
             "title": "Total Earnings",
             "type": "number"
           },
           "tunkarri_attempts": {
-            "default": 0,
-            "title": "Tunkarri Attempts",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tunkarri Attempts"
           },
           "tunkarri_wins": {
-            "default": 0,
-            "title": "Tunkarri Wins",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tunkarri Wins"
           },
           "worse_than_double": {
-            "default": 0,
-            "title": "Worse Than Double",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worse Than Double"
           },
           "worst_hole_performance": {
             "default": [],
@@ -3753,6 +4079,166 @@
         "title": "PublicPlayerProfileResponse",
         "type": "object"
       },
+      "RecipientAttestation": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmed": {
+            "const": true,
+            "title": "Confirmed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "confirmed"
+        ],
+        "title": "RecipientAttestation",
+        "type": "object"
+      },
+      "RecipientConfirmation": {
+        "additionalProperties": false,
+        "properties": {
+          "attestation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attestation Id"
+          },
+          "confirmed": {
+            "const": true,
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "profile_id": {
+            "exclusiveMinimum": 0.0,
+            "title": "Profile Id",
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "confirmed",
+          "reason"
+        ],
+        "title": "RecipientConfirmation",
+        "type": "object"
+      },
+      "ResolutionDecision": {
+        "properties": {
+          "action": {
+            "enum": [
+              "keep",
+              "accept",
+              "correct",
+              "bind_existing",
+              "confirm_distinct",
+              "retract"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "expected_game_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Game Revision"
+          },
+          "expected_head_revision": {
+            "title": "Expected Head Revision",
+            "type": "integer"
+          },
+          "expected_issue_revision": {
+            "title": "Expected Issue Revision",
+            "type": "integer"
+          },
+          "expected_target_game_revision": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Target Game Revision"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "target_game_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Game Id"
+          },
+          "value": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "action",
+          "reason",
+          "expected_issue_revision",
+          "expected_head_revision"
+        ],
+        "title": "ResolutionDecision",
+        "type": "object"
+      },
+      "RoundAliasResult": {
+        "properties": {
+          "game_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Game Ids",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "resolved",
+              "ambiguous",
+              "missing"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "game_ids"
+        ],
+        "title": "RoundAliasResult",
+        "type": "object"
+      },
       "RoundCommentCreate": {
         "properties": {
           "body": {
@@ -3813,6 +4299,37 @@
         "title": "RoundCommentResponse",
         "type": "object"
       },
+      "RoundModeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_epoch": {
+            "minimum": 0.0,
+            "title": "Expected Epoch",
+            "type": "integer"
+          },
+          "mode": {
+            "enum": [
+              "legacy",
+              "paused",
+              "canonical"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "verification_report": {
+            "additionalProperties": true,
+            "title": "Verification Report",
+            "type": "object"
+          }
+        },
+        "required": [
+          "mode",
+          "expected_epoch",
+          "verification_report"
+        ],
+        "title": "RoundModeRequest",
+        "type": "object"
+      },
       "RoundPlayerResponse": {
         "properties": {
           "member": {
@@ -3831,8 +4348,15 @@
             "title": "Player Id"
           },
           "quarters": {
-            "title": "Quarters",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quarters"
           }
         },
         "required": [
@@ -3886,12 +4410,44 @@
         "title": "RoundReactionToggle",
         "type": "object"
       },
+      "RoundRequeue": {
+        "properties": {
+          "issue_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Issue Ids",
+            "type": "array"
+          },
+          "reason": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "issue_ids",
+          "reason"
+        ],
+        "title": "RoundRequeue",
+        "type": "object"
+      },
       "RoundResultResponse": {
         "description": "Response model for a round result.",
         "properties": {
           "date": {
-            "title": "Date",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
           },
           "duration": {
             "anyOf": [
@@ -3903,6 +4459,17 @@
               }
             ],
             "title": "Duration"
+          },
+          "game_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Game Id"
           },
           "group": {
             "anyOf": [
@@ -3930,9 +4497,32 @@
             "title": "Member",
             "type": "string"
           },
+          "participant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Id"
+          },
           "score": {
-            "title": "Score",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "score_eligible": {
+            "default": true,
+            "title": "Score Eligible",
+            "type": "boolean"
           }
         },
         "required": [
@@ -4005,6 +4595,220 @@
         "title": "RoundStoryResponse",
         "type": "object"
       },
+      "RoundSummary": {
+        "properties": {
+          "accepted_label": {
+            "const": "accepted",
+            "title": "Accepted Label",
+            "type": "string"
+          },
+          "capabilities": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Capabilities",
+            "type": "object"
+          },
+          "conflict_count": {
+            "title": "Conflict Count",
+            "type": "integer"
+          },
+          "course_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Course Name"
+          },
+          "detail_coverage": {
+            "anyOf": [
+              {
+                "enum": [
+                  "totals_only",
+                  "partial",
+                  "per_hole_complete"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail Coverage"
+          },
+          "detail_discrepancies": {
+            "additionalProperties": true,
+            "title": "Detail Discrepancies",
+            "type": "object"
+          },
+          "detail_label": {
+            "const": "accepted_recorded_detail",
+            "title": "Detail Label",
+            "type": "string"
+          },
+          "detail_reconciled": {
+            "title": "Detail Reconciled",
+            "type": "boolean"
+          },
+          "game_id": {
+            "title": "Game Id",
+            "type": "string"
+          },
+          "hole_history": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Hole History",
+            "type": "array"
+          },
+          "is_retracted": {
+            "title": "Is Retracted",
+            "type": "boolean"
+          },
+          "played_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played On"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/RoundSummaryParticipant"
+            },
+            "title": "Players",
+            "type": "array"
+          },
+          "proposed_detail": {
+            "additionalProperties": true,
+            "title": "Proposed Detail",
+            "type": "object"
+          },
+          "raw_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Date"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "roster_complete": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roster Complete"
+          },
+          "score_eligible": {
+            "title": "Score Eligible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "game_id",
+          "revision",
+          "accepted_label",
+          "played_on",
+          "raw_date",
+          "course_name",
+          "detail_coverage",
+          "roster_complete",
+          "score_eligible",
+          "is_retracted",
+          "players",
+          "hole_history",
+          "detail_label",
+          "detail_discrepancies",
+          "detail_reconciled",
+          "proposed_detail",
+          "conflict_count",
+          "capabilities"
+        ],
+        "title": "RoundSummary",
+        "type": "object"
+      },
+      "RoundSummaryParticipant": {
+        "properties": {
+          "is_retracted": {
+            "title": "Is Retracted",
+            "type": "boolean"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "participant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Id"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Id"
+          },
+          "quarters": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quarters"
+          }
+        },
+        "required": [
+          "participant_id",
+          "name",
+          "profile_id",
+          "quarters",
+          "is_retracted"
+        ],
+        "title": "RoundSummaryParticipant",
+        "type": "object"
+      },
       "Rule": {
         "properties": {
           "description": {
@@ -4030,6 +4834,17 @@
       },
       "ScorecardBackfillRequest": {
         "properties": {
+          "expected_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Revision"
+          },
           "per_hole_quarters": {
             "items": {
               "$ref": "#/components/schemas/ScorecardRoundHoleQuarter"
@@ -4084,6 +4899,17 @@
             ],
             "title": "Player Profile Id"
           },
+          "quarters": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quarters"
+          },
           "unlinked": {
             "default": false,
             "title": "Unlinked",
@@ -4108,6 +4934,11 @@
               }
             ],
             "title": "Course Name"
+          },
+          "detail_coverage": {
+            "default": "per_hole_complete",
+            "title": "Detail Coverage",
+            "type": "string"
           },
           "image_base64": {
             "anyOf": [
@@ -4147,8 +4978,7 @@
           }
         },
         "required": [
-          "players",
-          "per_hole_quarters"
+          "players"
         ],
         "title": "ScorecardRoundRequest",
         "type": "object"
@@ -4159,6 +4989,28 @@
             "default": 18,
             "title": "Current Hole",
             "type": "integer"
+          },
+          "expected_epoch": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Epoch"
+          },
+          "expected_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Revision"
           },
           "holes": {
             "items": {
@@ -4180,6 +5032,17 @@
             "title": "Member",
             "type": "string"
           },
+          "participant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Id"
+          },
           "player_id": {
             "anyOf": [
               {
@@ -4192,8 +5055,20 @@
             "title": "Player Id"
           },
           "quarters": {
-            "title": "Quarters",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quarters"
+          },
+          "score_eligible": {
+            "default": true,
+            "title": "Score Eligible",
+            "type": "boolean"
           }
         },
         "required": [
@@ -4211,8 +5086,15 @@
             "type": "string"
           },
           "date_sortable": {
-            "title": "Date Sortable",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Sortable"
           },
           "game_id": {
             "anyOf": [
@@ -4230,8 +5112,15 @@
             "type": "string"
           },
           "location": {
-            "title": "Location",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
           },
           "players": {
             "items": {
@@ -4259,8 +5148,15 @@
             "type": "string"
           },
           "date_sortable": {
-            "title": "Date Sortable",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Sortable"
           },
           "game_id": {
             "anyOf": [
@@ -4278,8 +5174,15 @@
             "type": "string"
           },
           "location": {
-            "title": "Location",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
           },
           "member": {
             "title": "Member",
@@ -4298,7 +5201,7 @@
           },
           "quarters": {
             "title": "Quarters",
-            "type": "integer"
+            "type": "number"
           }
         },
         "required": [
@@ -4498,49 +5401,57 @@
         "type": "object"
       },
       "SyncRoundRequest": {
-        "description": "Request to sync a completed round to the spreadsheet.",
+        "description": "Queue accepted UUID results, never client date/name guesses.",
         "properties": {
-          "date": {
-            "description": "Date in YYYY-MM-DD format",
-            "title": "Date",
+          "action": {
+            "pattern": "^(insert|update)$",
+            "title": "Action",
             "type": "string"
           },
-          "duration": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Duration in HH:MM:SS format",
-            "title": "Duration"
+          "expected_epoch": {
+            "minimum": 0.0,
+            "title": "Expected Epoch",
+            "type": "integer"
           },
-          "group": {
-            "default": "A",
-            "description": "Group letter (A, B, C, D)",
-            "title": "Group",
+          "expected_revision": {
+            "minimum": 0.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "expected_source_version": {
+            "minLength": 1,
+            "title": "Expected Source Version",
             "type": "string"
           },
-          "location": {
-            "default": "Wing Point",
-            "description": "Course name",
-            "title": "Location",
+          "game_id": {
+            "title": "Game Id",
             "type": "string"
           },
-          "player_scores": {
-            "description": "List of player scores",
-            "items": {
-              "$ref": "#/components/schemas/PlayerScoreInput"
-            },
-            "title": "Player Scores",
-            "type": "array"
+          "operation_key": {
+            "minLength": 1,
+            "title": "Operation Key",
+            "type": "string"
+          },
+          "source_round_token": {
+            "minLength": 1,
+            "title": "Source Round Token",
+            "type": "string"
+          },
+          "source_scope": {
+            "minLength": 1,
+            "title": "Source Scope",
+            "type": "string"
           }
         },
         "required": [
-          "date",
-          "player_scores"
+          "game_id",
+          "source_scope",
+          "source_round_token",
+          "operation_key",
+          "expected_revision",
+          "expected_epoch",
+          "expected_source_version",
+          "action"
         ],
         "title": "SyncRoundRequest",
         "type": "object"
@@ -4641,11 +5552,35 @@
         "description": "A player's aggregated stats.",
         "properties": {
           "average": {
-            "title": "Average",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average"
           },
           "best_round": {
-            "title": "Best Round",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Round"
+          },
+          "incomplete_round_count": {
+            "default": 0,
+            "title": "Incomplete Round Count",
+            "type": "integer"
+          },
+          "known_participation_count": {
+            "default": 0,
+            "title": "Known Participation Count",
             "type": "integer"
           },
           "member": {
@@ -4665,7 +5600,7 @@
           },
           "quarters": {
             "title": "Quarters",
-            "type": "integer"
+            "type": "number"
           },
           "rank": {
             "title": "Rank",
@@ -4683,8 +5618,15 @@
             "type": "array"
           },
           "worst_round": {
-            "title": "Worst Round",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worst Round"
           }
         },
         "required": [
@@ -4708,8 +5650,26 @@
             "type": "string"
           },
           "date_sortable": {
-            "title": "Date Sortable",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Sortable"
+          },
+          "detail_coverage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail Coverage"
           },
           "duration": {
             "anyOf": [
@@ -4738,16 +5698,46 @@
             "type": "string"
           },
           "location": {
-            "title": "Location",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
           },
           "member": {
             "title": "Member",
             "type": "string"
           },
+          "participant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Id"
+          },
           "score": {
-            "title": "Score",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "score_eligible": {
+            "default": true,
+            "title": "Score Eligible",
+            "type": "boolean"
           },
           "source": {
             "title": "Source",
@@ -5702,6 +6692,161 @@
         ]
       }
     },
+    "/admin/participant-results/{result_id}": {
+      "get": {
+        "operationId": "preview_participant_correction_admin_participant_results__result_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "result_id",
+            "required": true,
+            "schema": {
+              "title": "Result Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "replacement_profile_id",
+            "required": true,
+            "schema": {
+              "exclusiveMinimum": 0,
+              "title": "Replacement Profile Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preview Participant Correction",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/participant-results/{result_id}/correct": {
+      "post": {
+        "operationId": "correct_participant_admin_participant_results__result_id__correct_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "result_id",
+            "required": true,
+            "schema": {
+              "title": "Result Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParticipantCorrection"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Correct Participant",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/round-identity/mode": {
+      "put": {
+        "description": "Activate only fresh server-stored verification plus separate Gate D.\n\nCaller JSON selects a manifest checksum, never supplies passing evidence.\nConnector and dispatch remain paused pending their separate approvals.",
+        "operationId": "set_round_identity_mode_admin_round_identity_mode_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoundModeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Round Identity Mode",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/run-migration": {
       "post": {
         "description": "Run a database migration to update schema.\n\nAvailable migrations:\n- add_statistics_columns: Adds missing columns to player_statistics table",
@@ -5839,7 +6984,7 @@
     },
     "/admin/spreadsheet/player/{member_name}": {
       "get": {
-        "description": "Get all rounds for a specific player from legacy_rounds DB (synced every 2h).",
+        "description": "Get profile-associated history without assigning guests by display name.",
         "operationId": "get_player_history_admin_spreadsheet_player__member_name__get",
         "parameters": [
           {
@@ -6048,7 +7193,7 @@
     },
     "/admin/spreadsheet/rounds": {
       "get": {
-        "description": "Get all round results from legacy_rounds DB (synced every 2h).",
+        "description": "Get accepted canonical history, or the pre-cutover cache.",
         "operationId": "get_all_rounds_admin_spreadsheet_rounds_get",
         "parameters": [
           {
@@ -6160,7 +7305,7 @@
     },
     "/admin/spreadsheet/sync-legacy-rounds": {
       "post": {
-        "description": "Manually trigger a sync of Google Sheets data into the legacy_rounds table.\n\nNormally runs automatically every 2 hours. Use this to force an immediate refresh.",
+        "description": "Manually trigger the shared complete-snapshot ingestion boundary.\n\nNormally runs every two hours; held evidence never replaces accepted data.",
         "operationId": "trigger_legacy_rounds_sync_admin_spreadsheet_sync_legacy_rounds_post",
         "responses": {
           "200": {
@@ -6188,7 +7333,7 @@
     },
     "/admin/spreadsheet/sync-round": {
       "post": {
-        "description": "Enqueue a completed round for background sync to Google Sheets.\n\nReturns 202 immediately. The background processor runs every 5 minutes,\ndeduplicates against existing legacy_rounds, and writes new/updated rounds\nto the sheet.\n\nDedup logic:\n  - Same date + group + same player set + same scores → skipped as duplicate\n  - Same date + group + same player set but different scores → written as update\n  - New player set for that date/group → written as new round\n\nNOTE: player_scores should be summed totals (not per-hole). The app tracks\nper-hole detail internally; the legacy sheet only stores round totals.",
+        "description": "Enqueue a revision-bound accepted UUID; Gate B must already be approved.",
         "operationId": "sync_round_to_spreadsheet_admin_spreadsheet_sync_round_post",
         "requestBody": {
           "content": {
@@ -9019,6 +10164,164 @@
         ]
       }
     },
+    "/data/rounds/uuid/{game_id}/comments": {
+      "post": {
+        "operationId": "uuid_comment_data_rounds_uuid__game_id__comments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "game_id",
+            "required": true,
+            "schema": {
+              "title": "Game Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoundCommentCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoundCommentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Uuid Comment",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/data/rounds/uuid/{game_id}/discussion": {
+      "get": {
+        "operationId": "uuid_discussion_data_rounds_uuid__game_id__discussion_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "game_id",
+            "required": true,
+            "schema": {
+              "title": "Game Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Uuid Discussion",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/data/rounds/uuid/{game_id}/reactions": {
+      "post": {
+        "operationId": "uuid_reaction_data_rounds_uuid__game_id__reactions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "game_id",
+            "required": true,
+            "schema": {
+              "title": "Game Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoundReactionToggle"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RoundReactionResponse"
+                  },
+                  "title": "Response Uuid Reaction Data Rounds Uuid  Game Id  Reactions Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Uuid Reaction",
+        "tags": [
+          "data"
+        ]
+      }
+    },
     "/data/rounds/{date}/{group}": {
       "get": {
         "description": "Players, quarter totals, comments, and reactions for one foursome.",
@@ -9265,7 +10568,7 @@
     },
     "/data/sync-sheets": {
       "post": {
-        "description": "Pull all rounds from Google Sheets and upsert into legacy_rounds table.\n\nSafe to run repeatedly — clears and repopulates the table each time.",
+        "description": "Refresh through the complete-snapshot boundary, never cache replacement.",
         "operationId": "sync_sheets_to_db_data_sync_sheets_post",
         "responses": {
           "200": {
@@ -9833,6 +11136,24 @@
       "post": {
         "description": "Record a completed round straight from a scanned scorecard.\n\nBuilds a completed game (players + per-hole quarters) and persists the\nsame GameRecord/GamePlayerResult rows a live-scored game would, so a\nscanned round shows up in standings/history identically.",
         "operationId": "create_round_from_scorecard_games_from_scorecard_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -10137,6 +11458,22 @@
               "title": "Game Id",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "expected_epoch",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Expected Epoch"
+            }
           }
         ],
         "responses": {
@@ -10336,6 +11673,22 @@
             "schema": {
               "title": "Hole Number",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expected_revision",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Expected Revision"
             }
           }
         ],
@@ -10833,6 +12186,49 @@
         ]
       }
     },
+    "/games/{game_id}/round-summary": {
+      "get": {
+        "description": "Accepted final results and actual detail on the permanent UUID.",
+        "operationId": "get_round_summary_games__game_id__round_summary_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "game_id",
+            "required": true,
+            "schema": {
+              "title": "Game Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoundSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Round Summary",
+        "tags": [
+          "games"
+        ]
+      }
+    },
     "/games/{game_id}/scorecard": {
       "patch": {
         "description": "Backfill the per-hole quarters of a scanned round and recompute standings.\nStandings come out as the sum of the submitted per-hole (settle-up identity).",
@@ -10994,7 +12390,7 @@
     },
     "/games/{game_id}/scores": {
       "post": {
-        "description": "Submit hole scores for a game. Each hole must sum to zero. Upserts — safe to call repeatedly.",
+        "description": "Replace the full scored-hole snapshot (not a one-hole patch).",
         "operationId": "save_scores_games__game_id__scores_post",
         "parameters": [
           {
@@ -12803,8 +14199,36 @@
             "required": false,
             "schema": {
               "default": 20,
+              "maximum": 100,
+              "minimum": 1,
               "title": "Limit",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "types",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Types"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_delivery_health",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Delivery Health",
+              "type": "boolean"
             }
           }
         ],
@@ -12858,6 +14282,74 @@
           }
         ],
         "summary": "Mark All Read",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/notifications/round-deliveries/health": {
+      "get": {
+        "operationId": "round_delivery_health_notifications_round_deliveries_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Round Delivery Health",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/notifications/round-deliveries/requeue": {
+      "post": {
+        "operationId": "requeue_round_alerts_notifications_round_deliveries_requeue_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoundRequeue"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Requeue Round Alerts",
         "tags": [
           "notifications"
         ]
@@ -14102,6 +15594,24 @@
       "post": {
         "description": "Post every participant's result atomically, without peer attestation.",
         "operationId": "post_my_round_players_me_round_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -15267,6 +16777,440 @@
         ]
       }
     },
+    "/round-reconciliation/aliases": {
+      "get": {
+        "operationId": "aliases_round_reconciliation_aliases_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date",
+            "required": true,
+            "schema": {
+              "title": "Date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "group",
+            "required": true,
+            "schema": {
+              "title": "Group",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "location",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Location",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoundAliasResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Aliases",
+        "tags": [
+          "round-reconciliation"
+        ]
+      }
+    },
+    "/round-reconciliation/health": {
+      "get": {
+        "operationId": "health_round_reconciliation_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Health",
+        "tags": [
+          "round-reconciliation"
+        ]
+      }
+    },
+    "/round-reconciliation/issues": {
+      "get": {
+        "operationId": "issues_round_reconciliation_issues_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Issues",
+        "tags": [
+          "round-reconciliation"
+        ]
+      }
+    },
+    "/round-reconciliation/issues/{issue_id}": {
+      "get": {
+        "operationId": "issue_detail_round_reconciliation_issues__issue_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "issue_id",
+            "required": true,
+            "schema": {
+              "title": "Issue Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Issue Detail",
+        "tags": [
+          "round-reconciliation"
+        ]
+      }
+    },
+    "/round-reconciliation/issues/{issue_id}/resolve": {
+      "post": {
+        "operationId": "resolve_round_reconciliation_issues__issue_id__resolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "issue_id",
+            "required": true,
+            "schema": {
+              "title": "Issue Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolutionDecision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestOutcome"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestOutcome"
+                }
+              }
+            },
+            "description": "Accepted decision; outstanding evidence held"
+          },
+          "404": {
+            "description": "Issue or target unavailable"
+          },
+          "409": {
+            "description": "Stale revision or paused writer fence"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Resolve",
+        "tags": [
+          "round-reconciliation"
+        ]
+      }
+    },
+    "/round-reconciliation/recipient": {
+      "put": {
+        "operationId": "recipient_round_reconciliation_recipient_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipientConfirmation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Recipient",
+        "tags": [
+          "round-reconciliation"
+        ]
+      }
+    },
+    "/round-reconciliation/recipient/attest": {
+      "post": {
+        "operationId": "attest_round_reconciliation_recipient_attest_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipientAttestation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Attest",
+        "tags": [
+          "round-reconciliation"
+        ]
+      }
+    },
+    "/round-reconciliation/recipient/attest/revoke": {
+      "post": {
+        "operationId": "revoke_round_reconciliation_recipient_attest_revoke_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revoke",
+        "tags": [
+          "round-reconciliation"
+        ]
+      }
+    },
+    "/round-reconciliation/requeue": {
+      "post": {
+        "operationId": "requeue_round_reconciliation_requeue_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoundRequeue"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Requeue",
+        "tags": [
+          "round-reconciliation"
+        ]
+      }
+    },
     "/rounds/pending-attestation": {
       "get": {
         "description": "List pending rounds the current member is eligible to attest.",
@@ -15568,7 +17512,7 @@
     },
     "/sheet-integration/export-current-data": {
       "get": {
-        "description": "Export current database data in sheet format.\n\nReturns current player statistics formatted for Google Sheets export.",
+        "description": "Retired aggregate export: HTTP 410, with no statistics or source writes.\n\nRead accepted standings through /data/leaderboard. Source publication is a\nseparate approved token-bound queue operation, never an arbitrary-header export.",
         "operationId": "export_current_data_for_sheet_sheet_integration_export_current_data_get",
         "parameters": [
           {

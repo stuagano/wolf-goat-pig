@@ -200,6 +200,7 @@ class TestBuildDataContext:
         from app.routers.commissioner import _build_data_context
 
         mock_db = MagicMock()
+        mock_db.get.return_value = None  # explicit legacy configuration
         mock_query = MagicMock()
         mock_query.group_by.return_value.order_by.return_value.limit.return_value.all.return_value = []
         mock_query.order_by.return_value.all.return_value = []
@@ -211,6 +212,7 @@ class TestBuildDataContext:
         from app.routers.commissioner import _build_data_context
 
         mock_db = MagicMock()
+        mock_db.get.return_value = None  # explicit legacy configuration
         mock_db.query.side_effect = Exception("DB connection lost")
         result = _build_data_context(mock_db)
         assert isinstance(result, str)

@@ -210,6 +210,117 @@ def test_single_player_correction_updates_permanent_result(round_api):
     assert client.delete("/games/round/holes/1").status_code == 400
 
 
+@pytest.mark.parametrize("badge_fails", [False, True])
+def test_completion_badges_use_separate_postcommit_session(round_api, monkeypatch, badge_fails):
+    from sqlalchemy import event
+
+    client, app, sessions = round_api
+    sign_in(app)
+    with sessions() as db:
+        row = db.query(models.GameStateModel).one()
+        row.state = {
+            **row.state,
+            "hole_history": [{"hole": h["hole_number"], "points_delta": h["quarters"]} for h in scores()["holes"]],
+        }
+        db.add(models.GamePlayer(game_id="round", player_slot_id="p1", player_profile_id=1))
+        db.commit()
+    source_sessions = []
+    source_postcommit_queries = []
+    badge_sessions = []
+
+    def database():
+        with sessions() as db:
+            source_sessions.append(db)
+            committed = []
+            event.listen(db, "after_commit", lambda session: committed.append(True))
+            event.listen(
+                db, "do_orm_execute", lambda execute: source_postcommit_queries.append(True) if committed else None
+            )
+            yield db
+
+    app.dependency_overrides[get_db] = database
+
+    def badge_check(engine, record_id, profile_id):
+        badge_sessions.append(engine.db)
+        assert engine.db not in source_sessions
+        # Separate session observes canonical commit before badges run.
+        with sessions() as verifier:
+            assert verifier.query(models.GameRecord).filter_by(id=record_id).one().final_scores["p1"] == 18
+            assert verifier.query(models.GamePlayerResult).count() == 4
+        assert profile_id == 1
+        if badge_fails:
+            engine.db.rollback()
+            raise RuntimeError("synthetic badge failure")
+        engine.db.commit()
+        return []
+
+    monkeypatch.setattr(games.BadgeEngine, "check_post_game_achievements", badge_check)
+    response = client.post("/games/round/complete")
+    assert response.status_code == 200, response.text
+    assert badge_sessions
+    assert source_postcommit_queries == []
+    with sessions() as db:
+        assert db.query(models.GameStateModel).one().game_status == "completed"
+        assert db.query(models.GameRecord).one().final_scores["p1"] == 18
+        assert db.query(models.GamePlayerResult).count() == 4
+
+
+def test_quarters_only_correction_preserves_existing_detail(round_api):
+    client, app, sessions = round_api
+    sign_in(app)
+    body = scores()
+    body["holes"][0].update(gross_scores={"p1": 4}, notes="keep", teams=[["p1", "p2"], ["p3", "p4"]])
+    assert client.post("/games/round/scores", json=body).status_code == 200
+    assert client.post("/games/round/scores", json=scores(2)).status_code == 200
+    with sessions() as db:
+        first = db.query(models.GameStateModel).one().state["hole_history"][0]
+        assert first["gross_scores"] == {"p1": 4}
+        assert first["notes"] == "keep"
+        assert first["teams"] == [["p1", "p2"], ["p3", "p4"]]
+        result = db.query(models.GamePlayerResult).filter_by(participant_id="p1").one()
+        assert result.hole_scores[0]["gross_score"] == 4
+        assert result.hole_scores[0]["notes"] == "keep"
+
+
+@pytest.mark.parametrize("endpoint", ["scores", "scorecard"])
+def test_detailed_response_reports_accepted_not_disputed_totals(round_api, endpoint):
+    from app.schemas.round_identity import RoundDraft
+    from app.services.completed_game_service import persist_final_results
+
+    client, app, sessions = round_api
+    sign_in(app)
+    with sessions() as db:
+        row = db.query(models.GameStateModel).one()
+        persist_final_results(
+            db,
+            row,
+            RoundDraft(
+                players=[
+                    {"participant_id": f"p{i}", "name": f"Player {i}", "profile_id": i, "quarters": 0}
+                    for i in range(1, 5)
+                ],
+                roster_complete=True,
+            ),
+        )
+        row.state = {**row.state, "hole_quarters": {"1": {"p1": 999}}}
+        db.commit()
+    if endpoint == "scores":
+        response = client.post("/games/round/scores", json=scores())
+    else:
+        response = client.patch("/games/round/scorecard", json={"per_hole_quarters": scan_body()["per_hole_quarters"]})
+    assert response.status_code == 200, response.text
+    accepted = {f"p{i}": 0 for i in range(1, 5)}
+    assert response.json()["standings"] == accepted
+    state = client.get("/games/round/state").json()
+    assert state["standings"] == accepted
+    assert state["hole_quarters"] == {str(h["hole"]): h["points_delta"] for h in state["hole_history"]}
+    with sessions() as db:
+        record = db.query(models.GameRecord).one()
+        assert record.final_scores == accepted
+        assert {r.participant_id: r.total_earnings for r in db.query(models.GamePlayerResult)} == accepted
+        assert record.game_settings["detail_discrepancies"]["p1"] == {"accepted": 0, "computed": 18}
+
+
 def test_scanned_gross_correction_preserves_quarters(round_api):
     client, app, sessions = round_api
     sign_in(app)

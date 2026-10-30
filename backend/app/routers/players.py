@@ -602,7 +602,7 @@ def get_public_player_profile(
     available_days = [a.day_of_week for a in availability_rows if a.is_available]
 
     # Stats
-    stats = db.query(models.PlayerStatistics).filter(models.PlayerStatistics.player_id == player_id).first()
+    stats = PlayerService(db).get_player_statistics(player_id)
 
     # Badges — showcased (equipped) ones first, in their chosen order, then
     # the rest by most-recently-earned.
@@ -636,7 +636,14 @@ def get_public_player_profile(
     # Game history — actual played/scored rounds (sheet-synced + in-app).
     game_history = []
     if player.legacy_name or player.name:
-        rounds = get_unified_data_service(db=db).get_player_history(player.legacy_name or player.name)
+        from ..services.canonical_round_reads import canonical_mode
+
+        service = get_unified_data_service(db=db)
+        rounds = (
+            service.get_profile_history(player_id)
+            if canonical_mode(db)
+            else service.get_player_history(player.legacy_name or player.name)
+        )
         game_history = [
             {
                 "date": r.date_sortable,
@@ -646,6 +653,9 @@ def get_public_player_profile(
                 "duration": r.duration,
                 "source": r.source,
                 "game_id": r.game_id,
+                "participant_id": r.participant_id,
+                "score_eligible": r.score_eligible,
+                "detail_coverage": r.detail_coverage,
                 # Only ever present for rounds scored live in the app or via
                 # scorecard scan — legacy sheet rounds are a total only.
                 "holes": (
@@ -675,6 +685,8 @@ def get_public_player_profile(
         "total_badges": total_badges,
         "stats": {
             "games_played": stats.games_played if stats else 0,
+            "known_participation_count": stats.known_participation_count if stats else 0,
+            "incomplete_round_count": stats.incomplete_round_count if stats else 0,
             "games_won": stats.games_won if stats else 0,
             "total_earnings": stats.total_earnings if stats else 0.0,
             "solo_wins": stats.solo_wins if stats else 0,

@@ -36,6 +36,7 @@ class EmailScheduler:
         "legacy-rounds-sync": "_sync_legacy_rounds",
         "pending-sheet-syncs": "_process_pending_sheet_syncs",
         "ghin-sync": "_sync_ghin_handicaps",
+        "round-deliveries": "_dispatch_round_deliveries",
     }
 
     def __init__(self):
@@ -69,6 +70,12 @@ class EmailScheduler:
         # schedule.every().day.at("02:00").do(self._sync_google_sheets)
 
         logger.info("Email schedules set up successfully")
+
+    def _dispatch_round_deliveries(self):
+        """Durable one-shot job; does not depend on the process daemon thread."""
+        from .round_delivery import dispatch_round_deliveries
+
+        return dispatch_round_deliveries()
 
     def _get_db(self) -> Session:
         """Get a database session"""
@@ -187,55 +194,17 @@ class EmailScheduler:
             db.close()
 
     def _sync_legacy_rounds(self):
-        """Sync Google Sheets round history into the legacy_rounds DB table.
+        """Refresh through the same complete-snapshot boundary as admin callers.
 
-        Runs every 2 hours. Direct DB call — safe to run in background thread.
+        Runs every two hours; no destructive legacy-cache fallback.
         """
-        from datetime import UTC
-        from datetime import datetime as dt
+        from .spreadsheet_sync_service import refresh_round_history
 
-        from ..models import LegacyRound
-        from ..services.unified_data_service import get_unified_data_service
-
-        logger.info("Syncing legacy rounds from Google Sheets...")
         db = self._get_db()
         try:
-            svc = get_unified_data_service(db=db)
-            rounds = svc.get_all_rounds(include_database=False, use_sheet_cache=False)
-            if not rounds:
-                logger.warning("Legacy rounds sync: no rounds returned from sheets")
-                return
-
-            synced_at = dt.now(UTC).isoformat()
-            db.query(LegacyRound).filter(LegacyRound.source.in_(["primary_sheet", "writable_sheet"])).delete(
-                synchronize_session=False
-            )
-            for r in rounds:
-                db.add(
-                    LegacyRound(
-                        date=r.date_sortable,
-                        group=r.group,
-                        member=r.member,
-                        score=r.score,
-                        location=r.location or "",
-                        duration=r.duration,
-                        source=r.source,
-                        synced_at=synced_at,
-                    )
-                )
-            db.commit()
-            logger.info("Legacy rounds sync complete: %d rows written", len(rounds))
-
-            # Keep the canonical player roster in lockstep with the dropdown by
-            # reconciling it against the players seen in round history. Isolated
-            # so a roster-sync bug can never take down the load-bearing rounds
-            # sync (rounds are already committed above).
-            try:
-                from ..services.legacy_player_service import sync_roster_from_members
-
-                sync_roster_from_members({r.member for r in rounds}, db=db)
-            except Exception as roster_exc:
-                logger.warning("Roster reconcile skipped (rounds sync unaffected): %s", roster_exc)
+            health = refresh_round_history(db)
+            logger.info("Round snapshot refresh: status=%s held=%s", health["status"], health["held"])
+            return health
         except Exception as exc:
             logger.error("Legacy rounds sync failed: %s", exc)
             db.rollback()
@@ -243,115 +212,14 @@ class EmailScheduler:
             db.close()
 
     def _process_pending_sheet_syncs(self):
-        """Drain the pending_sheet_syncs queue.
-
-        For each pending row:
-          1. Dedup against legacy_rounds (same date + group + player set)
-             - All players present AND all scores match → "duplicate", skip
-             - Players match but any score differs → "update", overwrite in sheet
-             - No matching round found → "new", append to sheet
-          2. Write to sheet if new/update
-          3. Mark row processed; trigger a legacy_rounds refresh on any writes.
-
-        The app records per-hole scores; the legacy sheet stores only round totals.
-        player_scores in the queue are expected to be the summed totals.
-        """
-        from datetime import UTC
-        from datetime import datetime as dt
-
-        from ..models import PendingSheetSync
-        from .spreadsheet_sync_service import get_spreadsheet_sync_service
+        """Drain the existing queue through the single UUID-bound processor."""
+        from .round_sheet_delivery import process_pending_sheet_syncs
 
         db = self._get_db()
         try:
-            pending = (
-                db.query(PendingSheetSync)
-                .filter(PendingSheetSync.status == "pending")
-                .order_by(PendingSheetSync.created_at)
-                .all()
-            )
-            if not pending:
-                return
-
-            logger.info("Processing %d pending sheet sync(s)", len(pending))
-            wrote_any = False
-
-            for job in pending:
-                job.status = "processing"
-                db.commit()
-
-                try:
-                    action = self._dedup_action(db, job)
-                    job.dedup_action = action
-
-                    if action == "duplicate":
-                        logger.info("Skipping duplicate round %s group=%s", job.date, job.group)
-                    else:
-                        logger.info(
-                            "Writing %s round %s group=%s to sheet",
-                            action,
-                            job.date,
-                            job.group,
-                        )
-                        game_date = dt.strptime(job.date, "%Y-%m-%d")
-                        svc = get_spreadsheet_sync_service()
-                        success = svc.sync_completed_game(
-                            game_date=game_date,
-                            group=job.group,
-                            location=job.location,
-                            player_scores=job.player_scores,
-                            duration=job.duration,
-                        )
-                        if not success:
-                            raise RuntimeError("sync_completed_game returned False")
-                        wrote_any = True
-
-                    job.status = "done"
-                    job.processed_at = dt.now(UTC).isoformat()
-                    db.commit()
-
-                except Exception as exc:
-                    logger.error("Sheet sync job %d failed: %s", job.id, exc)
-                    job.status = "failed"
-                    job.error = str(exc)
-                    job.processed_at = dt.now(UTC).isoformat()
-                    db.commit()
-
-            if wrote_any:
-                logger.info("Sheet writes completed — refreshing legacy_rounds cache")
-                self._sync_legacy_rounds()
-
-        except Exception as exc:
-            logger.error("_process_pending_sheet_syncs failed: %s", exc)
+            process_pending_sheet_syncs(db.get_bind())
         finally:
             db.close()
-
-    def _dedup_action(self, db, job) -> str:
-        """Return 'duplicate', 'update', or 'new' for a PendingSheetSync job.
-
-        Dedup key: date + group + exact set of player names.
-        Score comparison: app's summed player_scores vs. stored legacy scores.
-        """
-        from ..models import LegacyRound
-
-        incoming_players = set(job.player_scores.keys())
-
-        existing = db.query(LegacyRound).filter(LegacyRound.date == job.date, LegacyRound.group == job.group).all()
-        if not existing:
-            return "new"
-
-        existing_players = {r.member for r in existing}
-        if existing_players != incoming_players:
-            # Different player set — treat as a new (distinct) round
-            return "new"
-
-        # Same player set — compare scores
-        existing_scores = {r.member: r.score for r in existing}
-        for player, score in job.player_scores.items():
-            if existing_scores.get(player) != score:
-                return "update"
-
-        return "duplicate"
 
     def _sync_ghin_handicaps(self):
         """Sync GHIN handicaps for all players with GHIN IDs.

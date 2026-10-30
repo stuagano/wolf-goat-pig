@@ -14,11 +14,12 @@ const roundFetchJson = async (path, getAccessToken, options = {}) => {
   });
 };
 
-export const postMyRound = (getAccessToken, round) => roundFetchJson(
+export const postMyRound = (getAccessToken, round, requestKey) => roundFetchJson(
   "/players/me/round",
   getAccessToken,
   {
     method: "POST",
+    headers: { "Idempotency-Key": requestKey },
     body: JSON.stringify(round),
   },
 );

@@ -46,7 +46,7 @@ test('live saves and queued retries use authenticated requests and retain expire
   global.fetch.mockResolvedValue({ ok: false, status: 401, json: async () => ({ detail: 'Sign in' }) });
   await syncManager.syncHoleData('g1', { 1: { p1: 1, p2: -1 } }, {}, 1);
   expect(syncManager.getPendingSyncCount()).toBe(1);
-  global.fetch.mockResolvedValue({ ok: true });
+  global.fetch.mockResolvedValue({ ok: true, json: async () => ({ revision: 1 }) });
   const result = await syncManager.processQueue();
   expect(result.synced).toBe(1);
   expect(authenticatedFetch).toHaveBeenCalledTimes(2);

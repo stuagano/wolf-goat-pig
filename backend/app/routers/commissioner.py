@@ -81,22 +81,38 @@ def _build_data_context(db: Session) -> str:
 
     lines = []
 
-    # Leaderboard: aggregate legacy_rounds by member
+    # Canonical mode never reads a raw cache or name-joined aggregate.
+    from ..services.canonical_round_reads import canonical_mode
+    from ..services.unified_data_service import get_unified_data_service
+
+    if canonical_mode(db):
+        rows = get_unified_data_service(db).get_unified_leaderboard()
+        lines.append("## Current Season Leaderboard (accepted UUID results)")
+        lines.extend(
+            f"  {i}. {r.member}: {r.quarters:+g}Q over {r.rounds} scored rounds; "
+            f"{r.known_participation_count} known appearances"
+            for i, r in enumerate(rows[:20], 1)
+        )
+    # Legacy only before cutover.
     try:
         rows = (
-            db.query(
-                models.LegacyRound.member,
-                func.sum(models.LegacyRound.score).label("quarters"),
-                func.count(models.LegacyRound.id).label("rounds"),
+            []
+            if canonical_mode(db)
+            else (
+                db.query(
+                    models.LegacyRound.member,
+                    func.sum(models.LegacyRound.score).label("quarters"),
+                    func.count(models.LegacyRound.id).label("rounds"),
+                )
+                # Exclude unattested member self-posts (status='pending') — they must
+                # not reach standings until a foursome peer attests. Matches the
+                # filter in unified_data_service / spreadsheet_sync read paths.
+                .filter(models.LegacyRound.status != "pending")
+                .group_by(models.LegacyRound.member)
+                .order_by(func.sum(models.LegacyRound.score).desc())
+                .limit(20)
+                .all()
             )
-            # Exclude unattested member self-posts (status='pending') — they must
-            # not reach standings until a foursome peer attests. Matches the
-            # filter in unified_data_service / spreadsheet_sync read paths.
-            .filter(models.LegacyRound.status != "pending")
-            .group_by(models.LegacyRound.member)
-            .order_by(func.sum(models.LegacyRound.score).desc())
-            .limit(20)
-            .all()
         )
         if rows:
             lines.append("## Current Season Leaderboard")
@@ -105,7 +121,7 @@ def _build_data_context(db: Session) -> str:
                 lines.append(
                     f"  {i}. {row.member}: {row.quarters:+d}Q over {row.rounds} rounds (avg {avg:+.1f}Q/round)"
                 )
-        else:
+        elif not canonical_mode(db):
             lines.append("## Leaderboard\n  (no historical data synced yet — run /data/sync-sheets)")
     except Exception as exc:
         logger.warning("Could not load leaderboard from DB: %s", exc)
@@ -167,6 +183,24 @@ async def commissioner_chat(
 # ---------------------------------------------------------------------------
 # Data Chat — "Ask Commissioner Hover Over"
 # ---------------------------------------------------------------------------
+
+CANONICAL_DATA_SCHEMA = """
+## Canonical read authority
+Use ONLY canonical_round_results for accepted current-season scores. It is a
+filtered projection of persisted UUID/participant results: known played date,
+explicit configured season, whole-game score eligibility, verified profile link,
+and no retracted game/participant. Unknown detail is unavailable, not zero.
+Columns: game_id, participant_id, player_profile_id, member, score (fractional
+quarters), played_on, raw_date, location, "group", detail_coverage,
+score_eligible, accepted_revision.
+Group profiles by player_profile_id (member is a label, not identity).
+Guests are excluded here, as on the profile leaderboard; guest-inclusive extreme
+scores and all-time/incomplete history are not available through this SQL view.
+COUNT(*) is scored appearances, not all known participation. Standings rank by
+SUM(score); never join or union raw caches or raw game tables. Accepted scores
+remain visible while proposals are disputed. Held unbound observations add none.
+""".strip()
+
 
 DATA_SCHEMA = """
 ## Queryable Tables
@@ -258,6 +292,7 @@ _ALLOWED_TABLES = {
     # the Commissioner's read-only SQL path — even if the LLM names the raw
     # table, _validate_sql rejects the query.
     "legacy_rounds_official",
+    "canonical_round_results",
     "player_profiles",
     "player_statistics",
     "game_records",
@@ -390,6 +425,19 @@ def _validate_sql(sql: str) -> bool:
 def _execute_readonly_sql(db: Session, sql: str, row_limit: int = 100) -> dict:
     """Execute a read-only SQL statement and return columnar results."""
     try:
+        from ..services.canonical_round_reads import canonical_mode
+
+        if canonical_mode(db):
+            tree = sqlglot.parse_one(sql, dialect="postgres")
+            refs = {_base_name(t.name) for t in tree.find_all(exp.Table)}
+            if refs & {
+                "legacy_rounds",
+                "legacy_rounds_official",
+                "game_records",
+                "game_player_results",
+                "player_statistics",
+            }:
+                return {"error": "Canonical mode permits results only through canonical_round_results"}
         # Enforce row limit
         upper = sql.upper().strip()
         limit_match = re.search(r"\bLIMIT\s+(\d+)", upper)
@@ -468,6 +516,10 @@ Example queries:
 - "Best single round ever?" → SELECT member, score, date, location FROM legacy_rounds_official ORDER BY score DESC LIMIT 5
 - "Who goes solo the most?" → SELECT pp.name, ps.solo_attempts, ps.solo_wins FROM player_statistics ps JOIN player_profiles pp ON ps.player_id = pp.id WHERE ps.solo_attempts > 0 ORDER BY ps.solo_attempts DESC"""
 
+    from ..services.canonical_round_reads import canonical_mode
+
+    if canonical_mode(db):
+        system = f"{WGP_RULES}\n\n{CANONICAL_DATA_SCHEMA}\n\n{data_context}\nReturn PostgreSQL SELECT in a sql code block, or answer rules directly."
     step1_text = await llm_generate(request.question, system)
 
     # Step 2: Extract SQL from ```sql ... ``` blocks

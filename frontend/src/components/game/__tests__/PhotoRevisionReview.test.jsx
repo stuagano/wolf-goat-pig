@@ -1,0 +1,36 @@
+import React from 'react';
+import { afterEach, expect, it, vi } from 'vitest';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import ScorecardPhoto from '../ScorecardPhoto';
+const fetcher = vi.fn();
+vi.mock('../../../hooks/useAuthenticatedFetch', () => ({ useAuthenticatedFetch: () => fetcher }));
+const players = ['One', 'Two', 'Three', 'Four'].map((name, i) => ({ id: `p${i}`, name }));
+const extraction = { players: players.map(p => ({ name: p.name })), running_totals: players.flatMap((_, player_index) => Array.from({ length: 18 }, (_, h) => ({ player_index, hole: h + 1, value: 0 }))) };
+afterEach(() => { cleanup(); fetcher.mockReset(); localStorage.clear(); });
+it('stale attach keeps edited payload and key across reload; explicit reload/review does not auto-write', async () => {
+  fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ revision: 4, hole_history: [] })))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ detail: { code: 'stale_round', revision: 5, issue_ids: [] } }), { status: 409 }));
+  const props = { gameId: 'round', players, onSaved: vi.fn(), onCancel: vi.fn(), initialStage: 'review', initialExtraction: extraction };
+  const view = render(<ScorecardPhoto {...props} />);
+  fireEvent.change(screen.getByLabelText('One hole 18 running total'), { target: { value: '2' } });
+  fireEvent.change(screen.getByLabelText('Two hole 18 running total'), { target: { value: '-2' } });
+  fireEvent.click(screen.getByRole('button', { name: /Confirm/ }));
+  await screen.findByText(/retained locally/);
+  expect(screen.queryByText(/held for review/)).not.toBeInTheDocument();
+  const originalKey = fetcher.mock.calls[1][1].headers['Idempotency-Key'];
+  expect(originalKey).toBeTruthy();
+  view.unmount();
+  render(<ScorecardPhoto {...props} />);
+  expect(fetcher).toHaveBeenCalledTimes(2);
+  fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ revision: 5, hole_history: [] })));
+  fireEvent.click(screen.getByRole('button', { name: /Reload accepted round/ }));
+  await screen.findByLabelText('One hole 18 running total');
+  expect(screen.getByLabelText('One hole 18 running total')).toHaveValue(2);
+  expect(fetcher).toHaveBeenCalledTimes(3);
+  fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ revision: 6 })));
+  fireEvent.click(screen.getByRole('button', { name: /Confirm/ }));
+  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(4));
+  expect(fetcher.mock.calls[3][1].headers['Idempotency-Key']).toBe(originalKey);
+  expect(JSON.parse(fetcher.mock.calls[3][1].body).expected_revision).toBe(5);
+  expect(JSON.parse(fetcher.mock.calls[3][1].body).holes[17].quarters.p0).toBe(2);
+});

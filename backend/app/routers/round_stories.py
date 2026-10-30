@@ -1,23 +1,20 @@
-"""A shareable page for one historical foursome, plus its comments.
-
-The discussion identity remains date + group + location. Saved games also
-have a UUID, but sheet-only rounds have no GameRecord and a discussion URL
-can cover multiple saved games, so comments keep their original keys.
-"""
+"""UUID discussions over existing social records, with legacy alias compatibility."""
 
 import logging
 from datetime import datetime
 from typing import Any
-from urllib.parse import quote, unquote
+from urllib.parse import unquote
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Notification, PlayerProfile, RoundComment, RoundReaction
+from ..models import PlayerProfile, RoundComment, RoundReaction
 from ..services.auth_service import get_current_auth0_user, get_current_user
 from ..services.player_name_index import profile_id_for_member, profile_ids_by_member
+from ..services.round_cutover import guard_writer
+from ..services.round_social import _date_keys, _notify_site_of_comment
 from ..services.unified_data_service import get_unified_data_service
 from ..utils.admin_auth import admin_role
 from ..utils.time import utc_now
@@ -32,7 +29,7 @@ router = APIRouter(prefix="/data/rounds", tags=["data"])
 
 class RoundPlayerResponse(BaseModel):
     member: str
-    quarters: int
+    quarters: float | None
     player_id: int | None = None
 
 
@@ -76,32 +73,6 @@ class RoundCommentCreate(BaseModel):
     body: str = Field(..., min_length=1, max_length=2000)
 
 
-def _display_dates(dt: datetime) -> set[str]:
-    """Sheet dates are "6-Oct" or "06-Oct". Don't use %-d; glibc-only."""
-    padded = dt.strftime("%d-%b")
-    return {padded, padded.lstrip("0")}
-
-
-def _date_keys(date: str) -> set[str]:
-    """Accept YYYY-MM-DD and the sheet display form (6-Oct or 06-Oct).
-
-    Shared links from the first deploy used the display date. The year isn't
-    on the sheet, so a display date matches any season round on that day.
-    """
-    keys = {date}
-    try:
-        keys.update(_display_dates(datetime.strptime(date, "%Y-%m-%d")))
-        return keys
-    except ValueError:
-        pass
-    # Year is a dummy; only the day and month are added to the key set.
-    try:
-        keys.update(_display_dates(datetime.strptime(f"{date}-2000", "%d-%b-%Y")))
-    except ValueError:
-        pass
-    return keys
-
-
 def _round_players(date: str, group: str, location: str, db: Session) -> tuple[str, list]:
     service = get_unified_data_service(db=db)
     try:
@@ -127,7 +98,12 @@ def _round_players(date: str, group: str, location: str, db: Session) -> tuple[s
 
 def _reaction_buckets(rows, viewer_id: int | None) -> list[RoundReactionResponse]:
     grouped: dict[str, RoundReactionResponse] = {}
+    seen = set()
     for reaction, name in rows:
+        logical_key = (reaction.profile_id, reaction.emoji, reaction.comment_id)
+        if logical_key in seen:
+            continue
+        seen.add(logical_key)
         bucket = grouped.get(reaction.emoji)
         if bucket is None:
             bucket = RoundReactionResponse(emoji=reaction.emoji, count=0, reactor_names=[])
@@ -200,9 +176,13 @@ def delete_round_comment(
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
     """The author or an admin can remove a comment."""
+    guard_writer(db)  # Serialize ownership lookup with alias binding and other social writes.
     comment = db.query(RoundComment).filter(RoundComment.id == comment_id).first()
     if comment is None:
         raise HTTPException(status_code=404, detail="Comment not found")
+    from ..services.round_social import comment_game
+
+    comment_game(db, comment)  # Reject ambiguous unbound ownership before any write.
     is_admin = admin_role(db, auth0_user) != "normal"
     if comment.author_profile_id != current_user.id and not is_admin:
         raise HTTPException(status_code=403, detail="You can only delete your own comment")
@@ -221,15 +201,131 @@ def toggle_comment_reaction(
     db: Session = Depends(get_db),
 ) -> Any:
     """Add this player's emoji to one comment, or remove it."""
+    guard_writer(db)  # Serialize ownership lookup with alias binding and other social writes.
     comment = db.query(RoundComment).filter(RoundComment.id == comment_id).first()
     if comment is None:
         raise HTTPException(status_code=404, detail="Comment not found")
     emoji = payload.emoji.strip()
     if emoji not in ROUND_REACTION_EMOJIS:
         raise HTTPException(status_code=422, detail="Pick one of the round reactions")
+    from ..services.round_social import comment_game
+
+    game_id = comment_game(db, comment)
+    if game_id:
+        _toggle_uuid(db, game_id, emoji, comment.id, current_user)
+        return _comment_reactions(_uuid_reactions(db, game_id), comment.id, current_user.id)
     _toggle_reaction(comment.round_date, comment.round_group, comment.location, emoji, comment.id, current_user, db)
     rows = _load_reactions(comment.round_date, comment.round_group, comment.location, db)
     return _comment_reactions(rows, comment.id, current_user.id)
+
+
+def _uuid_reactions(db, game_id):
+    from ..services.round_social import owned_rows
+
+    rows = owned_rows(db, RoundReaction, game_id).order_by(RoundReaction.created_at, RoundReaction.id).all()
+    return [(row, db.get(PlayerProfile, row.profile_id).name) for row in rows]
+
+
+@router.get("/uuid/{game_id}/discussion")
+def uuid_discussion(game_id: str, db: Session = Depends(get_db)):
+    from ..services.round_social import owned_rows, require_game
+
+    require_game(db, game_id)
+    reactions = _uuid_reactions(db, game_id)
+    comments = owned_rows(db, RoundComment, game_id).order_by(RoundComment.created_at, RoundComment.id).all()
+    return {
+        "comments": [
+            RoundCommentResponse(
+                id=c.id,
+                author_name=db.get(PlayerProfile, c.author_profile_id).name or "Player",
+                author_profile_id=c.author_profile_id,
+                body=c.body,
+                created_at=c.created_at,
+                reactions=_comment_reactions(reactions, c.id, None),
+            )
+            for c in comments
+        ],
+        "reactions": _reaction_buckets([r for r in reactions if r[0].comment_id is None], None),
+    }
+
+
+@router.post("/uuid/{game_id}/comments", response_model=RoundCommentResponse)
+def uuid_comment(
+    game_id: str,
+    payload: RoundCommentCreate,
+    current_user: PlayerProfile = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from ..services.round_social import require_game
+
+    guard_writer(db)
+    require_game(db, game_id)
+    body = payload.body.strip()
+    if not body:
+        raise HTTPException(422, "Comment cannot be blank")
+    comment = RoundComment(
+        game_id=game_id,
+        round_date=f"uuid:{game_id}",
+        round_group="",
+        location="",
+        author_profile_id=current_user.id,
+        body=body,
+        created_at=utc_now().isoformat(),
+    )
+    db.add(comment)
+    _notify_site_of_comment(comment, "Round", current_user, db)
+    db.commit()
+    db.refresh(comment)
+    return RoundCommentResponse(
+        id=comment.id,
+        author_name=current_user.name or "Player",
+        author_profile_id=current_user.id,
+        body=body,
+        created_at=comment.created_at,
+        can_delete=True,
+    )
+
+
+def _toggle_uuid(db, game_id, emoji, comment_id, current_user):
+    from ..services.round_social import owned_rows, require_game
+
+    guard_writer(db)
+    require_game(db, game_id)
+    if emoji not in ROUND_REACTION_EMOJIS:
+        raise HTTPException(422, "Pick one of the round reactions")
+    existing = (
+        owned_rows(db, RoundReaction, game_id)
+        .filter_by(comment_id=comment_id, profile_id=current_user.id, emoji=emoji)
+        .all()
+    )
+    if existing:
+        for row in existing:
+            db.delete(row)
+    else:
+        db.add(
+            RoundReaction(
+                game_id=game_id,
+                round_date=f"uuid:{game_id}",
+                round_group="",
+                location="",
+                comment_id=comment_id,
+                profile_id=current_user.id,
+                emoji=emoji,
+                created_at=utc_now().isoformat(),
+            )
+        )
+    db.commit()
+
+
+@router.post("/uuid/{game_id}/reactions", response_model=list[RoundReactionResponse])
+def uuid_reaction(
+    game_id: str,
+    payload: RoundReactionToggle,
+    current_user: PlayerProfile = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _toggle_uuid(db, game_id, payload.emoji.strip(), None, current_user)
+    return _reaction_buckets([r for r in _uuid_reactions(db, game_id) if r[0].comment_id is None], current_user.id)
 
 
 @router.get("/{date}/{group}", response_model=RoundStoryResponse)
@@ -242,6 +338,28 @@ def get_round_story(
     """Players, quarter totals, comments, and reactions for one foursome."""
     date = unquote(date)
     group = unquote(group)
+    from ..services.round_review import round_summary
+    from ..services.round_social import alias_game
+
+    resolved = alias_game(db, date, group, location)
+    if resolved:
+        from ..schemas.round_identity import RoundSummary
+
+        summary = RoundSummary(**round_summary(db, resolved))
+        discussion = uuid_discussion(resolved, db)
+        return RoundStoryResponse(
+            date=summary.raw_date or summary.played_on or date,
+            date_sortable=summary.played_on or date,
+            location=location,
+            group=group,
+            game_id=resolved,
+            players=[
+                RoundPlayerResponse(member=p.name or "Player", quarters=p.quarters, player_id=p.profile_id)
+                for p in summary.players
+                if not p.is_retracted
+            ],
+            **discussion,
+        )
     shown_date, players = _round_players(date, group, location, db)
     # Always key comments and reactions on YYYY-MM-DD, even if the URL used 6-Oct.
     key = players[0].date_sortable
@@ -281,6 +399,12 @@ def add_round_comment(
     """Signed-in players can add a note. The round must already exist."""
     date = unquote(date)
     group = unquote(group)
+    from ..services.round_social import alias_game
+
+    guard_writer(db)
+    game_id = alias_game(db, date, group, location)
+    if game_id:
+        return uuid_comment(game_id, payload, current_user, db)
     shown_date, players = _round_players(date, group, location, db)
     key = players[0].date_sortable
     comment = RoundComment(
@@ -306,62 +430,6 @@ def add_round_comment(
         can_delete=True,
         reactions=[],
     )
-
-
-def _notify_site_of_comment(
-    comment: RoundComment,
-    shown_date: str,
-    author: PlayerProfile,
-    db: Session,
-) -> None:
-    """Ping every other signed-in player. The social feed is the whole site, not the foursome.
-
-    In-app only. AI and inactive profiles have nobody watching the bell.
-    A failed fan-out must not reject a comment that already landed.
-    """
-    nested = db.begin_nested()
-    try:
-        watchers = (
-            db.query(PlayerProfile.id)
-            .filter(
-                PlayerProfile.is_active == 1,
-                PlayerProfile.is_ai == 0,
-                PlayerProfile.id != author.id,
-            )
-            .all()
-        )
-        where = shown_date or comment.round_date
-        if comment.location:
-            where = f"{where} at {comment.location}"
-        author_name = author.name or "Someone"
-        snippet = comment.body if len(comment.body) <= 80 else f"{comment.body[:77]}..."
-        message = f"{author_name} on {where}: {snippet}"
-        query = f"?location={quote(comment.location)}" if comment.location else ""
-        path = f"/rounds/{quote(comment.round_date)}/{quote(comment.round_group)}{query}"
-        created_at = utc_now().isoformat()
-        db.add_all(
-            [
-                Notification(
-                    player_profile_id=watcher_id,
-                    notification_type="round_comment",
-                    message=message,
-                    data={
-                        "path": path,
-                        "round_date": comment.round_date,
-                        "round_group": comment.round_group,
-                        "location": comment.location,
-                    },
-                    is_read=False,
-                    created_at=created_at,
-                )
-                for (watcher_id,) in watchers
-            ]
-        )
-        nested.commit()
-    except Exception:
-        # The comment itself still commits. A missed bell is better than a 500.
-        nested.rollback()
-        logger.exception("Failed to notify players of a round comment")
 
 
 def _toggle_reaction(
@@ -417,6 +485,12 @@ def toggle_round_reaction(
     emoji = payload.emoji.strip()
     if emoji not in ROUND_REACTION_EMOJIS:
         raise HTTPException(status_code=422, detail="Pick one of the round reactions")
+    from ..services.round_social import alias_game
+
+    guard_writer(db)
+    game_id = alias_game(db, date, group, location)
+    if game_id:
+        return uuid_reaction(game_id, payload, current_user, db)
     _shown_date, players = _round_players(date, group, location, db)
     key = players[0].date_sortable
     _toggle_reaction(key, group, location, emoji, None, current_user, db)

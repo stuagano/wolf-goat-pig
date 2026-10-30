@@ -42,6 +42,13 @@ def _savepoint():
 
 
 class TestRoundStory:
+    @pytest.fixture(autouse=True)
+    def legacy_writer_fence(self):
+        # These legacy unit tests mock the entire Session. Fence semantics are
+        # exercised with real sessions in social identity and migration tests.
+        with patch("app.routers.round_stories.guard_writer"):
+            yield
+
     @patch("app.routers.round_stories.profile_ids_by_member", return_value={"coulburn": 4})
     @patch("app.routers.round_stories.get_unified_data_service")
     def test_oct_6_shows_coulburn_losing_400(self, mock_service, _names):
@@ -294,7 +301,7 @@ class TestRoundStory:
 
     @patch("app.routers.round_stories.admin_role", return_value="normal")
     def test_someone_else_cannot_delete(self, _role):
-        comment = SimpleNamespace(id=9, author_profile_id=123)
+        comment = SimpleNamespace(id=9, author_profile_id=123, game_id="existing-game")
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = comment
 
@@ -314,7 +321,7 @@ class TestRoundStory:
 
     @patch("app.routers.round_stories.admin_role", return_value="admin")
     def test_admin_can_delete(self, _role):
-        comment = SimpleNamespace(id=9, author_profile_id=123)
+        comment = SimpleNamespace(id=9, author_profile_id=123, game_id="existing-game")
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = comment
 

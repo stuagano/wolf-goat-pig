@@ -50,7 +50,7 @@ function withReference(message, requestId) {
 
 // Convert internal queue payload {hole_quarters, optional_details, current_hole}
 // to the /scores API shape {holes: [...], current_hole}
-export function toScoresPayload({ hole_quarters, optional_details, current_hole }) {
+export function toScoresPayload({ hole_quarters, optional_details, current_hole, expected_revision, expected_epoch }) {
   const holes = Object.keys(hole_quarters || {}).map((holeStr) => {
     const details = (optional_details || {})[holeStr] || {};
     return {
@@ -73,7 +73,7 @@ export function toScoresPayload({ hole_quarters, optional_details, current_hole 
       carry_over_applied: details.carry_over_applied || false,
     };
   });
-  return { holes, current_hole };
+  return { holes, current_hole, expected_revision, expected_epoch };
 }
 
 /**
@@ -112,6 +112,8 @@ export function buildScoresPayloadFromLocal(localState) {
     hole_quarters,
     optional_details,
     current_hole: localState?.currentHole || 1,
+    expected_revision: localState?.expectedRevision,
+    expected_epoch: localState?.writerEpoch,
   };
 }
 
@@ -127,6 +129,9 @@ const STORAGE_KEYS = {
 // Sync status for event listeners
 let syncListeners = [];
 let isProcessing = false;
+// Only an edit merged while this exact predecessor is in flight inherits its
+// acknowledgement. Old/offline snapshots are never rebased just by game ID.
+const inFlightScores = new Map();
 let retryTimeoutId = null;
 // Bounded receipts for mounted editors, keyed to the exact uploaded queue
 // revision. These are observations, not a second queue or a persistence claim.
@@ -242,6 +247,7 @@ export function queueSync(gameId, type, payload, options = {}) {
     createdAt: new Date().toISOString(),
     attempts: 0,
     lastAttempt: null,
+    requestKey: options.requestKey || crypto.randomUUID(),
     priority: options.priority || 'normal', // 'high', 'normal', 'low'
     ...options,
     version: 1,
@@ -251,7 +257,8 @@ export function queueSync(gameId, type, payload, options = {}) {
   // This prevents duplicate syncs if user submits multiple holes while offline
   if (type === 'scores') {
     const existingIndex = queue.findIndex(
-      item => item.gameId === gameId && item.type === 'scores'
+      item => item.gameId === gameId && item.type === 'scores' && !item.reviewRequired &&
+        item.payload.expected_epoch === payload.expected_epoch
     );
     
     if (existingIndex >= 0) {
@@ -259,6 +266,7 @@ export function queueSync(gameId, type, payload, options = {}) {
       const existing = queue[existingIndex];
       const mergedPayload = {
         ...existing.payload,
+        expected_revision: payload.expected_revision ?? existing.payload.expected_revision,
         hole_quarters: {
           ...existing.payload.hole_quarters,
           ...payload.hole_quarters,
@@ -272,9 +280,24 @@ export function queueSync(gameId, type, payload, options = {}) {
           payload.current_hole || 0
         ),
       };
+      // A drain may still be awaiting another game after this predecessor's
+      // request has finished. Keep the earlier proof until settlement, but only
+      // across the same key/baseline; a stale replacement cannot inherit it.
+      const predecessor = inFlightScores.get(existing.id) || existing.predecessor;
+      const inheritsPredecessor = predecessor &&
+        predecessor.requestKey === existing.requestKey &&
+        predecessor.version <= (existing.version || 1) &&
+        predecessor.expectedRevision === existing.payload.expected_revision &&
+        predecessor.expectedRevision === mergedPayload.expected_revision;
+      // A rejection carries its evidence onto the merged item: pending local
+      // work stays in one place and stays held for review, never auto-retried.
       queue[existingIndex] = {
         ...existing,
+        ...(options.reviewRequired
+          ? { reviewRequired: true, review: options.review, lastError: options.lastError || existing.lastError }
+          : {}),
         payload: mergedPayload,
+        predecessor: inheritsPredecessor ? predecessor : null,
         version: (existing.version || 1) + 1,
         updatedAt: new Date().toISOString(),
       };
@@ -342,6 +365,7 @@ export async function processQueue(options = {}) {
   const API_URL = apiConfig.baseUrl;
 
   for (const item of queue) {
+    if (item.reviewRequired) { updatedQueue.push(item); continue; }
     try {
       // Build the endpoint URL based on type
       let url, method, body;
@@ -353,7 +377,7 @@ export async function processQueue(options = {}) {
           body = JSON.stringify(toScoresPayload(item.payload));
           break;
         case 'complete-game':
-          url = `${API_URL}/games/${item.gameId}/complete`;
+          url = `${API_URL}/games/${item.gameId}/complete${Number.isInteger(item.payload?.expected_epoch) ? `?expected_epoch=${item.payload.expected_epoch}` : ''}`;
           method = 'POST';
           body = JSON.stringify(item.payload || {});
           break;
@@ -365,10 +389,14 @@ export async function processQueue(options = {}) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), QUEUE_TIMEOUT_MS);
 
+      if (item.type === 'scores') inFlightScores.set(item.id, {
+        version: item.version || 1, requestKey: item.requestKey, expectedRevision: item.payload.expected_revision,
+      });
       const response = await authenticatedFetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
+          'Idempotency-Key': item.requestKey,
           ...(item.type === 'scores' ? { 'X-Request-ID': newRequestId() } : {}),
         },
         body,
@@ -378,6 +406,12 @@ export async function processQueue(options = {}) {
       clearTimeout(timeoutId);
 
       if (response.ok) {
+        const accepted = await response.json().catch(() => ({}));
+        const local = loadLocalGameState(item.gameId);
+        if (local && Number.isInteger(accepted.revision)) {
+          saveLocalGameState(item.gameId, { ...local, expectedRevision: accepted.revision, gameStatus: accepted.game_status || local.gameStatus });
+        }
+        item.acceptedRevision = accepted.revision;
         recordQueueOutcome(item, 'synced');
         results.synced++;
         // Update last sync time
@@ -393,6 +427,17 @@ export async function processQueue(options = {}) {
           safeRequestId(response.headers?.get?.('X-Request-ID')),
         );
         
+        if (response.status === 409) {
+          item.reviewRequired = true;
+          item.review = errorData.detail || errorData;
+          item.lastError = 'Round changed. Review or reload before submitting again; your pending edits are retained.';
+          updatedQueue.push(item);
+          recordQueueOutcome(item, 'rejected', item.lastError);
+          const errors = getSyncErrors();
+          errors.push({ queueId: item.id, queueVersion: item.version || 1, gameId: item.gameId, error: item.lastError });
+          syncStore.set(STORAGE_KEYS.SYNC_ERRORS, errors.slice(-10));
+          continue;
+        }
         // Don't retry client errors (4xx) except 408 (timeout) and 429 (rate limit)
         if (response.status >= 400 && response.status < 500 && 
             response.status !== 401 && response.status !== 403 &&
@@ -429,6 +474,8 @@ export async function processQueue(options = {}) {
       const message =
         error.name === 'AbortError' ? 'Request timed out' : error.message;
       requeueForRetry(item, message, updatedQueue, results);
+    } finally {
+      inFlightScores.delete(item.id);
     }
   }
 
@@ -436,7 +483,18 @@ export async function processQueue(options = {}) {
   // settle the exact revisions in this drain's snapshot.
   const remainingQueue = getSyncQueue().flatMap(current => {
     const attempted = queue.find(item => item.id === current.id);
-    if (!attempted || (current.version || 1) !== (attempted.version || 1)) return [current];
+    if (!attempted) return [current];
+    if ((current.version || 1) !== (attempted.version || 1)) {
+      if (attempted.reviewRequired) return [{ ...current, reviewRequired: true, review: attempted.review, lastError: attempted.lastError }];
+      const parent = current.predecessor;
+      if (!current.reviewRequired && Number.isInteger(attempted.acceptedRevision) &&
+          parent?.version === (attempted.version || 1) && parent?.requestKey === attempted.requestKey &&
+          parent?.expectedRevision === current.payload.expected_revision &&
+          parent?.expectedRevision === attempted.payload.expected_revision) {
+        return [{ ...current, predecessor: null, payload: { ...current.payload, expected_revision: attempted.acceptedRevision } }];
+      }
+      return [current];
+    }
     const retry = updatedQueue.find(item => item.id === current.id);
     return retry ? [retry] : [];
   });
@@ -446,7 +504,7 @@ export async function processQueue(options = {}) {
   notifyListeners();
 
   // Schedule retry for remaining items with exponential backoff
-  if (remainingQueue.length > 0 && navigator.onLine) {
+  if (remainingQueue.some(item => !item.reviewRequired) && navigator.onLine) {
     const maxAttempts = Math.max(...remainingQueue.map(i => i.attempts));
     const delay = Math.min(30000, 2000 * Math.pow(2, Math.max(0, maxAttempts - 1)));
     scheduleProcessing(delay);
@@ -592,8 +650,11 @@ export function setupAutoSync(fetchWithAuth) {
  * @param {number} currentHole - Current hole number
  * @returns {Promise<Object>} Result with success status
  */
-export async function syncHoleData(gameId, holeQuarters, optionalDetails, currentHole) {
+export async function syncHoleData(gameId, holeQuarters, optionalDetails, currentHole, expectedRevision) {
+  const requestKey = crypto.randomUUID();
   const payload = {
+    expected_revision: expectedRevision ?? loadLocalGameState(gameId)?.expectedRevision,
+    expected_epoch: loadLocalGameState(gameId)?.writerEpoch,
     hole_quarters: holeQuarters,
     optional_details: optionalDetails,
     current_hole: currentHole,
@@ -601,7 +662,7 @@ export async function syncHoleData(gameId, holeQuarters, optionalDetails, curren
 
   // If offline, queue immediately
   if (!navigator.onLine) {
-    const queueId = queueSync(gameId, 'scores', payload);
+    const queueId = queueSync(gameId, 'scores', payload, { requestKey });
     return {
       success: true,
       queued: true,
@@ -624,6 +685,7 @@ export async function syncHoleData(gameId, holeQuarters, optionalDetails, curren
       headers: {
         'Content-Type': 'application/json',
         'X-Request-ID': requestId,
+        'Idempotency-Key': requestKey,
       },
       body: JSON.stringify(toScoresPayload(payload)),
       signal: controller.signal,
@@ -632,6 +694,11 @@ export async function syncHoleData(gameId, holeQuarters, optionalDetails, curren
     clearTimeout(timeoutId);
 
     if (response.ok) {
+      const accepted = await response.json().catch(() => ({}));
+      const local = loadLocalGameState(gameId);
+      if (local && Number.isInteger(accepted.revision)) {
+        saveLocalGameState(gameId, { ...local, expectedRevision: accepted.revision, gameStatus: accepted.game_status || local.gameStatus });
+      }
       syncStore.set(STORAGE_KEYS.LAST_SYNC, new Date().toISOString());
       notifyListeners();
       return {
@@ -649,6 +716,11 @@ export async function syncHoleData(gameId, holeQuarters, optionalDetails, curren
       responseId,
     );
     
+    if (response.status === 409) {
+      const message = 'Round changed. Review or reload before submitting again; your pending edits are retained.';
+      const queueId = queueSync(gameId, 'scores', payload, { requestKey, reviewRequired: true, review: errorData.detail || errorData });
+      return { success: false, reviewRequired: true, queueId, error: message, permanent: true };
+    }
     // Don't queue client errors that won't succeed on retry
     if (response.status >= 400 && response.status < 500 && 
         response.status !== 401 && response.status !== 403 &&
@@ -662,7 +734,7 @@ export async function syncHoleData(gameId, holeQuarters, optionalDetails, curren
     }
     
     // Queue for retry
-    const queueId = queueSync(gameId, 'scores', payload);
+    const queueId = queueSync(gameId, 'scores', payload, { requestKey });
     return {
       success: true,
       queued: true,
@@ -674,7 +746,7 @@ export async function syncHoleData(gameId, holeQuarters, optionalDetails, curren
 
   } catch (error) {
     // Network error - queue for retry
-    const queueId = queueSync(gameId, 'scores', payload);
+    const queueId = queueSync(gameId, 'scores', payload, { requestKey });
     return {
       success: true,
       queued: true,
@@ -775,6 +847,9 @@ export function hasPendingSyncForGame(gameId) {
  */
 export function ensureScoresQueued(gameId, serverState = null) {
   const localState = loadLocalGameState(gameId);
+  if (!serverState || serverState.gameStatus === 'completed' || localState?.gameStatus === 'completed' ||
+      localState?.currentHole > 18 || serverState.expectedRevision !== localState?.expectedRevision ||
+      serverState.writerEpoch !== localState?.writerEpoch) return false;
   const needsSync =
     hasPendingSyncForGame(gameId) ||
     localHasUnsyncedHoles(localState, serverState);
@@ -805,7 +880,22 @@ export function ensureScoresQueued(gameId, serverState = null) {
  * ({ holeHistory, currentHole, playerStandings }), mapped from GET /state.
  */
 export function reconcileOnLoad(gameId, serverState) {
+  if (!serverState) return;
   const localState = loadLocalGameState(gameId);
+  const queue = getSyncQueue();
+  let changed = false;
+  queue.forEach(item => {
+    const staleEpoch = item.payload.expected_epoch !== serverState.writerEpoch;
+    if (item.gameId === gameId && (serverState.gameStatus === 'completed' || staleEpoch ||
+        item.payload.expected_revision !== serverState.expectedRevision)) {
+      item.reviewRequired = true;
+      item.lastError = staleEpoch
+        ? 'Round storage was migrated. Pending edits retained for review before resubmitting.'
+        : 'Server round changed. Pending edits retained for review.';
+      changed = true;
+    }
+  });
+  if (changed) { persistQueue(queue); notifyListeners(); }
   if (hasPendingSyncForGame(gameId) || localHasUnsyncedHoles(localState, serverState)) {
     ensureScoresQueued(gameId, serverState);
     return;

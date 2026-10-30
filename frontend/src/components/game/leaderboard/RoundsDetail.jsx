@@ -62,10 +62,11 @@ export default function RoundsDetail({ games }) {
                 <div className="text-sm text-gray-600">{game.location || 'Unknown location'}</div>
               </div>
               <div className="mt-2 flex flex-wrap gap-2">
-                {game.players.map((player) => (
-                  <span key={player.member} className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-sm">
+                {game.score_eligible === false && <p>Incomplete — excluded from score standings</p>}
+                {game.players.map((player, index) => (
+                  <span key={player.participant_id || `${game.game_id}-${index}`} className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-sm">
                     <PlayerName name={player.member} playerId={player.player_id} className="font-medium text-gray-900" />
-                    <span className="text-gray-600">{player.quarters}</span>
+                    <span className="text-gray-600">{player.quarters ?? 'Not recorded'}</span>
                   </span>
                 ))}
               </div>

@@ -196,7 +196,7 @@ describe('correction save through the real handler and editor', () => {
       vi.stubGlobal('navigator', { onLine: false });
       let resolveAttempt;
       const fetchWithAuth = vi.fn().mockImplementationOnce(() => new Promise(resolve => { resolveAttempt = resolve; }))
-        .mockResolvedValue({ ok: true });
+        .mockResolvedValue({ ok: true, json: async () => ({ revision: 1 }) });
       cleanupSync = syncManager.setupAutoSync(fetchWithAuth);
       render(<Harness syncHole={(...args) => syncManager.syncHoleData('versioned-save', ...args)} />);
       submit();
@@ -208,7 +208,7 @@ describe('correction save through the real handler and editor', () => {
       fireEvent.change(strokesInput(), { target: { value: '7' } });
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
       await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/pending sync/i));
-      await act(async () => { resolveAttempt({ ok: true }); await drain; });
+      await act(async () => { resolveAttempt({ ok: true, json: async () => ({ revision: 1 }) }); await drain; });
       expect(screen.getByRole('status')).toHaveTextContent(/pending sync/i);
       expect(syncManager.getSyncQueue()[0].payload.optional_details['1'].gross_scores.p1).toBe(7);
       vi.stubGlobal('navigator', { onLine: true });
@@ -219,7 +219,7 @@ describe('correction save through the real handler and editor', () => {
 
     test('a superseded revision is unconfirmed, not marked saved by a different revision', async () => {
       vi.stubGlobal('navigator', { onLine: false });
-      cleanupSync = syncManager.setupAutoSync(async () => ({ ok: true }));
+      cleanupSync = syncManager.setupAutoSync(async () => ({ ok: true, json: async () => ({ revision: 1 }) }));
       render(<Harness syncHole={(...args) => syncManager.syncHoleData('superseded-save', ...args)} />);
       submit();
       await screen.findByRole('status');
@@ -322,7 +322,7 @@ describe('correction save through the real handler and editor', () => {
 
   test('real HTTP acknowledgement updates rendered state and closes the editor', async () => {
     vi.stubGlobal('navigator', { onLine: true });
-    cleanupSync = syncManager.setupAutoSync(async () => ({ ok: true, headers: new Headers() }));
+    cleanupSync = syncManager.setupAutoSync(async () => ({ ok: true, headers: new Headers(), json: async () => ({ revision: 1 }) }));
     render(<CorrectionHarness syncHole={(...args) => syncManager.syncHoleData('correction-game', ...args)} />);
     editAndSave();
     await waitFor(() => expect(screen.queryByLabelText('Alice strokes')).toBeNull());

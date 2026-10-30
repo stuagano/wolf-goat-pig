@@ -2,6 +2,7 @@
 
 import logging
 import math
+from copy import deepcopy
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,7 +12,13 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from .. import database, models
 from ..observability.score_save import log_score_commit
-from ..services.completed_game_service import REQUIRED_HOLES, persist_completed_game, validate_round_scores
+from ..services.completed_game_service import (
+    REQUIRED_HOLES,
+    merge_hole_history,
+    persist_completed_game,
+    validate_round_scores,
+)
+from ..services.round_writes import check_revision, propose_completed, writer_mode
 from ..utils.round_card import require_round_member_or_admin
 from ..utils.time import utc_now
 
@@ -53,6 +60,8 @@ class HoleScore(BaseModel):
 class ScoresRequest(BaseModel):
     holes: list[HoleScore]
     current_hole: int = 18
+    expected_revision: int | None = None
+    expected_epoch: int | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -61,14 +70,18 @@ class ScoresRequest(BaseModel):
 
 
 @router.delete("/{game_id}/holes/{hole_number}", dependencies=[Depends(require_round_member_or_admin)])
-async def delete_hole(game_id: str, hole_number: int, db: Session = Depends(database.get_db)):  # type: ignore
+async def delete_hole(
+    game_id: str, hole_number: int, expected_revision: int | None = None, db: Session = Depends(database.get_db)
+):  # type: ignore
     """
     Delete a hole's data. Removes from hole_events (source of truth) and from
     the game state hole_history blob. Recalculates standings from what remains.
     """
-    game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
+    writer_mode(db)
+    game = db.query(models.GameStateModel).filter_by(game_id=game_id).populate_existing().first()
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
+    check_revision(db, game, expected_revision)
 
     if game.game_status == "completed":
         raise HTTPException(
@@ -99,28 +112,38 @@ async def delete_hole(game_id: str, hole_number: int, db: Session = Depends(data
     for p in state.get("players", []):
         p["total_points"] = standings.get(p.get("id"), 0)
 
+    state["hole_quarters"] = {str(h["hole"]): h["points_delta"] for h in state["hole_history"]}
     flag_modified(game, "state")
     game.updated_at = utc_now().isoformat()
+    game.revision = (game.revision or 0) + 1
+    revision = game.revision
     db.commit()
 
     logger.info(f"Deleted hole {hole_number} from game {game_id}")
-    return {"success": True, "game_id": game_id, "hole_number": hole_number}
+    return {"success": True, "game_id": game_id, "hole_number": hole_number, "revision": revision}
 
 
-@router.post("/{game_id}/scores", dependencies=[Depends(require_round_member_or_admin)])
-async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depends(database.get_db)):
-    """Submit hole scores for a game. Each hole must sum to zero. Upserts — safe to call repeatedly."""
+@router.post("/{game_id}/scores")
+async def save_scores(
+    game_id: str,
+    request: ScoresRequest,
+    db: Session = Depends(database.get_db),
+    editor: models.PlayerProfile = Depends(require_round_member_or_admin),
+):
+    """Replace the full scored-hole snapshot (not a one-hole patch)."""
     try:
-        game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
+        from ..services.round_cutover import guard_client_epoch
+
+        mode = guard_client_epoch(db, request.expected_epoch).mode
+        game = (
+            db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).populate_existing().first()
+        )
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
 
-        # Collapse duplicate hole entries within this payload (last write wins).
-        # Offline sync can replay a hole, sending the same hole_number twice in
-        # one request. Left unmerged that double-counts standings (inflated money)
-        # and crashes the hole_events upsert on the (game,hole,player) unique
-        # constraint. Dedup by hole_number, preserving first-seen order.
-        holes = list({h.hole_number: h for h in request.holes}.values())
+        # Replays are safe across requests, but competing entries within one
+        # request are ambiguous and must be rejected rather than last-write-wins.
+        holes = request.holes
         validate_round_scores(
             (game.state or {}).get("players", []),
             [{"hole": h.hole_number, "points_delta": h.quarters} for h in holes],
@@ -135,6 +158,34 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
         ]
         if errors:
             raise HTTPException(status_code=400, detail=f"Zero-sum validation failed: {'; '.join(errors)}")
+
+        check_revision(
+            db, game, request.expected_revision, required=mode == "canonical" and game.game_status == "completed"
+        )
+        if mode == "canonical" and game.game_status == "completed":
+            proposed_history = merge_hole_history(
+                (game.state or {}).get("hole_history", []),
+                [
+                    {
+                        "hole": h.hole_number,
+                        "points_delta": h.quarters,
+                        **h.model_dump(exclude={"hole_number", "quarters"}, exclude_none=True),
+                    }
+                    for h in holes
+                ],
+            )
+            detail = propose_completed(db, game, proposed_history, editor.id)
+            db.commit()
+            if detail["issue_ids"]:
+                raise HTTPException(409, detail)
+            return {
+                "success": True,
+                "game_id": game_id,
+                "revision": detail["revision"],
+                "status": "unchanged",
+                "issue_ids": [],
+                "game_status": "completed",
+            }
 
         # Calculate standings
         standings: dict[str, float] = {}
@@ -202,6 +253,10 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
             }
             for h in sorted(holes, key=lambda x: x.hole_number)
         ]
+        submitted_holes = {h["hole"] for h in hole_history}
+        hole_history = merge_hole_history(
+            [h for h in game_state.get("hole_history", []) if h["hole"] in submitted_holes], hole_history
+        )
         game_state["hole_history"] = hole_history
 
         holes_with_data = len(holes)
@@ -232,8 +287,13 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
         results_created = 0
         if game_complete:
             results_created = persist_completed_game(db, game)
-        else:
-            db.commit()
+            standings = dict(game.state["standings"])
+        if "hole_quarters" in game.state:
+            game.state["hole_quarters"] = {str(h["hole"]): dict(h["points_delta"]) for h in game.state["hole_history"]}
+        if not game_complete:
+            game.revision = (game.revision or 0) + 1
+        revision = game.revision
+        db.commit()
         # Only now is the write provable.
         log_score_commit()
 
@@ -244,6 +304,9 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
             "standings": standings,
             "game_status": saved_status,
             "results_created": results_created,
+            "revision": revision,
+            "status": "accepted",
+            "issue_ids": [],
         }
 
     except HTTPException:
@@ -265,24 +328,28 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
 class HoleEventPatch(BaseModel):
     score: int | None = None  # gross score — omit to leave unchanged
     quarters: float | None = None  # quarters won/lost — omit to leave unchanged
+    expected_revision: int | None = None
 
 
-@router.patch(
-    "/{game_id}/holes/{hole_number}/players/{player_id}", dependencies=[Depends(require_round_member_or_admin)]
-)
+@router.patch("/{game_id}/holes/{hole_number}/players/{player_id}")
 async def patch_hole_event(
     game_id: str,
     hole_number: int,
     player_id: str,
     patch: HoleEventPatch,
     db: Session = Depends(database.get_db),
+    editor: models.PlayerProfile = Depends(require_round_member_or_admin),
 ) -> dict[str, Any]:
     """Independently correct a player's score or quarters for a single hole."""
     if patch.score is None and patch.quarters is None:
         raise HTTPException(status_code=400, detail="Provide at least one of: score, quarters")
 
-    game = db.query(models.GameStateModel).filter_by(game_id=game_id).first()
-    state = game.state or {}
+    mode = writer_mode(db)
+    game = db.query(models.GameStateModel).filter_by(game_id=game_id).populate_existing().first()
+    if game is None:
+        raise HTTPException(404, "Game not found")
+    check_revision(db, game, patch.expected_revision, required=mode == "canonical" and game.game_status == "completed")
+    state = deepcopy(game.state or {})
     if player_id not in {p.get("id") for p in state.get("players", [])} or hole_number not in REQUIRED_HOLES:
         raise HTTPException(status_code=400, detail="Unknown player or hole")
     if patch.quarters is not None and not math.isfinite(patch.quarters):
@@ -293,6 +360,16 @@ async def patch_hole_event(
     if entry is None:
         entry = {"hole": hole_number, "points_delta": {}}
         history.append(entry)
+
+    if mode == "canonical" and game.game_status == "completed":
+        if patch.quarters is not None:
+            entry.setdefault("points_delta", {})[player_id] = patch.quarters
+        if patch.score is not None:
+            entry["gross_scores"] = {**(entry.get("gross_scores") or {}), player_id: patch.score}
+        validate_round_scores(state["players"], history)
+        detail = propose_completed(db, game, history, editor.id)
+        db.commit()
+        raise HTTPException(409, detail)
 
     existing = (
         db.query(models.HoleEvent)
@@ -338,12 +415,16 @@ async def patch_hole_event(
         player["total_points"] = standings.get(player["id"], 0)
     game.state = state
     flag_modified(game, "state")
+    saved_score = existing.score
+    saved_quarters = existing.quarters
     try:
         if game.game_status == "completed":
             validate_round_scores(state["players"], history)
             persist_completed_game(db, game)
         else:
-            db.commit()
+            game.revision = (game.revision or 0) + 1
+        revision = game.revision
+        db.commit()
     except Exception:
         db.rollback()
         raise
@@ -352,8 +433,9 @@ async def patch_hole_event(
         "game_id": game_id,
         "hole_number": hole_number,
         "player_id": player_id,
-        "score": patch.score if patch.score is not None else (existing.score if existing else None),
-        "quarters": patch.quarters if patch.quarters is not None else (existing.quarters if existing else 0.0),
+        "score": saved_score,
+        "quarters": saved_quarters,
+        "revision": revision,
     }
 
 

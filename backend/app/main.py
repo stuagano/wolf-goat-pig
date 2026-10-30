@@ -263,6 +263,7 @@ app.add_middleware(
         "X-Admin-Key",
         "X-Requested-With",
         "X-Request-ID",
+        "Idempotency-Key",
         "Origin",
         "Access-Control-Request-Method",
         "Access-Control-Request-Headers",
@@ -289,8 +290,9 @@ from .routers import unified_data
 
 app.include_router(unified_data.router)
 
-from .routers import round_stories
+from .routers import round_reconciliation, round_stories
 
+app.include_router(round_reconciliation.router)
 app.include_router(round_stories.router)
 
 # Include modular routers

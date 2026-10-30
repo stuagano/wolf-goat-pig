@@ -1,7 +1,7 @@
-"""Conservative associations between sheet summaries and saved scorecards.
+"""Persisted source identity and globally serialized candidate discovery.
 
-Score suppression is deliberately separate: historical imports can be approximate,
-whereas a link or per-hole detail must never be borrowed from a guessed game.
+Legacy summary helpers below remain pre-cutover compatibility only. They are
+never evidence for canonical binding and are retired with the legacy readers.
 """
 
 import re
@@ -12,6 +12,316 @@ if TYPE_CHECKING:
     from .unified_data_service import UnifiedRound
 
 _CLUB_SUFFIX = re.compile(r"(\s+(golf|country|club|course|&|and|g&cc|gcc|gc|cc))+$")
+
+
+def acquire_reconciliation_lock(db) -> None:
+    """One application transaction lock, before fresh candidate reads.
+
+    SQLite test fixtures serialize transactions themselves; this is not a
+    substitute for PostgreSQL concurrency verification.
+    """
+    from sqlalchemy import text
+
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": 870284190311})
+        # All converted callers retain this shared configuration row lock until
+        # their outer commit/rollback. The offline cutover upgrades it exclusively.
+        db.execute(text("SELECT name FROM app_config WHERE name = 'round_identity' FOR SHARE"))
+
+
+def resolve_round_alias(db, date_key: str, group: str, location: str) -> list[str]:
+    from app.models import RoundAlias
+
+    return sorted(
+        {r.game_id for r in db.query(RoundAlias).filter_by(date_key=date_key, group=group, location=location).all()}
+    )
+
+
+def candidate_games(db, draft) -> list[str]:
+    """Conservative identity candidates, never score matching or auto-binding."""
+    from app import models
+
+    candidates = set()
+    for record in db.query(models.GameRecord).populate_existing().all():
+        if draft.played_on and record.played_on and draft.played_on != record.played_on:
+            continue
+        if (
+            draft.course_name
+            and record.course_name
+            and course_name(draft.course_name) != course_name(record.course_name)
+        ):
+            continue
+        candidates.add(record.game_id)
+    # Include live containers and orphan UUIDs lacking a record. Unknown dates
+    # cannot evade coordination, and no total signature grants identity.
+    for game in db.query(models.GameStateModel).populate_existing().all():
+        if db.query(models.GameRecord).filter_by(game_id=game.game_id).first() is None:
+            candidates.add(game.game_id)
+    return sorted(candidates)
+
+
+def retain_alias(db, game_id, draft):
+    from app.models import RoundAlias
+
+    for key in {draft.raw_date, draft.played_on.isoformat() if draft.played_on else None} - {None}:
+        values = {"date_key": key, "group": draft.group or "", "location": draft.course_name or "", "game_id": game_id}
+        if db.query(RoundAlias).filter_by(**values).first() is None:
+            db.add(RoundAlias(**values, evidence={"kind": "accepted_projection"}))
+    db.flush()
+
+
+def sync_round_snapshot(db, snapshot):
+    """One complete-snapshot boundary, committing only whole source rounds.
+
+    Production continuity requires reviewed snapshot evidence. Repetition can
+    replay trusted evidence, but a changed token/data association cannot fill
+    even an unknown accepted field without review (Gate B remains unsatisfied).
+    """
+    from sqlalchemy.orm import Session
+
+    from app import models
+    from app.schemas.round_identity import IngestOutcome, RoundDraft, SourceRef, read_round_identity_config
+
+    from . import spreadsheet_sync_service as sheet
+    from .round_reconciliation import observe_round
+    from .round_source_lease import SourceLeaseLostError, fence, heartbeat, source_lease
+
+    if not snapshot.complete or snapshot.errors or not snapshot.rounds:
+        return [IngestOutcome(status="held")]
+    engine = db.get_bind()
+    # Caller may have read configuration, but must not carry a transaction or
+    # stale identity map across network reads / dedicated lease ownership.
+    if db.new or db.dirty or db.deleted:
+        raise ValueError("Snapshot ingestion requires a clean caller session")
+    db.rollback()
+    outcomes = []
+    try:
+        with source_lease(engine, snapshot.scope) as lease:
+            with Session(engine) as config_db:
+                config = read_round_identity_config(config_db)
+                epoch = config.epoch
+                approval = config_db.get(models.AppConfig, "round_source_reviews")
+                reviewed = (approval.value if approval else {}).get(snapshot.scope, {})
+                approved = reviewed.get("fingerprint") == snapshot.fingerprint and bool(
+                    reviewed.get("reviewer_profile_id")
+                )
+            if config.mode != "canonical" or config.season != snapshot.season_year:
+                return [IngestOutcome(status="held")]
+            # Resolve immutable exact-snapshot mappings before source lookup or
+            # disappearance accounting, independently of the mutable review doc.
+            with Session(engine) as known_db:
+                known = [
+                    (r.round_token, r.id)
+                    for r in known_db.query(models.RoundSource).filter_by(kind="sheet", scope=snapshot.scope)
+                ]
+                evidence = (
+                    known_db.query(models.RoundObservation)
+                    .join(models.RoundSource)
+                    .filter(models.RoundSource.kind == "sheet", models.RoundSource.scope == snapshot.scope)
+                    .all()
+                )
+                prior_snapshot = [
+                    o
+                    for o in evidence
+                    if o.raw_payload.get("payload", {}).get("snapshot_fingerprint") == snapshot.fingerprint
+                ]
+                durable = {
+                    o.raw_payload["payload"]["snapshot_mapping"]["observation_key"]: o.raw_payload["payload"][
+                        "snapshot_mapping"
+                    ]
+                    for o in prior_snapshot
+                    if o.continuity_verified and o.raw_payload.get("payload", {}).get("snapshot_mapping")
+                }
+            work = []
+            for item in snapshot.rounds:
+                binding = durable.get(item.observation_key) or (
+                    reviewed.get("round_bindings", {}).get(item.observation_key) if approved else None
+                )
+                if binding:
+                    from dataclasses import replace
+
+                    slots = binding.get("participant_ids", [])
+                    if len(slots) != len(item.draft.players) or not binding.get("round_token"):
+                        return [IngestOutcome(status="held")]
+                    draft_data = item.draft.model_dump(mode="json")
+                    for player, slot in zip(draft_data["players"], slots, strict=True):
+                        player["participant_id"] = slot
+                    raw = {
+                        **item.raw_payload,
+                        "snapshot_mapping": {
+                            "observation_key": item.observation_key,
+                            "round_token": binding["round_token"],
+                            "participant_ids": slots,
+                        },
+                    }
+                    raw["parse_errors"] = [e for e in raw.get("parse_errors", []) if e != "missing_participant_token"]
+                    item = replace(
+                        item,
+                        source=SourceRef(kind="sheet", scope=snapshot.scope, round_token=binding["round_token"]),
+                        draft=RoundDraft.model_validate(draft_data),
+                        raw_payload=raw,
+                        continuity_verified=True,
+                    )
+                work.append(item)
+            present = {r.source.round_token for r in work}
+            for token, source_id in known:
+                if token in present:
+                    continue
+                with Session(engine) as evidence_db:
+                    old = next(
+                        (
+                            o
+                            for o in evidence_db.query(models.RoundObservation)
+                            .filter_by(source_id=source_id)
+                            .order_by(models.RoundObservation.observed_at.desc())
+                            if o.parsed_values is not None
+                        ),
+                        None,
+                    )
+                    if old:
+                        work.append(
+                            sheet.SheetRound(
+                                SourceRef(kind="sheet", scope=snapshot.scope, round_token=token),
+                                RoundDraft.model_validate(old.parsed_values),
+                                {
+                                    "parse_errors": ["source_round_missing"],
+                                    "snapshot_fingerprint": snapshot.fingerprint,
+                                },
+                                f"missing:{snapshot.fingerprint}:{token}",
+                                False,
+                            )
+                        )
+            for item in work:
+                heartbeat(engine, lease)
+                # Sheets has no atomic revision precondition: content and grid
+                # are read again under lease outside the game transaction.
+                from .round_sheet_contract import approved_contract
+
+                with Session(engine) as contract_db:
+                    contract = approved_contract(contract_db, snapshot.scope)
+                current = sheet.fetch_round_snapshot(
+                    snapshot.scope, season_year=snapshot.season_year, **({"contract": contract} if contract else {})
+                )
+                if (
+                    not current.complete
+                    or current.errors
+                    or current.source_version != snapshot.source_version
+                    or current.fingerprint != snapshot.fingerprint
+                ):
+                    outcomes.append(IngestOutcome(status="held"))
+                    break
+                with Session(engine) as tx:
+                    with tx.begin():
+                        lease_row = fence(tx, lease)
+                        acquire_reconciliation_lock(tx)
+                        # A cutover update cannot race between this epoch check
+                        # and publication of the whole round.
+                        tx.query(models.AppConfig).filter_by(name="round_identity").with_for_update().one()
+                        fresh = read_round_identity_config(tx)
+                        if fresh.mode != "canonical" or fresh.epoch != epoch or fresh.season != snapshot.season_year:
+                            raise SourceLeaseLostError("Writer fence advanced")
+                        row = tx.query(models.RoundSource).filter_by(**item.source.model_dump()).one_or_none()
+                        game = (
+                            tx.query(models.GameStateModel).filter_by(game_id=row.game_id).one_or_none()
+                            if row and row.game_id
+                            else None
+                        )
+                        before_revision = game.revision if game else None
+                        publication = (row.binding_evidence or {}).get("sheet_publication", {}) if row else {}
+                        seen_generations = [
+                            o.raw_payload.get("payload", {}).get("connector_generation", 0)
+                            for o in evidence
+                            if row
+                            and o.source_id == row.id
+                            and o.raw_payload.get("payload", {}).get("snapshot_fingerprint") == snapshot.fingerprint
+                        ]
+                        if (
+                            seen_generations
+                            and publication.get("snapshot_fingerprint") != snapshot.fingerprint
+                            and max(seen_generations) < publication.get("generation", 0)
+                        ):
+                            outcomes.append(IngestOutcome(status="held", game_id=row.game_id))
+                            continue
+                        trusted = approved or (
+                            bool(item.raw_payload.get("snapshot_mapping")) and item.continuity_verified
+                        )
+                        if contract and row:
+                            from .round_evidence import fingerprint
+
+                            # Only the exact verified outbound snapshot/payload is an
+                            # authorized echo. A valid operation marker alone is not.
+                            echoes = (
+                                tx.query(models.PendingSheetSync)
+                                .filter_by(
+                                    game_id=row.game_id,
+                                    source_scope=snapshot.scope,
+                                    source_round_token=item.source.round_token,
+                                    status="done",
+                                )
+                                .all()
+                            )
+                            trusted = trusted or any(
+                                job.verified_readback
+                                and job.verified_readback.get("operation") == job.operation_key
+                                and job.verified_readback.get("payload_fingerprint") == job.payload_fingerprint
+                                and job.verified_readback.get("round_fingerprint")
+                                == fingerprint(item.raw_payload.get("rows"))
+                                for job in echoes
+                            )
+                        if snapshot.scope.startswith("fixture:") and row is None:
+                            trusted = item.continuity_verified
+                        if row:
+                            prior = (
+                                tx.query(models.RoundObservation)
+                                .filter_by(source_id=row.id, continuity_verified=True)
+                                .all()
+                            )
+                            trusted = trusted or any(
+                                o.raw_payload.get("payload", {}).get("snapshot_fingerprint") == snapshot.fingerprint
+                                for o in prior
+                            )
+                        raw = {
+                            **item.raw_payload,
+                            "snapshot_fingerprint": snapshot.fingerprint,
+                            "connector_generation": lease[2],
+                        }
+                        from .round_sheet_values import mapped_draft
+
+                        outcome = observe_round(
+                            tx,
+                            item.source,
+                            mapped_draft(row, item.draft) if row else item.draft,
+                            observation_key=f"{lease[2]}:{item.observation_key}",
+                            raw_payload=raw,
+                            continuity_verified=trusted and not raw.get("parse_errors"),
+                        )
+                        # A held outcome can still publish safe unknown-field
+                        # fills before raising another field/integrity issue.
+                        # Track actual accepted revision changes per source, not
+                        # status or the lease's merely processed fingerprint.
+                        published_source = tx.query(models.RoundSource).filter_by(**item.source.model_dump()).one()
+                        published_game = (
+                            tx.query(models.GameStateModel).filter_by(game_id=outcome.game_id).one_or_none()
+                            if outcome.game_id
+                            else None
+                        )
+                        if published_game and published_game.revision != before_revision:
+                            published_source.binding_evidence = {
+                                **(published_source.binding_evidence or {}),
+                                "sheet_publication": {
+                                    "snapshot_fingerprint": snapshot.fingerprint,
+                                    "generation": lease[2],
+                                    "accepted_revision": published_game.revision,
+                                },
+                            }
+                        lease_row.snapshot_fingerprint = snapshot.fingerprint
+                        lease_row.source_version = snapshot.source_version
+                        fence(tx, lease)
+                    outcomes.append(outcome)
+    except SourceLeaseLostError:
+        outcomes.append(IngestOutcome(status="held"))
+    db.expire_all()
+    return outcomes
 
 
 def normalized(value: str) -> str:

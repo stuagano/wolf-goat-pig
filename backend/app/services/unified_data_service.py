@@ -35,11 +35,11 @@ class UnifiedRound:
     """A round result from any source."""
 
     date: str  # DD-Mon format for display
-    date_sortable: str  # YYYY-MM-DD for sorting
+    date_sortable: str | None  # Known played date only in canonical mode
     group: str
     member: str
-    score: int  # Quarters (positive = won, negative = lost)
-    location: str
+    score: float | None  # Unknown is not zero; retain fractional quarters
+    location: str | None
     duration: str | None = None
     source: str = "unknown"  # "primary_sheet", "writable_sheet", "database"
     # Per-hole detail — only ever populated for rounds scored live in the app
@@ -55,14 +55,22 @@ class UnifiedRound:
     # True only when ``date_sortable`` is the date the round was played rather
     # than the date the app finished or uploaded it. Dedup trusts a known date.
     played_date_known: bool = False
+    player_id: int | None = None
+    participant_id: str | None = None
+    score_eligible: bool = True
+    detail_coverage: str | None = None
 
     def __hash__(self):
-        """Hash for deduplication - same date/group/member/score is same round."""
+        """Canonical identity is the persisted UUID/participant, never labels or totals."""
+        if self.source == "canonical":
+            return hash((self.source, self.game_key))
         return hash((self.date, self.group, self.member, self.score))
 
     def __eq__(self, other):
         if not isinstance(other, UnifiedRound):
             return False
+        if self.source == "canonical" or other.source == "canonical":
+            return self.source == other.source and self.game_key == other.game_key
         return (
             self.date == other.date
             and self.group == other.group
@@ -76,12 +84,15 @@ class UnifiedLeaderboardEntry:
     """A player's aggregated stats across all sources."""
 
     member: str
-    quarters: int = 0  # Total quarters won/lost
+    quarters: float = 0  # Total quarters won/lost
     rounds: int = 0  # Number of rounds played
-    average: float = 0.0  # Average quarters per round
-    best_round: int = 0  # Best single round score
-    worst_round: int = 0  # Worst single round score
+    average: float | None = 0.0  # None when canonical scored sample is empty
+    best_round: float | None = 0  # Best single round score
+    worst_round: float | None = 0  # Worst single round score
     sources: set[str] = field(default_factory=set)  # Which sources contributed data
+    player_id: int | None = None
+    known_participation_count: int = 0
+    incomplete_round_count: int = 0
 
     def recalculate_average(self):
         """Recalculate average based on total and rounds."""
@@ -216,6 +227,40 @@ class UnifiedDataService:
         Returns:
             List of unified rounds, sorted by date (most recent first).
         """
+        from .canonical_round_reads import accepted_rows, canonical_mode
+
+        db = self._get_db()
+        if canonical_mode(db):
+            rows, eligible = accepted_rows(db)
+            return sorted(
+                [
+                    UnifiedRound(
+                        date=record.played_on.strftime("%-d-%b") if record.played_on else record.raw_date or "Unknown",
+                        date_sortable=record.played_on.isoformat() if record.played_on else None,
+                        group=record.group or "",
+                        member=result.player_name,
+                        score=result.total_earnings,
+                        location=record.course_name,
+                        source="canonical",
+                        game_id=str(record.game_id),
+                        game_key=(str(record.game_id), result.participant_id),
+                        participant_id=result.participant_id,
+                        player_id=result.player_profile_id,
+                        played_date_known=record.played_on is not None,
+                        score_eligible=record.id in eligible and record.played_on is not None,
+                        detail_coverage=record.detail_coverage,
+                        hole_scores=result.hole_scores,
+                    )
+                    for record, result in rows
+                ],
+                key=lambda r: (r.date_sortable or "", r.game_id, r.participant_id),
+                reverse=True,
+            )
+
+        return self.get_legacy_rounds(include_database=include_database, use_sheet_cache=use_sheet_cache)
+
+    def get_legacy_rounds(self, *, include_database=True, use_sheet_cache=True):
+        """Explicit pre-cutover authority, independent of writer/reader mode."""
         all_rounds: dict[tuple, UnifiedRound] = {}
 
         if use_sheet_cache:
@@ -314,6 +359,31 @@ class UnifiedDataService:
         Returns:
             List of leaderboard entries sorted by total quarters (descending)
         """
+        from .canonical_round_reads import canonical_mode
+
+        if canonical_mode(self._get_db()):
+            entries = {}
+            for row in self.get_season_rounds():
+                if row.player_id is None:
+                    continue
+                entry = entries.setdefault(
+                    row.player_id,
+                    UnifiedLeaderboardEntry(
+                        member=row.member, player_id=row.player_id, average=None, best_round=None, worst_round=None
+                    ),
+                )
+                entry.known_participation_count += 1
+                entry.sources.add(row.source)
+                if not row.score_eligible:
+                    entry.incomplete_round_count += 1
+                    continue
+                entry.quarters += row.score
+                entry.rounds += 1
+                entry.best_round = row.score if entry.rounds == 1 else max(entry.best_round, row.score)
+                entry.worst_round = row.score if entry.rounds == 1 else min(entry.worst_round, row.score)
+                entry.recalculate_average()
+            return sorted(entries.values(), key=lambda e: (-e.quarters, e.player_id))
+
         dated_rounds = self._dated_rounds()
 
         # ponytail: the season sheet's first round defines the cutoff; use an
@@ -339,9 +409,9 @@ class UnifiedDataService:
             entry.sources.add(round_data.source)
 
             # Track best/worst
-            if round_data.score > entry.best_round:
+            if entry.best_round is None or round_data.score > entry.best_round:
                 entry.best_round = round_data.score
-            if round_data.score < entry.worst_round:
+            if entry.worst_round is None or round_data.score < entry.worst_round:
                 entry.worst_round = round_data.score
 
         # Calculate averages
@@ -358,12 +428,23 @@ class UnifiedDataService:
         for round_data in self.get_all_rounds():
             try:
                 dated.append((date.fromisoformat(round_data.date_sortable), round_data))
-            except ValueError:
+            except (TypeError, ValueError):
                 logger.warning("Skipping round with invalid date: %r", round_data.date_sortable)
         return dated
 
     def get_season_rounds(self) -> list[UnifiedRound]:
         """Current-season rounds, newest first. Empty when the season start is unknown."""
+        from ..schemas.round_identity import read_round_identity_config
+
+        config = read_round_identity_config(self._get_db())
+        if config.mode != "legacy":
+            return [
+                r
+                for r in self.get_all_rounds()
+                if r.date_sortable
+                and config.season is not None
+                and date.fromisoformat(r.date_sortable).year == config.season
+            ]
         dated = self._dated_rounds()
         start = min((day for day, r in dated if r.source == "primary_sheet"), default=None)
         if start is None:
@@ -371,6 +452,10 @@ class UnifiedDataService:
         # get_all_rounds is newest-first, but callers may pass unsorted rows.
         season = [r for day, r in dated if day >= start]
         return sorted(season, key=lambda r: r.date_sortable, reverse=True)
+
+    def get_profile_history(self, player_id: int) -> list[UnifiedRound]:
+        """Use only persisted verified profile association, never display-name matching."""
+        return [r for r in self.get_all_rounds() if r.player_id == player_id]
 
     def get_player_history(self, member_name: str) -> list[UnifiedRound]:
         """Get all rounds for a specific player across all sources.
@@ -381,6 +466,16 @@ class UnifiedDataService:
         Returns:
             List of rounds for the player, sorted by date (most recent first)
         """
+        from ..models import PlayerProfile
+        from .canonical_round_reads import canonical_mode
+
+        if canonical_mode(self._get_db()):
+            profiles = [
+                p
+                for p in self._get_db().query(PlayerProfile).all()
+                if member_name.lower() in {(p.name or "").lower(), (p.legacy_name or "").lower()}
+            ]
+            return self.get_profile_history(profiles[0].id) if len(profiles) == 1 else []
         all_rounds = self.get_all_rounds()
         player_rounds = [r for r in all_rounds if r.member.lower() == member_name.lower()]
         return player_rounds
@@ -395,7 +490,7 @@ class UnifiedDataService:
             List of rounds for that date
         """
         all_rounds = self.get_all_rounds()
-        date_rounds = [r for r in all_rounds if r.date == date]
+        date_rounds = [r for r in all_rounds if r.date == date or r.date_sortable == date]
         return date_rounds
 
     def get_data_sources_status(self) -> dict[str, Any]:
@@ -404,6 +499,18 @@ class UnifiedDataService:
         Returns:
             Status info for each source including record counts
         """
+        from .canonical_round_reads import canonical_mode
+
+        if canonical_mode(self._get_db()):
+            rows = self.get_all_rounds()
+            empty = {"available": False, "record_count": 0}
+            return {
+                "primary_sheet": empty.copy(),
+                "writable_sheet": empty.copy(),
+                "database": {"available": True, "record_count": len(rows)},
+                "unified_total": len(rows),
+                "deduplicated_total": len(rows),
+            }
         status: dict[str, Any] = {
             "primary_sheet": {
                 "available": False,

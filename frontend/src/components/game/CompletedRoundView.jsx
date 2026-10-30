@@ -7,6 +7,7 @@ import { SyncStatusBanner } from "../ui/SyncStatusIndicator";
 import { apiConfig } from "../../config/api.config";
 import { useAuthenticatedFetch } from "../../hooks/useAuthenticatedFetch";
 import useRoundCard from "../../hooks/useRoundCard";
+import syncManager from "../../services/syncManager";
 
 const API_URL = apiConfig.baseUrl;
 
@@ -26,6 +27,7 @@ const CompletedRoundView = ({
   onMarkedComplete,
   onEditScores,
   onSaveHole,
+  summary,
 }) => {
   const authenticatedFetch = useAuthenticatedFetch();
   // { has_photo, can_edit, edited_by, edited_at } — null when signed out or unknown.
@@ -70,7 +72,11 @@ const CompletedRoundView = ({
     }
 
     try {
-      const res = await authenticatedFetch(`${API_URL}/games/${gameId}/complete`, {
+      // Loaded by useGameData from writer_epoch. Never guess an epoch or
+      // silently refresh it over retained edits; stale epochs must return 409.
+      const epoch = syncManager.loadLocalGameState(gameId)?.writerEpoch;
+      const query = Number.isInteger(epoch) ? `?expected_epoch=${epoch}` : "";
+      const res = await authenticatedFetch(`${API_URL}/games/${gameId}/complete${query}`, {
         method: "POST",
       });
       if (!res.ok) {
@@ -86,7 +92,23 @@ const CompletedRoundView = ({
 
   const scores = (
     <>
-      <SyncStatusBanner />
+      {!summary && <SyncStatusBanner />}
+      {summary && <>
+        <h1>Accepted round scores</h1>
+        <p>{summary.played_on || summary.raw_date || 'Date not recorded'} · {summary.course_name || 'Course not recorded'}</p>
+        <p>Revision {summary.revision} · {summary.detail_coverage?.replaceAll('_', ' ') || 'Detail not recorded'}</p>
+        {!summary.score_eligible && <p>Incomplete or retracted results — not included in score standings.</p>}
+        <ul>{players.map(player => <li key={player.id}><span>{player.name || 'Unnamed participant'}</span>: {player.quarters == null ? 'Not recorded' : `${player.quarters > 0 ? '+' : ''}${player.quarters}`}</li>)}</ul>
+        {summary.detail_coverage === 'partial' && <p>Partial recorded holes only; these do not imply a complete round.</p>}
+        {holeHistory.length === 0 ? <p>Hole detail: Not recorded</p> : <table>
+          <caption>Recorded hole detail (final totals above remain authoritative)</caption>
+          <thead><tr><th>Hole</th>{players.map(p => <th key={p.id}>{p.name}</th>)}</tr></thead>
+          <tbody>{holeHistory.map(h => <tr key={h.hole}><th>{h.hole}</th>{players.map(p => <td key={p.id}>{h.points_delta?.[p.id] ?? 'Not recorded'}</td>)}</tr>)}</tbody>
+        </table>}
+        {Object.entries(summary.detail_discrepancies || {}).map(([slot, value]) => <p key={slot} role="status">{players.find(p => p.id === slot)?.name || slot}: accepted {value.accepted ?? 'Not recorded'}; computed detail {value.computed_detail ?? 'Not recorded'} — requires review.</p>)}
+        {card?.can_edit && <button onClick={onEditScores}>Fill in holes / edit recorded detail</button>}
+        <button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/game/${encodeURIComponent(gameId)}`).catch(() => setUploadError('Could not copy link'))}>Copy game link</button>
+      </>}
       {!reviewing && card?.can_edit && onSaveHole && (
         <button type="button" onClick={() => setReviewing(true)} style={{ padding: '10px 16px', marginBottom: '12px', borderRadius: '8px', background: '#216b45', color: 'white' }}>Edit scores</button>
       )}
@@ -102,7 +124,7 @@ const CompletedRoundView = ({
           <EditHoleModal embedded isOpen={editingHole !== null} holeData={editingHole} players={players} onClose={() => setEditingHole(null)} onSave={onSaveHole} />
         </div>
       )}
-      <GameCompletionView
+      {!summary && <GameCompletionView
         players={players}
         playerStandings={playerStandings}
         holeHistory={holeHistory}
@@ -116,7 +138,7 @@ const CompletedRoundView = ({
         isCompleted={isMarkedComplete}
         courseHoles={courseHoles}
         strokeAllocation={strokeAllocation}
-      />
+      />}
       {card?.can_edit && (
         <label
           style={{
@@ -148,7 +170,7 @@ const CompletedRoundView = ({
     </>
   );
 
-  return gameId ? <RoundCardReview gameId={gameId} photoVersion={photoVersion} players={players} holeHistory={holeHistory} uploading={uploading}>{scores}</RoundCardReview> : scores;
+  return gameId ? <RoundCardReview gameId={gameId} photoVersion={photoVersion} players={players} holeHistory={holeHistory} acceptedTotals={summary ? Object.fromEntries(players.map(p => [p.id, p.quarters])) : undefined} detailCoverage={summary?.detail_coverage} uploading={uploading}>{scores}</RoundCardReview> : scores;
 };
 
 CompletedRoundView.propTypes = {

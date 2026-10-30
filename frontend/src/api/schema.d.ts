@@ -353,6 +353,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/participant-results/{result_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preview Participant Correction */
+        get: operations["preview_participant_correction_admin_participant_results__result_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/participant-results/{result_id}/correct": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Correct Participant */
+        post: operations["correct_participant_admin_participant_results__result_id__correct_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/round-identity/mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Round Identity Mode
+         * @description Activate only fresh server-stored verification plus separate Gate D.
+         *
+         *     Caller JSON selects a manifest checksum, never supplies passing evidence.
+         *     Connector and dispatch remain paused pending their separate approvals.
+         */
+        put: operations["set_round_identity_mode_admin_round_identity_mode_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/run-migration": {
         parameters: {
             query?: never;
@@ -448,7 +505,7 @@ export interface paths {
         };
         /**
          * Get Player History
-         * @description Get all rounds for a specific player from legacy_rounds DB (synced every 2h).
+         * @description Get profile-associated history without assigning guests by display name.
          */
         get: operations["get_player_history_admin_spreadsheet_player__member_name__get"];
         put?: never;
@@ -548,7 +605,7 @@ export interface paths {
         };
         /**
          * Get All Rounds
-         * @description Get all round results from legacy_rounds DB (synced every 2h).
+         * @description Get accepted canonical history, or the pre-cutover cache.
          */
         get: operations["get_all_rounds_admin_spreadsheet_rounds_get"];
         put?: never;
@@ -592,9 +649,9 @@ export interface paths {
         put?: never;
         /**
          * Trigger Legacy Rounds Sync
-         * @description Manually trigger a sync of Google Sheets data into the legacy_rounds table.
+         * @description Manually trigger the shared complete-snapshot ingestion boundary.
          *
-         *     Normally runs automatically every 2 hours. Use this to force an immediate refresh.
+         *     Normally runs every two hours; held evidence never replaces accepted data.
          */
         post: operations["trigger_legacy_rounds_sync_admin_spreadsheet_sync_legacy_rounds_post"];
         delete?: never;
@@ -614,19 +671,7 @@ export interface paths {
         put?: never;
         /**
          * Sync Round To Spreadsheet
-         * @description Enqueue a completed round for background sync to Google Sheets.
-         *
-         *     Returns 202 immediately. The background processor runs every 5 minutes,
-         *     deduplicates against existing legacy_rounds, and writes new/updated rounds
-         *     to the sheet.
-         *
-         *     Dedup logic:
-         *       - Same date + group + same player set + same scores → skipped as duplicate
-         *       - Same date + group + same player set but different scores → written as update
-         *       - New player set for that date/group → written as new round
-         *
-         *     NOTE: player_scores should be summed totals (not per-hole). The app tracks
-         *     per-hole detail internally; the legacy sheet only stores round totals.
+         * @description Enqueue a revision-bound accepted UUID; Gate B must already be approved.
          */
         post: operations["sync_round_to_spreadsheet_admin_spreadsheet_sync_round_post"];
         delete?: never;
@@ -1851,6 +1896,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/data/rounds/uuid/{game_id}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Uuid Comment */
+        post: operations["uuid_comment_data_rounds_uuid__game_id__comments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/data/rounds/uuid/{game_id}/discussion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Uuid Discussion */
+        get: operations["uuid_discussion_data_rounds_uuid__game_id__discussion_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/data/rounds/uuid/{game_id}/reactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Uuid Reaction */
+        post: operations["uuid_reaction_data_rounds_uuid__game_id__reactions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/data/rounds/{date}/{group}": {
         parameters: {
             query?: never;
@@ -1945,9 +2041,7 @@ export interface paths {
         put?: never;
         /**
          * Sync Sheets To Db
-         * @description Pull all rounds from Google Sheets and upsert into legacy_rounds table.
-         *
-         *     Safe to run repeatedly — clears and repopulates the table each time.
+         * @description Refresh through the complete-snapshot boundary, never cache replacement.
          */
         post: operations["sync_sheets_to_db_data_sync_sheets_post"];
         delete?: never;
@@ -2607,6 +2701,26 @@ export interface paths {
         patch: operations["update_player_handicap_games__game_id__players__player_slot_id__handicap_patch"];
         trace?: never;
     };
+    "/games/{game_id}/round-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Round Summary
+         * @description Accepted final results and actual detail on the permanent UUID.
+         */
+        get: operations["get_round_summary_games__game_id__round_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/games/{game_id}/scorecard": {
         parameters: {
             query?: never;
@@ -2663,7 +2777,7 @@ export interface paths {
         put?: never;
         /**
          * Save Scores
-         * @description Submit hole scores for a game. Each hole must sum to zero. Upserts — safe to call repeatedly.
+         * @description Replace the full scored-hole snapshot (not a one-hole patch).
          */
         post: operations["save_scores_games__game_id__scores_post"];
         delete?: never;
@@ -3472,6 +3586,40 @@ export interface paths {
         put?: never;
         /** Mark All Read */
         post: operations["mark_all_read_notifications_read_all_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/round-deliveries/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Round Delivery Health */
+        get: operations["round_delivery_health_notifications_round_deliveries_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/round-deliveries/requeue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Requeue Round Alerts */
+        post: operations["requeue_round_alerts_notifications_round_deliveries_requeue_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4400,6 +4548,159 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/round-reconciliation/aliases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Aliases */
+        get: operations["aliases_round_reconciliation_aliases_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/round-reconciliation/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Health */
+        get: operations["health_round_reconciliation_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/round-reconciliation/issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Issues */
+        get: operations["issues_round_reconciliation_issues_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/round-reconciliation/issues/{issue_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Issue Detail */
+        get: operations["issue_detail_round_reconciliation_issues__issue_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/round-reconciliation/issues/{issue_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve */
+        post: operations["resolve_round_reconciliation_issues__issue_id__resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/round-reconciliation/recipient": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Recipient */
+        put: operations["recipient_round_reconciliation_recipient_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/round-reconciliation/recipient/attest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Attest */
+        post: operations["attest_round_reconciliation_recipient_attest_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/round-reconciliation/recipient/attest/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke */
+        post: operations["revoke_round_reconciliation_recipient_attest_revoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/round-reconciliation/requeue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Requeue */
+        post: operations["requeue_round_reconciliation_requeue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rounds/pending-attestation": {
         parameters: {
             query?: never;
@@ -4561,9 +4862,10 @@ export interface paths {
         };
         /**
          * Export Current Data For Sheet
-         * @description Export current database data in sheet format.
+         * @description Retired aggregate export: HTTP 410, with no statistics or source writes.
          *
-         *     Returns current player statistics formatted for Google Sheets export.
+         *     Read accepted standings through /data/leaderboard. Source publication is a
+         *     separate approved token-bound queue operation, never an arbitrary-header export.
          */
         get: operations["export_current_data_for_sheet_sheet_integration_export_current_data_get"];
         put?: never;
@@ -5872,6 +6174,8 @@ export interface components {
         };
         /** HoleEventPatch */
         HoleEventPatch: {
+            /** Expected Revision */
+            expected_revision?: number | null;
             /** Quarters */
             quarters?: number | null;
             /** Score */
@@ -5943,6 +6247,20 @@ export interface components {
             /** Winner */
             winner?: string | null;
         };
+        /** IngestOutcome */
+        IngestOutcome: {
+            /** Game Id */
+            game_id?: string | null;
+            /** Issue Ids */
+            issue_ids?: string[];
+            /** Revision */
+            revision?: number | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "accepted" | "unchanged" | "held";
+        };
         /** JoinGameRequest */
         JoinGameRequest: {
             /** Handicap */
@@ -5960,7 +6278,17 @@ export interface components {
          */
         LeaderboardEntry: {
             /** Average */
-            average: number;
+            average: number | null;
+            /**
+             * Incomplete Round Count
+             * @default 0
+             */
+            incomplete_round_count: number;
+            /**
+             * Known Participation Count
+             * @default 0
+             */
+            known_participation_count: number;
             /** Member */
             member: string;
             /** Qb */
@@ -6099,6 +6427,26 @@ export interface components {
             };
             /** Timestamp */
             timestamp: number;
+        };
+        /** ParticipantCorrection */
+        ParticipantCorrection: {
+            /**
+             * Confirmed
+             * @constant
+             */
+            confirmed: true;
+            /** Expected Epoch */
+            expected_epoch: number;
+            /** Expected Old Profile Id */
+            expected_old_profile_id: number | null;
+            /** Expected Snapshot */
+            expected_snapshot: string;
+            /** Reason */
+            reason: string;
+            /** Replacement Profile Id */
+            replacement_profile_id: number;
+            /** Request Key */
+            request_key: string;
         };
         /**
          * PendingClaimInfo
@@ -6352,26 +6700,10 @@ export interface components {
              */
             score: number;
         };
-        /**
-         * PlayerScoreInput
-         * @description Input for a single player's score.
-         */
-        PlayerScoreInput: {
-            /**
-             * Name
-             * @description Player name (must match spreadsheet names)
-             */
-            name: string;
-            /**
-             * Score
-             * @description Quarters won (positive) or lost (negative)
-             */
-            score: number;
-        };
         /** PlayerStatisticsResponse */
         PlayerStatisticsResponse: {
             /** Avg Earnings Per Hole */
-            avg_earnings_per_hole: number;
+            avg_earnings_per_hole: number | null;
             /**
              * Best Hole Performance
              * @default []
@@ -6385,27 +6717,15 @@ export interface components {
              */
             best_win_streak: number;
             /** Betting Success Rate */
-            betting_success_rate: number;
-            /**
-             * Big Dick Attempts
-             * @default 0
-             */
-            big_dick_attempts: number;
-            /**
-             * Big Dick Wins
-             * @default 0
-             */
-            big_dick_wins: number;
-            /**
-             * Birdies
-             * @default 0
-             */
-            birdies: number;
-            /**
-             * Bogeys
-             * @default 0
-             */
-            bogeys: number;
+            betting_success_rate: number | null;
+            /** Big Dick Attempts */
+            big_dick_attempts?: number | null;
+            /** Big Dick Wins */
+            big_dick_wins?: number | null;
+            /** Birdies */
+            birdies?: number | null;
+            /** Bogeys */
+            bogeys?: number | null;
             /**
              * Current Loss Streak
              * @default 0
@@ -6416,26 +6736,14 @@ export interface components {
              * @default 0
              */
             current_win_streak: number;
-            /**
-             * Double Bogeys
-             * @default 0
-             */
-            double_bogeys: number;
-            /**
-             * Duncan Attempts
-             * @default 0
-             */
-            duncan_attempts: number;
-            /**
-             * Duncan Wins
-             * @default 0
-             */
-            duncan_wins: number;
-            /**
-             * Eagles
-             * @default 0
-             */
-            eagles: number;
+            /** Double Bogeys */
+            double_bogeys?: number | null;
+            /** Duncan Attempts */
+            duncan_attempts?: number | null;
+            /** Duncan Wins */
+            duncan_wins?: number | null;
+            /** Eagles */
+            eagles?: number | null;
             /** Favorite Game Mode */
             favorite_game_mode: string;
             /** Games Played */
@@ -6450,34 +6758,35 @@ export interface components {
                 [key: string]: unknown;
             };
             /** Holes Played */
-            holes_played: number;
+            holes_played: number | null;
             /** Holes Won */
-            holes_won: number;
+            holes_won: number | null;
             /** Id */
             id: number;
             /**
-             * Invisible Aardvark Appearances
+             * Incomplete Round Count
              * @default 0
              */
-            invisible_aardvark_appearances: number;
+            incomplete_round_count: number;
+            /** Invisible Aardvark Appearances */
+            invisible_aardvark_appearances?: number | null;
+            /** Invisible Aardvark Wins */
+            invisible_aardvark_wins?: number | null;
             /**
-             * Invisible Aardvark Wins
+             * Known Participation Count
              * @default 0
              */
-            invisible_aardvark_wins: number;
+            known_participation_count: number;
             /** Last Updated */
             last_updated: string;
-            /**
-             * Pars
-             * @default 0
-             */
-            pars: number;
+            /** Pars */
+            pars?: number | null;
             /** Partnership Success Rate */
-            partnership_success_rate: number;
+            partnership_success_rate: number | null;
             /** Partnerships Formed */
-            partnerships_formed: number;
+            partnerships_formed: number | null;
             /** Partnerships Won */
-            partnerships_won: number;
+            partnerships_won: number | null;
             /**
              * Performance Trends
              * @default []
@@ -6485,65 +6794,43 @@ export interface components {
             performance_trends: {
                 [key: string]: unknown;
             }[];
-            /**
-             * Ping Pong Count
-             * @default 0
-             */
-            ping_pong_count: number;
-            /**
-             * Ping Pong Wins
-             * @default 0
-             */
-            ping_pong_wins: number;
+            /** Ping Pong Count */
+            ping_pong_count?: number | null;
+            /** Ping Pong Wins */
+            ping_pong_wins?: number | null;
             /** Player Id */
             player_id: number;
             /** Preferred Player Count */
             preferred_player_count: number;
+            /**
+             * Scored Round Count
+             * @default 0
+             */
+            scored_round_count: number;
             /** Solo Attempts */
-            solo_attempts: number;
+            solo_attempts: number | null;
             /** Solo Wins */
-            solo_wins: number;
+            solo_wins: number | null;
             /** Successful Bets */
-            successful_bets: number;
-            /**
-             * Times As Aardvark
-             * @default 0
-             */
-            times_as_aardvark: number;
-            /**
-             * Times As Goat
-             * @default 0
-             */
-            times_as_goat: number;
-            /**
-             * Times As Pig
-             * @default 0
-             */
-            times_as_pig: number;
-            /**
-             * Times As Wolf
-             * @default 0
-             */
-            times_as_wolf: number;
+            successful_bets: number | null;
+            /** Times As Aardvark */
+            times_as_aardvark?: number | null;
+            /** Times As Goat */
+            times_as_goat?: number | null;
+            /** Times As Pig */
+            times_as_pig?: number | null;
+            /** Times As Wolf */
+            times_as_wolf?: number | null;
             /** Total Bets */
-            total_bets: number;
+            total_bets: number | null;
             /** Total Earnings */
             total_earnings: number;
-            /**
-             * Tunkarri Attempts
-             * @default 0
-             */
-            tunkarri_attempts: number;
-            /**
-             * Tunkarri Wins
-             * @default 0
-             */
-            tunkarri_wins: number;
-            /**
-             * Worse Than Double
-             * @default 0
-             */
-            worse_than_double: number;
+            /** Tunkarri Attempts */
+            tunkarri_attempts?: number | null;
+            /** Tunkarri Wins */
+            tunkarri_wins?: number | null;
+            /** Worse Than Double */
+            worse_than_double?: number | null;
             /**
              * Worst Hole Performance
              * @default []
@@ -6656,6 +6943,60 @@ export interface components {
             /** Venmo Handle */
             venmo_handle?: string | null;
         };
+        /** RecipientAttestation */
+        RecipientAttestation: {
+            /**
+             * Confirmed
+             * @constant
+             */
+            confirmed: true;
+        };
+        /** RecipientConfirmation */
+        RecipientConfirmation: {
+            /** Attestation Id */
+            attestation_id?: string | null;
+            /**
+             * Confirmed
+             * @constant
+             */
+            confirmed: true;
+            /** Profile Id */
+            profile_id: number;
+            /** Reason */
+            reason: string;
+        };
+        /** ResolutionDecision */
+        ResolutionDecision: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "keep" | "accept" | "correct" | "bind_existing" | "confirm_distinct" | "retract";
+            /** Expected Game Revision */
+            expected_game_revision?: number | null;
+            /** Expected Head Revision */
+            expected_head_revision: number;
+            /** Expected Issue Revision */
+            expected_issue_revision: number;
+            /** Expected Target Game Revision */
+            expected_target_game_revision?: number | null;
+            /** Reason */
+            reason: string;
+            /** Target Game Id */
+            target_game_id?: string | null;
+            /** Value */
+            value?: unknown | null;
+        };
+        /** RoundAliasResult */
+        RoundAliasResult: {
+            /** Game Ids */
+            game_ids: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "resolved" | "ambiguous" | "missing";
+        };
         /** RoundCommentCreate */
         RoundCommentCreate: {
             /** Body */
@@ -6681,6 +7022,20 @@ export interface components {
             /** Reactions */
             reactions?: components["schemas"]["RoundReactionResponse"][];
         };
+        /** RoundModeRequest */
+        RoundModeRequest: {
+            /** Expected Epoch */
+            expected_epoch: number;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "legacy" | "paused" | "canonical";
+            /** Verification Report */
+            verification_report: {
+                [key: string]: unknown;
+            };
+        };
         /** RoundPlayerResponse */
         RoundPlayerResponse: {
             /** Member */
@@ -6688,7 +7043,7 @@ export interface components {
             /** Player Id */
             player_id?: number | null;
             /** Quarters */
-            quarters: number;
+            quarters: number | null;
         };
         /** RoundReactionResponse */
         RoundReactionResponse: {
@@ -6709,23 +7064,39 @@ export interface components {
             /** Emoji */
             emoji: string;
         };
+        /** RoundRequeue */
+        RoundRequeue: {
+            /** Issue Ids */
+            issue_ids: string[];
+            /** Reason */
+            reason: string;
+        };
         /**
          * RoundResultResponse
          * @description Response model for a round result.
          */
         RoundResultResponse: {
             /** Date */
-            date: string;
+            date: string | null;
             /** Duration */
             duration?: string | null;
+            /** Game Id */
+            game_id?: string | null;
             /** Group */
             group?: string | null;
             /** Location */
             location?: string | null;
             /** Member */
             member: string;
+            /** Participant Id */
+            participant_id?: string | null;
             /** Score */
-            score: number;
+            score: number | null;
+            /**
+             * Score Eligible
+             * @default true
+             */
+            score_eligible: boolean;
         };
         /** RoundStoryResponse */
         RoundStoryResponse: {
@@ -6746,6 +7117,72 @@ export interface components {
             /** Reactions */
             reactions?: components["schemas"]["RoundReactionResponse"][];
         };
+        /** RoundSummary */
+        RoundSummary: {
+            /**
+             * Accepted Label
+             * @constant
+             */
+            accepted_label: "accepted";
+            /** Capabilities */
+            capabilities: {
+                [key: string]: boolean;
+            };
+            /** Conflict Count */
+            conflict_count: number;
+            /** Course Name */
+            course_name: string | null;
+            /** Detail Coverage */
+            detail_coverage: ("totals_only" | "partial" | "per_hole_complete") | null;
+            /** Detail Discrepancies */
+            detail_discrepancies: {
+                [key: string]: unknown;
+            };
+            /**
+             * Detail Label
+             * @constant
+             */
+            detail_label: "accepted_recorded_detail";
+            /** Detail Reconciled */
+            detail_reconciled: boolean;
+            /** Game Id */
+            game_id: string;
+            /** Hole History */
+            hole_history: {
+                [key: string]: unknown;
+            }[];
+            /** Is Retracted */
+            is_retracted: boolean;
+            /** Played On */
+            played_on: string | null;
+            /** Players */
+            players: components["schemas"]["RoundSummaryParticipant"][];
+            /** Proposed Detail */
+            proposed_detail: {
+                [key: string]: unknown;
+            };
+            /** Raw Date */
+            raw_date: string | null;
+            /** Revision */
+            revision: number;
+            /** Roster Complete */
+            roster_complete: boolean | null;
+            /** Score Eligible */
+            score_eligible: boolean;
+        };
+        /** RoundSummaryParticipant */
+        RoundSummaryParticipant: {
+            /** Is Retracted */
+            is_retracted: boolean;
+            /** Name */
+            name: string | null;
+            /** Participant Id */
+            participant_id: string | null;
+            /** Profile Id */
+            profile_id: number | null;
+            /** Quarters */
+            quarters: number | null;
+        };
         /** Rule */
         Rule: {
             /** Description */
@@ -6757,6 +7194,8 @@ export interface components {
         };
         /** ScorecardBackfillRequest */
         ScorecardBackfillRequest: {
+            /** Expected Revision */
+            expected_revision?: number | null;
             /** Per Hole Quarters */
             per_hole_quarters: components["schemas"]["ScorecardRoundHoleQuarter"][];
         };
@@ -6775,6 +7214,8 @@ export interface components {
             name: string;
             /** Player Profile Id */
             player_profile_id?: number | null;
+            /** Quarters */
+            quarters?: number | null;
             /**
              * Unlinked
              * @default false
@@ -6785,10 +7226,15 @@ export interface components {
         ScorecardRoundRequest: {
             /** Course Name */
             course_name?: string | null;
+            /**
+             * Detail Coverage
+             * @default per_hole_complete
+             */
+            detail_coverage: string;
             /** Image Base64 */
             image_base64?: string | null;
             /** Per Hole Quarters */
-            per_hole_quarters: components["schemas"]["ScorecardRoundHoleQuarter"][];
+            per_hole_quarters?: components["schemas"]["ScorecardRoundHoleQuarter"][];
             /** Played At */
             played_at?: string | null;
             /** Players */
@@ -6801,6 +7247,10 @@ export interface components {
              * @default 18
              */
             current_hole: number;
+            /** Expected Epoch */
+            expected_epoch?: number | null;
+            /** Expected Revision */
+            expected_revision?: number | null;
             /** Holes */
             holes: components["schemas"]["HoleScore"][];
         };
@@ -6808,10 +7258,17 @@ export interface components {
         SeasonGamePlayerResponse: {
             /** Member */
             member: string;
+            /** Participant Id */
+            participant_id?: string | null;
             /** Player Id */
             player_id?: number | null;
             /** Quarters */
-            quarters: number;
+            quarters: number | null;
+            /**
+             * Score Eligible
+             * @default true
+             */
+            score_eligible: boolean;
         };
         /**
          * SeasonGameResponse
@@ -6821,13 +7278,13 @@ export interface components {
             /** Date */
             date: string;
             /** Date Sortable */
-            date_sortable: string;
+            date_sortable: string | null;
             /** Game Id */
             game_id?: string | null;
             /** Group */
             group: string;
             /** Location */
-            location: string;
+            location: string | null;
             /** Players */
             players: components["schemas"]["SeasonGamePlayerResponse"][];
         };
@@ -6839,13 +7296,13 @@ export interface components {
             /** Date */
             date: string;
             /** Date Sortable */
-            date_sortable: string;
+            date_sortable: string | null;
             /** Game Id */
             game_id?: string | null;
             /** Group */
             group: string;
             /** Location */
-            location: string;
+            location: string | null;
             /** Member */
             member: string;
             /** Player Id */
@@ -6964,36 +7421,25 @@ export interface components {
         };
         /**
          * SyncRoundRequest
-         * @description Request to sync a completed round to the spreadsheet.
+         * @description Queue accepted UUID results, never client date/name guesses.
          */
         SyncRoundRequest: {
-            /**
-             * Date
-             * @description Date in YYYY-MM-DD format
-             */
-            date: string;
-            /**
-             * Duration
-             * @description Duration in HH:MM:SS format
-             */
-            duration?: string | null;
-            /**
-             * Group
-             * @description Group letter (A, B, C, D)
-             * @default A
-             */
-            group: string;
-            /**
-             * Location
-             * @description Course name
-             * @default Wing Point
-             */
-            location: string;
-            /**
-             * Player Scores
-             * @description List of player scores
-             */
-            player_scores: components["schemas"]["PlayerScoreInput"][];
+            /** Action */
+            action: string;
+            /** Expected Epoch */
+            expected_epoch: number;
+            /** Expected Revision */
+            expected_revision: number;
+            /** Expected Source Version */
+            expected_source_version: string;
+            /** Game Id */
+            game_id: string;
+            /** Operation Key */
+            operation_key: string;
+            /** Source Round Token */
+            source_round_token: string;
+            /** Source Scope */
+            source_scope: string;
         };
         /** TeamContentUpdate */
         TeamContentUpdate: {
@@ -7032,9 +7478,19 @@ export interface components {
          */
         UnifiedLeaderboardEntryResponse: {
             /** Average */
-            average: number;
+            average: number | null;
             /** Best Round */
-            best_round: number;
+            best_round: number | null;
+            /**
+             * Incomplete Round Count
+             * @default 0
+             */
+            incomplete_round_count: number;
+            /**
+             * Known Participation Count
+             * @default 0
+             */
+            known_participation_count: number;
             /** Member */
             member: string;
             /** Player Id */
@@ -7048,7 +7504,7 @@ export interface components {
             /** Sources */
             sources: string[];
             /** Worst Round */
-            worst_round: number;
+            worst_round: number | null;
         };
         /**
          * UnifiedRoundResponse
@@ -7058,7 +7514,9 @@ export interface components {
             /** Date */
             date: string;
             /** Date Sortable */
-            date_sortable: string;
+            date_sortable: string | null;
+            /** Detail Coverage */
+            detail_coverage?: string | null;
             /** Duration */
             duration?: string | null;
             /** Game Id */
@@ -7066,11 +7524,18 @@ export interface components {
             /** Group */
             group: string;
             /** Location */
-            location: string;
+            location: string | null;
             /** Member */
             member: string;
+            /** Participant Id */
+            participant_id?: string | null;
             /** Score */
-            score: number;
+            score: number | null;
+            /**
+             * Score Eligible
+             * @default true
+             */
+            score_eligible: boolean;
             /** Source */
             source: string;
         };
@@ -7672,6 +8137,107 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["OAuth2TestEmailRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_participant_correction_admin_participant_results__result_id__get: {
+        parameters: {
+            query: {
+                replacement_profile_id: number;
+            };
+            header?: never;
+            path: {
+                result_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    correct_participant_admin_participant_results__result_id__correct_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                result_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ParticipantCorrection"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_round_identity_mode_admin_round_identity_mode_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoundModeRequest"];
             };
         };
         responses: {
@@ -9911,6 +10477,107 @@ export interface operations {
             };
         };
     };
+    uuid_comment_data_rounds_uuid__game_id__comments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoundCommentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoundCommentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    uuid_discussion_data_rounds_uuid__game_id__discussion_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    uuid_reaction_data_rounds_uuid__game_id__reactions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoundReactionToggle"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoundReactionResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_round_story_data_rounds__date___group__get: {
         parameters: {
             query?: {
@@ -10401,7 +11068,9 @@ export interface operations {
     create_round_from_scorecard_games_from_scorecard_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -10610,7 +11279,9 @@ export interface operations {
     };
     mark_game_complete_games__game_id__complete_post: {
         parameters: {
-            query?: never;
+            query?: {
+                expected_epoch?: number | null;
+            };
             header?: never;
             path: {
                 game_id: string;
@@ -10744,7 +11415,9 @@ export interface operations {
     };
     delete_hole_games__game_id__holes__hole_number__delete: {
         parameters: {
-            query?: never;
+            query?: {
+                expected_revision?: number | null;
+            };
             header?: never;
             path: {
                 game_id: string;
@@ -11044,6 +11717,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_round_summary_games__game_id__round_summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoundSummary"];
                 };
             };
             /** @description Validation Error */
@@ -12380,6 +13084,8 @@ export interface operations {
             query?: {
                 unread_only?: boolean;
                 limit?: number;
+                types?: string | null;
+                include_delivery_health?: boolean;
             };
             header?: never;
             path?: never;
@@ -12423,6 +13129,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    round_delivery_health_notifications_round_deliveries_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    requeue_round_alerts_notifications_round_deliveries_requeue_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoundRequeue"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -13279,7 +14038,9 @@ export interface operations {
     post_my_round_players_me_round_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -14075,6 +14836,300 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    aliases_round_reconciliation_aliases_get: {
+        parameters: {
+            query: {
+                date: string;
+                group: string;
+                location?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoundAliasResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    health_round_reconciliation_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    issues_round_reconciliation_issues_get: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number;
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    issue_detail_round_reconciliation_issues__issue_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issue_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_round_reconciliation_issues__issue_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issue_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolutionDecision"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngestOutcome"];
+                };
+            };
+            /** @description Accepted decision; outstanding evidence held */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngestOutcome"];
+                };
+            };
+            /** @description Issue or target unavailable */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Stale revision or paused writer fence */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recipient_round_reconciliation_recipient_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecipientConfirmation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    attest_round_reconciliation_recipient_attest_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecipientAttestation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_round_reconciliation_recipient_attest_revoke_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    requeue_round_reconciliation_requeue_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoundRequeue"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

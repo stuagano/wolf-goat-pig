@@ -1,6 +1,7 @@
 from sqlalchemy import (
     Boolean,
     Column,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -173,6 +174,7 @@ class GameStateModel(Base):
     join_code = Column(String, unique=True, index=True, nullable=True)  # 6-char code for joining
     creator_user_id = Column(String, nullable=True)  # Auth0 user ID of game creator
     game_status = Column(String, default="setup")  # setup, in_progress, completed
+    revision = Column(Integer, nullable=False, default=0, server_default="0")
     # MutableDict so in-place TOP-LEVEL mutations (game.state["x"] = ...) auto-mark
     # the column dirty — removes the silent-persistence footgun that previously
     # required a manual flag_modified on every write. NOTE: only top-level key
@@ -327,7 +329,15 @@ class GameRecord(Base):
     course_name = Column(String)
     game_mode = Column(String, default="wolf_goat_pig")
     player_count = Column(Integer)
-    total_holes_played = Column(Integer, default=18)
+    total_holes_played = Column(Integer, nullable=True)
+    played_on = Column(Date, nullable=True)
+    raw_date = Column(String, nullable=True)
+    group = Column(String, nullable=True)
+    detail_coverage = Column(String, nullable=True)
+    roster_complete = Column(Boolean, nullable=True)
+    score_eligible = Column(Boolean, nullable=True)
+    is_retracted = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    accepted_revision = Column(Integer, nullable=False, default=0, server_default="0")
     game_duration_minutes = Column(Integer, nullable=True)
     created_at = Column(String)
     completed_at = Column(String, nullable=True)
@@ -337,31 +347,33 @@ class GameRecord(Base):
 
 class GamePlayerResult(Base):
     __tablename__ = "game_player_results"
+    __table_args__ = (UniqueConstraint("game_record_id", "participant_id", name="uq_game_result_participant"),)
     id = Column(Integer, primary_key=True, index=True)
+    participant_id = Column(String, nullable=True)  # staged for existing rows until offline accounting
+    is_retracted = Column(Boolean, nullable=False, default=False, server_default=text("false"))
     game_record_id = Column(Integer, index=True)  # References GameRecord.id
     player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
     player_name = Column(String)  # Denormalized for easier querying
     final_position = Column(Integer)  # 1st, 2nd, 3rd, etc.
-    total_earnings = Column(Float, default=0.0)
-    holes_won = Column(Integer, default=0)
-    successful_bets = Column(Integer, default=0)
-    total_bets = Column(Integer, default=0)
-    partnerships_formed = Column(Integer, default=0)
-    partnerships_won = Column(Integer, default=0)
-    solo_attempts = Column(Integer, default=0)
-    solo_wins = Column(Integer, default=0)
-    # Special event tracking per game
-    ping_pongs = Column(Integer, default=0)  # Number of ping pongs this game
-    ping_pongs_won = Column(Integer, default=0)  # Ping pong wins this game
-    invisible_aardvark_holes = Column(Integer, default=0)  # Holes played as invisible aardvark
-    invisible_aardvark_holes_won = Column(Integer, default=0)  # Holes won as invisible aardvark
-    # Specific solo types per game
-    duncan_attempts = Column(Integer, default=0)  # Captain solo attempts this game
-    duncan_wins = Column(Integer, default=0)
-    tunkarri_attempts = Column(Integer, default=0)  # Aardvark solo attempts this game
-    tunkarri_wins = Column(Integer, default=0)
-    big_dick_attempts = Column(Integer, default=0)  # 18th hole solo attempts this game
-    big_dick_wins = Column(Integer, default=0)
+    total_earnings = Column(Float, nullable=True)
+    holes_won = Column(Integer, nullable=True)
+    successful_bets = Column(Integer, nullable=True)
+    total_bets = Column(Integer, nullable=True)
+    partnerships_formed = Column(Integer, nullable=True)
+    partnerships_won = Column(Integer, nullable=True)
+    solo_attempts = Column(Integer, nullable=True)
+    solo_wins = Column(Integer, nullable=True)
+    # Detail-derived metrics remain unknown for totals-only evidence.
+    ping_pongs = Column(Integer, nullable=True)
+    ping_pongs_won = Column(Integer, nullable=True)
+    invisible_aardvark_holes = Column(Integer, nullable=True)
+    invisible_aardvark_holes_won = Column(Integer, nullable=True)
+    duncan_attempts = Column(Integer, nullable=True)
+    duncan_wins = Column(Integer, nullable=True)
+    tunkarri_attempts = Column(Integer, nullable=True)
+    tunkarri_wins = Column(Integer, nullable=True)
+    big_dick_attempts = Column(Integer, nullable=True)
+    big_dick_wins = Column(Integer, nullable=True)
     hole_scores = Column(JSON, nullable=True)  # Per-hole score data for this player
     betting_history = Column(JSON, nullable=True)  # Betting events for this player
     performance_metrics = Column(JSON, nullable=True)  # Computed performance data
@@ -377,6 +389,23 @@ class PendingSheetSync(Base):
 
     __tablename__ = "pending_sheet_syncs"
     id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(String, nullable=True)
+    source_round_token = Column(String, nullable=True)
+    source_scope = Column(String, nullable=True)
+    operation_key = Column(String, nullable=True)
+    expected_revision = Column(Integer, nullable=True)
+    expected_epoch = Column(Integer, nullable=True)
+    expected_source_version = Column(String, nullable=True)
+    payload_fingerprint = Column(String, nullable=True)
+    contract_fingerprint = Column(String, nullable=True)
+    payload = Column(JSON, nullable=True)
+    lease_owner = Column(String, nullable=True)
+    lease_expires_at = Column(String, nullable=True)
+    claim_generation = Column(Integer, nullable=True)
+    prewrite = Column(JSON, nullable=True)
+    provider_receipt = Column(JSON, nullable=True)
+    verified_readback = Column(JSON, nullable=True)
+    __table_args__ = (Index("uq_sheet_sync_operation", "operation_key", unique=True),)
     date = Column(String, index=True)  # YYYY-MM-DD
     group = Column(String)  # "A"-"D"
     location = Column(String)
@@ -409,6 +438,8 @@ class LegacyRound(Base):
         ),
     )
     id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(String, nullable=True)
+    participant_id = Column(String, nullable=True)
     date = Column(String, index=True)  # e.g. "2026-04-06"
     group = Column(String)  # e.g. "A"
     member = Column(String, index=True)  # e.g. "Stuart Gano"
@@ -440,6 +471,7 @@ class RoundComment(Base):
     __tablename__ = "round_comments"
     __table_args__ = (Index("ix_round_comments_round", "round_date", "round_group", "location"),)
     id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(String, nullable=True)
     round_date = Column(String, nullable=False)  # YYYY-MM-DD
     round_group = Column(String, nullable=False)
     location = Column(String, nullable=False, default="")
@@ -470,6 +502,7 @@ class RoundReaction(Base):
         Index("ix_round_reactions_round", "round_date", "round_group", "location"),
     )
     id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(String, nullable=True)
     round_date = Column(String, nullable=False)
     round_group = Column(String, nullable=False)
     location = Column(String, nullable=False, default="")
@@ -800,6 +833,7 @@ class GameBanner(Base):
 class Notification(Base):
     __tablename__ = "notifications"
     id = Column(Integer, primary_key=True, index=True)
+    delivery_key = Column(String, nullable=True, unique=True)
     player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
     notification_type = Column(String, index=True)  # game_start, game_end, turn_notification, etc.
     message = Column(String)  # Notification message content
@@ -976,3 +1010,20 @@ class AccountClaim(Base):
     created_at = Column(String)
     resolved_at = Column(String, nullable=True)
     resolved_by = Column(String, nullable=True)
+
+
+from .models_participant_correction import ParticipantCorrectionAudit  # noqa: E402, F401
+
+# Register identity evidence only after existing model declarations.
+from .models_round_identity import (  # noqa: E402, F401
+    RoundAlias,
+    RoundDelivery,
+    RoundFieldHead,
+    RoundIdentityLease,
+    RoundIssue,
+    RoundMigrationCheckpoint,
+    RoundObservation,
+    RoundRequest,
+    RoundResolution,
+    RoundSource,
+)

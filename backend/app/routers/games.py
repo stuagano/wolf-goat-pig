@@ -6,14 +6,15 @@ import traceback
 from datetime import date
 from typing import Any, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import case, func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
 
 from .. import database, models, schemas
 from ..badge_engine import BadgeEngine
+from ..schemas.round_identity import RoundSummary
 from ..services.auth_service import get_current_user
 from ..services.completed_game_service import round_played_at, validate_round_players, validate_round_scores
 from ..services.game_lifecycle_service import get_game_lifecycle_service
@@ -32,6 +33,15 @@ router = APIRouter(prefix="/games", tags=["games"])
 
 class SetTeeOrderRequest(BaseModel):
     player_order: list[str] = Field(..., min_length=1)
+
+
+def _check_saved_game_achievements(sessions, game_id: str, record_id: int) -> None:
+    """Best-effort side effect after saving; never reuse the score transaction."""
+    try:
+        with sessions() as badge_db:
+            _check_game_achievements(badge_db, game_id, record_id)
+    except Exception:
+        logger.warning("Post-save badge processing failed for game %s", game_id)
 
 
 def _check_game_achievements(db: Session, game_id: str, record_id: int) -> None:
@@ -228,6 +238,7 @@ class ScorecardRoundPlayer(BaseModel):
     # name happens to match a roster legacy_name would be wrongly linked to
     # that member, corrupting their standings.
     unlinked: bool = False
+    quarters: float | None = Field(default=None, allow_inf_nan=False)
 
 
 class ScorecardRoundHoleQuarter(BaseModel):
@@ -238,7 +249,8 @@ class ScorecardRoundHoleQuarter(BaseModel):
 
 class ScorecardRoundRequest(BaseModel):
     players: list[ScorecardRoundPlayer]
-    per_hole_quarters: list[ScorecardRoundHoleQuarter]
+    per_hole_quarters: list[ScorecardRoundHoleQuarter] = Field(default_factory=list)
+    detail_coverage: str = "per_hole_complete"
     course_name: str | None = None
     played_at: str | None = None
     image_base64: str | None = None
@@ -254,6 +266,8 @@ class ScorecardRoundRequest(BaseModel):
 @router.post("/from-scorecard")
 async def create_round_from_scorecard(
     body: ScorecardRoundRequest,
+    response: Response,
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
     profile: models.PlayerProfile = Depends(get_current_user),
     db: Session = Depends(database.get_db),
 ) -> dict[str, Any]:
@@ -265,8 +279,18 @@ async def create_round_from_scorecard(
     """
     import uuid
 
+    from ..schemas.round_identity import RoundDraft
     from ..services.completed_game_service import build_hole_history, persist_completed_game
+    from ..services.round_writes import create_observation, writer_mode
 
+    mode = writer_mode(db)
+    if body.detail_coverage not in {"totals_only", "per_hole_complete"}:
+        raise HTTPException(400, "Declare totals_only or per_hole_complete coverage")
+    if body.detail_coverage == "totals_only":
+        if body.per_hole_quarters:
+            raise HTTPException(400, "Totals-only input cannot contain holes")
+        if any(player.quarters is None for player in body.players):
+            raise HTTPException(400, "Totals-only input requires an explicit total for every player")
     if len(body.players) not in (4, 5, 6):
         raise HTTPException(status_code=400, detail="Wolf Goat Pig requires 4, 5, or 6 players")
 
@@ -307,7 +331,6 @@ async def create_round_from_scorecard(
                 "id": f"p{i + 1}",
                 "name": name,
                 "player_profile_id": profile_id,
-                "handicap": 18.0,
             }
         )
     validate_round_players(players)
@@ -317,7 +340,42 @@ async def create_round_from_scorecard(
 
     if not is_admin_profile(profile) and not any(p["player_profile_id"] == profile.id for p in players):
         raise HTTPException(status_code=403, detail="Only a participant or admin can post a round")
-    validate_round_scores(players, hole_history)
+    if body.detail_coverage == "per_hole_complete":
+        validate_round_scores(players, hole_history)
+    if body.detail_coverage == "totals_only" and mode != "canonical":
+        raise HTTPException(409, "Totals-only scans require the coordinated canonical cutover")
+    if mode == "canonical":
+        draft = RoundDraft(
+            played_on=date.fromisoformat(body.played_at) if body.played_at else None,
+            course_name=body.course_name,
+            roster_complete=True,
+            detail_coverage=body.detail_coverage,
+            players=[
+                {
+                    "participant_id": p["id"],
+                    "name": p["name"],
+                    "profile_id": p["player_profile_id"],
+                    "quarters": body.players[i].quarters
+                    if body.detail_coverage == "totals_only"
+                    else standings[p["id"]],
+                }
+                for i, p in enumerate(players)
+            ],
+            hole_history=hole_history,
+            actor_profile_id=profile.id,
+        )
+        receipt, result = create_observation(
+            db, profile.id, idempotency_key, body.model_dump(mode="json"), draft, "scan"
+        )
+        if result["game_id"] is None:
+            response.status_code = 202
+        elif body.image_base64 and len(body.image_base64) <= 2_000_000:
+            db.query(models.GameStateModel).filter_by(
+                game_id=result["game_id"]
+            ).one().scorecard_image = body.image_base64
+        saved = dict(result)
+        db.commit()
+        return saved
 
     # Warn (do not reject) on holes whose deltas don't sum to zero.
     warnings: dict[str, float] = {}
@@ -334,7 +392,7 @@ async def create_round_from_scorecard(
             game_status="completed",
             state={
                 "game_status": "completed",
-                "course_name": body.course_name or "Wing Point",
+                "course_name": body.course_name,
                 "player_count": len(players),
                 "players": players,
                 "hole_history": hole_history,
@@ -352,6 +410,7 @@ async def create_round_from_scorecard(
         db.add(game)
         db.flush()
         persist_completed_game(db, game)
+        db.commit()
         return {"game_id": game_id, "status": "completed", "warnings": warnings}
     except Exception as e:
         db.rollback()
@@ -846,7 +905,13 @@ async def delete_game(game_id: str, db: Session = Depends(database.get_db)):  # 
         Success message with deletion details
     """
     try:
-        # Check if game exists
+        from app.services.canonical_round_reads import canonical_mode
+        from app.services.round_cutover import guard_writer
+
+        guard_writer(db)
+        if canonical_mode(db):
+            raise HTTPException(409, "Permanent round UUIDs cannot be deleted; use reviewed retraction")
+        # Check if game exists under the transaction fence, retained until commit.
         game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
 
         if not game:
@@ -894,7 +959,9 @@ async def delete_game(game_id: str, db: Session = Depends(database.get_db)):  # 
 
 
 @router.post("/{game_id}/complete", dependencies=[Depends(require_round_member_or_admin)])
-async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db)):
+async def mark_game_complete(
+    game_id: str, expected_epoch: int | None = Query(None), db: Session = Depends(database.get_db)
+):
     """
     Mark a game as completed and persist results to GameRecord / GamePlayerResult.
 
@@ -902,7 +969,12 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
     permanent results tables so it's queryable by the Commissioner data explorer.
     """
     try:
-        game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
+        from ..services.round_cutover import guard_client_epoch
+
+        guard_client_epoch(db, expected_epoch if isinstance(expected_epoch, int) else None)
+        game = (
+            db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).populate_existing().first()
+        )
 
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
@@ -918,6 +990,9 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
                     "message": "Game is already marked as completed",
                     "game_id": game_id,
                     "game_status": "completed",
+                    "revision": game.revision,
+                    "status": "unchanged",
+                    "issue_ids": [],
                 }
             # Fall through to persist results for previously completed games
             logger.info("Game %s was completed but has no GameRecord — backfilling", game_id)
@@ -959,8 +1034,13 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
             results_created,
         )
 
-        # Check achievements for all players with a linked profile
-        _check_game_achievements(db, game_id, record_id)
+        # Snapshot IDs/factory before commit; source ORM session is never read
+        # afterwards. BadgeEngine owns separate best-effort transactions.
+        badge_sessions = sessionmaker(bind=db.get_bind())
+        saved_game_id = str(game.game_id)
+        saved_revision = game.revision
+        db.commit()
+        _check_saved_game_achievements(badge_sessions, saved_game_id, record_id)
 
         return {
             "success": True,
@@ -968,6 +1048,9 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
             "game_id": game_id,
             "game_status": "completed",
             "results_created": results_created,
+            "revision": saved_revision,
+            "status": "accepted",
+            "issue_ids": [],
         }
 
     except HTTPException:
@@ -976,6 +1059,14 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
         db.rollback()
         logger.error(f"Error completing game {game_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Error completing game: {e!s}")
+
+
+@router.get("/{game_id}/round-summary", response_model=RoundSummary)
+def get_round_summary(game_id: str, db: Session = Depends(database.get_db)):
+    """Accepted final results and actual detail on the permanent UUID."""
+    from ..services.round_review import round_summary
+
+    return round_summary(db, game_id)
 
 
 @router.get("/{game_id}/state")
@@ -995,9 +1086,18 @@ async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
 
+        from ..schemas.round_identity import read_round_identity_config
+
+        writer_epoch = read_round_identity_config(db).epoch
         # If game is completed, just return the saved state
         if game.game_status == "completed":
-            return game.state  # type: ignore
+            return {
+                **(game.state or {}),
+                "game_id": game_id,
+                "game_status": "completed",
+                "revision": game.revision,
+                "writer_epoch": writer_epoch,
+            }
 
         # If game is in setup, return lobby info
         if game.game_status == "setup":
@@ -1033,6 +1133,8 @@ async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_
         # Enrich with players from database
         saved_state = game.state.copy() if game.state else {}  # type: ignore
         saved_state["game_id"] = game_id
+        saved_state["revision"] = game.revision
+        saved_state["writer_epoch"] = writer_epoch
         saved_state["game_status"] = "in_progress"
 
         # Get players from database to ensure fresh data
@@ -1184,6 +1286,7 @@ async def get_game_details(game_id: str, db: Session = Depends(database.get_db))
 
 class ScorecardBackfillRequest(BaseModel):
     per_hole_quarters: list[ScorecardRoundHoleQuarter]
+    expected_revision: int | None = None
 
 
 @router.patch("/{game_id}/scorecard")
@@ -1195,11 +1298,14 @@ async def backfill_scorecard(
 ) -> dict[str, Any]:
     """Backfill the per-hole quarters of a scanned round and recompute standings.
     Standings come out as the sum of the submitted per-hole (settle-up identity)."""
-    from ..services.completed_game_service import build_hole_history, persist_completed_game
+    from ..services.completed_game_service import build_hole_history, merge_hole_history, persist_completed_game
+    from ..services.round_writes import check_revision, propose_completed, writer_mode
 
-    game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
+    mode = writer_mode(db)
+    game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).populate_existing().first()
     if not game:
         raise HTTPException(status_code=404, detail="Round not found")
+    check_revision(db, game, body.expected_revision, required=mode == "canonical")
     state = dict(game.state or {})
     players = state.get("players", [])
     n = len(players)
@@ -1209,8 +1315,21 @@ async def backfill_scorecard(
 
     per_hole = [q.model_dump() for q in body.per_hole_quarters]
     hole_history, standings = build_hole_history(players, per_hole)
-    validate_round_scores(players, hole_history)
-    state["hole_history"] = hole_history
+    if mode == "canonical" and game.game_status == "completed":
+        from ..services.round_writes import completed_detail_players
+
+        detail_players = completed_detail_players(db, game)
+    else:
+        detail_players = players
+    validate_round_scores(detail_players, hole_history, complete=False)
+    history = merge_hole_history(state.get("hole_history", []), hole_history)
+    if mode == "canonical" and game.game_status == "completed":
+        detail = propose_completed(db, game, history, editor.id)
+        db.commit()
+        if detail["issue_ids"]:
+            raise HTTPException(409, detail)
+        return {"game_id": game_id, "revision": detail["revision"], "status": "unchanged", "issue_ids": []}
+    state["hole_history"] = history
     state["hole_quarters"] = {str(e["hole"]): e["points_delta"] for e in hole_history}
     state["standings"] = standings
     mark_card_edited(state, editor)
@@ -1218,6 +1337,7 @@ async def backfill_scorecard(
     game.updated_at = utc_now().isoformat()
 
     persist_completed_game(db, game)
+    standings = dict(game.state["standings"])
     db.commit()
     return {"game_id": game_id, "standings": standings}
 

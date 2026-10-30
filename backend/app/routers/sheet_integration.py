@@ -204,29 +204,19 @@ async def sync_sheet_data(request: dict, db: Session = Depends(get_db)) -> dict[
 def export_current_data_for_sheet(
     sheet_headers: list[str] = Query(...), db: Session = Depends(get_db)
 ) -> dict[str, Any]:
+    """Retired aggregate export: HTTP 410, with no statistics or source writes.
+
+    Read accepted standings through /data/leaderboard. Source publication is a
+    separate approved token-bound queue operation, never an arbitrary-header export.
     """
-    Export current database data in sheet format.
-
-    Returns current player statistics formatted for Google Sheets export.
-    """
-    try:
-        from ..services.leaderboard_service import LeaderboardService
-
-        leaderboard_service = LeaderboardService(db)
-        export_data = leaderboard_service.export_for_sheets(sheet_headers)  # type: ignore[attr-defined]
-
-        return {
-            "data": export_data,
-            "headers": sheet_headers,
-            "row_count": len(export_data),
-            "exported_at": utc_now().isoformat(),
-        }
-
-    except Exception as e:
-        logger.error(f"Error exporting current data: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to export current data: {e!s}")
-    finally:
-        db.close()
+    # This mounted legacy endpoint never had an implemented export contract.
+    # Do not recreate a cached aggregate authority or infer a writable source
+    # layout from arbitrary headers. Canonical reads and token-bound jobs own
+    # those separate responsibilities; Gate B is still operationally required.
+    raise HTTPException(
+        status_code=410,
+        detail="Legacy aggregate export retired; use canonical /data/leaderboard reads. Source writes require the approved token-bound queue contract.",
+    )
 
 
 @router.post("/sync-wgp-sheet")
@@ -246,6 +236,10 @@ async def sync_wgp_sheet_data(
     Uses isolated sessions per player to ensure failures are isolated and
     don't cascade to other players' data.
     """
+    from ..services.round_writes import writer_mode
+
+    if writer_mode(db) != "legacy":
+        raise HTTPException(409, "CSV aggregate sync disabled in canonical mode; use complete round snapshots")
     try:
         # Rate limit: max once per hour (but bypass for scheduled jobs)
         is_scheduled_job = x_scheduled_job == "true"
@@ -439,6 +433,9 @@ async def sync_wgp_sheet_data(
 
         for player_name, stats in player_stats.items():
             try:
+                # Each prior success commit/failure rollback releases the fence.
+                if writer_mode(db) != "legacy":
+                    raise HTTPException(409, "CSV aggregate sync disabled after mode change")
                 # Check if player exists
                 existing_player = (
                     db.query(models.PlayerProfile).filter(models.PlayerProfile.name == player_name).first()
@@ -451,11 +448,44 @@ async def sync_wgp_sheet_data(
                         handicap=10.0,  # Default handicap
                     )
                     new_player = player_service.create_player_profile(player_data)
+                    # Profile creation commits internally: reacquire before aggregates.
+                    if writer_mode(db) != "legacy":
+                        raise HTTPException(409, "CSV aggregate sync disabled after profile creation")
                     sync_results["players_created"] += 1
                     player_id = int(new_player.id)
                 else:
                     player_id = int(existing_player.id)
                     sync_results["players_updated"] += 1
+
+                # Try to fetch GHIN data if player has GHIN ID
+                ghin_data = None
+                if existing_player and existing_player.ghin_id:
+                    try:
+                        from ..services.ghin_service import GHINService
+
+                        ghin_service = GHINService(db)
+
+                        # Check if GHIN service is available
+                        if await ghin_service.initialize():
+                            ghin_data = await ghin_service.sync_player_handicap(player_id)
+                            if ghin_data:
+                                # Update handicap from GHIN
+                                existing_player.handicap = ghin_data.get("handicap_index", existing_player.handicap)
+                                logger.info(
+                                    f"Updated GHIN data for {player_name}: handicap={ghin_data.get('handicap_index')}"
+                                )
+                        else:
+                            # Fall back to stored GHIN data
+                            ghin_data = ghin_service.get_player_ghin_data(player_id)
+                            if ghin_data:
+                                logger.info(f"Using stored GHIN data for {player_name}")
+                    except Exception as ghin_error:
+                        logger.warning(f"Failed to fetch GHIN data for {player_name}: {ghin_error}")
+
+                # GHIN synchronization may commit/rollback internally too. Fence
+                # after it and before touching any imported aggregate.
+                if writer_mode(db) != "legacy":
+                    raise HTTPException(409, "CSV aggregate sync disabled after handicap synchronization")
 
                 # Update or create statistics record
                 player_stats_record = (
@@ -488,31 +518,6 @@ async def sync_wgp_sheet_data(
                 # Update timestamp
                 player_stats_record.last_updated = utc_now().isoformat()
 
-                # Try to fetch GHIN data if player has GHIN ID
-                ghin_data = None
-                if existing_player and existing_player.ghin_id:
-                    try:
-                        from ..services.ghin_service import GHINService
-
-                        ghin_service = GHINService(db)
-
-                        # Check if GHIN service is available
-                        if await ghin_service.initialize():
-                            ghin_data = await ghin_service.sync_player_handicap(player_id)
-                            if ghin_data:
-                                # Update handicap from GHIN
-                                existing_player.handicap = ghin_data.get("handicap_index", existing_player.handicap)
-                                logger.info(
-                                    f"Updated GHIN data for {player_name}: handicap={ghin_data.get('handicap_index')}"
-                                )
-                        else:
-                            # Fall back to stored GHIN data
-                            ghin_data = ghin_service.get_player_ghin_data(player_id)
-                            if ghin_data:
-                                logger.info(f"Using stored GHIN data for {player_name}")
-                    except Exception as ghin_error:
-                        logger.warning(f"Failed to fetch GHIN data for {player_name}: {ghin_error}")
-
                 # Store GHIN data for response payload
                 if ghin_data:
                     ghin_data_collection[player_name] = {
@@ -522,10 +527,15 @@ async def sync_wgp_sheet_data(
                         "last_updated": ghin_data.get("last_updated"),
                     }
 
+                if writer_mode(db) != "legacy":
+                    raise HTTPException(409, "CSV aggregate sync disabled after mode change")
                 db.commit()
 
                 sync_results["players_processed"] += 1
 
+            except HTTPException:
+                db.rollback()
+                raise
             except Exception as e:
                 db.rollback()  # CRITICAL: Roll back the failed transaction
                 sync_results["errors"].append(f"Error processing {player_name}: {e!s}")
