@@ -3,7 +3,7 @@
  * open hole 2 at 2× with the carry badge (or re-queue the push for sync).
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { resolveCarryOverForHole } from '../../utils/carryOver';
+import { resolveCarryOverForHole } from '../../utils/holeRules';
 import { reconcileGameState } from '../gameReconcile';
 import syncManager, {
   buildScoresPayloadFromLocal,

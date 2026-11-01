@@ -161,23 +161,11 @@
     "waiver": null
   },
   "correction-save-feedback": {
-    "at": "2026-10-26T15:55:36.237746+00:00",
+    "at": "2026-11-01T03:40:55.941231+00:00",
     "detail": null,
-    "duration": 4.335,
-    "files": {
-      "frontend/src/components/game/EditHoleModal.jsx": "sha256:16cc344d88cf95d9ea99e03e0cc6243f04b09f45e7b240cf4fa5831fde1abc2d",
-      "frontend/src/components/game/Scorecard.jsx": "sha256:26cef3cd2f6e779c2c1e9617e1db4c3732ec4dae655e94f8cc8cb2e6099b0647",
-      "frontend/src/components/game/__tests__/EditHoleModal.save.test.jsx": "sha256:ddbf87bc9127d8d34ab883ca3fa40bc16796e4a5ef9a9eb765e77117a7f02348",
-      "frontend/src/hooks/__tests__/useGameData.test.js": "sha256:732c5813dd6fa2896010c45e1d60da1576af3ccb5842bd4afde4a49c3c956703",
-      "frontend/src/hooks/useCorrectionSyncFeedback.js": "sha256:08a0b2a0aad8fb3c3fc939023cf48d4c4d5f9c2bf1640c204598ba0affa0d714",
-      "frontend/src/hooks/useGameData.js": "sha256:2de40af88d7d53f0002a2cba4a4627a530b860458962747013802a3f50571a47",
-      "frontend/src/hooks/useHoleSubmission.js": "sha256:023571557e24059f6b58860223bfbc392ada5b87be3f228f628870eba95ab085",
-      "frontend/src/pages/SimpleScorekeeperPage.jsx": "sha256:7d2b89453c0a8f225008bc1da29e8da5cfb09f6a45ff8d0af024012f16044a90",
-      "frontend/src/pages/__tests__/SimpleScorekeeperPage.syncWarning.test.jsx": "sha256:ae640c369122c9876f0193274aad18e0c69dccdf0cf7fdeb6b5a77cb8bdde337",
-      "frontend/src/services/__tests__/syncManager.correlation.test.js": "sha256:e01fdea17cecdfe0a7cc31a5c32422cc65aeb81a30d98b6093f73c5e7e9abf8b",
-      "frontend/src/services/syncManager.jsx": "sha256:1673868c080d1e5c7754d9b84068112d9d2b9dca38b350eee4372bf5fd676597"
-    },
-    "fingerprint": "sha256:96fcdd6f2ccbf4be13b4b5352c6650d5610969c303bb79982a25eb994f69fef7",
+    "duration": null,
+    "files": null,
+    "fingerprint": "sha256:bc3e5dca732157fb52c58ae69e9a4d01b876b94fc15b0f14f4beccc958c70746",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -340,16 +328,6 @@
       "backend/app/routers/games_holes.py": "sha256:5f85317c15b90b95067614a9778be54445662e837c888307d8116c3196aa4644"
     },
     "fingerprint": "sha256:950f0dda39ed0460f50f8a0e629cc9b2f5a7547efd2d6c0100290bef87561f6c",
-    "result": "pass",
-    "tier": "cheap",
-    "waiver": null
-  },
-  "hole-completion-points-zero-sum": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
-    "detail": null,
-    "duration": null,
-    "files": null,
-    "fingerprint": "sha256:0ca6f74daff172a46ebc9af1d5ea59794658d60c98129223cf56ed2d29d6c90d",
     "result": "pass",
     "tier": "cheap",
     "waiver": null

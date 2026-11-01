@@ -31,6 +31,7 @@ import { fetchJson } from "../../services/fetchJson";
 // this component's raw-handicap fallback intentionally does not.
 import { getStrokesForHole } from "../../utils/strokeAllocation";
 import { allHolesPlayed } from "../../utils/holeHistory";
+import { netScoresAndWinner } from "../../utils/holeRules";
 import { nudgeHittingOrder } from "../../utils/hittingOrder";
 import {
   HoleHeader,
@@ -588,70 +589,19 @@ const SimpleScorekeeper = ({
   // Note: strokeAllocation memo moved above the Stuart Mode effects (TDZ fix)
 
   // Calculate net scores and auto-detect winner
-  const calculateNetScoresAndWinner = useMemo(() => {
-    // Need all scores entered and teams formed
-    const allScoresEntered = players.every(
-      (p) => scores[p.id] !== undefined && scores[p.id] !== null,
-    );
-    const teamsFormed =
-      teamMode === "partners"
-        ? team1.length > 0 && team1.length < players.length
-        : captain !== null;
-
-    if (!allScoresEntered || !teamsFormed) {
-      return {
-        netScores: {},
-        suggestedWinner: null,
-        team1Net: null,
-        team2Net: null,
-      };
-    }
-
-    // Calculate net scores (gross - strokes received)
-    const netScores = createPlayerMap(players, (p) => {
-      const gross = scores[p.id] || 0;
-      const strokesReceived = strokeAllocation?.[p.id]?.[currentHole] || 0;
-      return gross - strokesReceived;
-    });
-
-    // Calculate team totals based on best ball (lowest net score on team)
-    let team1Net, team2Net;
-
-    if (teamMode === "partners") {
-      const team2Ids = players
-        .filter((p) => !team1.includes(p.id))
-        .map((p) => p.id);
-      // Safe array bounds: filter undefined values and provide fallback
-      const team1Scores = team1
-        .map((id) => netScores[id])
-        .filter((s) => s !== undefined);
-      const team2Scores = team2Ids
-        .map((id) => netScores[id])
-        .filter((s) => s !== undefined);
-      team1Net = team1Scores.length > 0 ? Math.min(...team1Scores) : 0;
-      team2Net = team2Scores.length > 0 ? Math.min(...team2Scores) : 0;
-    } else {
-      // Solo mode: captain vs opponents
-      team1Net = netScores[captain] ?? 0; // Captain's net score with fallback
-      // Safe array bounds for opponents
-      const opponentScores = opponents
-        .map((id) => netScores[id])
-        .filter((s) => s !== undefined);
-      team2Net = opponentScores.length > 0 ? Math.min(...opponentScores) : 0;
-    }
-
-    // Determine suggested winner
-    let suggestedWinner = null;
-    if (team1Net < team2Net) {
-      suggestedWinner = teamMode === "partners" ? "team1" : "captain";
-    } else if (team2Net < team1Net) {
-      suggestedWinner = teamMode === "partners" ? "team2" : "opponents";
-    } else {
-      suggestedWinner = "push"; // Tied = push
-    }
-
-    return { netScores, suggestedWinner, team1Net, team2Net };
-  }, [
+  const calculateNetScoresAndWinner = useMemo(
+    () =>
+      netScoresAndWinner({
+        players,
+        scores,
+        teamMode,
+        team1,
+        captain,
+        opponents,
+        strokeAllocation,
+        holeNumber: currentHole,
+      }),
+    [
     scores,
     players,
     team1,
