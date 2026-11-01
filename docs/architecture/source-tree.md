@@ -96,8 +96,9 @@ frontend/
 - `src/config/api.config.js` — resolves the backend base URL from
   `import.meta.env.VITE_API_URL`.
 - `src/context/AuthContext.jsx` — Auth0 wiring (reads `VITE_AUTH0_*`).
-- `src/services/` — `fetchJson.jsx`, `syncManager.jsx`, `offlineStorage.jsx`,
-  `gameReconcile.js`, `cacheManager.jsx`, `ghinService.js`.
+- `src/services/` — `fetchJson.jsx`, `syncManager.jsx` (offline queue + the
+  load-time server-vs-local rule), `offlineStorage.jsx`, `cacheManager.jsx`,
+  `ghinService.js`.
 
 ## Documentation (`/docs`)
 

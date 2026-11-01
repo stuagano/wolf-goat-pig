@@ -4,9 +4,9 @@
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { resolveCarryOverForHole } from '../../utils/holeRules';
-import { reconcileGameState } from '../gameReconcile';
 import syncManager, {
   buildScoresPayloadFromLocal,
+  chooseGameState,
   hasPendingSyncForGame,
   reconcileOnLoad,
 } from '../syncManager';
@@ -37,11 +37,7 @@ const PLAYERS = [
 function holeStateAfterReload(gameId, serverState, baseWager = BASE_WAGER) {
   reconcileOnLoad(gameId, serverState);
   const localState = syncManager.loadLocalGameState(gameId);
-  const chosen = reconcileGameState({
-    serverState,
-    localState,
-    hasPendingEdits: hasPendingSyncForGame(gameId),
-  });
+  const chosen = chooseGameState(gameId, serverState);
   const holeHistory = chosen?.holeHistory ?? serverState.holeHistory ?? [];
   const currentHole = chosen?.currentHole ?? serverState.currentHole ?? 1;
   const carry = resolveCarryOverForHole({

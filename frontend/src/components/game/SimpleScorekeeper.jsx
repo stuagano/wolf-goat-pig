@@ -24,7 +24,6 @@ import { SyncStatusBanner } from "../ui/SyncStatusIndicator";
 import { useHoleSync, useUIState, useBettingState } from "../../hooks";
 import { gameReducer, createInitialState } from "./gameReducer";
 import syncManager from "../../services/syncManager";
-import { reconcileGameState } from "../../services/gameReconcile";
 import { fetchJson } from "../../services/fetchJson";
 // NOTE: only getStrokesForHole is shared with utils/strokeAllocation — its
 // calculateStrokeAllocation applies USGA course-handicap conversion, which
@@ -109,22 +108,12 @@ const SimpleScorekeeper = ({
   // GAME STATE - Using useReducer for consolidated state management
   // ============================================================
 
-  // Local is an offline write-buffer: prefer it over the server-provided
-  // initialHoleHistory only when this game has a queued edit OR local holds a
-  // hole the server lacks (an in-flight sync that hasn't landed). Otherwise the
-  // server is authoritative — returning null falls back to initialHoleHistory.
-  // This stops a longer-but-stale/duplicated local cache from winning while
-  // still preserving genuinely unsynced holes.
+  // Restore the local cache only when it holds unsynced work (see
+  // syncManager.chooseGameState); null falls back to initialHoleHistory.
   const restoredState = useMemo(() => {
-    const localState = syncManager.loadLocalGameState(gameId);
-    const chosen = reconcileGameState({
-      serverState: { holeHistory: initialHoleHistory },
-      localState,
-      hasPendingEdits: syncManager.hasPendingSyncForGame(gameId),
-    });
-    // reconcile returns localState only when local should win; otherwise it
-    // returns the server object => null => fall back to initialHoleHistory.
-    return chosen === localState && localState?.holeHistory ? localState : null;
+    const server = { holeHistory: initialHoleHistory };
+    const chosen = syncManager.chooseGameState(gameId, server);
+    return chosen !== server && chosen?.holeHistory ? chosen : null;
   }, [gameId, initialHoleHistory]);
 
   // Initialize game state reducer

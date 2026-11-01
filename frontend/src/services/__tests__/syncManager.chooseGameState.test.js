@@ -1,8 +1,13 @@
-import { reconcileGameState, localHasUnsyncedHoles } from '../gameReconcile';
+import syncManager, { chooseGameState, localHasUnsyncedHoles } from '../syncManager';
 
 const local = { holeHistory: [{ hole: 1 }, { hole: 1 }, { hole: 2 }] }; // longer + duplicate, same hole NUMBERS as server
 const server = { holeHistory: [{ hole: 1 }, { hole: 2 }] };
 const localAhead = { holeHistory: [{ hole: 1 }, { hole: 2 }, { hole: 3 }] }; // has hole 3 the server lacks
+
+beforeEach(() => {
+  syncManager.clearQueue();
+  syncManager.clearLocalGameState('g1');
+});
 
 describe('localHasUnsyncedHoles', () => {
   test('false when local holes are a subset of server (duplicates do not count)', () => {
@@ -14,29 +19,29 @@ describe('localHasUnsyncedHoles', () => {
   });
 });
 
-describe('reconcileGameState', () => {
+describe('chooseGameState', () => {
   test('no local -> server', () => {
-    expect(reconcileGameState({ serverState: server, localState: null, hasPendingEdits: false }))
-      .toBe(server);
+    expect(chooseGameState('g1', server)).toBe(server);
   });
 
   test('local + no pending edits, not ahead -> server (heals, even when longer/duplicated)', () => {
-    expect(reconcileGameState({ serverState: server, localState: local, hasPendingEdits: false }))
-      .toBe(server);
+    syncManager.saveLocalGameState('g1', local);
+    expect(chooseGameState('g1', server)).toBe(server);
   });
 
   test('local has a hole the server lacks + no pending edits -> local (in-flight sync preserved)', () => {
-    expect(reconcileGameState({ serverState: server, localState: localAhead, hasPendingEdits: false }))
-      .toBe(localAhead);
+    syncManager.saveLocalGameState('g1', localAhead);
+    expect(chooseGameState('g1', server).holeHistory).toEqual(localAhead.holeHistory);
   });
 
   test('local + pending edits -> local (unsynced work is preserved)', () => {
-    expect(reconcileGameState({ serverState: server, localState: local, hasPendingEdits: true }))
-      .toBe(local);
+    syncManager.saveLocalGameState('g1', local);
+    syncManager.queueSync('g1', 'scores', { holes: [] });
+    expect(chooseGameState('g1', server).holeHistory).toEqual(local.holeHistory);
   });
 
   test('pending edits but no local -> server (nothing to prefer)', () => {
-    expect(reconcileGameState({ serverState: server, localState: null, hasPendingEdits: true }))
-      .toBe(server);
+    syncManager.queueSync('g1', 'scores', { holes: [] });
+    expect(chooseGameState('g1', server)).toBe(server);
   });
 });

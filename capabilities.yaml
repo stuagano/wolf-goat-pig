@@ -408,10 +408,9 @@ capabilities:
       holes are preserved
     tier: cheap
     deps:
-    - frontend/src/services/gameReconcile.js
     - frontend/src/services/syncManager.jsx
     check:
-      shell: cd frontend && npx vitest run src/services/__tests__/gameReconcile.test.js
+      shell: cd frontend && npx vitest run src/services/__tests__/syncManager.chooseGameState.test.js
         src/services/__tests__/syncManager.reconcile.test.js
   - id: wgp-scoring-rules
     description: the WGP rules engine computes betting/scoring rules correctly (wagers,
