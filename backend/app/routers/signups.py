@@ -41,13 +41,14 @@ def _deliver_signup_confirmation(signup_id: int, to_email: str, player_name: str
     the provider accepts, so retried/duplicate signups never double-send (#317).
     Honors the recipient's ``signup_confirmations_enabled`` preference. A soft
     failure (provider returns False) is logged and reported to Sentry rather
-    than silently reported as delivered.
+    than silently reported as delivered. The row lock serializes overlapping
+    deliveries for one signup (e.g. cancel + rejoin mid-send) on PostgreSQL.
     """
     if not to_email:
         return
     db = database.SessionLocal()
     try:
-        signup = db.query(models.DailySignup).filter(models.DailySignup.id == signup_id).first()
+        signup = db.query(models.DailySignup).filter(models.DailySignup.id == signup_id).with_for_update().first()
         if signup is None or signup.confirmation_email_sent_at:
             return  # already sent, or the row vanished — never double-send
 
