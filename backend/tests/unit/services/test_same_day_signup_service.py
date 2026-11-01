@@ -107,7 +107,7 @@ def test_failed_recipient_can_retry_without_resending_successes(db, email):
 def test_admin_signup_delivers_alert_and_keeps_own_confirmation(db, email, monkeypatch):
     from datetime import timedelta
 
-    from app.routers import signup_admin
+    from app.routers import signup_admin, signups
     from app.utils.time import club_today
 
     day = (club_today() + timedelta(days=3)).isoformat()
@@ -117,11 +117,9 @@ def test_admin_signup_delivers_alert_and_keeps_own_confirmation(db, email, monke
     newcomer.legacy_name = "Bob"
     db.commit()
     confirmation = Mock()
-    monkeypatch.setattr(signup_admin, "_send_signup_confirmation", confirmation)
+    monkeypatch.setattr(signups, "_send_signup_confirmation", confirmation)
     monkeypatch.setattr(signup_admin, "get_legacy_signup_service", Mock(return_value=Mock()))
-    monkeypatch.setattr(
-        signup_admin, "send_same_day_signup_notifications", service.deliver_same_day_signup_notifications
-    )
+    monkeypatch.setattr(signups, "send_same_day_signup_notifications", service.deliver_same_day_signup_notifications)
 
     result = signup_admin.admin_add_signup(
         signup_admin.AdminSignupCreate(date=day, player_profile_id=newcomer.id),
@@ -151,6 +149,7 @@ def test_reactivation_through_update_alerts_existing_players_once(db, email, mon
     monkeypatch.setattr(signups.database, "SessionLocal", factory)
     monkeypatch.setattr(signups, "get_legacy_signup_service", Mock(return_value=Mock()))
     monkeypatch.setattr(signups, "send_same_day_signup_notifications", service.deliver_same_day_signup_notifications)
+    monkeypatch.setattr(signups, "_send_signup_confirmation", Mock())
     update = signups.schemas.DailySignupUpdate(status="signed_up")
 
     signups.update_signup(event.id, update, current_user=bob)
