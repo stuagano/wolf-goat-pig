@@ -5,10 +5,8 @@
  */
 import { describe, test, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import useHoleSubmission, {
-  buildHoleSubmitPayload,
-  standingsFromHistory,
-} from '../useHoleSubmission';
+import useHoleSubmission, { buildHoleSubmitPayload } from '../useHoleSubmission';
+import { standingsFromHistory } from '../../utils/holeRules';
 
 const PLAYERS = [
   { id: 'p1', name: 'Alice' },
