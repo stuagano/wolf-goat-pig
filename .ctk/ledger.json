@@ -465,11 +465,11 @@
     "waiver": null
   },
   "new-player-capture-persists": {
-    "at": "2026-10-26T19:52:15.297181+00:00",
+    "at": "2026-11-01T05:45:41.201185+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:0bdcf3e85f3b55764fc5e024e04e5b3c1c6c057cc09d015abb01250b04f06537",
+    "fingerprint": "sha256:55acaf877929345bac6f6a9e6a7f5810eabe1544191d93d3a7a0d9a4e302cddf",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -627,21 +627,21 @@
     "waiver": null
   },
   "signup-server-owns-identity": {
-    "at": "2026-10-26T19:52:47.618077+00:00",
+    "at": "2026-11-01T05:46:27.022411+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:5247d2f6b4009adac5a0d6d3435445df0f3f101b2eaeeda416720b2329da5003",
+    "fingerprint": "sha256:ad57e27337e99cc1234dac9aade00235ece1ff7b75e1cf7d0f46188b1b189aa1",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "signups-create-persists": {
-    "at": "2026-10-26T19:50:39.283753+00:00",
+    "at": "2026-11-01T05:45:55.911086+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:255238fda38606d162b2e2e2d6dc495183d6f4d92ff851f9c58b42fc2b00ff9b",
+    "fingerprint": "sha256:091e4b31101b8f84865ad5d2219a5334406122e5a55c1692d39fb4b701ca83ea",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -720,11 +720,11 @@
     "waiver": null
   },
   "tee-sheet-contract": {
-    "at": "2026-10-26T19:50:17.728792+00:00",
+    "at": "2026-11-01T05:45:58.795922+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:a9863bb6f54aabdd6798a5bacb0f60935a734014e4cc9b202db4b5730f41f1eb",
+    "fingerprint": "sha256:a120b5f9cc0119ffa8fb16170c6d1c23aaabfdc11ea9d5af991e358bf700b293",
     "result": "pass",
     "tier": "cheap",
     "waiver": null

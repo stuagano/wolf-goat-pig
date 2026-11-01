@@ -117,16 +117,10 @@ class TestTeeSheetSignupMirror:
             db.close()
 
         sent: list[tuple] = []
-
-        class _FakeEmail:
-            def send_signup_confirmation(self, to_email, player_name, signup_date):
-                sent.append((to_email, player_name, signup_date))
-                return True
-
-        monkeypatch.setattr("app.services.email_service.get_email_service", lambda: _FakeEmail())
+        monkeypatch.setattr("app.routers.signups._send_signup_confirmation", lambda *args: sent.append(args))
         alerts = []
         monkeypatch.setattr(
-            "app.services.same_day_signup_service.send_same_day_signup_notifications",
+            "app.routers.signups.send_same_day_signup_notifications",
             lambda signup_id: alerts.append(signup_id),
         )
 
@@ -144,14 +138,16 @@ class TestTeeSheetSignupMirror:
                 assert row is not None
                 assert row.status == "signed_up"
                 assert alerts == [row.id]
+                row_id = row.id
             finally:
                 db.close()
 
             # Confirmation email went to the resolved profile, under the canonical name.
-            assert sent == [(email, canonical, date)]
-            # Retrying an already-active signup must not dispatch another alert.
+            assert sent == [(row_id, email, canonical, date)]
+            # Retrying an already-active signup must not dispatch another alert or email.
             again = client.post("/tee-sheet/signup", json={"date": date, "name": legacy_name})
             assert again.status_code == 200
             assert len(alerts) == 1
+            assert len(sent) == 1
         finally:
             _cleanup()
