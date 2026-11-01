@@ -18,7 +18,6 @@
 
 import { createNamespacedStorage } from '../utils/storage';
 import { apiConfig } from '../config/api.config';
-import { localHasUnsyncedHoles } from './gameReconcile';
 
 let authenticatedFetch = async () => { throw new Error('Sign in to sync scores'); };
 
@@ -769,17 +768,49 @@ export function hasPendingSyncForGame(gameId) {
   return getSyncQueue().some((item) => item.gameId === gameId);
 }
 
+// Local is an offline write-buffer: trust it over the server only when this
+// game holds work the server hasn't got. Otherwise the server (DB) is
+// authoritative — that heals stale/duplicated local state instead of letting a
+// longer-but-wrong cache win. See
+// docs/superpowers/specs/2026-06-16-cross-device-game-sync-design.md
+
+function holeSet(state) {
+  return new Set((state?.holeHistory || []).map((h) => h.hole));
+}
+
+/**
+ * True iff local holds a hole the server lacks (compared by hole NUMBER, not
+ * entry count). This captures "local has unsynced work" even when the sync
+ * queue is empty — e.g. a reload during an in-flight online POST that hasn't
+ * landed yet. Because duplicates share a hole number, a duplicated-but-not-
+ * ahead cache returns false here, so it still heals from the server.
+ */
+export function localHasUnsyncedHoles(localState, serverState) {
+  const server = holeSet(serverState);
+  for (const n of holeSet(localState)) {
+    if (!server.has(n)) return true;
+  }
+  return false;
+}
+
+/** The one "local wins" rule: a queued edit, or a hole the server lacks. */
+function localHasUnsyncedWork(gameId, localState, serverState) {
+  return hasPendingSyncForGame(gameId) || localHasUnsyncedHoles(localState, serverState);
+}
+
+/** State to display on load: the local cache when it holds unsynced work, else the server's. */
+export function chooseGameState(gameId, serverState) {
+  const localState = loadLocalGameState(gameId);
+  return localState && localHasUnsyncedWork(gameId, localState, serverState) ? localState : serverState;
+}
+
 /**
  * If local is ahead of the server (or already queued), make sure a scores
  * sync item exists and kick the drain. Returns true when work was queued/pending.
  */
 export function ensureScoresQueued(gameId, serverState = null) {
   const localState = loadLocalGameState(gameId);
-  const needsSync =
-    hasPendingSyncForGame(gameId) ||
-    localHasUnsyncedHoles(localState, serverState);
-
-  if (!needsSync) {
+  if (!localHasUnsyncedWork(gameId, localState, serverState)) {
     return false;
   }
 
@@ -806,7 +837,7 @@ export function ensureScoresQueued(gameId, serverState = null) {
  */
 export function reconcileOnLoad(gameId, serverState) {
   const localState = loadLocalGameState(gameId);
-  if (hasPendingSyncForGame(gameId) || localHasUnsyncedHoles(localState, serverState)) {
+  if (localHasUnsyncedWork(gameId, localState, serverState)) {
     ensureScoresQueued(gameId, serverState);
     return;
   }
@@ -845,6 +876,7 @@ const syncManager = {
   clearLocalGameState,
   getNewerLocalState,
   hasPendingSyncForGame,
+  chooseGameState,
   reconcileOnLoad,
 };
 

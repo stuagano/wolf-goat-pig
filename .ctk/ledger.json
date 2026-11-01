@@ -161,11 +161,11 @@
     "waiver": null
   },
   "correction-save-feedback": {
-    "at": "2026-11-01T03:40:55.941231+00:00",
+    "at": "2026-11-01T17:54:57.628044+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:bc3e5dca732157fb52c58ae69e9a4d01b876b94fc15b0f14f4beccc958c70746",
+    "fingerprint": "sha256:3225241a1611695906b6a27e49d219c699780295227ed8a4c7fd39ce7efc8831",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -635,14 +635,11 @@
     "waiver": null
   },
   "stale-local-heals-from-server": {
-    "at": "2026-10-26T15:55:40.704633+00:00",
+    "at": "2026-11-01T17:55:02.222165+00:00",
     "detail": null,
-    "duration": 1.589,
-    "files": {
-      "frontend/src/services/gameReconcile.js": "sha256:de188fdd57515e8c127eaf6194784cec629bc35753bc78297c6ec70bc4bc0445",
-      "frontend/src/services/syncManager.jsx": "sha256:1673868c080d1e5c7754d9b84068112d9d2b9dca38b350eee4372bf5fd676597"
-    },
-    "fingerprint": "sha256:b162331b0fdd57717827beb4b0fc69a094512b909da0d1193a36afe6e51008a2",
+    "duration": null,
+    "files": null,
+    "fingerprint": "sha256:f6a35d95eea2db002366c511c14f5b4f0a8d9fb8aa7e3726a42cb2cbc8e844e3",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
