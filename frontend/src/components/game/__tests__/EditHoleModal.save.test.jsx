@@ -3,7 +3,8 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import EditHoleModal from '../EditHoleModal';
 import Scorecard from '../Scorecard';
-import useHoleSubmission, { standingsFromHistory } from '../../../hooks/useHoleSubmission';
+import useHoleSubmission from '../../../hooks/useHoleSubmission';
+import { standingsFromHistory } from '../../../utils/holeRules';
 import syncManager from '../../../services/syncManager';
 
 const players = [{ id: 'p1', name: 'Alice' }, { id: 'p2', name: 'Bob' }];
