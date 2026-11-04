@@ -255,3 +255,6 @@ deploy/gcp/phase6-monitoring/.uptime-checks
 deploy/gcp/phase6-monitoring/policies/
 .firebaserc
 /firebase.json
+
+# Axon code-graph index (local, ~200MB)
+.axon/
