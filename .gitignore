@@ -211,7 +211,7 @@ dmypy.json
 settings.json
 
 # Isaac CLI per-checkout state (e.g. reminder timestamps); left untracked it
-# blocks `orca worktree rm`
+# blocks `git worktree remove`
 .isaac/
 
 # Per-user agent/editor config (Codex sandbox prefs, Cursor machine rules)
