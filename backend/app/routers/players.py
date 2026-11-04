@@ -33,7 +33,7 @@ from ..services.legacy_player_service import (
 )
 from ..services.player_service import PlayerService
 from ..services.unified_data_service import get_unified_data_service
-from ..utils.admin_auth import admin_role, require_admin
+from ..utils.admin_auth import admin_role, is_admin_profile, require_admin
 from ..utils.api_helpers import ApiResponse, handle_api_errors, require_not_none
 from ..utils.time import utc_now
 from .account_claims import router as account_claims_router
@@ -948,14 +948,22 @@ def get_player_availability(player_id: int, db: Session = Depends(get_db)) -> li
     return [schemas.PlayerAvailabilityResponse.from_orm(avail) for avail in availability]
 
 
+def _require_self_or_admin(player_id: int, current_user: models.PlayerProfile) -> None:
+    """Only the player themselves, or an admin, may act on a player-scoped record."""
+    if current_user.id != player_id and not is_admin_profile(current_user):
+        raise HTTPException(status_code=403, detail="You can only change your own settings")
+
+
 @router.post("/{player_id}/availability", response_model=schemas.PlayerAvailabilityResponse)
 @handle_api_errors(operation_name="set player availability")
 def set_player_availability(
     player_id: int,
     availability: schemas.PlayerAvailabilityCreate,
     db: Session = Depends(get_db),
+    current_user: models.PlayerProfile = Depends(get_current_user),
 ) -> schemas.PlayerAvailabilityResponse:
     """Set or update a player's availability for a specific day."""
+    _require_self_or_admin(player_id, current_user)
     existing = (
         db.query(models.PlayerAvailability)
         .filter(
@@ -1004,8 +1012,13 @@ def set_player_availability(
 
 @router.get("/{player_id}/email-preferences", response_model=schemas.EmailPreferencesResponse)
 @handle_api_errors(operation_name="get email preferences")
-def get_email_preferences(player_id: int, db: Session = Depends(get_db)) -> schemas.EmailPreferencesResponse:
+def get_email_preferences(
+    player_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.PlayerProfile = Depends(get_current_user),
+) -> schemas.EmailPreferencesResponse:
     """Get a player's email preferences."""
+    _require_self_or_admin(player_id, current_user)
     now = utc_now().isoformat()
 
     preferences = (
@@ -1027,8 +1040,10 @@ def update_email_preferences(
     player_id: int,
     preferences_update: schemas.EmailPreferencesUpdate,
     db: Session = Depends(get_db),
+    current_user: models.PlayerProfile = Depends(get_current_user),
 ) -> schemas.EmailPreferencesResponse:
     """Update a player's email preferences."""
+    _require_self_or_admin(player_id, current_user)
     preferences_result = (
         db.query(models.EmailPreferences).filter(models.EmailPreferences.player_profile_id == player_id).first()
     )

@@ -11,13 +11,14 @@ from sqlalchemy.orm import Session
 from .. import models
 from ..data.wing_point_course_data import WING_POINT_COURSE_DATA
 from ..database import get_db
+from ..utils.admin_auth import require_admin
 from ..utils.time import utc_now
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.patch("/games/{game_id}/update-course-data")
+@router.patch("/games/{game_id}/update-course-data", dependencies=[Depends(require_admin)])
 async def update_game_course_data(game_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Update course data (par and handicap) for an in-progress game.
@@ -133,7 +134,7 @@ async def update_game_course_data(game_id: str, db: Session = Depends(get_db)) -
         raise HTTPException(status_code=500, detail=f"Error updating course data: {e!s}")
 
 
-@router.patch("/games/update-all-course-data")
+@router.patch("/games/update-all-course-data", dependencies=[Depends(require_admin)])
 async def update_all_games_course_data(db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Update course data for ALL in-progress games.

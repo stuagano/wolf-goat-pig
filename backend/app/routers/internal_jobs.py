@@ -14,26 +14,16 @@ triggered anonymously.
 """
 
 import logging
-import os
 
 from fastapi import APIRouter, Header, HTTPException, Query
 
 from ..services.email_scheduler import EmailScheduler, email_scheduler
+from ..utils.job_auth import verify_job_token as _require_job_token
 
 logger = logging.getLogger(__name__)
 
 # Hidden from the public OpenAPI schema — these are infra-internal.
 router = APIRouter(prefix="/internal/jobs", tags=["internal"], include_in_schema=False)
-
-
-def _require_job_token(supplied: str | None) -> None:
-    """Authorize an internal-job request, or raise. Fail-closed when unset."""
-    expected = os.getenv("INTERNAL_JOB_TOKEN")
-    if not expected:
-        # No token configured → endpoints are disabled (safe default).
-        raise HTTPException(status_code=503, detail="internal jobs disabled (INTERNAL_JOB_TOKEN unset)")
-    if supplied != expected:
-        raise HTTPException(status_code=403, detail="forbidden")
 
 
 @router.post("/{job}")

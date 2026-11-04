@@ -19,6 +19,7 @@ from ..services.auth_service import get_current_user
 from ..services.email_service import get_email_service
 from ..services.matchmaking_service import MatchmakingService
 from ..services.notification_service import get_notification_service
+from ..utils.admin_auth import require_admin
 from ..utils.api_helpers import handle_api_errors
 from ..utils.time import utc_now
 
@@ -707,7 +708,7 @@ def get_match_suggestions(
 # ============================================================================
 
 
-@router.post("/create-and-notify")
+@router.post("/create-and-notify", dependencies=[Depends(require_admin)])
 async def create_and_notify_matches(db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Run the full matchmaking process: find matches and send notifications.

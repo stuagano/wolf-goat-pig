@@ -4634,7 +4634,8 @@ export interface paths {
          *     Rate limited to once per hour to prevent excessive API calls from external sources.
          *     Results are cached for 1 hour.
          *
-         *     Scheduled jobs (with X-Scheduled-Job header) bypass rate limiting.
+         *     Requires an admin bearer token. Admin callers that also send
+         *     ``X-Scheduled-Job: true`` skip the hourly rate limit.
          *
          *     Uses isolated sessions per player to ensure failures are isolated and
          *     don't cascade to other players' data.
@@ -9465,7 +9466,9 @@ export interface operations {
             query?: {
                 force?: boolean;
             };
-            header?: never;
+            header?: {
+                "x-internal-job-token"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -11465,7 +11468,9 @@ export interface operations {
     sync_ghin_handicaps_ghin_sync_handicaps_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-internal-job-token"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -11478,6 +11483,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -11574,7 +11588,9 @@ export interface operations {
             query?: {
                 max_pages?: number;
             };
-            header?: never;
+            header?: {
+                "x-internal-job-token"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };

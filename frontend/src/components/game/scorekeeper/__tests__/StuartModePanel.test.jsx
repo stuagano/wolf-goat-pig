@@ -3,6 +3,9 @@ import React from 'react';
 import { render, screen, waitFor, act, fireEvent, within } from '@testing-library/react';
 import StuartModePanel from '../StuartModePanel';
 
+// The commissioner chat endpoint requires a signed-in caller.
+vi.mock('@auth0/auth0-react', () => ({ useAuth0: () => ({ getAccessTokenSilently: async () => 'chat-token' }) }));
+
 const theme = {
   colors: {
     primary: '#2196F3',
@@ -84,8 +87,9 @@ describe('whisperer proactive briefing', () => {
   test('calls /api/commissioner/chat on mount', async () => {
     render(<StuartModePanel {...baseProps} />);
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
-    const [url] = global.fetch.mock.calls[0];
+    const [url, options] = global.fetch.mock.calls[0];
     expect(url).toMatch(/commissioner\/chat/);
+    expect(options.headers.Authorization).toBe('Bearer chat-token');
   });
 
   test('sends briefing prompt for the current hole', async () => {

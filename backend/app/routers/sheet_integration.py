@@ -19,6 +19,7 @@ from ..database import get_db
 from ..middleware.caching import sheet_sync_cache
 from ..middleware.rate_limiting import rate_limiter
 from ..services.player_service import PlayerService
+from ..utils.admin_auth import require_admin
 from ..utils.time import utc_now
 
 logger = logging.getLogger("app.routers.sheet_integration")
@@ -107,7 +108,7 @@ class CompareSheetRequest(BaseModel):
     sheet_data: list[dict[str, Any]] = Field(..., min_length=1)
 
 
-@router.post("/analyze-structure")
+@router.post("/analyze-structure", dependencies=[Depends(require_admin)])
 async def analyze_sheet_structure(sheet_headers: list[str], db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Analyze Google Sheets structure and suggest column mappings.
@@ -152,7 +153,7 @@ async def analyze_sheet_structure(sheet_headers: list[str], db: Session = Depend
         db.close()
 
 
-@router.post("/create-leaderboard")
+@router.post("/create-leaderboard", dependencies=[Depends(require_admin)])
 async def create_leaderboard_from_sheet(sheet_data: list[dict], db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Transform Google Sheets data into leaderboard format.
@@ -178,7 +179,7 @@ async def create_leaderboard_from_sheet(sheet_data: list[dict], db: Session = De
         db.close()
 
 
-@router.post("/sync-data")
+@router.post("/sync-data", dependencies=[Depends(require_admin)])
 async def sync_sheet_data(request: dict, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Generic sheet data sync endpoint.
@@ -229,7 +230,7 @@ def export_current_data_for_sheet(
         db.close()
 
 
-@router.post("/sync-wgp-sheet")
+@router.post("/sync-wgp-sheet", dependencies=[Depends(require_admin)])
 async def sync_wgp_sheet_data(
     request: CsvUrlRequest,
     db: Session = Depends(get_db),
@@ -241,7 +242,8 @@ async def sync_wgp_sheet_data(
     Rate limited to once per hour to prevent excessive API calls from external sources.
     Results are cached for 1 hour.
 
-    Scheduled jobs (with X-Scheduled-Job header) bypass rate limiting.
+    Requires an admin bearer token. Admin callers that also send
+    ``X-Scheduled-Job: true`` skip the hourly rate limit.
 
     Uses isolated sessions per player to ensure failures are isolated and
     don't cascade to other players' data.
@@ -565,7 +567,7 @@ async def sync_wgp_sheet_data(
         raise HTTPException(status_code=500, detail=f"Failed to sync data: {e!s}")
 
 
-@router.post("/fetch-google-sheet")
+@router.post("/fetch-google-sheet", dependencies=[Depends(require_admin)])
 async def fetch_google_sheet(request: CsvUrlRequest) -> dict[str, Any]:
     """
     Fetch raw data from Google Sheets.
@@ -616,7 +618,7 @@ async def fetch_google_sheet(request: CsvUrlRequest) -> dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"Failed to process sheet: {e!s}")
 
 
-@router.post("/compare-data")
+@router.post("/compare-data", dependencies=[Depends(require_admin)])
 async def compare_sheet_to_db_data(request: CompareSheetRequest, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Compare Google Sheets data with current database data.

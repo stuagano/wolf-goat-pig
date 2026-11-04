@@ -6,6 +6,9 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.models import GameStateModel
 
+# Behavior tests for guarded routes; auth is tested in test_write_endpoints_require_auth.py.
+pytestmark = pytest.mark.usefixtures("signed_in_admin")
+
 client = TestClient(app)
 
 

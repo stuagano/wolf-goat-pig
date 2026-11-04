@@ -67,6 +67,7 @@ class TestHealthEndpoints:
         assert "environment" in response.json()
 
 
+@pytest.mark.usefixtures("signed_in_admin")
 class TestCourseManagement:
     """Test course management endpoints"""
 
@@ -139,6 +140,7 @@ class TestGameEndpoints:
         assert len(rules) > 0
 
 
+@pytest.mark.usefixtures("signed_in_admin")
 class TestCourseImport:
     """Test course import endpoints"""
 

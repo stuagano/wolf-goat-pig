@@ -7108,6 +7108,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Commissioner Chat",
         "tags": [
           "commissioner"
@@ -7152,6 +7157,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Commissioner Data Chat",
         "tags": [
           "commissioner"
@@ -7763,6 +7773,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Add Course",
         "tags": [
           "courses"
@@ -7807,6 +7822,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Import Course From File",
         "tags": [
           "courses"
@@ -7851,6 +7871,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Preview Course Import",
         "tags": [
           "courses"
@@ -7895,6 +7920,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Import Course By Search",
         "tags": [
           "courses"
@@ -8009,6 +8039,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Delete Course",
         "tags": [
           "courses"
@@ -8062,6 +8097,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Update Course",
         "tags": [
           "courses"
@@ -8293,6 +8333,22 @@
               "title": "Force",
               "type": "boolean"
             }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-job-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Job-Token"
+            }
           }
         ],
         "responses": {
@@ -8317,6 +8373,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Post Livsow Snapshot",
         "tags": [
           "data"
@@ -9541,6 +9602,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Record Game Result",
         "tags": [
           "leaderboard"
@@ -9823,6 +9889,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create Test Game",
         "tags": [
           "games"
@@ -10025,6 +10096,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Update All Games Course Data"
       }
     },
@@ -11232,6 +11308,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Update Game Course Data"
       }
     },
@@ -11423,6 +11504,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Post Score",
         "tags": [
           "ghin"
@@ -11433,6 +11519,24 @@
       "post": {
         "description": "Sync handicaps for all players with GHIN IDs.",
         "operationId": "sync_ghin_handicaps_ghin_sync_handicaps_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-job-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Job-Token"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -11441,8 +11545,23 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Sync Ghin Handicaps",
         "tags": [
           "ghin"
@@ -11490,6 +11609,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Sync Player Ghin Handicap",
         "tags": [
           "ghin"
@@ -11613,6 +11737,22 @@
               "title": "Max Pages",
               "type": "integer"
             }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-job-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Job-Token"
+            }
           }
         ],
         "responses": {
@@ -11637,6 +11777,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Groupme Media Harvest",
         "tags": [
           "groupme"
@@ -12213,6 +12358,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create And Notify Matches",
         "tags": [
           "matchmaking"
@@ -12492,6 +12642,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create Message",
         "tags": [
           "messages"
@@ -12582,6 +12737,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Delete Message",
         "tags": [
           "messages"
@@ -12633,6 +12793,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Update Message",
         "tags": [
           "messages"
@@ -12946,6 +13111,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Run Saturday Pairing Job",
         "tags": [
           "team-formation"
@@ -12989,6 +13159,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Delete Generated Pairings",
         "tags": [
           "team-formation"
@@ -13145,6 +13320,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Resend Pairing Notifications",
         "tags": [
           "team-formation"
@@ -14612,6 +14792,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Set Player Availability",
         "tags": [
           "players"
@@ -14696,6 +14881,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Email Preferences",
         "tags": [
           "players"
@@ -14747,6 +14937,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Update Email Preferences",
         "tags": [
           "players"
@@ -15461,6 +15656,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Analyze Sheet Structure",
         "tags": [
           "sheet_integration"
@@ -15508,6 +15708,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Compare Sheet To Db Data",
         "tags": [
           "sheet_integration"
@@ -15560,6 +15765,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create Leaderboard From Sheet",
         "tags": [
           "sheet_integration"
@@ -15658,6 +15868,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Fetch Google Sheet",
         "tags": [
           "sheet_integration"
@@ -15707,6 +15922,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Sync Sheet Data",
         "tags": [
           "sheet_integration"
@@ -15715,7 +15935,7 @@
     },
     "/sheet-integration/sync-wgp-sheet": {
       "post": {
-        "description": "Sync Wolf Goat Pig specific sheet data format.\n\nRate limited to once per hour to prevent excessive API calls from external sources.\nResults are cached for 1 hour.\n\nScheduled jobs (with X-Scheduled-Job header) bypass rate limiting.\n\nUses isolated sessions per player to ensure failures are isolated and\ndon't cascade to other players' data.",
+        "description": "Sync Wolf Goat Pig specific sheet data format.\n\nRate limited to once per hour to prevent excessive API calls from external sources.\nResults are cached for 1 hour.\n\nRequires an admin bearer token. Admin callers that also send\n``X-Scheduled-Job: true`` skip the hourly rate limit.\n\nUses isolated sessions per player to ensure failures are isolated and\ndon't cascade to other players' data.",
         "operationId": "sync_wgp_sheet_data_sheet_integration_sync_wgp_sheet_post",
         "parameters": [
           {
@@ -15772,6 +15992,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Sync Wgp Sheet Data",
         "tags": [
           "sheet_integration"
@@ -16605,6 +16830,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Replicate Signup To Legacy",
         "tags": [
           "signups"

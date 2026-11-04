@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiConfig } from '../../config/api.config';
+import { useAuthenticatedFetch } from '../../hooks/useAuthenticatedFetch';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -13,6 +14,7 @@ const API_URL = apiConfig.baseUrl;
  *   onSkip     — called if user skips
  */
 const GHINPostModal = ({ players, playedAt, onPosted, onSkip }) => {
+  const authFetch = useAuthenticatedFetch();
   const [ghinId, setGhinId] = useState('');
   const [selectedPlayer, setSelectedPlayer] = useState('');
   const [playerGhinMap, setPlayerGhinMap] = useState({});
@@ -95,7 +97,7 @@ const GHINPostModal = ({ players, playedAt, onPosted, onSkip }) => {
     setPosting(true);
     setError(null);
     try {
-      const resp = await fetch(`${API_URL}/ghin/post-score`, {
+      const resp = await authFetch(`${API_URL}/ghin/post-score`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

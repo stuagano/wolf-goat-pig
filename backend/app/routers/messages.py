@@ -6,9 +6,10 @@ Daily message board for player communication.
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from .. import database, models, schemas
+from ..utils.admin_auth import require_admin
 from ..utils.time import utc_now
 
 logger = logging.getLogger("app.routers.messages")
@@ -38,7 +39,7 @@ def get_daily_messages(date: str = Query(description="YYYY-MM-DD format")):  # t
         db.close()
 
 
-@router.post("", response_model=schemas.DailyMessageResponse)
+@router.post("", response_model=schemas.DailyMessageResponse, dependencies=[Depends(require_admin)])
 def create_message(message: schemas.DailyMessageCreate):  # type: ignore
     """Create a new daily message."""
     try:
@@ -70,7 +71,7 @@ def create_message(message: schemas.DailyMessageCreate):  # type: ignore
         db.close()
 
 
-@router.put("/{message_id}", response_model=schemas.DailyMessageResponse)
+@router.put("/{message_id}", response_model=schemas.DailyMessageResponse, dependencies=[Depends(require_admin)])
 def update_message(message_id: int, message_update: schemas.DailyMessageUpdate):  # type: ignore
     """Update an existing message."""
     try:
@@ -100,7 +101,7 @@ def update_message(message_id: int, message_update: schemas.DailyMessageUpdate):
         db.close()
 
 
-@router.delete("/{message_id}")
+@router.delete("/{message_id}", dependencies=[Depends(require_admin)])
 def delete_message(message_id: int):  # type: ignore
     """Delete (deactivate) a message."""
     try:

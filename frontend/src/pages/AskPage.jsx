@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { apiConfig } from '../config/api.config';
+import { useAuthenticatedFetch } from '../hooks/useAuthenticatedFetch';
 
 const SUGGESTED_QUESTIONS = [
   'Who has the best all-time record?',
@@ -141,6 +142,7 @@ function SqlToggle({ sql }) {
 }
 
 function AskPage() {
+  const authFetch = useAuthenticatedFetch();
   const [messages, setMessages] = useState([WELCOME_MESSAGE]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -174,7 +176,7 @@ function AskPage() {
 
     try {
       const apiBase = apiConfig.baseUrl;
-      const resp = await fetch(`${apiBase}/api/commissioner/data-chat`, {
+      const resp = await authFetch(`${apiBase}/api/commissioner/data-chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question }),
