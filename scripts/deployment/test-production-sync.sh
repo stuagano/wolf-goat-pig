@@ -51,6 +51,7 @@ echo ""
 echo "4️⃣ Triggering manual Google Sheets sync..."
 SYNC_RESPONSE=$(curl -s -X POST "$PROD_URL/sheet-integration/sync-wgp-sheet" \
     -H "Content-Type: application/json" \
+    -H "Authorization: Bearer ${ADMIN_TOKEN:?set ADMIN_TOKEN to an admin Auth0 access token}" \
     -H "X-Scheduled-Job: true" \
     -d "{\"csv_url\":\"$SHEET_CSV_URL\"}")
 

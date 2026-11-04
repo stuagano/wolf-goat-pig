@@ -449,6 +449,9 @@ async def commissioner_data_chat(
     """Ask Commissioner Hover Over a data question about the WGP database."""
     # Season snapshot so leaderboard questions have ground truth even before SQL.
     data_context = _build_data_context(db)
+    # End the read transaction so its pooled connection is free during the LLM
+    # call; _execute_readonly_sql checks out its own read-only connection.
+    db.rollback()
 
     if commissioner_provider() == "vertex":
         from ..services.commissioner_adk_service import run_data_chat_adk

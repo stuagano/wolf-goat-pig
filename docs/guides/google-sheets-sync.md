@@ -49,12 +49,13 @@ preview table and optional auto-sync interval.
 ```bash
 curl -X POST https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/sheet-integration/sync-wgp-sheet \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "X-Scheduled-Job: true" \
   -d '{"csv_url":"https://docs.google.com/spreadsheets/d/141s8V_UACdBc8Xg17W0UhWxd08BMbEImkXOSPa66RfQ/export?format=csv&gid=0"}'
 ```
 
-The `X-Scheduled-Job: true` header bypasses the one-sync-per-hour rate limit on
-the public endpoint. The response includes `sync_results`
+The endpoint requires an admin's Auth0 access token (`$ADMIN_TOKEN`). The
+`X-Scheduled-Job: true` header skips the one-sync-per-hour rate limit. The response includes `sync_results`
 (`players_processed`, `players_created`, `players_updated`, `errors`),
 `player_count`, `synced_at`, and `players_synced`.
 

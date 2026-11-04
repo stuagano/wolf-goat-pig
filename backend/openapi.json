@@ -15935,7 +15935,7 @@
     },
     "/sheet-integration/sync-wgp-sheet": {
       "post": {
-        "description": "Sync Wolf Goat Pig specific sheet data format.\n\nRate limited to once per hour to prevent excessive API calls from external sources.\nResults are cached for 1 hour.\n\nScheduled jobs (with X-Scheduled-Job header) bypass rate limiting.\n\nUses isolated sessions per player to ensure failures are isolated and\ndon't cascade to other players' data.",
+        "description": "Sync Wolf Goat Pig specific sheet data format.\n\nRate limited to once per hour to prevent excessive API calls from external sources.\nResults are cached for 1 hour.\n\nRequires an admin bearer token. Admin callers that also send\n``X-Scheduled-Job: true`` skip the hourly rate limit.\n\nUses isolated sessions per player to ensure failures are isolated and\ndon't cascade to other players' data.",
         "operationId": "sync_wgp_sheet_data_sheet_integration_sync_wgp_sheet_post",
         "parameters": [
           {

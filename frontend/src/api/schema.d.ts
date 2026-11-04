@@ -4634,7 +4634,8 @@ export interface paths {
          *     Rate limited to once per hour to prevent excessive API calls from external sources.
          *     Results are cached for 1 hour.
          *
-         *     Scheduled jobs (with X-Scheduled-Job header) bypass rate limiting.
+         *     Requires an admin bearer token. Admin callers that also send
+         *     ``X-Scheduled-Job: true`` skip the hourly rate limit.
          *
          *     Uses isolated sessions per player to ensure failures are isolated and
          *     don't cascade to other players' data.
