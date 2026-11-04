@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import CourseImport from './CourseImport';
 import { apiConfig } from '../../config/api.config';
+import { useAuthenticatedFetch } from '../../hooks/useAuthenticatedFetch';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -47,6 +48,7 @@ const buttonStyle = {
 };
 
 function CourseManager({ onClose, onCoursesChanged }) {
+  const authFetch = useAuthenticatedFetch();
   const [courses, setCourses] = useState([]);
   const [newName, setNewName] = useState("");
   const [newHoles, setNewHoles] = useState(Array(18).fill({ stroke_index: "", par: "", handicap: "" }));
@@ -85,7 +87,7 @@ function CourseManager({ onClose, onCoursesChanged }) {
       setError("Stroke indexes 1-18, pars 3-5.");
       return;
     }
-    const res = await fetch(`${API_URL}/courses`, {
+    const res = await authFetch(`${API_URL}/courses`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: newName, holes }),
@@ -107,7 +109,7 @@ function CourseManager({ onClose, onCoursesChanged }) {
     if (!window.confirm(`Delete course "${courseName}"?`)) return;
     
     try {
-      const response = await fetch(`${API_URL}/courses/${encodeURIComponent(courseName)}`, {
+      const response = await authFetch(`${API_URL}/courses/${encodeURIComponent(courseName)}`, {
         method: "DELETE"
       });
       
@@ -135,7 +137,7 @@ function CourseManager({ onClose, onCoursesChanged }) {
     if (!editCourse) return;
     
     try {
-      const response = await fetch(`${API_URL}/courses/${encodeURIComponent(editCourse.name)}`, {
+      const response = await authFetch(`${API_URL}/courses/${encodeURIComponent(editCourse.name)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editCourse)

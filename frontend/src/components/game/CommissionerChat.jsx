@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './CommissionerChat.css';
 import { apiConfig } from '../../config/api.config';
+import { useAuthenticatedFetch } from '../../hooks/useAuthenticatedFetch';
 
 /**
  * CommissionerChat - On-field rules expert chat component
@@ -10,6 +11,7 @@ import { apiConfig } from '../../config/api.config';
  * @param {boolean} startOpen - If true, chat starts in open state (for inline mode)
  */
 const CommissionerChat = ({ gameState, inline = false, onSaveToNotes, startOpen = false }) => {
+  const authFetch = useAuthenticatedFetch();
   const [isOpen, setIsOpen] = useState(startOpen || inline);
   const [messages, setMessages] = useState([
     {
@@ -42,7 +44,7 @@ const CommissionerChat = ({ gameState, inline = false, onSaveToNotes, startOpen 
 
     try {
       const apiBase = apiConfig.baseUrl;
-      const resp = await fetch(`${apiBase}/api/commissioner/chat`, {
+      const resp = await authFetch(`${apiBase}/api/commissioner/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage.text, game_state: gameState || null }),

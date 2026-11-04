@@ -290,7 +290,7 @@ async def create_custom_game(body: CreateCustomGameRequest, db: Session = Depend
     }
 
 
-@router.post("/create-test")
+@router.post("/create-test", dependencies=[Depends(require_admin)])
 async def create_test_game(
     course_name: str | None = None,
     player_count: int = 4,

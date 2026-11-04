@@ -522,7 +522,7 @@ def cancel_signup(
         db.close()
 
 
-@router.post("/signups/{signup_id}/replicate-legacy")
+@router.post("/signups/{signup_id}/replicate-legacy", dependencies=[Depends(require_admin)])
 def replicate_signup_to_legacy(signup_id: int):  # type: ignore
     """Manually replicate a signup to the legacy CGI tee sheet for testing."""
     try:

@@ -1,9 +1,13 @@
 """Malformed requests (Pydantic validation failures) must return the app's
 standard error envelope, not FastAPI's default `{"detail": [...]}` array."""
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+
+# Behavior tests for guarded routes; auth is tested in test_write_endpoints_require_auth.py.
+pytestmark = pytest.mark.usefixtures("signed_in_admin")
 
 client = TestClient(app)
 

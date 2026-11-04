@@ -3,11 +3,15 @@
 import uuid
 from types import SimpleNamespace
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
 from app.services.auth_service import get_current_user
 from app.utils.admin_auth import require_admin
+
+# Behavior tests for guarded routes; auth is tested in test_write_endpoints_require_auth.py.
+pytestmark = pytest.mark.usefixtures("signed_in_admin")
 
 client = TestClient(app)
 

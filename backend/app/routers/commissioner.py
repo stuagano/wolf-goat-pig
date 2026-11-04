@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from sqlglot import exp
 
 from ..database import get_db
+from ..services.auth_service import get_current_auth0_user
 from ..services.commissioner_llm_service import commissioner_provider, llm_generate
 from ..utils.api_helpers import ApiResponse, handle_api_errors
 
@@ -138,7 +139,7 @@ def _build_game_context(game_state: dict[str, Any] | None) -> str:
     return "\n".join(lines)
 
 
-@router.post("/chat")
+@router.post("/chat", dependencies=[Depends(get_current_auth0_user)])
 @handle_api_errors(operation_name="commissioner chat")
 async def commissioner_chat(
     request: ChatRequest,
@@ -387,6 +388,9 @@ def _validate_sql(sql: str) -> bool:
     return True
 
 
+_SQL_TIMEOUT_MS = 5000
+
+
 def _execute_readonly_sql(db: Session, sql: str, row_limit: int = 100) -> dict:
     """Execute a read-only SQL statement and return columnar results."""
     try:
@@ -404,9 +408,22 @@ def _execute_readonly_sql(db: Session, sql: str, row_limit: int = 100) -> dict:
         else:
             sql = f"{sql.rstrip().rstrip(';')} LIMIT {row_limit}"
 
-        result = db.execute(text(sql))
-        columns = list(result.keys())
-        rows = [list(row) for row in result.fetchall()]
+        bind = db.get_bind()
+        if bind.dialect.name == "postgresql":
+            # Defense in depth behind _validate_sql: a fresh connection in a
+            # READ ONLY transaction with a hard timeout, always rolled back.
+            # Model-written SQL can neither write nor hold a connection open.
+            with bind.connect() as conn, conn.begin() as txn:
+                conn.execute(text("SET TRANSACTION READ ONLY"))
+                conn.execute(text(f"SET LOCAL statement_timeout = {_SQL_TIMEOUT_MS}"))
+                result = conn.execute(text(sql))
+                columns = list(result.keys())
+                rows = [list(row) for row in result.fetchall()]
+                txn.rollback()
+        else:
+            result = db.execute(text(sql))
+            columns = list(result.keys())
+            rows = [list(row) for row in result.fetchall()]
         truncated = len(rows) >= row_limit
 
         return {
@@ -423,7 +440,7 @@ class DataChatRequest(BaseModel):
     question: str
 
 
-@router.post("/data-chat")
+@router.post("/data-chat", dependencies=[Depends(get_current_auth0_user)])
 @handle_api_errors(operation_name="commissioner data chat")
 async def commissioner_data_chat(
     request: DataChatRequest,

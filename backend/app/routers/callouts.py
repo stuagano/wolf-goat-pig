@@ -12,23 +12,19 @@ dedup lives in the service.
 import logging
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from .. import database
-from ..routers.internal_jobs import _require_job_token
 from ..services.callout_service import run_callout, run_callout_for_next_sunday
 from ..services.email_service import get_email_service
 from ..utils.admin_auth import require_admin
+from ..utils.job_auth import require_job_token
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/callouts", tags=["callouts"])
 
 VALID_WINDOWS = ("pre_pairing", "night_before", "morning_of")
-
-
-def _require_cron_token(x_internal_job_token: str | None = Header(default=None)) -> None:
-    _require_job_token(x_internal_job_token)
 
 
 @router.post("/test-email", dependencies=[Depends(require_admin)])
@@ -59,7 +55,7 @@ async def send_test_callout_email(
 
 
 # Sync on purpose: the commissioner intro uses asyncio.run, which needs a threadpool, not the event loop.
-@router.post("/run", dependencies=[Depends(_require_cron_token)])
+@router.post("/run", dependencies=[Depends(require_job_token)])
 def run_headcount_callout(
     window: str = Query(..., description="Callout window: pre_pairing, night_before or morning_of"),
     game_date: str | None = Query(

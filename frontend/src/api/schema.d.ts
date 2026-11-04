@@ -9465,7 +9465,9 @@ export interface operations {
             query?: {
                 force?: boolean;
             };
-            header?: never;
+            header?: {
+                "x-internal-job-token"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -11465,7 +11467,9 @@ export interface operations {
     sync_ghin_handicaps_ghin_sync_handicaps_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-internal-job-token"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -11478,6 +11482,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -11574,7 +11587,9 @@ export interface operations {
             query?: {
                 max_pages?: number;
             };
-            header?: never;
+            header?: {
+                "x-internal-job-token"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };

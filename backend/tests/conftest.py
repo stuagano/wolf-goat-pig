@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 
@@ -47,6 +48,59 @@ def _heal_drifted_local_sqlite_schema():
 
     ensure_fresh_sqlite_schema(engine, Base)
     yield
+
+
+@contextmanager
+def _overriding(overrides):
+    """Apply FastAPI dependency overrides, restoring any earlier ones on exit."""
+    from app.main import app
+
+    missing = object()
+    saved = {dep: app.dependency_overrides.get(dep, missing) for dep in overrides}
+    app.dependency_overrides.update(overrides)
+    try:
+        yield
+    finally:
+        for dep, previous in saved.items():
+            if previous is missing:
+                app.dependency_overrides.pop(dep, None)
+            else:
+                app.dependency_overrides[dep] = previous
+
+
+@pytest.fixture
+def job_caller():
+    """Pass the admin-or-job-token guard, as a scheduled job holding the token would.
+
+    For tests of a cron route's behavior. Auth itself is covered in
+    tests/unit/routers/test_write_endpoints_require_auth.py.
+    """
+    from app.utils.job_auth import require_admin_or_job_token
+
+    with _overriding({require_admin_or_job_token: lambda: {"job": True}}):
+        yield
+
+
+@pytest.fixture
+def signed_in_admin():
+    """Pass every route guard as a signed-in admin.
+
+    For tests of an admin route's behavior, not its auth. Auth itself is
+    covered in tests/unit/routers/test_write_endpoints_require_auth.py.
+    """
+    from app.services.auth_service import get_current_auth0_user
+    from app.utils.admin_auth import require_admin
+    from app.utils.job_auth import require_admin_or_job_token
+
+    admin = {"sub": "auth0|test-admin", "email": "admin@example.com", "name": "Test Admin"}
+    with _overriding(
+        {
+            require_admin: lambda: admin,
+            get_current_auth0_user: lambda: admin,
+            require_admin_or_job_token: lambda: admin,
+        }
+    ):
+        yield
 
 
 @pytest.fixture

@@ -101,7 +101,7 @@ const SheetIntegrationDashboard = () => {
     const analyzeSheetStructure = async (headers) => {
         try {
             setLoading(true);
-            const response = await fetch('/sheet-integration/analyze-structure', {
+            const response = await authenticatedFetch('/sheet-integration/analyze-structure', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -127,7 +127,7 @@ const SheetIntegrationDashboard = () => {
 
         try {
             setLoading(true);
-            const response = await fetch('/sheet-integration/create-leaderboard', {
+            const response = await authenticatedFetch('/sheet-integration/create-leaderboard', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -154,7 +154,7 @@ const SheetIntegrationDashboard = () => {
 
         try {
             setLoading(true);
-            const response = await fetch('/sheet-integration/sync-data', {
+            const response = await authenticatedFetch('/sheet-integration/sync-data', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -180,7 +180,7 @@ const SheetIntegrationDashboard = () => {
 
         try {
             setLoading(true);
-            const response = await fetch('/sheet-integration/compare-data', {
+            const response = await authenticatedFetch('/sheet-integration/compare-data', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -208,7 +208,7 @@ const SheetIntegrationDashboard = () => {
             setError(null);
             setSyncResult(null);
 
-            const response = await fetch(`${API_URL}/sheet-integration/sync-wgp-sheet`, {
+            const response = await authenticatedFetch(`${API_URL}/sheet-integration/sync-wgp-sheet`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

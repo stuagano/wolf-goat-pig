@@ -24,6 +24,8 @@ jobs:
       url: https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/data/livsow/snapshot
       headers: 'Content-Type: application/json'
       max-time: 90
+    secrets:
+      INTERNAL_JOB_TOKEN: ${{ secrets.INTERNAL_JOB_TOKEN }}
 
   media-harvest:
     needs: snapshot
@@ -32,3 +34,5 @@ jobs:
       label: Media harvest
       url: https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/groupme/media/harvest
       max-time: 120
+    secrets:
+      INTERNAL_JOB_TOKEN: ${{ secrets.INTERNAL_JOB_TOKEN }}

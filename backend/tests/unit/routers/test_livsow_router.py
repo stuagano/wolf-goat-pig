@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.services import livsow_transactions
 
-pytestmark = pytest.mark.usefixtures("mock_admin_identity")
+pytestmark = pytest.mark.usefixtures("mock_admin_identity", "job_caller")
 
 client = TestClient(app)
 
@@ -99,7 +99,10 @@ class TestSnapshotEndpoint:
 
 
 class TestTransactionsEndpoint:
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def _seed_transactions(self, job_caller):
+        # A fixture, not setup_method: the snapshot route needs job_caller
+        # active, and setup_method runs before usefixtures fixtures.
         _clear_livsow_tables()
         with patch(PATCH_TARGET, return_value=_leaderboard()):
             client.post("/data/livsow/snapshot")
