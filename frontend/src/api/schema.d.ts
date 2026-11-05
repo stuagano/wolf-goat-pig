@@ -3116,6 +3116,7 @@ export interface paths {
          * @description Promote a pending capture into the canonical roster (admin only).
          *
          *     Call this once the player has been added to Jeff's legacy dropdown.
+         *     Send ``name`` when the capture is an email or needs correcting.
          */
         post: operations["admin_promote_pending_player_legacy_players_pending__pending_id__promote_post"];
         delete?: never;
@@ -6560,6 +6561,11 @@ export interface components {
             location?: string | null;
             /** Results */
             results: components["schemas"]["PlayerRoundResult"][];
+        };
+        /** PromotePendingRequest */
+        PromotePendingRequest: {
+            /** Name */
+            name?: string | null;
         };
         /**
          * PublicPlayerProfileResponse
@@ -11860,7 +11866,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PromotePendingRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

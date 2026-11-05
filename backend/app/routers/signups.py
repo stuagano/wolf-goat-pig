@@ -157,6 +157,10 @@ class AddLegacyPlayerRequest(BaseModel):
     name: str
 
 
+class PromotePendingRequest(BaseModel):
+    name: str | None = None
+
+
 @router.post("/legacy-players", dependencies=[Depends(require_admin)])
 def admin_add_legacy_player(
     body: AddLegacyPlayerRequest,
@@ -183,13 +187,15 @@ def admin_list_pending_players(
 @router.post("/legacy-players/pending/{pending_id}/promote", dependencies=[Depends(require_admin)])
 def admin_promote_pending_player(
     pending_id: int,
+    payload: PromotePendingRequest | None = None,
     db=Depends(database.get_db),
 ):
     """Promote a pending capture into the canonical roster (admin only).
 
     Call this once the player has been added to Jeff's legacy dropdown.
+    Send ``name`` when the capture is an email or needs correcting.
     """
-    result = promote_pending_player(pending_id, db=db)
+    result = promote_pending_player(pending_id, db=db, name=payload.name if payload else None)
     if not result.get("promoted"):
         status = 400 if result.get("invalid") else 404
         raise HTTPException(status_code=status, detail=result.get("message", "Cannot promote"))

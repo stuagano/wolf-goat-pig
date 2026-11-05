@@ -3546,6 +3546,23 @@
         "title": "PostRoundRequest",
         "type": "object"
       },
+      "PromotePendingRequest": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "PromotePendingRequest",
+        "type": "object"
+      },
       "PublicPlayerProfileResponse": {
         "description": "Profile for unauthenticated reads (lists, name lookup): never exposes email.",
         "properties": {
@@ -12162,7 +12179,7 @@
     },
     "/legacy-players/pending/{pending_id}/promote": {
       "post": {
-        "description": "Promote a pending capture into the canonical roster (admin only).\n\nCall this once the player has been added to Jeff's legacy dropdown.",
+        "description": "Promote a pending capture into the canonical roster (admin only).\n\nCall this once the player has been added to Jeff's legacy dropdown.\nSend ``name`` when the capture is an email or needs correcting.",
         "operationId": "admin_promote_pending_player_legacy_players_pending__pending_id__promote_post",
         "parameters": [
           {
@@ -12175,6 +12192,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PromotePendingRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {

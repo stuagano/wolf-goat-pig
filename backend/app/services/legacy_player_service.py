@@ -163,6 +163,9 @@ def link_profile_to_canonical_name(
         return {"linked": False, "status": "missing_profile"}
 
     current_name = (profile.legacy_name or "").strip()
+    if "@" in current_name:
+        # An email in legacy_name is a sign-up placeholder, not a roster link.
+        current_name = ""
     if current_name.casefold() == canonical_name.casefold():
         resolve_pending_for_profile(db, player_profile_id, current_name)
         return {"linked": True, "status": "already_linked"}
@@ -388,12 +391,16 @@ def list_pending_players(status: str = "pending", db: Any = None) -> list[dict]:
             db.close()
 
 
-def promote_pending_player(pending_id: int, db: Any = None) -> dict:
+def promote_pending_player(pending_id: int, db: Any = None, *, name: str | None = None) -> dict:
     """Promote a pending capture into the canonical roster.
 
     Call this once the player has been added to Jeff's legacy dropdown. When
     the capture came from an authenticated profile, link that same profile to
     the newly canonical name. Never overwrite a different existing link.
+
+    ``name`` overrides the captured name. Sign-ups whose Auth0 profile had no
+    display name are captured under their email, so the admin supplies the
+    golfer's roster name here. An existing roster name links to that player.
     """
     own_session = db is None
     if own_session:
@@ -405,10 +412,14 @@ def promote_pending_player(pending_id: int, db: Any = None) -> dict:
         if row.status != "pending":
             return {"promoted": False, "message": f"Pending player id={pending_id} is already {row.status}"}
 
-        roster_result = add_legacy_player(row.name, source="promoted", db=db)
+        roster_name = (name or "").strip() or row.name
+        roster_result = add_legacy_player(roster_name, source="promoted", db=db)
         if roster_result.get("invalid"):
-            return {"promoted": False, "invalid": True, "message": roster_result["message"]}
-        canonical_name = str(roster_result.get("canonical_name") or row.name)
+            message = roster_result["message"]
+            if "@" in roster_name:
+                message = f"{message}. Enter the golfer's name to promote this sign-up."
+            return {"promoted": False, "invalid": True, "message": message}
+        canonical_name = str(roster_result.get("canonical_name") or roster_name)
 
         profile_link_status = "no_profile"
         if row.player_profile_id is not None:
@@ -431,7 +442,7 @@ def promote_pending_player(pending_id: int, db: Any = None) -> dict:
         row.status = "promoted"
         row.resolved_at = utc_now().isoformat()
         db.commit()
-        logger.info(f"Promoted pending player '{row.name}' (id={pending_id}) to canonical roster")
+        logger.info(f"Promoted pending player id={pending_id} to canonical roster as '{canonical_name}'")
         return {
             "promoted": True,
             "canonical_name": canonical_name,

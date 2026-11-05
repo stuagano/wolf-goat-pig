@@ -95,3 +95,54 @@ def test_email_shaped_legacy_name_is_not_a_real_link(db):
     _new_signup(db, legacy_name="newgolfer@example.com")
 
     assert len(svc.list_pending_players(db=db)) == 1
+
+
+# ── Email-named sign-ups (Auth0 profile had no display name) ─────────────────
+
+
+def test_promote_email_named_signup_without_a_name_is_rejected(db):
+    _, row = _new_signup(db)
+
+    result = svc.promote_pending_player(row.id, db=db)
+
+    assert result["promoted"] is False
+    assert result["invalid"] is True
+    assert "Enter the golfer's name" in result["message"]
+    db.refresh(row)
+    assert row.status == "pending"
+
+
+def test_promote_email_named_signup_with_new_name_adds_and_links(db):
+    profile, row = _new_signup(db)
+
+    result = svc.promote_pending_player(row.id, db=db, name="  Jordan Fish ")
+
+    assert result["promoted"] is True
+    assert result["canonical_name"] == "Jordan Fish"
+    assert result["profile_linked"] is True
+    assert svc.get_canonical_name("Jordan Fish", db) == "Jordan Fish"
+    db.refresh(profile)
+    db.refresh(row)
+    assert profile.legacy_name == "Jordan Fish"
+    assert row.status == "promoted"
+
+
+def test_promote_with_existing_roster_name_links_to_that_player(db):
+    profile, row = _new_signup(db)
+
+    result = svc.promote_pending_player(row.id, db=db, name="pat golfer")
+
+    assert result["promoted"] is True
+    assert result["canonical_name"] == "Pat Golfer"
+    db.refresh(profile)
+    assert profile.legacy_name == "Pat Golfer"
+
+
+def test_email_placeholder_legacy_name_does_not_block_linking(db):
+    profile, row = _new_signup(db, legacy_name="newgolfer@example.com")
+
+    result = svc.promote_pending_player(row.id, db=db, name="Pat Golfer")
+
+    assert result["profile_link_status"] == "linked"
+    db.refresh(profile)
+    assert profile.legacy_name == "Pat Golfer"
