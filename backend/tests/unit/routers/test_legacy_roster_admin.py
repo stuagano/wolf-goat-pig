@@ -91,3 +91,18 @@ def test_dismiss_pending_player():
 def test_promote_missing_pending_returns_404():
     resp = client.post("/legacy-players/pending/99999999/promote", headers=ADMIN)
     assert resp.status_code == 404
+
+
+def test_promote_email_named_pending_with_name_body():
+    email = f"signup-{uuid.uuid4().hex[:8]}@example.com"
+    name = _novel_name("Typed Name")
+    pending_id = svc.capture_pending_player(email, email=email)["pending_id"]
+
+    rejected = client.post(f"/legacy-players/pending/{pending_id}/promote", headers=ADMIN)
+    assert rejected.status_code == 400
+
+    resp = client.post(f"/legacy-players/pending/{pending_id}/promote", json={"name": name}, headers=ADMIN)
+    assert resp.status_code == 200
+    assert resp.json()["canonical_name"] == name
+    assert name in client.get("/legacy-players").json()["players"]
+    assert email not in client.get("/legacy-players").json()["players"]

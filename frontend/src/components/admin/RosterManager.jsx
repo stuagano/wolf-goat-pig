@@ -43,6 +43,11 @@ const RosterManager = () => {
   const [newName, setNewName] = useState("");
   const [adding, setAdding] = useState(false);
   const [actingId, setActingId] = useState(null);
+  // Per-row roster name edits. Email-named captures start blank so the admin
+  // types the golfer's real name before promoting.
+  const [promoteNames, setPromoteNames] = useState({});
+  const rosterNameFor = (player) =>
+    promoteNames[player.id] ?? (player.name.includes("@") ? "" : player.name);
 
   const fetchPending = useCallback(async () => {
     setLoading(true);
@@ -103,6 +108,12 @@ const RosterManager = () => {
   };
 
   const promote = async (player) => {
+    const rosterName = rosterNameFor(player).trim();
+    if (!rosterName || rosterName.includes("@")) {
+      setFeedback("");
+      setError(`Enter ${player.email || player.name}'s name before promoting.`);
+      return;
+    }
     setActingId(player.id);
     setFeedback("");
     setError("");
@@ -112,6 +123,7 @@ const RosterManager = () => {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: rosterName }),
         },
       );
       const data = await response.json().catch(() => ({}));
@@ -128,7 +140,7 @@ const RosterManager = () => {
       } else if (data.profile_link_status === "missing_profile") {
         linkNote = "; associated account no longer exists";
       }
-      setFeedback(`✓ Promoted "${player.name}" to the canonical roster${linkNote}`);
+      setFeedback(`✓ Promoted "${data.canonical_name || rosterName}" to the canonical roster${linkNote}`);
       await fetchPending();
     } catch (err) {
       setError(`Could not promote "${player.name}": ${err.message}`);
@@ -310,13 +322,23 @@ const RosterManager = () => {
                 <li
                   key={player.id}
                   data-testid={`pending-row-${player.id}`}
-                  className="py-4 flex items-center justify-between"
+                  className="py-4 flex flex-wrap items-center justify-between gap-2"
                 >
-                  <div>
-                    <p className="font-medium text-gray-900">{player.name}</p>
-                    {player.email && (
-                      <p className="text-sm text-gray-500">{player.email}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 break-all">{player.name}</p>
+                    {player.email && player.email !== player.name && (
+                      <p className="text-sm text-gray-500 break-all">{player.email}</p>
                     )}
+                    <input
+                      type="text"
+                      aria-label={`Roster name for ${player.name}`}
+                      value={rosterNameFor(player)}
+                      onChange={(e) =>
+                        setPromoteNames((prev) => ({ ...prev, [player.id]: e.target.value }))
+                      }
+                      placeholder="Golfer's name as on the tee sheet"
+                      className="mt-2 w-full max-w-xs px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+                    />
                   </div>
                   <div className="flex space-x-2">
                     <button
