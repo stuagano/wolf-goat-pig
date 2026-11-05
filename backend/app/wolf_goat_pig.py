@@ -16,7 +16,6 @@ from .engine import (
     ScoringMixin,
     SerializationMixin,
     ShotProgressionMixin,
-    SimulationMixin,
     StateViewsMixin,
 )
 from .mixins import PersistenceMixin
@@ -40,7 +39,6 @@ class WolfGoatPigGame(
     StateViewsMixin,
     PartnershipMixin,
     ShotProgressionMixin,
-    SimulationMixin,
     AnalyticsMixin,
     SerializationMixin,
     PersistenceMixin,
