@@ -62,7 +62,7 @@ backend/
   `ghin_service.py`, `foretees_service.py`, `callout_service.py`,
   `legacy_player_service.py`, `matchmaking_service.py`, etc.
 - `app/engine/` — scoring and wagering engine: `scoring.py`, `betting_actions.py`,
-  `partnership.py`, `aardvark.py`, `simulation_api.py`.
+  `partnership.py`, `aardvark.py`.
 
 ## Frontend Structure (`/frontend`)
 
