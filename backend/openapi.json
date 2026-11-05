@@ -17019,26 +17019,6 @@
         ]
       }
     },
-    "/wgp/betting-opportunities": {
-      "get": {
-        "description": "Get current betting opportunities based on game state.\nLightweight endpoint for real-time updates.",
-        "operationId": "get_current_betting_opportunities_wgp_betting_opportunities_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Get Current Betting Opportunities",
-        "tags": [
-          "betting"
-        ]
-      }
-    },
     "/wgp/calculate-odds": {
       "post": {
         "description": "Calculate real-time betting odds and probabilities.\nProvides comprehensive analysis for strategic decision making.",

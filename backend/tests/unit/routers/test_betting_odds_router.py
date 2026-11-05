@@ -297,18 +297,3 @@ class TestOddsHistory:
         assert "volatility_by_hole" in trends
         assert "betting_patterns" in trends
         assert "accuracy_metrics" in trends
-
-
-# ── GET /wgp/betting-opportunities ─────────────────────────────────────────
-
-
-class TestBettingOpportunities:
-    def test_betting_opportunities_no_game_returns_500(self):
-        # The endpoint requires a live game object; without one it raises 500
-        resp = client.get("/wgp/betting-opportunities")
-        assert resp.status_code == 500
-
-    def test_betting_opportunities_error_has_detail(self):
-        resp = client.get("/wgp/betting-opportunities")
-        data = resp.json()
-        assert "detail" in data

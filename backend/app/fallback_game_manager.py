@@ -88,13 +88,6 @@ class FallbackGameManager:
         """Get a game by ID."""
         return self.games.get(game_id)
 
-    def get_game_by_join_code(self, join_code: str) -> dict | None:
-        """Get a game by join code."""
-        game_id = self.games_by_join_code.get(join_code)
-        if game_id:
-            return self.games.get(game_id)
-        return None
-
     def update_game(self, game_id: str, updates: dict) -> dict | None:
         """Update a game's state."""
         game = self.games.get(game_id)

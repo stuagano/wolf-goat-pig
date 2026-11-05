@@ -5001,27 +5001,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/wgp/betting-opportunities": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Current Betting Opportunities
-         * @description Get current betting opportunities based on game state.
-         *     Lightweight endpoint for real-time updates.
-         */
-        get: operations["get_current_betting_opportunities_wgp_betting_opportunities_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/wgp/calculate-odds": {
         parameters: {
             query?: never;
@@ -15142,26 +15121,6 @@ export interface operations {
         };
     };
     test_deployment_test_deployment_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_current_betting_opportunities_wgp_betting_opportunities_get: {
         parameters: {
             query?: never;
             header?: never;
