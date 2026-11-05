@@ -1,7 +1,7 @@
 """Issue #319: audit incomplete identities without guessing or merging users."""
 
 import pytest
-from backend.app.models import DailySignup, LegacyRosterPlayer, PlayerProfile
+from backend.app.models import DailySignup, LegacyRosterPlayer, PendingLegacyPlayer, PlayerProfile
 from scripts.diagnostics import audit_signup_identities as audit_script
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -10,7 +10,8 @@ from sqlalchemy.orm import sessionmaker
 @pytest.fixture
 def db(monkeypatch):
     engine = create_engine("sqlite://")
-    for model in (PlayerProfile, DailySignup, LegacyRosterPlayer):
+    # Relinking also clears the profile's pending sign-ups, so that table must exist.
+    for model in (PlayerProfile, DailySignup, LegacyRosterPlayer, PendingLegacyPlayer):
         model.__table__.create(engine)
     factory = sessionmaker(bind=engine)
     monkeypatch.setattr(audit_script, "SessionLocal", factory)

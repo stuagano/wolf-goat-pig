@@ -35,6 +35,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from ..database import SessionLocal
 from ..models import LegacyRosterPlayer, PendingLegacyPlayer, PlayerProfile
 from ..utils.time import utc_now
+from .pending_signup_service import resolve_pending_for_profile, resolve_stale_pending
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +164,7 @@ def link_profile_to_canonical_name(
 
     current_name = (profile.legacy_name or "").strip()
     if current_name.casefold() == canonical_name.casefold():
+        resolve_pending_for_profile(db, player_profile_id, current_name)
         return {"linked": True, "status": "already_linked"}
 
     if is_canonical_name_claimed(
@@ -180,6 +182,8 @@ def link_profile_to_canonical_name(
 
     profile.legacy_name = canonical_name
     profile.updated_at = utc_now().isoformat()
+    # A linked profile needs no admin action, however it got linked.
+    resolve_pending_for_profile(db, player_profile_id, canonical_name)
     return {
         "linked": True,
         "status": "relinked" if current_name else "linked",
@@ -358,6 +362,9 @@ def list_pending_players(status: str = "pending", db: Any = None) -> list[dict]:
     if own_session:
         db = SessionLocal()
     try:
+        if status == "pending":
+            # Self-heal rows already handled elsewhere so they never show as tasks.
+            resolve_stale_pending(db)
         rows = (
             db.query(PendingLegacyPlayer)
             .filter(PendingLegacyPlayer.status == status)
