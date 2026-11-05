@@ -472,9 +472,3 @@ async def import_course_from_json(file_path: str) -> CourseImportData | None:
         return await importer.import_from_json_file(file_path)
     finally:
         await importer.close()
-
-
-def save_course_to_database(course_data: CourseImportData) -> bool:
-    """Save imported course data to the database"""
-    importer = CourseImporter()
-    return importer.save_to_database(course_data)
