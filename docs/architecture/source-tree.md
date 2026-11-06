@@ -54,8 +54,9 @@ backend/
 
 ### Key Backend Modules
 
-- `app/routers/` — FastAPI routers split by area: `games.py`, `games_holes.py`,
-  `games_players.py`, `players.py`, `courses.py`, `leaderboard.py`,
+- `app/routers/` — FastAPI routers split by area: `games.py` (aggregates
+  `games_setup.py`, `games_lifecycle.py`, `games_scorecard.py`,
+  `games_queries.py`), `games_holes.py`, `games_players.py`, `players.py`, `courses.py`, `leaderboard.py`,
   `callouts.py`, `ghin.py`, `foretees.py`, `commissioner.py`, `admin.py`,
   `health.py`, and more.
 - `app/services/` — integration and business services: `email_service.py`,

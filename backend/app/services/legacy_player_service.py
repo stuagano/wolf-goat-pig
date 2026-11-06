@@ -113,12 +113,6 @@ def get_legacy_players(db: Any = None) -> list[str]:
     return sorted(_canonical_names(db))
 
 
-def is_valid_legacy_player(name: str, db: Any = None) -> bool:
-    """Check if a player name exists in the canonical roster (case-insensitive)."""
-    lowered = name.lower()
-    return any(p.lower() == lowered for p in _canonical_names(db))
-
-
 def get_canonical_name(name: str, db: Any = None) -> str | None:
     """Get the canonical (correctly cased) name for a player, or None."""
     lowered = name.lower()
@@ -413,11 +407,6 @@ def sync_roster_from_members(names: Any, db: Any = None) -> dict:
             db.close()
 
 
-def reload_players() -> int:
-    """Return the current canonical roster size (kept for API compatibility)."""
-    return len(get_legacy_players())
-
-
 # The pending capture queue lives in ``pending_queue_service``; its functions
 # are re-exported here so existing ``legacy_player_service`` imports keep working.
 __all__ = [
@@ -429,11 +418,9 @@ __all__ = [
     "get_canonical_name",
     "get_legacy_players",
     "is_canonical_name_claimed",
-    "is_valid_legacy_player",
     "link_profile_to_canonical_name",
     "list_pending_players",
     "promote_pending_player",
-    "reload_players",
     "seed_roster_if_empty",
     "sync_roster_from_members",
     "validate_player_for_legacy",

@@ -308,34 +308,5 @@ class FetchError extends Error {
   }
 }
 
-/**
- * Helper to create a fetch function with automatic API_URL prefixing
- *
- * @param {string} endpoint - API endpoint (will be prefixed with API_URL)
- * @param {Object} options - Fetch options
- * @returns {Function} Fetch function for use with execute()
- */
-export const createFetchFn = (endpoint, options = {}) => {
-  return (signal) => fetch(`${API_URL}${endpoint}`, { signal, ...options });
-};
-
-/**
- * Helper to create a POST fetch function
- *
- * @param {string} endpoint - API endpoint
- * @param {any} data - Data to send
- * @param {Object} options - Additional options
- * @returns {Function} Fetch function for use with execute()
- */
-export const createPostFn = (endpoint, data, options = {}) => {
-  return (signal) => fetch(`${API_URL}${endpoint}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options.headers },
-    body: JSON.stringify(data),
-    signal,
-    ...options
-  });
-};
-
 export { FetchError };
 export default useFetchAsync;

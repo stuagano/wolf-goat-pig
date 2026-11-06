@@ -62,37 +62,6 @@ def safe_float(
         return default
 
 
-def safe_int(
-    value: Any,
-    default: int = 0,
-    min_val: int | None = None,
-    max_val: int | None = None,
-) -> int:
-    """
-    Safely convert value to int with bounds checking.
-
-    Args:
-        value: Value to convert
-        default: Default value if conversion fails
-        min_val: Optional minimum value
-        max_val: Optional maximum value
-
-    Returns:
-        Int value, or default if conversion fails
-    """
-    try:
-        if value is None:
-            return default
-        result = int(float(value))  # Handle "3.0" -> 3
-        if min_val is not None:
-            result = max(min_val, result)
-        if max_val is not None:
-            result = min(max_val, result)
-        return result
-    except (ValueError, TypeError):
-        return default
-
-
 router = APIRouter(
     prefix="/sheet-integration",
     tags=["sheet_integration"],

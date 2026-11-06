@@ -29,36 +29,6 @@ router = APIRouter(prefix="/games", tags=["games"])
 # ---------------------------------------------------------------------------
 
 
-class BallSeed(BaseModel):
-    """Testing helper payload for manually positioning a ball."""
-
-    player_id: str = Field(..., description="Unique player identifier")
-    distance_to_pin: float = Field(..., ge=0, description="Distance remaining in yards")
-    lie_type: str = Field("fairway", description="Current lie type for the ball")
-    shot_count: int = Field(1, ge=0, description="Number of strokes taken on the hole")
-    holed: bool = Field(False, description="Whether the ball is in the hole")
-    conceded: bool = Field(False, description="If the putt has been conceded")
-    penalty_strokes: int = Field(0, ge=0, description="Penalty strokes assessed on the shot")
-
-
-class BettingSeed(BaseModel):
-    """Testing helper payload for adjusting betting metadata."""
-
-    base_wager: int | None = Field(None, ge=0)
-    current_wager: int | None = Field(None, ge=0)
-    doubled: bool | None = None
-    redoubled: bool | None = None
-    carry_over: bool | None = None
-    float_invoked: bool | None = None
-    option_invoked: bool | None = None
-    duncan_invoked: bool | None = None
-    tunkarri_invoked: bool | None = None
-    big_dick_invoked: bool | None = None
-    joes_special_value: int | None = None
-    line_of_scrimmage: str | None = None
-    ping_pong_count: int | None = Field(None, ge=0)
-
-
 class UpdatePlayerNameRequest(BaseModel):
     name: NonBlankStr = Field(..., min_length=2, max_length=50)
 
@@ -70,23 +40,6 @@ class UpdateHandicapRequest(BaseModel):
 class UpdateHittingOrderRequest(BaseModel):
     hitting_order: list[str] = Field(..., min_length=4, max_length=6)
     hole_number: int | None = Field(None, ge=1, le=18, description="Hole to update; defaults to current hole")
-
-
-class SimulationSeedRequest(BaseModel):
-    """Parameters accepted by the test seeding endpoint."""
-
-    current_hole: int | None = Field(None, description="Hole number to switch the active simulation to")
-    shot_order: list[str] | None = Field(None, description="Explicit hitting order for the active hole")
-    ball_positions: list[BallSeed] = Field(default_factory=list)
-    ball_positions_replace: bool = Field(False, description="Replace all ball positions when True")
-    line_of_scrimmage: str | None = None
-    next_player_to_hit: str | None = None
-    current_order_of_play: list[str] | None = None
-    wagering_closed: bool | None = None
-    betting: BettingSeed | None = None
-    team_formation: dict[str, Any] | None = Field(None, description="Override the current TeamFormation dataclass")
-    clear_balls_in_hole: bool = Field(False, description="Clear recorded holed balls before applying seed")
-    reset_doubles_history: bool = Field(True, description="Clear double-offer history to avoid stale offers")
 
 
 # ---------------------------------------------------------------------------

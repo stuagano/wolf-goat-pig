@@ -40,19 +40,6 @@ class OddsCalculationRequest(BaseModel):
     hole_state: dict[str, Any] = Field(..., description="Current hole state")
 
 
-class BettingScenarioResponse(BaseModel):
-    """Response model for betting scenarios"""
-
-    scenario_type: str
-    win_probability: float
-    expected_value: float
-    risk_level: str
-    confidence_interval: tuple[float, float]
-    recommendation: str
-    reasoning: str
-    payout_matrix: dict[str, float]
-
-
 class OddsCalculationResponse(BaseModel):
     """Response model for odds calculation"""
 
@@ -67,97 +54,6 @@ class OddsCalculationResponse(BaseModel):
     confidence_level: float
     monte_carlo_used: bool = False  # Deprecated, always False
     simulation_details: dict[str, Any] | None = None  # Deprecated, always None
-
-
-# ---------------------------------------------------------------------------
-# Helper functions
-# ---------------------------------------------------------------------------
-
-
-def _normalize_probabilities(probabilities: dict[str, float]) -> dict[str, float]:
-    """Normalize probability buckets so they sum to ~1.0 and clamp negatives."""
-    safe_probs = {k: max(0.0, float(v)) for k, v in probabilities.items()}
-    total = sum(safe_probs.values())
-    if total <= 0:
-        bucket_count = len(safe_probs)
-        if bucket_count == 0:
-            return {}
-        equal_share = 1.0 / bucket_count
-        return dict.fromkeys(safe_probs, equal_share)
-    return {k: v / total for k, v in safe_probs.items()}
-
-
-def _compute_shot_probabilities(
-    player_stats: dict[str, Any] | None = None,
-    hole_info: dict[str, Any] | None = None,
-    lie_type: str | None = None,
-) -> dict[str, float]:
-    """Generate a balanced shot probability distribution based on context."""
-    player_stats = player_stats or {}
-    hole_info = hole_info or {}
-    lie_type = (lie_type or hole_info.get("lie_type") or "").lower()
-
-    base_distribution = {
-        "excellent": 0.18,
-        "good": 0.32,
-        "average": 0.30,
-        "poor": 0.15,
-        "disaster": 0.05,
-    }
-
-    handicap = float(player_stats.get("handicap", 18) or 18)
-    skill_delta = max(min((18 - handicap) / 40.0, 0.2), -0.2)
-    base_distribution["excellent"] += skill_delta
-    base_distribution["good"] += skill_delta * 0.5
-    base_distribution["poor"] -= abs(skill_delta) * 0.4
-    base_distribution["disaster"] = max(0.02, base_distribution["disaster"] - skill_delta * 0.3)
-
-    difficulty = str(hole_info.get("difficulty", "medium")).lower()
-    if difficulty in {"hard", "very hard", "difficult"}:
-        base_distribution["excellent"] *= 0.75
-        base_distribution["good"] *= 0.85
-        base_distribution["poor"] *= 1.2
-        base_distribution["disaster"] *= 1.3
-    elif difficulty in {"easy", "very easy"}:
-        base_distribution["excellent"] *= 1.15
-        base_distribution["good"] *= 1.05
-        base_distribution["poor"] *= 0.85
-        base_distribution["disaster"] *= 0.75
-
-    distance = hole_info.get("distance") or hole_info.get("distance_to_pin")
-    if isinstance(distance, (int, float)):
-        if distance < 100:
-            base_distribution["excellent"] *= 1.1
-            base_distribution["good"] *= 1.05
-            base_distribution["poor"] *= 0.9
-        elif distance > 200:
-            base_distribution["excellent"] *= 0.85
-            base_distribution["good"] *= 0.9
-            base_distribution["poor"] *= 1.1
-            base_distribution["disaster"] *= 1.15
-
-    if lie_type in {"tee"}:
-        base_distribution["excellent"] *= 1.2
-        base_distribution["good"] *= 1.1
-        base_distribution["poor"] *= 0.8
-        base_distribution["disaster"] *= 0.6
-    elif lie_type in {"rough", "deep_rough"}:
-        base_distribution["excellent"] *= 0.7
-        base_distribution["good"] *= 0.8
-        base_distribution["poor"] *= 1.2
-        base_distribution["disaster"] *= 1.3
-    elif lie_type in {"bunker"}:
-        base_distribution["excellent"] *= 0.6
-        base_distribution["good"] *= 0.75
-        base_distribution["poor"] *= 1.25
-        base_distribution["disaster"] *= 1.4
-    elif lie_type in {"green"}:
-        base_distribution["excellent"] *= 1.4
-        base_distribution["good"] *= 1.15
-        base_distribution["poor"] *= 0.6
-        base_distribution["disaster"] *= 0.4
-
-    return _normalize_probabilities(base_distribution)
 
 
 # ---------------------------------------------------------------------------

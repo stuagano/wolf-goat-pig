@@ -35,17 +35,4 @@ export const fetchJson = async (url, options = {}) => {
   return data;
 };
 
-/**
- * Validate that response data is a non-null object
- * @param {any} data - Response data to validate
- * @param {string} context - Context for error message
- * @throws {Error} - If data is null or not an object
- */
-export const validateObject = (data, context = "response") => {
-  if (!data || typeof data !== "object") {
-    throw new Error(`Invalid ${context}: expected object`);
-  }
-  return data;
-};
-
 export default fetchJson;

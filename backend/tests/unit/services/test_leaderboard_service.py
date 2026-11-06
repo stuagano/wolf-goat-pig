@@ -18,7 +18,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.models import Base, PlayerProfile, PlayerStatistics
-from app.services.leaderboard_service import LeaderboardCache, LeaderboardService, get_leaderboard_service
+from app.services.leaderboard_service import LeaderboardCache, LeaderboardService
 
 # Test database setup
 TEST_DATABASE_URL = "sqlite:///./test_leaderboard.db"
@@ -320,31 +320,6 @@ class TestWeeklyMonthlyLeaderboards:
             service.get_monthly_leaderboard("invalid_type", db)
 
         assert exc_info.value.status_code == 400
-
-
-class TestLeaderboardServiceSingleton:
-    """Test singleton pattern for LeaderboardService."""
-
-    def test_singleton_returns_same_instance(self, db):
-        """Test that get_leaderboard_service returns consistent instance."""
-        service1 = get_leaderboard_service(db)
-        service2 = get_leaderboard_service(db)
-
-        assert service1 is service2
-
-    def test_singleton_updates_db_session(self, db):
-        """Test that singleton updates its db session."""
-        service = get_leaderboard_service(db)
-
-        # Create new session
-        db2 = TestingSessionLocal()
-        service2 = get_leaderboard_service(db2)
-
-        # Should be same instance but with updated db
-        assert service is service2
-        assert service.db is db2
-
-        db2.close()
 
 
 class TestLeaderboardExclusions:
