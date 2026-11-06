@@ -8,35 +8,27 @@
 import React from 'react';
 import { render } from '@testing-library/react';
 import { ThemeProvider } from '../theme/Provider';
-import { TutorialContext } from '../context/TutorialContext';
 
 // Common test wrapper that provides all necessary contexts
 export const TestWrapper = ({
   children,
-  tutorialState = { isActive: false, currentModule: null },
   theme = 'default'
 }) => (
   <ThemeProvider theme={theme}>
-    <TutorialContext.Provider value={tutorialState}>
-      {children}
-    </TutorialContext.Provider>
+    {children}
   </ThemeProvider>
 );
 
 // Render component with full context wrapper
 export const renderWithContext = (ui, options = {}) => {
   const {
-    tutorialState,
     theme,
     ...renderOptions
   } = options;
 
   return render(ui, {
     wrapper: ({ children }) => (
-      <TestWrapper
-        tutorialState={tutorialState}
-        theme={theme}
-      >
+      <TestWrapper theme={theme}>
         {children}
       </TestWrapper>
     ),

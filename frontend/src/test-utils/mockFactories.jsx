@@ -575,27 +575,6 @@ export const createMockNetworkError = (message = 'Network error') => {
 };
 
 // ============================================================================
-// Tutorial Context Mocks
-// ============================================================================
-
-/**
- * Create a mock tutorial context
- * @param {Object} overrides - Context overrides
- * @returns {Object} Mock tutorial context
- */
-export const createMockTutorialContext = (overrides = {}) => ({
-  isActive: false,
-  currentModule: null,
-  currentStep: 0,
-  startTutorial: vi.fn(),
-  nextStep: vi.fn(),
-  prevStep: vi.fn(),
-  completeTutorial: vi.fn(),
-  skipTutorial: vi.fn(),
-  ...overrides
-});
-
-// ============================================================================
 // Utility Exports
 // ============================================================================
 
@@ -627,10 +606,7 @@ const mockFactories = {
   // API
   createMockFetchResponse,
   createMockFetchError,
-  createMockNetworkError,
-
-  // Tutorial
-  createMockTutorialContext
+  createMockNetworkError
 };
 
 export default mockFactories;

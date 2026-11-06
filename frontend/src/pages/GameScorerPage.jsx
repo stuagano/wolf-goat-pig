@@ -393,7 +393,7 @@ const GameScorerPage = () => {
             color: theme.colors.textSecondary, 
             marginBottom: '20px' 
           }}>
-            Learn the rules or get tutorials on how to play Wolf Goat Pig
+            Learn the rules of Wolf Goat Pig
           </p>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button
@@ -407,18 +407,6 @@ const GameScorerPage = () => {
               }}
             >
               Game Rules
-            </button>
-            <button
-              onClick={() => navigate('/tutorial')}
-              style={{
-                ...theme.buttonStyle,
-                background: 'transparent',
-                color: theme.colors.primary,
-                border: `2px solid ${theme.colors.primary}`,
-                padding: '10px 20px'
-              }}
-            >
-              Tutorial
             </button>
             <button
               onClick={() => navigate('/')}

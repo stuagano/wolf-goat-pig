@@ -467,21 +467,6 @@ function RulesPage() {
           marginTop: '40px'
         }}>
           <button
-            onClick={() => navigate('/tutorial')}
-            style={{
-              padding: '14px 32px',
-              background: 'white',
-              color: '#3B82F6',
-              border: '2px solid #3B82F6',
-              borderRadius: '8px',
-              fontSize: '18px',
-              fontWeight: '600',
-              cursor: 'pointer'
-            }}
-          >
-            Interactive Tutorial
-          </button>
-          <button
             onClick={() => navigate('/')}
             style={{
               padding: '14px 32px',

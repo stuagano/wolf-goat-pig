@@ -4,9 +4,6 @@ import { useSearchParams } from 'react-router-dom';
 import ForeTeesTeeSheet from '../components/foretees/ForeTeesTeeSheet';
 import DailySignupView from '../components/signup/DailySignupView';
 import { FORETEES_ENABLED } from '../config/features';
-// WgpSignupSheet is temporarily disconnected — it read/wrote the legacy
-// thousand-cranes.com tee sheet, which is disabled for now. Re-add the import,
-// the tab entry, and its render block below to bring it back.
 import '../styles/mobile-touch.css';
 
 // Supported tab IDs. Anything else in the URL (e.g. the retired `wgp-signup`

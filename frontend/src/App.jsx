@@ -2,7 +2,6 @@ import React, { useState, useEffect, Suspense } from "react";
 import {
   Routes,
   Route,
-  useNavigate,
   Navigate,
   useLocation,
 } from "react-router-dom";
@@ -13,7 +12,6 @@ import Leaderboard from "./components/game/Leaderboard";
 import { ThemeProvider, useTheme } from "./theme/Provider";
 import { SheetSyncProvider } from "./context";
 import { AuthProvider } from "./context/AuthContext";
-import { TutorialProvider } from "./context/TutorialContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import LoginButton from "./components/auth/LoginButton";
 import { OnboardingWrapper } from "./components/auth";
@@ -31,9 +29,6 @@ import { useFeatureFlags } from "./hooks/useFeatureFlags";
 import "./styles/mobile-touch.css"; // Import mobile touch optimization styles
 
 // Lazy-loaded routes — reduces initial bundle by ~40-60%
-const ShotRangeAnalyzer = React.lazy(() => import("./components/game/ShotRangeAnalyzer"));
-const TutorialSystem = React.lazy(() => import("./components/tutorial/TutorialSystem"));
-const WGPAnalyticsDashboard = React.lazy(() => import("./components/analytics/WGPAnalyticsDashboard"));
 const SheetIntegrationDashboard = React.lazy(() => import("./components/integration/SheetIntegrationDashboard"));
 const GoogleSheetsLiveSync = React.lazy(() => import("./components/integration/GoogleSheetsLiveSync"));
 const SignupPage = React.lazy(() => import("./pages/SignupPage"));
@@ -67,7 +62,6 @@ const API_URL = apiConfig.baseUrl;
 function App() {
   const authenticatedFetch = useAuthenticatedFetch();
   const theme = useTheme();
-  const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, isLoading } = useAuth0();
   const isScorekeeperRoute = /^\/game\/[^/]+$/.test(location.pathname);
@@ -347,22 +341,6 @@ function App() {
               <Route path="/game/:gameId" element={<SimpleScorekeeperPage />} />
               <Route path="/game-scorer" element={<GameScorerPage />} />
               <Route
-                path="/analytics"
-                element={
-                  <ProtectedRoute>
-                    <WGPAnalyticsDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/analyzer"
-                element={
-                  <ProtectedRoute>
-                    <ShotRangeAnalyzer />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
                 path="/signup"
                 element={
                   <ProtectedRoute>
@@ -389,15 +367,6 @@ function App() {
                   <ProtectedRoute>
                     <GoogleSheetsLiveSync />
                   </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/tutorial"
-                element={
-                  <TutorialSystem
-                    onComplete={() => navigate("/game")}
-                    onExit={() => navigate("/")}
-                  />
                 }
               />
               <Route path="/about" element={<AboutPage />} />
@@ -460,11 +429,9 @@ const AppWithProviders = () => {
   return (
     <AuthProvider>
       <SheetSyncProvider>
-        <TutorialProvider>
-          <ThemeProvider>
-            <App />
-          </ThemeProvider>
-        </TutorialProvider>
+        <ThemeProvider>
+          <App />
+        </ThemeProvider>
       </SheetSyncProvider>
     </AuthProvider>
   );
