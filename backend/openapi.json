@@ -2360,6 +2360,24 @@
         "title": "MatchSuggestionResponse",
         "type": "object"
       },
+      "MyNameUpdate": {
+        "properties": {
+          "first_name": {
+            "title": "First Name",
+            "type": "string"
+          },
+          "last_name": {
+            "title": "Last Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "first_name",
+          "last_name"
+        ],
+        "title": "MyNameUpdate",
+        "type": "object"
+      },
       "OAuth2TestEmailRequest": {
         "properties": {
           "test_email": {
@@ -14308,6 +14326,54 @@
         ],
         "summary": "Update My Legacy Name",
         "tags": [
+          "players"
+        ]
+      }
+    },
+    "/players/me/name": {
+      "put": {
+        "description": "Replace an email-as-name with the golfer's first and last name (once).",
+        "operationId": "update_my_name_players_me_name_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MyNameUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerProfileResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update My Name",
+        "tags": [
+          "players",
           "players"
         ]
       }
