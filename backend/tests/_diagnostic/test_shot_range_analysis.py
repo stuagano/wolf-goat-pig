@@ -18,7 +18,6 @@ from app.domain.shot_range_analysis import (
     ShotType,
     analyze_shot_decision,
 )
-from app.domain.shot_result import ShotResult
 
 
 def print_section(title: str):
@@ -26,40 +25,6 @@ def print_section(title: str):
     print(f"\n{'=' * 60}")
     print(f"🎯 {title}")
     print(f"{'=' * 60}")
-
-
-def test_basic_range_analysis():
-    """Test basic shot range analysis"""
-    print_section("Basic Shot Range Analysis")
-
-    # Create a test player
-    player = Player(id="p1", name="Tiger Woods", handicap=0.0)
-
-    # Create a shot result (approach from fairway)
-    shot = ShotResult(player=player, drive=280, lie="fairway", remaining=150, shot_quality="good", hole_number=10)
-
-    # Get range analysis
-    analysis = shot.get_shot_range_analysis()
-
-    print("\n📊 Shot Situation:")
-    print(f"   Player: {player.name} (HC: {player.handicap})")
-    print(f"   Lie: {shot.lie}")
-    print(f"   Distance: {shot.remaining} yards")
-
-    print("\n🎰 Recommended Shot:")
-    rec = analysis["recommended_shot"]
-    print(f"   Type: {rec['type']}")
-    print(f"   Success Rate: {rec['success_rate']}")
-    print(f"   Risk Level: {rec['risk_level']}")
-    print(f"   Expected Value: {rec['expected_value']:+.2f} strokes")
-    print(f"   Equity vs Field: {rec['equity_vs_field']}")
-
-    print("\n📈 All Available Ranges:")
-    for r in analysis["all_ranges"]:
-        print(f"   {r['type']}: {r['success_rate']} success, {r['risk']} risk, EV: {r['ev']}")
-
-    print(f"\n🎯 Player Style: {analysis['player_style']['profile']}")
-    print(f"   {analysis['player_style']['description']}")
 
 
 def test_pressure_situations():
@@ -188,55 +153,14 @@ def test_3bet_ranges():
         print(f"     Pot Odds Needed: {r['pot_odds_needed']}")
 
 
-def test_shot_progression_integration():
-    """Test integration with shot progression"""
-    print_section("Shot Progression with Range Analysis")
-
-    # Simulate a few shots with range analysis
-    player = Player(id="human", name="Phil Mickelson", handicap=2.0)
-
-    shots = [
-        ("fairway", 450, "First shot - Driver decision"),
-        ("fairway", 180, "Approach shot - Risk the water?"),
-        ("rough", 40, "Short game - Flop shot or safe chip?"),
-    ]
-
-    for lie, distance, desc in shots:
-        print(f"\n🏌️ {desc}")
-
-        shot = ShotResult(
-            player=player,
-            drive=450 - distance if lie == "fairway" else 230,
-            lie=lie,
-            remaining=distance,
-            shot_quality="average",
-            hole_number=12,
-            pressure_factor=0.6,
-        )
-
-        analysis = shot.get_shot_range_analysis()
-
-        # Show recommended play
-        rec = analysis["recommended_shot"]
-        print(f"   Recommended: {rec['type']}")
-        print(f"   Risk/Reward: {rec['risk_level']} risk for {rec['expected_value']:+.2f} EV")
-
-        # Show top 3 options
-        print("   Options:")
-        for i, r in enumerate(analysis["all_ranges"][:3]):
-            print(f"     {i + 1}. {r['type']}: {r['equity']} equity")
-
-
 def main():
     """Run all tests"""
     print("\n🎰 WOLF GOAT PIG - POKER STYLE SHOT RANGE ANALYSIS")
     print("=" * 60)
 
-    test_basic_range_analysis()
     test_pressure_situations()
     test_player_styles()
     test_3bet_ranges()
-    test_shot_progression_integration()
 
     print(f"\n{'=' * 60}")
     print("✅ Shot range analysis complete!")

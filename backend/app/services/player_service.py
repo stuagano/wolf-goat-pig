@@ -116,23 +116,6 @@ class PlayerService:
             logger.error(f"Error getting player profile {player_id}: {e}")
             raise
 
-    def get_player_profile_by_name(self, name: str) -> PlayerProfileResponse | None:
-        """Get a player profile by name."""
-        try:
-            player = (
-                self.db.query(PlayerProfile)
-                .filter(and_(PlayerProfile.name == name, PlayerProfile.is_active == 1))
-                .first()
-            )
-
-            if player:
-                return PlayerProfileResponse.model_validate(player)  # type: ignore[no-any-return]
-            return None
-
-        except Exception as e:
-            logger.error(f"Error getting player profile by name {name}: {e}")
-            raise
-
     def get_all_player_profiles(self, active_only: bool = True) -> list[PlayerProfileResponse]:
         """Get all player profiles."""
         try:

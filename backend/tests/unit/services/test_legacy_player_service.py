@@ -69,20 +69,6 @@ def test_find_similar_players_fuzzy_matches(db):
     assert "Jonathan Smith" in matches
 
 
-def test_validate_valid_player(db):
-    svc.add_legacy_player("Rory McIlroy", db=db)
-    result = svc.validate_player_for_legacy("rory mcilroy", db)
-    assert result["valid"] is True
-    assert result["canonical_name"] == "Rory McIlroy"
-
-
-def test_validate_unknown_player_with_suggestion(db):
-    svc.add_legacy_player("Brooks Koepka", db=db)
-    result = svc.validate_player_for_legacy("Brook Koepka", db)
-    assert result["valid"] is False
-    assert "Brooks Koepka" in result["suggestions"]
-
-
 # ── Canonical writes ─────────────────────────────────────────────────────────
 
 
@@ -140,7 +126,7 @@ def test_promote_pending_player_makes_canonical(db):
 
     # Invariant precondition: not canonical while pending.
     assert svc.get_canonical_name("Promote Me", db) is None
-    assert svc.validate_player_for_legacy("Promote Me", db)["valid"] is False
+    assert svc.get_canonical_name("Promote Me", db) is None
 
     result = svc.promote_pending_player(pending_id, db=db)
     assert result["promoted"] is True
@@ -243,7 +229,7 @@ def test_pending_player_never_reads_as_canonical(db):
     assert svc.get_canonical_name("Ghost Golfer", db) is None
     assert "Ghost Golfer" not in svc.get_legacy_players(db)
     assert "Ghost Golfer" not in svc.find_similar_players("Ghost Golfer", db=db)
-    assert svc.validate_player_for_legacy("Ghost Golfer", db)["valid"] is False
+    assert svc.get_canonical_name("Ghost Golfer", db) is None
 
 
 # ── Roster auto-sync from round history ──────────────────────────────────────

@@ -6,19 +6,16 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import and_, case, desc, func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from .badge_engine import BadgeEngine
 from .database import get_db
 from .models import (
     Badge,
-    BadgeProgress,
-    BadgeSeries,
     GamePlayerResult,
     PlayerBadgeEarned,
     PlayerProfile,
-    PlayerSeriesProgress,
 )
 from .services.auth_service import get_current_user
 from .utils.admin_auth import require_admin
@@ -59,35 +56,6 @@ class EarnedBadgeResponse(BaseModel):
     earned_at: str
     serial_number: int
     game_record_id: int | None
-
-
-class BadgeProgressResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    badge: BadgeResponse
-    current_progress: int
-    target_progress: int
-    progress_percentage: float
-    last_progress_date: str | None
-
-
-class SeriesResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    name: str
-    description: str
-    badge_count: int
-    badges_earned: int
-    is_completed: bool
-    completion_badge: BadgeResponse | None
-
-
-class BadgeLeaderboardEntry(BaseModel):
-    player_id: int
-    player_name: str
-    serial_number: int
-    earned_at: str
 
 
 # ====================================================================================
@@ -196,49 +164,6 @@ def toggle_showcase_badge(
     return {"showcased": True, "position": earned.showcase_position}
 
 
-@router.get("/player/{player_id}/progress", response_model=list[BadgeProgressResponse])
-def get_player_badge_progress(
-    player_id: int, include_completed: bool = False, db: Session = Depends(get_db)
-) -> list[dict[str, Any]]:
-    """
-    Get player's progress toward unearned badges.
-    - include_completed: Include badges already earned
-    """
-    # Get all progression badges
-    progress_records = db.query(BadgeProgress).filter(BadgeProgress.player_profile_id == player_id).all()
-
-    result = []
-    for progress in progress_records:
-        # Check if already earned
-        if not include_completed:
-            has_badge = (
-                db.query(PlayerBadgeEarned)
-                .filter(
-                    and_(
-                        PlayerBadgeEarned.player_profile_id == player_id,
-                        PlayerBadgeEarned.badge_id == progress.badge_id,
-                    )
-                )
-                .first()
-            )
-            if has_badge:
-                continue
-
-        badge = db.query(Badge).filter_by(id=progress.badge_id).first()
-        if badge:
-            result.append(
-                {
-                    "badge": badge,
-                    "current_progress": progress.current_progress,
-                    "target_progress": progress.target_progress,
-                    "progress_percentage": progress.progress_percentage,
-                    "last_progress_date": progress.last_progress_date,
-                }
-            )
-
-    return result
-
-
 @router.get("/player/{player_id}/stats")
 def get_player_badge_stats(player_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
     """Get summary statistics about player's badge collection"""
@@ -272,148 +197,6 @@ def get_player_badge_stats(player_id: int, db: Session = Depends(get_db)) -> dic
         "by_rarity": {r: c for r, c in rarity_counts},
         "by_category": {cat: c for cat, c in category_counts},
     }
-
-
-# ====================================================================================
-# SERIES / COLLECTION ENDPOINTS
-# ====================================================================================
-
-
-@router.get("/series", response_model=list[SeriesResponse])
-def get_badge_series(db: Session = Depends(get_db)) -> list[dict[str, Any]]:
-    """Get all badge series/collections"""
-    series_list = db.query(BadgeSeries).filter(BadgeSeries.is_active == True).all()
-
-    result = []
-    for series in series_list:
-        # Get completion badge if exists
-        completion_badge = None
-        if series.completion_badge_id:
-            completion_badge = db.query(Badge).filter_by(id=series.completion_badge_id).first()
-
-        result.append(
-            {
-                **series.__dict__,
-                "badges_earned": 0,  # Will be filled by player-specific endpoint
-                "is_completed": False,
-                "completion_badge": completion_badge,
-            }
-        )
-
-    return result
-
-
-@router.get("/series/player/{player_id}", response_model=list[SeriesResponse])
-def get_player_series_progress(player_id: int, db: Session = Depends(get_db)) -> list[dict[str, Any]]:
-    """Get player's progress on all badge series"""
-    series_list = db.query(BadgeSeries).filter(BadgeSeries.is_active == True).all()
-
-    result = []
-    for series in series_list:
-        # Get player's progress
-        progress = (
-            db.query(PlayerSeriesProgress)
-            .filter(
-                and_(
-                    PlayerSeriesProgress.player_profile_id == player_id,
-                    PlayerSeriesProgress.series_id == series.id,
-                )
-            )
-            .first()
-        )
-
-        # Get completion badge
-        completion_badge = None
-        if series.completion_badge_id:
-            completion_badge = db.query(Badge).filter_by(id=series.completion_badge_id).first()
-
-        result.append(
-            {
-                **series.__dict__,
-                "badges_earned": progress.badges_earned if progress else 0,
-                "is_completed": progress.is_completed if progress else False,
-                "completion_badge": completion_badge,
-            }
-        )
-
-    return result
-
-
-# ====================================================================================
-# LEADERBOARD ENDPOINTS
-# ====================================================================================
-
-
-@router.get("/leaderboard/badge/{badge_id}", response_model=list[BadgeLeaderboardEntry])
-def get_badge_leaderboard(badge_id: int, limit: int = 100, db: Session = Depends(get_db)) -> list[dict[str, Any]]:
-    """
-    Get leaderboard for a specific badge (who has it, serial numbers).
-    Useful for rare badges to see who the elite owners are.
-    """
-    badge = db.query(Badge).filter_by(id=badge_id).first()
-    if not badge:
-        raise HTTPException(status_code=404, detail="Badge not found")
-
-    earned_records = (
-        db.query(PlayerBadgeEarned, PlayerProfile.name)
-        .join(PlayerProfile, PlayerBadgeEarned.player_profile_id == PlayerProfile.id)
-        .filter(PlayerBadgeEarned.badge_id == badge_id)
-        .order_by(PlayerBadgeEarned.serial_number.asc())
-        .limit(limit)
-        .all()
-    )
-
-    result = []
-    for earned, player_name in earned_records:
-        result.append(
-            {
-                "player_id": earned.player_profile_id,
-                "player_name": player_name,
-                "serial_number": earned.serial_number,
-                "earned_at": earned.earned_at,
-            }
-        )
-
-    return result
-
-
-@router.get("/leaderboard/top-collectors")
-def get_top_collectors(limit: int = 50, db: Session = Depends(get_db)) -> list[dict[str, Any]]:
-    """Get players with most badges earned"""
-    top_collectors = (
-        db.query(
-            PlayerProfile.id,
-            PlayerProfile.name,
-            func.count(PlayerBadgeEarned.id).label("badge_count"),
-        )
-        .join(PlayerBadgeEarned, PlayerProfile.id == PlayerBadgeEarned.player_profile_id)
-        .group_by(PlayerProfile.id, PlayerProfile.name)
-        .order_by(desc("badge_count"))
-        .limit(limit)
-        .all()
-    )
-
-    result = []
-    for player_id, player_name, badge_count in top_collectors:
-        # Get rarity breakdown
-        rarity_counts = (
-            db.query(Badge.rarity, func.count(PlayerBadgeEarned.id))
-            .join(PlayerBadgeEarned, Badge.id == PlayerBadgeEarned.badge_id)
-            .filter(PlayerBadgeEarned.player_profile_id == player_id)
-            .group_by(Badge.rarity)
-            .all()
-        )
-
-        result.append(
-            {
-                "player_id": player_id,
-                "player_name": player_name,
-                "total_badges": badge_count,
-                "by_rarity": {r: c for r, c in rarity_counts},
-            }
-        )
-
-    return result
 
 
 # ====================================================================================
@@ -470,34 +253,4 @@ def manually_check_achievements(
     return {
         "message": f"Found {len(badges_earned)} new badges",
         "badges_earned": badges_earned,
-    }
-
-
-@router.get(
-    "/admin/badge/{badge_id}/holders",
-    dependencies=[Depends(require_admin)],
-)
-def get_badge_holders(badge_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
-    """Get detailed information about who holds a specific badge"""
-    holders = (
-        db.query(PlayerBadgeEarned, PlayerProfile.name, PlayerProfile.email)
-        .join(PlayerProfile, PlayerBadgeEarned.player_profile_id == PlayerProfile.id)
-        .filter(PlayerBadgeEarned.badge_id == badge_id)
-        .order_by(PlayerBadgeEarned.serial_number.asc())
-        .all()
-    )
-
-    return {
-        "badge_id": badge_id,
-        "total_holders": len(holders),
-        "holders": [
-            {
-                "player_id": h[0].player_profile_id,
-                "player_name": h[1],
-                "player_email": h[2],
-                "serial_number": h[0].serial_number,
-                "earned_at": h[0].earned_at,
-            }
-            for h in holders
-        ],
     }

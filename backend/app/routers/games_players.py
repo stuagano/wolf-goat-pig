@@ -37,11 +37,6 @@ class UpdateHandicapRequest(BaseModel):
     handicap: float = Field(..., ge=0, le=54)
 
 
-class UpdateHittingOrderRequest(BaseModel):
-    hitting_order: list[str] = Field(..., min_length=4, max_length=6)
-    hole_number: int | None = Field(None, ge=1, le=18, description="Hole to update; defaults to current hole")
-
-
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -634,69 +629,3 @@ async def update_player_handicap(  # type: ignore
         logger.error(f"Error updating player handicap: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to update handicap: {e!s}")
-
-
-@router.patch("/{game_id}/hitting-order")
-async def update_hitting_order(
-    game_id: str,
-    body: UpdateHittingOrderRequest,
-    db: Session = Depends(database.get_db),
-) -> dict[str, Any]:
-    """Update the hitting order for any hole (defaults to current hole).
-
-    Writes to hole_orders table (source of truth), then evicts the game from
-    cache so the next load replays the stored order via get_game().
-    """
-    try:
-        game = get_game_lifecycle_service().get_game(db, game_id)
-
-        player_ids = {p.id for p in game.players}
-        if set(body.hitting_order) != player_ids or len(body.hitting_order) != len(player_ids):
-            raise HTTPException(
-                status_code=400,
-                detail="hitting_order must be an exact permutation of all player IDs",
-            )
-
-        target_hole = body.hole_number if body.hole_number is not None else game.current_hole
-        current_time = utc_now().isoformat()
-
-        # Persist to hole_orders (upsert — last write wins)
-        existing = (
-            db.query(models.HoleOrder)
-            .filter(models.HoleOrder.game_id == game_id, models.HoleOrder.hole_number == target_hole)
-            .first()
-        )
-        if existing:
-            existing.hitting_order = list(body.hitting_order)
-            existing.captain_id = body.hitting_order[0]
-            existing.recorded_at = current_time
-        else:
-            db.add(
-                models.HoleOrder(
-                    game_id=game_id,
-                    hole_number=target_hole,
-                    hitting_order=list(body.hitting_order),
-                    captain_id=body.hitting_order[0],
-                    recorded_at=current_time,
-                )
-            )
-        db.commit()
-
-        # Evict from cache so the next get_game() reloads with the stored order applied
-        get_game_lifecycle_service().cleanup_game(game_id)
-
-        logger.info(f"Updated hitting order for game {game_id} hole {target_hole}: {body.hitting_order}")
-
-        return {
-            "status": "ok",
-            "game_id": game_id,
-            "hole": target_hole,
-            "hitting_order": body.hitting_order,
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error updating hitting order: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to update hitting order: {e!s}")

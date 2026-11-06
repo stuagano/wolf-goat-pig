@@ -14,7 +14,6 @@ from .exceptions import (
     GameStateValidationError,
     HandicapValidationError,
     PartnershipValidationError,
-    RuleViolationError,
     ValidationError,
 )
 from .game_state_validator import GameStateValidator
@@ -27,7 +26,6 @@ __all__ = [
     "BettingValidationError",
     "HandicapValidationError",
     "PartnershipValidationError",
-    "RuleViolationError",
     # Validators
     "GameStateValidator",
     "HandicapValidator",

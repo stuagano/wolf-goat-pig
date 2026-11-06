@@ -98,22 +98,6 @@ def get_notifications(
     ]
 
 
-@router.get("/unread-count")
-def get_unread_count(
-    current_user: PlayerProfile = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    count = (
-        db.query(Notification)
-        .filter(
-            Notification.player_profile_id == current_user.id,
-            Notification.is_read == False,
-        )
-        .count()
-    )
-    return {"unread_count": count}
-
-
 @router.post("/read-all")
 def mark_all_read(
     current_user: PlayerProfile = Depends(get_current_user),

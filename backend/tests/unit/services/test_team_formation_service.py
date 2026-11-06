@@ -111,41 +111,6 @@ class TestGenerateRandomTeams:
         assert len(teams) == 2
 
 
-class TestTeamPairingsWithRotations:
-    """Test multiple team rotation generation"""
-
-    def test_create_rotations(self):
-        """Test creating multiple rotations"""
-        players = [
-            {
-                "player_id": i,
-                "player_name": f"Player {i}",
-                "email": f"player{i}@example.com",
-            }
-            for i in range(1, 9)
-        ]
-
-        rotations = TeamFormationService.create_team_pairings_with_rotations(players, num_rotations=3, seed=42)
-
-        assert len(rotations) == 3
-        # Each rotation should have different team compositions
-
-    def test_rotations_insufficient_players(self):
-        """Test rotations with too few players"""
-        players = [
-            {
-                "player_id": i,
-                "player_name": f"Player {i}",
-                "email": f"player{i}@example.com",
-            }
-            for i in range(1, 3)
-        ]
-
-        rotations = TeamFormationService.create_team_pairings_with_rotations(players)
-
-        assert len(rotations) == 0
-
-
 class TestRandomNumberGeneration:
     """Test RNG handling"""
 

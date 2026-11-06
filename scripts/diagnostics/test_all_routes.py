@@ -275,8 +275,6 @@ class RouteTestSuite:
         print(f"\n{BLUE}=== Testing Analytics Endpoints ==={RESET}")
         
         endpoints = [
-            ("GET", "/analytics/game-stats", None),
-            ("GET", "/analytics/player-performance", None),
             ("GET", "/leaderboard", None),
             ("GET", "/signups", None),
         ]

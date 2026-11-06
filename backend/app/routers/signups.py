@@ -20,7 +20,6 @@ from ..services.legacy_player_service import (
     get_legacy_players,
     list_pending_players,
     promote_pending_player,
-    validate_player_for_legacy,
 )
 from ..services.legacy_signup_service import get_legacy_signup_service
 from ..services.same_day_signup_service import send_same_day_signup_notifications
@@ -126,28 +125,6 @@ def list_legacy_players():
     """
     players = get_legacy_players()
     return {"count": len(players), "players": players}
-
-
-@router.get("/legacy-players/validate/{name}")
-def validate_legacy_player(name: str):
-    """Validate a player name against the legacy system.
-
-    Returns whether the name is valid, the canonical spelling if found,
-    and suggestions for similar names if not found.
-    """
-    return validate_player_for_legacy(name)
-
-
-@router.get("/legacy-players/search")
-def search_legacy_players(q: str = Query(description="Search query for player name")):
-    """Search for legacy players by partial name match.
-
-    Returns players whose names contain the search query (case-insensitive).
-    """
-    players = get_legacy_players()
-    query_lower = q.lower()
-    matches = [p for p in players if query_lower in p.lower()]
-    return {"query": q, "count": len(matches), "players": matches}
 
 
 # ── Admin: canonical roster + pending-capture management ─────────────────────

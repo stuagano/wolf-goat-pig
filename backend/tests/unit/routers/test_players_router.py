@@ -251,9 +251,8 @@ class TestGetPlayers:
         assert created.status_code in (200, 201)
 
         lists = [client.get("/players").json(), client.get("/players/all").json()]
-        by_name = client.get(f"/players/name/{name}").json()
-        assert by_name["name"] == name
-        for player in [by_name, *(p for players in lists for p in players)]:
+        assert any(p["name"] == name for p in lists[1])
+        for player in (p for players in lists for p in players):
             assert "email" not in player
 
 
@@ -309,10 +308,6 @@ class _AsAdmin:
 class TestGetPlayerById(_AsAdmin):
     def test_get_nonexistent_player_returns_404(self):
         resp = client.get("/players/999999")
-        assert resp.status_code == 404
-
-    def test_get_player_by_name_not_found_returns_404(self):
-        resp = client.get("/players/name/NonExistentPlayerXYZ")
         assert resp.status_code == 404
 
 
@@ -477,12 +472,3 @@ class TestPerPlayerEndpointsRequireAdmin:
             assert client.delete("/players/1").status_code == 403
         finally:
             app.dependency_overrides.pop(get_current_auth0_user, None)
-
-
-# ── GET /players/{player_id}/statistics ──────────────────────────────────────
-
-
-class TestPlayerStatistics:
-    def test_statistics_for_nonexistent_player_returns_404(self):
-        resp = client.get("/players/999999/statistics")
-        assert resp.status_code == 404

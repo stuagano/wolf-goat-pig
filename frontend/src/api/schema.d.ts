@@ -763,86 +763,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/analytics/game-stats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Game Stats
-         * @description Get game statistics analytics
-         */
-        get: operations["get_game_stats_analytics_game_stats_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/analytics/overview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Analytics Overview
-         * @description Get overall analytics overview.
-         */
-        get: operations["get_analytics_overview_analytics_overview_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/analytics/player-performance": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Player Performance
-         * @description Get player performance analytics
-         */
-        get: operations["get_player_performance_analytics_player_performance_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/badges/admin/badge/{badge_id}/holders": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Badge Holders
-         * @description Get detailed information about who holds a specific badge
-         */
-        get: operations["get_badge_holders_api_badges_admin_badge__badge_id__holders_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/badges/admin/check-achievements/{player_id}": {
         parameters: {
             query?: never;
@@ -879,47 +799,6 @@ export interface paths {
          *     - rarity: common, rare, epic, legendary, mythic
          */
         get: operations["get_available_badges_api_badges_available_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/badges/leaderboard/badge/{badge_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Badge Leaderboard
-         * @description Get leaderboard for a specific badge (who has it, serial numbers).
-         *     Useful for rare badges to see who the elite owners are.
-         */
-        get: operations["get_badge_leaderboard_api_badges_leaderboard_badge__badge_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/badges/leaderboard/top-collectors": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Top Collectors
-         * @description Get players with most badges earned
-         */
-        get: operations["get_top_collectors_api_badges_leaderboard_top_collectors_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -971,27 +850,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/badges/player/{player_id}/progress": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Player Badge Progress
-         * @description Get player's progress toward unearned badges.
-         *     - include_completed: Include badges already earned
-         */
-        get: operations["get_player_badge_progress_api_badges_player__player_id__progress_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/badges/player/{player_id}/stats": {
         parameters: {
             query?: never;
@@ -1004,46 +862,6 @@ export interface paths {
          * @description Get summary statistics about player's badge collection
          */
         get: operations["get_player_badge_stats_api_badges_player__player_id__stats_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/badges/series": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Badge Series
-         * @description Get all badge series/collections
-         */
-        get: operations["get_badge_series_api_badges_series_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/badges/series/player/{player_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Player Series Progress
-         * @description Get player's progress on all badge series
-         */
-        get: operations["get_player_series_progress_api_badges_series_player__player_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1620,49 +1438,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/data/livsow/teams/seed-starters": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Seed Livsow Team Starters
-         * @description Seed starter content for any franchise that has none. Admin-only,
-         *     idempotent — teams a captain has already edited are left untouched.
-         */
-        post: operations["seed_livsow_team_starters_data_livsow_teams_seed_starters_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/data/livsow/teams/set-official-logos": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Set Official Team Logos
-         * @description Set each franchise's official crest as its logo. Admin-only. Upserts
-         *     the content row and touches only logo_url — captain motto/about/
-         *     announcement are preserved.
-         */
-        post: operations["set_official_team_logos_data_livsow_teams_set_official_logos_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/data/livsow/teams/{slug}": {
         parameters: {
             query?: never;
@@ -1738,26 +1513,6 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/data/livsow/transactions/{transaction_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete Livsow Transaction
-         * @description Soft-delete a transaction (admin escape hatch for sheet-edit noise).
-         */
-        delete: operations["delete_livsow_transaction_data_livsow_transactions__transaction_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2167,26 +1922,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/game-results": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Record Game Result
-         * @description Record a game result for a player.
-         */
-        post: operations["record_game_result_game_results_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/games": {
         parameters: {
             query?: never;
@@ -2301,26 +2036,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/games/history": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Game History
-         * @description Get list of completed games
-         */
-        get: operations["get_game_history_games_history_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/games/join/{join_code}": {
         parameters: {
             query?: never;
@@ -2360,28 +2075,6 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
-        trace?: never;
-    };
-    "/games/update-all-course-data": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Update All Games Course Data
-         * @description Update course data for ALL in-progress games.
-         *
-         *     Use this to bulk-update all active games after course data changes.
-         */
-        patch: operations["update_all_games_course_data_games_update_all_course_data_patch"];
         trace?: never;
     };
     "/games/{game_id}": {
@@ -2459,72 +2152,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/games/{game_id}/details": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Game Details
-         * @description Get detailed game results including player performances and hole-by-hole scores
-         */
-        get: operations["get_game_details_games__game_id__details_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/games/{game_id}/hitting-order": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Update Hitting Order
-         * @description Update the hitting order for any hole (defaults to current hole).
-         *
-         *     Writes to hole_orders table (source of truth), then evicts the game from
-         *     cache so the next load replays the stored order via get_game().
-         */
-        patch: operations["update_hitting_order_games__game_id__hitting_order_patch"];
-        trace?: never;
-    };
-    "/games/{game_id}/holes/validate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Validate Hole Quarters
-         * @description Check the zero-sum invariant across all recorded holes.
-         *
-         *     Returns a list of holes where SUM(quarters) != 0, so the caller knows
-         *     which holes need correction before finalizing the game.
-         */
-        get: operations["validate_hole_quarters_games__game_id__holes_validate_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/games/{game_id}/holes/{hole_number}": {
         parameters: {
             query?: never;
@@ -2541,30 +2168,6 @@ export interface paths {
          *     the game state hole_history blob. Recalculates standings from what remains.
          */
         delete: operations["delete_hole_games__game_id__holes__hole_number__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/games/{game_id}/holes/{hole_number}/log": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Hole Log
-         * @description Retrieve the narrative log for a single hole.
-         */
-        get: operations["get_hole_log_games__game_id__holes__hole_number__log_get"];
-        /**
-         * Put Hole Log
-         * @description Create or replace the narrative log for a single hole.
-         */
-        put: operations["put_hole_log_games__game_id__holes__hole_number__log_put"];
-        post?: never;
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2602,26 +2205,6 @@ export interface paths {
          * @description Get game lobby information - who has joined
          */
         get: operations["get_game_lobby_games__game_id__lobby_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/games/{game_id}/log": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Game Log
-         * @description Retrieve all hole logs for a game, ordered by hole number.
-         */
-        get: operations["get_game_log_games__game_id__log_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2850,31 +2433,6 @@ export interface paths {
          * @description Set or update the tee order for the game at any time during gameplay
          */
         patch: operations["set_tee_order_games__game_id__tee_order_patch"];
-        trace?: never;
-    };
-    "/games/{game_id}/update-course-data": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Update Game Course Data
-         * @description Update course data (par and handicap) for an in-progress game.
-         *
-         *     This endpoint updates the hole_par for each hole in the game's hole_history
-         *     based on the latest Wing Point course data.
-         *
-         *     Use this when course data has been updated and you need to sync in-progress games.
-         */
-        patch: operations["update_game_course_data_games__game_id__update_course_data_patch"];
         trace?: never;
     };
     "/ghin/courses": {
@@ -3239,51 +2797,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/legacy-players/search": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Search Legacy Players
-         * @description Search for legacy players by partial name match.
-         *
-         *     Returns players whose names contain the search query (case-insensitive).
-         */
-        get: operations["search_legacy_players_legacy_players_search_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/legacy-players/validate/{name}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Validate Legacy Player
-         * @description Validate a player name against the legacy system.
-         *
-         *     Returns whether the name is valid, the canonical spelling if found,
-         *     and suggestions for similar names if not found.
-         */
-        get: operations["validate_legacy_player_legacy_players_validate__name__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/legacy-players/{name}": {
         parameters: {
             query?: never;
@@ -3319,26 +2832,6 @@ export interface paths {
          *     This endpoint can be called by a scheduler or manually.
          */
         post: operations["create_and_notify_matches_matchmaking_create_and_notify_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/matchmaking/matches/{match_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Match Details
-         * @description Get full details of a match suggestion including all player responses.
-         */
-        get: operations["get_match_details_matchmaking_matches__match_id__get"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3407,70 +2900,6 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/messages": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create Message
-         * @description Create a new daily message.
-         */
-        post: operations["create_message_messages_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/messages/daily": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Daily Messages
-         * @description Get all messages for a specific date.
-         */
-        get: operations["get_daily_messages_messages_daily_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/messages/{message_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Update Message
-         * @description Update an existing message.
-         */
-        put: operations["update_message_messages__message_id__put"];
-        post?: never;
-        /**
-         * Delete Message
-         * @description Delete (deactivate) a message.
-         */
-        delete: operations["delete_message_messages__message_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3627,23 +3056,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/notifications/unread-count": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Unread Count */
-        get: operations["get_unread_count_notifications_unread_count_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/notifications/{notification_id}/read": {
         parameters: {
             query?: never;
@@ -3726,28 +3138,6 @@ export interface paths {
          *     Admin only. ``force=true`` overwrites official pairings already saved for the day.
          */
         post: operations["generate_and_save_pairings_pairings__date__generate_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/pairings/{date}/notify": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Resend Pairing Notifications
-         * @description Resend pairing notifications for an existing pairing.
-         *
-         *     Use this if some emails failed or you need to notify again.
-         */
-        post: operations["resend_pairing_notifications_pairings__date__notify_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4192,26 +3582,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/players/name/{player_name}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Player Profile By Name
-         * @description Get a player profile by name.
-         */
-        get: operations["get_player_profile_by_name_players_name__player_name__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/players/{player_id}": {
         parameters: {
             query?: never;
@@ -4235,46 +3605,6 @@ export interface paths {
          * @description Delete (deactivate) a player profile.
          */
         delete: operations["delete_player_profile_players__player_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/players/{player_id}/advanced-metrics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Player Advanced Metrics
-         * @description Get advanced performance metrics for a player.
-         */
-        get: operations["get_player_advanced_metrics_players__player_id__advanced_metrics_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/players/{player_id}/analytics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Player Analytics
-         * @description Get comprehensive player performance analytics.
-         */
-        get: operations["get_player_analytics_players__player_id__analytics_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -4348,86 +3678,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/players/{player_id}/head-to-head": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get All Head To Head
-         * @description Get head-to-head records against all opponents.
-         */
-        get: operations["get_all_head_to_head_players__player_id__head_to_head_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/players/{player_id}/head-to-head/{opponent_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Head To Head
-         * @description Get head-to-head record between two players.
-         */
-        get: operations["get_head_to_head_players__player_id__head_to_head__opponent_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/players/{player_id}/insights": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Player Insights
-         * @description Get personalized insights and recommendations for a player.
-         */
-        get: operations["get_player_insights_players__player_id__insights_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/players/{player_id}/profile-with-stats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Player Profile With Stats
-         * @description Get player profile combined with statistics and achievements.
-         */
-        get: operations["get_player_profile_with_stats_players__player_id__profile_with_stats_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/players/{player_id}/public-profile": {
         parameters: {
             query?: never;
@@ -4441,126 +3691,6 @@ export interface paths {
          *     (no email, venmo, or GHIN id).
          */
         get: operations["get_public_player_profile_players__player_id__public_profile_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/players/{player_id}/score-performance": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Score Performance Analytics
-         * @description Get detailed score performance analytics (eagles, birdies, pars, etc.).
-         */
-        get: operations["get_score_performance_analytics_players__player_id__score_performance_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/players/{player_id}/skill-rating": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Player Skill Rating
-         * @description Get skill rating for a player.
-         */
-        get: operations["get_player_skill_rating_players__player_id__skill_rating_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/players/{player_id}/special-events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Special Event Analytics
-         * @description Get analytics for special events (ping pong, invisible aardvark, etc.).
-         */
-        get: operations["get_special_event_analytics_players__player_id__special_events_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/players/{player_id}/statistics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Player Statistics
-         * @description Get player statistics.
-         */
-        get: operations["get_player_statistics_players__player_id__statistics_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/players/{player_id}/streaks": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Streak Analysis
-         * @description Get detailed streak analysis for a player.
-         */
-        get: operations["get_streak_analysis_players__player_id__streaks_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/players/{player_id}/trends": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Player Trends
-         * @description Get performance trends for a player.
-         */
-        get: operations["get_player_trends_players__player_id__trends_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5115,86 +4245,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/signups/{date}/sunday-game/pairings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Generate Sunday Game Pairings
-         * @description Generate randomized Sunday game pairings with optional deterministic seeding.
-         */
-        post: operations["generate_sunday_game_pairings_signups__date__sunday_game_pairings_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/signups/{date}/team-formation/balanced": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Generate Balanced Teams For Date
-         * @description Generate skill-balanced 4-player teams from players signed up for a specific date.
-         */
-        post: operations["generate_balanced_teams_for_date_signups__date__team_formation_balanced_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/signups/{date}/team-formation/random": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Generate Random Teams For Date
-         * @description Generate random 4-player teams from players signed up for a specific date.
-         */
-        post: operations["generate_random_teams_for_date_signups__date__team_formation_random_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/signups/{date}/team-formation/rotations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Generate Team Rotations For Date
-         * @description Generate multiple team rotation options for variety throughout the day.
-         */
-        post: operations["generate_team_rotations_for_date_signups__date__team_formation_rotations_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/signups/{signup_id}": {
         parameters: {
             query?: never;
@@ -5233,71 +4283,6 @@ export interface paths {
          * @description Manually replicate a signup to the legacy CGI tee sheet for testing.
          */
         post: operations["replicate_signup_to_legacy_signups__signup_id__replicate_legacy_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/tee-sheet": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Tee Sheet
-         * @description Fetch current sign-ups from the thousand-cranes.com tee sheet.
-         */
-        get: operations["get_tee_sheet_tee_sheet_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/tee-sheet/signup": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Signup For Tee Sheet
-         * @description Sign up a player for a given date on the thousand-cranes.com tee sheet.
-         *
-         *     This writes to the LIVE, shared club tee sheet. A dry-run request — or any
-         *     non-production deployment without an explicit opt-in — returns a preview of
-         *     exactly what would be written (name + date) and performs no live mutation,
-         *     so preview/testing can never silently change the real sheet. See issue #323.
-         */
-        post: operations["signup_for_tee_sheet_tee_sheet_signup_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/tee-sheet/upcoming": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Upcoming Counts
-         * @description Return sign-up counts for each day in the upcoming window, fetched in parallel.
-         */
-        get: operations["get_upcoming_counts_tee_sheet_upcoming_get"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5345,47 +4330,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/wgp/odds-history/{game_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Odds History
-         * @description Get historical odds data for analysis and trends.
-         */
-        get: operations["get_odds_history_wgp_odds_history__game_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/wgp/quick-odds": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Calculate Quick Odds
-         * @description Quick odds calculation for immediate feedback.
-         *     Optimized for sub-50ms response time.
-         */
-        post: operations["calculate_quick_odds_wgp_quick_odds_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/wgp/shot-range-analysis": {
         parameters: {
             query?: never;
@@ -5400,29 +4344,6 @@ export interface paths {
          * @description Get poker-style shot range analysis for decision making
          */
         post: operations["get_shot_range_analysis_wgp_shot_range_analysis_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/wgp/simplified/score-hole": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Score Hole Simplified
-         * @deprecated
-         * @description DEPRECATED: Use POST /games/{game_id}/quarters-only instead.
-         *
-         *     Score a hole using the simplified scoring system (in-memory, not persisted).
-         */
-        post: operations["score_hole_simplified_wgp_simplified_score_hole_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5447,52 +4368,6 @@ export interface paths {
          *     Start a new game with simplified scoring system.
          */
         post: operations["start_simplified_game_wgp_simplified_start_game_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/wgp/simplified/{game_id}/hole-history": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Simplified Hole History
-         * @deprecated
-         * @description DEPRECATED: Use GET /games/{game_id}/state instead.
-         *
-         *     Get hole-by-hole history for a simplified scoring game (in-memory only).
-         */
-        get: operations["get_simplified_hole_history_wgp_simplified__game_id__hole_history_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/wgp/simplified/{game_id}/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Simplified Game Status
-         * @deprecated
-         * @description DEPRECATED: Use GET /games/{game_id}/state instead.
-         *
-         *     Get current status of a simplified scoring game (in-memory only).
-         */
-        get: operations["get_simplified_game_status_wgp_simplified__game_id__status_get"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5541,29 +4416,6 @@ export interface components {
             };
             /** Test Email */
             test_email: string;
-        };
-        /** BadgeLeaderboardEntry */
-        BadgeLeaderboardEntry: {
-            /** Earned At */
-            earned_at: string;
-            /** Player Id */
-            player_id: number;
-            /** Player Name */
-            player_name: string;
-            /** Serial Number */
-            serial_number: number;
-        };
-        /** BadgeProgressResponse */
-        BadgeProgressResponse: {
-            badge: components["schemas"]["BadgeResponse"];
-            /** Current Progress */
-            current_progress: number;
-            /** Last Progress Date */
-            last_progress_date: string | null;
-            /** Progress Percentage */
-            progress_percentage: number;
-            /** Target Progress */
-            target_progress: number;
         };
         /** BadgeResponse */
         BadgeResponse: {
@@ -5733,17 +4585,6 @@ export interface components {
             /** User Id */
             user_id?: string | null;
         };
-        /** DailyMessageCreate */
-        DailyMessageCreate: {
-            /** Date */
-            date: string;
-            /** Message */
-            message: string;
-            /** Player Name */
-            player_name?: string | null;
-            /** Player Profile Id */
-            player_profile_id?: number | null;
-        };
         /** DailyMessageResponse */
         DailyMessageResponse: {
             /** Created At */
@@ -5764,11 +4605,6 @@ export interface components {
             player_profile_id: number;
             /** Updated At */
             updated_at: string;
-        };
-        /** DailyMessageUpdate */
-        DailyMessageUpdate: {
-            /** Message */
-            message?: string | null;
         };
         /** DailySignupCreate */
         DailySignupCreate: {
@@ -6055,119 +4891,6 @@ export interface components {
             /** Title */
             title?: string | null;
         };
-        /** GamePlayerResultCreate */
-        GamePlayerResultCreate: {
-            /** Betting History */
-            betting_history?: {
-                [key: string]: unknown;
-            }[] | null;
-            /**
-             * Big Dick Attempts
-             * @default 0
-             */
-            big_dick_attempts: number;
-            /**
-             * Big Dick Wins
-             * @default 0
-             */
-            big_dick_wins: number;
-            /**
-             * Duncan Attempts
-             * @default 0
-             */
-            duncan_attempts: number;
-            /**
-             * Duncan Wins
-             * @default 0
-             */
-            duncan_wins: number;
-            /** Final Position */
-            final_position: number;
-            /** Game Record Id */
-            game_record_id: number;
-            /** Hole Scores */
-            hole_scores?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Holes Won
-             * @default 0
-             */
-            holes_won: number;
-            /**
-             * Invisible Aardvark Holes
-             * @default 0
-             */
-            invisible_aardvark_holes: number;
-            /**
-             * Invisible Aardvark Holes Won
-             * @default 0
-             */
-            invisible_aardvark_holes_won: number;
-            /**
-             * Partnerships Formed
-             * @default 0
-             */
-            partnerships_formed: number;
-            /**
-             * Partnerships Won
-             * @default 0
-             */
-            partnerships_won: number;
-            /** Performance Metrics */
-            performance_metrics?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Ping Pongs
-             * @default 0
-             */
-            ping_pongs: number;
-            /**
-             * Ping Pongs Won
-             * @default 0
-             */
-            ping_pongs_won: number;
-            /** Player Name */
-            player_name: string;
-            /** Player Profile Id */
-            player_profile_id: number;
-            /**
-             * Solo Attempts
-             * @default 0
-             */
-            solo_attempts: number;
-            /**
-             * Solo Wins
-             * @default 0
-             */
-            solo_wins: number;
-            /**
-             * Successful Bets
-             * @default 0
-             */
-            successful_bets: number;
-            /**
-             * Total Bets
-             * @default 0
-             */
-            total_bets: number;
-            /**
-             * Total Earnings
-             * @default 0
-             */
-            total_earnings: number;
-            /**
-             * Tunkarri Attempts
-             * @default 0
-             */
-            tunkarri_attempts: number;
-            /**
-             * Tunkarri Wins
-             * @default 0
-             */
-            tunkarri_wins: number;
-        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -6199,13 +4922,6 @@ export interface components {
             tee_box: string;
             /** Yards */
             yards: number;
-        };
-        /** HoleLogRequest */
-        HoleLogRequest: {
-            /** Log Data */
-            log_data: {
-                [key: string]: unknown;
-            };
         };
         /** HoleScore */
         HoleScore: {
@@ -6466,27 +5182,6 @@ export interface components {
             /** Created At */
             created_at?: string | null;
         };
-        /** PlayerAchievementResponse */
-        PlayerAchievementResponse: {
-            /** Achievement Data */
-            achievement_data: {
-                [key: string]: unknown;
-            };
-            /** Achievement Name */
-            achievement_name: string;
-            /** Achievement Type */
-            achievement_type: string;
-            /** Description */
-            description: string;
-            /** Earned Date */
-            earned_date: string;
-            /** Game Record Id */
-            game_record_id: number | null;
-            /** Id */
-            id: number;
-            /** Player Profile Id */
-            player_profile_id: number;
-        };
         /** PlayerAvailabilityCreate */
         PlayerAvailabilityCreate: {
             /** Available From Time */
@@ -6544,31 +5239,6 @@ export interface components {
             new_matches: {
                 [key: string]: unknown;
             }[];
-        };
-        /** PlayerPerformanceAnalytics */
-        PlayerPerformanceAnalytics: {
-            /** Comparative Analysis */
-            comparative_analysis: {
-                [key: string]: unknown;
-            };
-            /** Improvement Recommendations */
-            improvement_recommendations: string[];
-            /** Performance Summary */
-            performance_summary: {
-                [key: string]: unknown;
-            };
-            /** Player Id */
-            player_id: number;
-            /** Player Name */
-            player_name: string;
-            /** Strength Analysis */
-            strength_analysis: {
-                [key: string]: unknown;
-            };
-            /** Trend Analysis */
-            trend_analysis: {
-                [key: string]: unknown;
-            };
         };
         /** PlayerProfileCreate */
         PlayerProfileCreate: {
@@ -6685,16 +5355,6 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
-        /** PlayerProfileWithStats */
-        PlayerProfileWithStats: {
-            profile: components["schemas"]["PlayerProfileResponse"];
-            /**
-             * Recent Achievements
-             * @default []
-             */
-            recent_achievements: components["schemas"]["PlayerAchievementResponse"][];
-            statistics: components["schemas"]["PlayerStatisticsResponse"];
-        };
         /** PlayerRoundResult */
         PlayerRoundResult: {
             /**
@@ -6707,150 +5367,6 @@ export interface components {
              * @description Whole quarters won or lost
              */
             score: number;
-        };
-        /** PlayerStatisticsResponse */
-        PlayerStatisticsResponse: {
-            /** Avg Earnings Per Hole */
-            avg_earnings_per_hole: number | null;
-            /**
-             * Best Hole Performance
-             * @default []
-             */
-            best_hole_performance: {
-                [key: string]: unknown;
-            }[];
-            /**
-             * Best Win Streak
-             * @default 0
-             */
-            best_win_streak: number;
-            /** Betting Success Rate */
-            betting_success_rate: number | null;
-            /** Big Dick Attempts */
-            big_dick_attempts?: number | null;
-            /** Big Dick Wins */
-            big_dick_wins?: number | null;
-            /** Birdies */
-            birdies?: number | null;
-            /** Bogeys */
-            bogeys?: number | null;
-            /**
-             * Current Loss Streak
-             * @default 0
-             */
-            current_loss_streak: number;
-            /**
-             * Current Win Streak
-             * @default 0
-             */
-            current_win_streak: number;
-            /** Double Bogeys */
-            double_bogeys?: number | null;
-            /** Duncan Attempts */
-            duncan_attempts?: number | null;
-            /** Duncan Wins */
-            duncan_wins?: number | null;
-            /** Eagles */
-            eagles?: number | null;
-            /** Favorite Game Mode */
-            favorite_game_mode: string;
-            /** Games Played */
-            games_played: number;
-            /** Games Won */
-            games_won: number;
-            /**
-             * Head To Head Records
-             * @default {}
-             */
-            head_to_head_records: {
-                [key: string]: unknown;
-            };
-            /** Holes Played */
-            holes_played: number | null;
-            /** Holes Won */
-            holes_won: number | null;
-            /** Id */
-            id: number;
-            /**
-             * Incomplete Round Count
-             * @default 0
-             */
-            incomplete_round_count: number;
-            /** Invisible Aardvark Appearances */
-            invisible_aardvark_appearances?: number | null;
-            /** Invisible Aardvark Wins */
-            invisible_aardvark_wins?: number | null;
-            /**
-             * Known Participation Count
-             * @default 0
-             */
-            known_participation_count: number;
-            /** Last Updated */
-            last_updated: string;
-            /** Pars */
-            pars?: number | null;
-            /** Partnership Success Rate */
-            partnership_success_rate: number | null;
-            /** Partnerships Formed */
-            partnerships_formed: number | null;
-            /** Partnerships Won */
-            partnerships_won: number | null;
-            /**
-             * Performance Trends
-             * @default []
-             */
-            performance_trends: {
-                [key: string]: unknown;
-            }[];
-            /** Ping Pong Count */
-            ping_pong_count?: number | null;
-            /** Ping Pong Wins */
-            ping_pong_wins?: number | null;
-            /** Player Id */
-            player_id: number;
-            /** Preferred Player Count */
-            preferred_player_count: number;
-            /**
-             * Scored Round Count
-             * @default 0
-             */
-            scored_round_count: number;
-            /** Solo Attempts */
-            solo_attempts: number | null;
-            /** Solo Wins */
-            solo_wins: number | null;
-            /** Successful Bets */
-            successful_bets: number | null;
-            /** Times As Aardvark */
-            times_as_aardvark?: number | null;
-            /** Times As Goat */
-            times_as_goat?: number | null;
-            /** Times As Pig */
-            times_as_pig?: number | null;
-            /** Times As Wolf */
-            times_as_wolf?: number | null;
-            /** Total Bets */
-            total_bets: number | null;
-            /** Total Earnings */
-            total_earnings: number;
-            /** Tunkarri Attempts */
-            tunkarri_attempts?: number | null;
-            /** Tunkarri Wins */
-            tunkarri_wins?: number | null;
-            /** Worse Than Double */
-            worse_than_double?: number | null;
-            /**
-             * Worst Hole Performance
-             * @default []
-             */
-            worst_hole_performance: {
-                [key: string]: unknown;
-            }[];
-            /**
-             * Worst Loss Streak
-             * @default 0
-             */
-            worst_loss_streak: number;
         };
         /** PostMessageRequest */
         PostMessageRequest: {
@@ -7323,22 +5839,6 @@ export interface components {
             /** Quarters */
             quarters: number;
         };
-        /** SeriesResponse */
-        SeriesResponse: {
-            /** Badge Count */
-            badge_count: number;
-            /** Badges Earned */
-            badges_earned: number;
-            completion_badge: components["schemas"]["BadgeResponse"] | null;
-            /** Description */
-            description: string;
-            /** Id */
-            id: number;
-            /** Is Completed */
-            is_completed: boolean;
-            /** Name */
-            name: string;
-        };
         /** SetTeeOrderRequest */
         SetTeeOrderRequest: {
             /** Player Order */
@@ -7419,18 +5919,6 @@ export interface components {
             would_sign_up: {
                 [key: string]: string;
             };
-        };
-        /** SignupRequest */
-        SignupRequest: {
-            /** Date */
-            date: string;
-            /**
-             * Dry Run
-             * @default false
-             */
-            dry_run: boolean;
-            /** Name */
-            name: string;
         };
         /**
          * SyncRoundRequest
@@ -7556,16 +6044,6 @@ export interface components {
         UpdateHandicapRequest: {
             /** Handicap */
             handicap: number;
-        };
-        /** UpdateHittingOrderRequest */
-        UpdateHittingOrderRequest: {
-            /** Hitting Order */
-            hitting_order: string[];
-            /**
-             * Hole Number
-             * @description Hole to update; defaults to current hole
-             */
-            hole_number?: number | null;
         };
         /** UpdatePlayerNameRequest */
         UpdatePlayerNameRequest: {
@@ -8752,99 +7230,6 @@ export interface operations {
             };
         };
     };
-    get_game_stats_analytics_game_stats_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_analytics_overview_analytics_overview_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_player_performance_analytics_player_performance_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_badge_holders_api_badges_admin_badge__badge_id__holders_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                badge_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     manually_check_achievements_api_badges_admin_check_achievements__player_id__post: {
         parameters: {
             query?: {
@@ -8899,72 +7284,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BadgeResponse"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_badge_leaderboard_api_badges_leaderboard_badge__badge_id__get: {
-        parameters: {
-            query?: {
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                badge_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BadgeLeaderboardEntry"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_top_collectors_api_badges_leaderboard_top_collectors_get: {
-        parameters: {
-            query?: {
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
                 };
             };
             /** @description Validation Error */
@@ -9044,39 +7363,6 @@ export interface operations {
             };
         };
     };
-    get_player_badge_progress_api_badges_player__player_id__progress_get: {
-        parameters: {
-            query?: {
-                include_completed?: boolean;
-            };
-            header?: never;
-            path: {
-                player_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BadgeProgressResponse"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_player_badge_stats_api_badges_player__player_id__stats_get: {
         parameters: {
             query?: never;
@@ -9097,57 +7383,6 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_badge_series_api_badges_series_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SeriesResponse"][];
-                };
-            };
-        };
-    };
-    get_player_series_progress_api_badges_series_player__player_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                player_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SeriesResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -10092,46 +8327,6 @@ export interface operations {
             };
         };
     };
-    seed_livsow_team_starters_data_livsow_teams_seed_starters_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    set_official_team_logos_data_livsow_teams_set_official_logos_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
     get_livsow_team_detail_data_livsow_teams__slug__get: {
         parameters: {
             query?: never;
@@ -10240,37 +8435,6 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_livsow_transaction_data_livsow_transactions__transaction_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                transaction_id: number;
-            };
             cookie?: never;
         };
         requestBody?: never;
@@ -10905,41 +9069,6 @@ export interface operations {
             };
         };
     };
-    record_game_result_game_results_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GamePlayerResultCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_games_games_get: {
         parameters: {
             query?: {
@@ -11117,40 +9246,6 @@ export interface operations {
             };
         };
     };
-    get_game_history_games_history_get: {
-        parameters: {
-            query?: {
-                limit?: number;
-                offset?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     join_game_with_code_games_join__join_code__post: {
         parameters: {
             query?: never;
@@ -11202,28 +9297,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-        };
-    };
-    update_all_games_course_data_games_update_all_course_data_patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
                 };
             };
         };
@@ -11325,109 +9398,6 @@ export interface operations {
             };
         };
     };
-    get_game_details_games__game_id__details_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                game_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_hitting_order_games__game_id__hitting_order_patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                game_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateHittingOrderRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    validate_hole_quarters_games__game_id__holes_validate_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                game_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     delete_hole_games__game_id__holes__hole_number__delete: {
         parameters: {
             query?: {
@@ -11449,78 +9419,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_hole_log_games__game_id__holes__hole_number__log_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                game_id: string;
-                hole_number: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    put_hole_log_games__game_id__holes__hole_number__log_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                game_id: string;
-                hole_number: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["HoleLogRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
                 };
             };
             /** @description Validation Error */
@@ -11574,39 +9472,6 @@ export interface operations {
         };
     };
     get_game_lobby_games__game_id__lobby_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                game_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_game_log_games__game_id__log_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -11996,39 +9861,6 @@ export interface operations {
                 "application/json": components["schemas"]["SetTeeOrderRequest"];
             };
         };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_game_course_data_games__game_id__update_course_data_patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                game_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -12623,69 +10455,6 @@ export interface operations {
             };
         };
     };
-    search_legacy_players_legacy_players_search_get: {
-        parameters: {
-            query: {
-                /** @description Search query for player name */
-                q: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    validate_legacy_player_legacy_players_validate__name__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     delete_roster_name_legacy_players__name__delete: {
         parameters: {
             query?: never;
@@ -12737,40 +10506,6 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
-                };
-            };
-        };
-    };
-    get_match_details_matchmaking_matches__match_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Match suggestion ID */
-                match_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -12866,137 +10601,6 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_message_messages_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DailyMessageCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DailyMessageResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_daily_messages_messages_daily_get: {
-        parameters: {
-            query: {
-                /** @description YYYY-MM-DD format */
-                date: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DailyMessageResponse"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_message_messages__message_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                message_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DailyMessageUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DailyMessageResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_message_messages__message_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                message_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -13218,26 +10822,6 @@ export interface operations {
             };
         };
     };
-    get_unread_count_notifications_unread_count_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
     mark_read_notifications__notification_id__read_post: {
         parameters: {
             query?: never;
@@ -13361,38 +10945,6 @@ export interface operations {
                 /** @description Send email notifications to all players */
                 send_notifications?: boolean;
             };
-            header?: never;
-            path: {
-                /** @description Date in YYYY-MM-DD format */
-                date: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    resend_pairing_notifications_pairings__date__notify_post: {
-        parameters: {
-            query?: never;
             header?: never;
             path: {
                 /** @description Date in YYYY-MM-DD format */
@@ -14194,37 +11746,6 @@ export interface operations {
             };
         };
     };
-    get_player_profile_by_name_players_name__player_name__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                player_name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PublicPlayerProfileResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_player_profile_players__player_id__get: {
         parameters: {
             query?: never;
@@ -14311,70 +11832,6 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_player_advanced_metrics_players__player_id__advanced_metrics_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                player_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_player_analytics_players__player_id__analytics_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                player_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PlayerPerformanceAnalytics"];
                 };
             };
             /** @description Validation Error */
@@ -14551,339 +12008,9 @@ export interface operations {
             };
         };
     };
-    get_all_head_to_head_players__player_id__head_to_head_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                player_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_head_to_head_players__player_id__head_to_head__opponent_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                player_id: number;
-                opponent_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_player_insights_players__player_id__insights_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                player_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_player_profile_with_stats_players__player_id__profile_with_stats_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                player_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PlayerProfileWithStats"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_public_player_profile_players__player_id__public_profile_get: {
         parameters: {
             query?: never;
-            header?: never;
-            path: {
-                player_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_score_performance_analytics_players__player_id__score_performance_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                player_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_player_skill_rating_players__player_id__skill_rating_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                player_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_special_event_analytics_players__player_id__special_events_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                player_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_player_statistics_players__player_id__statistics_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                player_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PlayerStatisticsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_streak_analysis_players__player_id__streaks_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                player_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_player_trends_players__player_id__trends_get: {
-        parameters: {
-            query?: {
-                /** @description Number of days to analyze */
-                days?: number;
-            };
             header?: never;
             path: {
                 player_id: number;
@@ -15898,152 +13025,6 @@ export interface operations {
             };
         };
     };
-    generate_sunday_game_pairings_signups__date__sunday_game_pairings_post: {
-        parameters: {
-            query?: {
-                /** @description Number of Sunday pairing options to generate */
-                num_rotations?: number;
-                /** @description Override random seed for reproducible results */
-                seed?: number | null;
-            };
-            header?: never;
-            path: {
-                /** @description Date in YYYY-MM-DD format */
-                date: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    generate_balanced_teams_for_date_signups__date__team_formation_balanced_post: {
-        parameters: {
-            query?: {
-                /** @description Random seed for reproducible results */
-                seed?: number | null;
-            };
-            header?: never;
-            path: {
-                /** @description Date in YYYY-MM-DD format */
-                date: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    generate_random_teams_for_date_signups__date__team_formation_random_post: {
-        parameters: {
-            query?: {
-                /** @description Random seed for reproducible results */
-                seed?: number | null;
-                /** @description Maximum number of teams to create */
-                max_teams?: number | null;
-            };
-            header?: never;
-            path: {
-                /** @description Date in YYYY-MM-DD format */
-                date: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    generate_team_rotations_for_date_signups__date__team_formation_rotations_post: {
-        parameters: {
-            query?: {
-                /** @description Number of different team rotations to create */
-                num_rotations?: number;
-                /** @description Random seed for reproducible results */
-                seed?: number | null;
-            };
-            header?: never;
-            path: {
-                /** @description Date in YYYY-MM-DD format */
-                date: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     update_signup_signups__signup_id__put: {
         parameters: {
             query?: never;
@@ -16141,110 +13122,6 @@ export interface operations {
             };
         };
     };
-    get_tee_sheet_tee_sheet_get: {
-        parameters: {
-            query: {
-                /** @description Date in YYYY-MM-DD format */
-                date: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    signup_for_tee_sheet_tee_sheet_signup_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SignupRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_upcoming_counts_tee_sheet_upcoming_get: {
-        parameters: {
-            query: {
-                /** @description Start date YYYY-MM-DD */
-                start: string;
-                days?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     test_deployment_test_deployment_get: {
         parameters: {
             query?: never;
@@ -16298,78 +13175,6 @@ export interface operations {
             };
         };
     };
-    get_odds_history_wgp_odds_history__game_id__get: {
-        parameters: {
-            query?: {
-                hole_number?: number | null;
-            };
-            header?: never;
-            path: {
-                game_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    calculate_quick_odds_wgp_quick_odds_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    [key: string]: unknown;
-                }[];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_shot_range_analysis_wgp_shot_range_analysis_post: {
         parameters: {
             query?: never;
@@ -16405,41 +13210,6 @@ export interface operations {
             };
         };
     };
-    score_hole_simplified_wgp_simplified_score_hole_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     start_simplified_game_wgp_simplified_start_game_post: {
         parameters: {
             query?: never;
@@ -16454,68 +13224,6 @@ export interface operations {
                 };
             };
         };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_simplified_hole_history_wgp_simplified__game_id__hole_history_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                game_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_simplified_game_status_wgp_simplified__game_id__status_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                game_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

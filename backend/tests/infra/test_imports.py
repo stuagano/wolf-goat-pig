@@ -21,49 +21,6 @@ class TestCriticalImports:
         except ImportError as e:
             pytest.fail(f"Import error in main app: {e}")
 
-    def test_import_managers_package(self):
-        """Test that the managers package exports all required modules."""
-        try:
-            from app.managers import (
-                RuleManager,
-                RuleViolationError,
-                ScoringManager,
-                get_scoring_manager,
-            )
-
-            assert RuleManager is not None
-            assert RuleViolationError is not None
-            assert ScoringManager is not None
-            assert get_scoring_manager is not None
-        except ModuleNotFoundError as e:
-            pytest.fail(f"Failed to import from managers package: {e}")
-        except ImportError as e:
-            pytest.fail(f"Import error in managers package: {e}")
-
-    def test_import_rule_manager(self):
-        """Test that rule_manager can be imported directly."""
-        try:
-            from app.managers.rule_manager import RuleManager, RuleViolationError
-
-            assert RuleManager is not None
-            assert RuleViolationError is not None
-        except ModuleNotFoundError as e:
-            pytest.fail(f"Failed to import rule_manager: {e}")
-        except ImportError as e:
-            pytest.fail(f"Import error in rule_manager: {e}")
-
-    def test_import_scoring_manager(self):
-        """Test that scoring_manager can be imported directly."""
-        try:
-            from app.managers.scoring_manager import ScoringManager, get_scoring_manager
-
-            assert ScoringManager is not None
-            assert get_scoring_manager is not None
-        except ModuleNotFoundError as e:
-            pytest.fail(f"Failed to import scoring_manager: {e}")
-        except ImportError as e:
-            pytest.fail(f"Import error in scoring_manager: {e}")
-
     def test_import_database_models(self):
         """Test that database models can be imported."""
         try:
@@ -119,29 +76,3 @@ class TestApplicationStartup:
             assert str(app.url_path_for("health_check")) == "/health"
         except Exception as e:
             pytest.fail(f"Failed to verify routes: {e}")
-
-    def test_managers_initialized(self):
-        """Test that managers are properly initialized."""
-        try:
-            from app.managers.rule_manager import RuleManager
-
-            # RuleManager is a singleton, verify it can be accessed
-            rule_manager = RuleManager()
-            assert rule_manager is not None
-        except Exception as e:
-            pytest.fail(f"Failed to initialize managers: {e}")
-
-
-class TestPackageExports:
-    """Test that packages properly export their modules."""
-
-    def test_managers_package_all_exports(self):
-        """Test that managers package __all__ contains all exports."""
-        from app import managers
-
-        # Verify __all__ is defined
-        assert hasattr(managers, "__all__"), "managers package should define __all__"
-
-        # Verify all listed exports are actually available
-        for export_name in managers.__all__:
-            assert hasattr(managers, export_name), f"managers package should export {export_name}"

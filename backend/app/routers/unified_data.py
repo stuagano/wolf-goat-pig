@@ -510,112 +510,6 @@ def update_livsow_team_content(
     }
 
 
-# Starter content seeded for each franchise so pages aren't empty — captains
-# overwrite via the edit module. Keyed by slug.
-_STARTER_CONTENT = {
-    "high-beta": {
-        "motto": "High risk, higher reward.",
-        "about": "High Beta plays for the swing — aggressive lines, big numbers, no apologies. "
-        "When it clicks, nobody touches us. Captain, make this your own.",
-    },
-    "saks-smash": {
-        "motto": "Smash first, ask questions never.",
-        "about": "Saks' Smash brings the heat off every tee. Net eagles encouraged. "
-        "Captain, tell the league who we are.",
-    },
-    "knudsen-s-ironheads": {
-        "motto": "Forged, not fragile.",
-        "about": "Knudsen's Ironheads grind it out — steady, stubborn, and tough to put away. "
-        "Captain, edit this with the team's story.",
-    },
-    "ripper-golf-club": {
-        "motto": "Send it.",
-        "about": "Ripper Golf Club doesn't lay up. Driver everywhere, fun always. Captain, customize the page.",
-    },
-    "vice-grips": {
-        "motto": "We don't let go.",
-        "about": "Vice Grips clamp down and don't quit — pressure golf is our golf. Captain, make this page yours.",
-    },
-    "sutorius-aces": {
-        "motto": "Always have an ace up the sleeve.",
-        "about": "Sutorius' Aces play it smart and finish strong. Captain, write the team's intro here.",
-    },
-}
-
-
-@router.post("/livsow/teams/seed-starters", dependencies=[Depends(require_admin)])
-def seed_livsow_team_starters(db: Session = Depends(get_db)) -> Any:
-    """Seed starter content for any franchise that has none. Admin-only,
-    idempotent — teams a captain has already edited are left untouched."""
-    data = get_livsow_leaderboard()
-    seeded = []
-    for team in data.get("teams", []):
-        slug = _livsow_slugify(team["name"])
-        starter = _STARTER_CONTENT.get(slug)
-        if not starter:
-            continue
-        existing = (
-            db.query(models.LivSowTeamContent)
-            .filter(
-                models.LivSowTeamContent.team_slug == slug,
-                models.LivSowTeamContent.season == LIVSOW_SEASON,
-            )
-            .first()
-        )
-        if existing:
-            continue
-        db.add(
-            models.LivSowTeamContent(
-                team_slug=slug,
-                season=LIVSOW_SEASON,
-                motto=starter["motto"],
-                about=starter["about"],
-                updated_by="(starter — edit me)",
-                updated_at=utc_now().isoformat(),
-            )
-        )
-        seeded.append(slug)
-    db.commit()
-    return {"seeded": seeded, "count": len(seeded)}
-
-
-# Official franchise crests (from the WSOW power-rankings reveal), served
-# as static files by the frontend. Keyed by slug.
-_OFFICIAL_LOGOS = {
-    "high-beta": "/livsow-logos/high-beta.png",
-    "saks-smash": "/livsow-logos/saks-smash.png",
-    "knudsen-s-ironheads": "/livsow-logos/knudsen-s-ironheads.png",
-    "ripper-golf-club": "/livsow-logos/ripper-golf-club.png",
-    "vice-grips": "/livsow-logos/vice-grips.png",
-    "sutorius-aces": "/livsow-logos/sutorius-aces.png",
-}
-
-
-@router.post("/livsow/teams/set-official-logos", dependencies=[Depends(require_admin)])
-def set_official_team_logos(db: Session = Depends(get_db)) -> Any:
-    """Set each franchise's official crest as its logo. Admin-only. Upserts
-    the content row and touches only logo_url — captain motto/about/
-    announcement are preserved."""
-    updated = []
-    for slug, url in _OFFICIAL_LOGOS.items():
-        content = (
-            db.query(models.LivSowTeamContent)
-            .filter(
-                models.LivSowTeamContent.team_slug == slug,
-                models.LivSowTeamContent.season == LIVSOW_SEASON,
-            )
-            .first()
-        )
-        if content is None:
-            content = models.LivSowTeamContent(team_slug=slug, season=LIVSOW_SEASON)
-            db.add(content)
-        content.logo_url = url
-        content.updated_at = utc_now().isoformat()
-        updated.append(slug)
-    db.commit()
-    return {"updated": updated, "count": len(updated)}
-
-
 @router.post("/livsow/snapshot", dependencies=[Depends(require_admin_or_job_token)])
 def post_livsow_snapshot(force: bool = Query(False), db: Session = Depends(get_db)) -> Any:
     """Run the roster snapshot/diff check now. Called by the daily cron and
@@ -623,17 +517,6 @@ def post_livsow_snapshot(force: bool = Query(False), db: Session = Depends(get_d
     repeatedly. ?force=true bypasses the debounce and circuit breaker."""
     data = get_livsow_leaderboard(force_refresh=True)
     return check_and_record_snapshot(db, data, force=force)
-
-
-@router.delete("/livsow/transactions/{transaction_id}", dependencies=[Depends(require_admin)])
-def delete_livsow_transaction(transaction_id: int, db: Session = Depends(get_db)) -> Any:
-    """Soft-delete a transaction (admin escape hatch for sheet-edit noise)."""
-    t = db.query(models.LivSowTransaction).filter(models.LivSowTransaction.id == transaction_id).first()
-    if t is None:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-    t.deleted = True
-    db.commit()
-    return {"success": True, "id": transaction_id}
 
 
 @router.get("/rounds", response_model=list[UnifiedRoundResponse])

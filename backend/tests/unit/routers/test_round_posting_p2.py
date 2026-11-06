@@ -88,10 +88,6 @@ def test_historical_scorecard_uses_played_date_and_preserves_audit_time(round_ap
         january = [r for r in service.get_all_rounds() if r.date_sortable == "2026-01-15"]
         assert len(january) == 4
         assert all(r.source == "primary_sheet" and len(r.hole_scores) == 18 for r in january)
-    history = client.get("/games/history").json()["games"]
-    assert history[0]["played_at"] == "2026-01-15"
-    details = client.get(f"/games/{response.json()['game_id']}/details").json()
-    assert details["game"]["played_at"] == "2026-01-15"
 
 
 @pytest.mark.parametrize(
@@ -212,19 +208,6 @@ def test_same_name_profiles_with_tied_scores_survive_unified_history(round_api):
     with sessions() as db:
         assert db.query(models.GamePlayerResult).count() == 4
         assert len(UnifiedDataService(db).get_all_rounds()) == 4
-
-
-def test_history_paginates_by_played_date_not_posting_order(round_api):
-    client, app, _ = round_api
-    sign_in(app)
-    for played_at in ("2026-02-15", "2026-01-15"):
-        response = client.post("/games/from-scorecard", json={**scan_body(), "played_at": played_at})
-        assert response.status_code == 200, response.text
-    first = client.get("/games/history?limit=1").json()
-    second = client.get("/games/history?limit=1&offset=1").json()
-    assert first["total"] == second["total"] == 2
-    assert first["games"][0]["played_at"] == "2026-02-15"
-    assert second["games"][0]["played_at"] == "2026-01-15"
 
 
 @pytest.mark.parametrize("unlinked,expected_status", [(False, 400), (True, 200)])

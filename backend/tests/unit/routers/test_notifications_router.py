@@ -1,7 +1,7 @@
 """Unit tests for the notifications router.
 
 Focus on read-after-write: marking a notification read must actually persist —
-verified by re-reading via the list / unread-count endpoints, not just trusting
+verified by re-reading via the list endpoint, not just trusting
 the POST response.
 """
 
@@ -87,7 +87,7 @@ class TestMarkRead:
         _override_user()
         try:
             nid = _seed_notification(is_read=False)
-            assert client.get("/notifications/unread-count").json()["unread_count"] >= 1
+            assert len(client.get("/notifications?unread_only=true").json()) >= 1
 
             resp = client.post(f"/notifications/{nid}/read")
             assert resp.status_code == 200
@@ -95,7 +95,7 @@ class TestMarkRead:
             # Read-back: the notification is no longer unread.
             unread = client.get("/notifications?unread_only=true").json()
             assert nid not in [n["id"] for n in unread]
-            assert client.get("/notifications/unread-count").json()["unread_count"] == 0
+            assert len(client.get("/notifications?unread_only=true").json()) == 0
         finally:
             _cleanup()
             _clear_override()
@@ -114,14 +114,14 @@ class TestMarkAllRead:
         try:
             _seed_notification(is_read=False)
             _seed_notification(is_read=False)
-            assert client.get("/notifications/unread-count").json()["unread_count"] == 2
+            assert len(client.get("/notifications?unread_only=true").json()) == 2
 
             resp = client.post("/notifications/read-all")
             assert resp.status_code == 200
             assert resp.json()["marked_read"] == 2
 
             # Read-back: nothing unread remains.
-            assert client.get("/notifications/unread-count").json()["unread_count"] == 0
+            assert len(client.get("/notifications?unread_only=true").json()) == 0
         finally:
             _cleanup()
             _clear_override()
