@@ -104,7 +104,7 @@ const GHINIntegration = () => {
   const syncPlayerHandicap = async (playerId) => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/ghin/sync-player-handicap/${playerId}`, {
+      const response = await authFetch(`${API_URL}/ghin/sync-player-handicap/${playerId}`, {
         method: 'POST'
       });
 
@@ -128,7 +128,7 @@ const GHINIntegration = () => {
   const syncAllHandicaps = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/ghin/sync-handicaps`, {
+      const response = await authFetch(`${API_URL}/ghin/sync-handicaps`, {
         method: 'POST'
       });
 

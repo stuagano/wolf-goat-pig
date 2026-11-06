@@ -211,7 +211,7 @@ dmypy.json
 settings.json
 
 # Isaac CLI per-checkout state (e.g. reminder timestamps); left untracked it
-# blocks `orca worktree rm`
+# blocks `git worktree remove`
 .isaac/
 
 # Per-user agent/editor config (Codex sandbox prefs, Cursor machine rules)
@@ -255,3 +255,6 @@ deploy/gcp/phase6-monitoring/.uptime-checks
 deploy/gcp/phase6-monitoring/policies/
 .firebaserc
 /firebase.json
+
+# Axon code-graph index (local, ~200MB)
+.axon/

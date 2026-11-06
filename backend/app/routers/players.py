@@ -1,1061 +1,130 @@
-"""
-Players Router (Refactored)
+"""Players router — aggregates the /players route modules.
 
 Player profile management, statistics, analytics, availability, and preferences.
-
-This is a refactored version demonstrating the new utility patterns:
-- @handle_api_errors decorator for consistent error handling
-- Dependency injection for database sessions
-- require_not_none helper for 404 handling
-- Cleaner, more maintainable code
-
-To migrate: Replace players.py with this file after testing.
+The routes live in players_directory, players_me, players_by_id, players_stats and
+players_preferences (avatar helpers in players_avatar); this module includes them,
+after the admin sub-routers, so ``app.include_router(players.router)`` registers the
+same surface in the same order as before. Order matters: the static paths
+(``/all``, ``/name/...``, ``/availability/all``, ``/me/...``) must be registered
+before the parameterised ``/{player_id}`` routes.
+Names are re-exported so existing ``from app.routers.players import X`` keeps working.
 """
 
-import base64
-import logging
-from io import BytesIO
-from typing import Any, cast
+from fastapi import APIRouter
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import JSONResponse, Response
-from PIL import Image, ImageOps
-from sqlalchemy.orm import Session
-
-from .. import models, schemas
-from ..database import get_db
-from ..services import account_claim_service, media_storage_service
-from ..services.auth_service import get_current_auth0_user, get_current_user
-from ..services.legacy_player_service import (
-    find_unclaimed_similar_players,
-    get_canonical_name,
-    link_profile_to_canonical_name,
-)
-from ..services.player_service import PlayerService
-from ..services.unified_data_service import get_unified_data_service
-from ..utils.admin_auth import admin_role, require_admin
-from ..utils.api_helpers import ApiResponse, handle_api_errors, require_not_none
-from ..utils.time import utc_now
+from . import players_by_id, players_directory, players_me, players_preferences, players_stats
 from .account_claims import router as account_claims_router
 from .account_links import router as account_links_router
 from .admin_grants import router as admin_grants_router
-
-AVATAR_ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
-AVATAR_MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # 8MB raw upload; we downscale server-side
-AVATAR_MAX_DIM = 400
-
-
-def _downscale_avatar_jpeg(image_bytes: bytes) -> bytes:
-    """Resize to fit AVATAR_MAX_DIM, correct EXIF rotation, re-encode as JPEG bytes."""
-    img = Image.open(BytesIO(image_bytes))
-    img = ImageOps.exif_transpose(img)
-    img = img.convert("RGB")
-    img.thumbnail((AVATAR_MAX_DIM, AVATAR_MAX_DIM), Image.LANCZOS)
-    buf = BytesIO()
-    img.save(buf, format="JPEG", quality=85)
-    return buf.getvalue()
-
-
-def _downscale_avatar(image_bytes: bytes) -> str:
-    """Legacy helper: downscale and return base64 JPEG (DB blob fallback)."""
-    return base64.b64encode(_downscale_avatar_jpeg(image_bytes)).decode("ascii")
-
-
-def _avatar_jpeg_for_player(player: models.PlayerProfile) -> bytes | None:
-    """Resolve uploaded avatar bytes from GCS, data: URL, or legacy DB blob."""
-    if media_storage_service.is_gcs_avatar_url(player.avatar_url):
-        path = media_storage_service.gcs_path_from_marker(player.avatar_url or "")
-        return media_storage_service.download_bytes(path)
-    url = player.avatar_url or ""
-    if url.startswith("data:image/"):
-        try:
-            _header, b64 = url.split(",", 1)
-            return base64.b64decode(b64)
-        except Exception:
-            return None
-    if player.avatar_image:
-        return base64.b64decode(player.avatar_image)
-    return None
-
-
-logger = logging.getLogger("app.routers.players")
-
-router = APIRouter(prefix="/players", tags=["players"])
-router.include_router(account_links_router)
-router.include_router(admin_grants_router)
-router.include_router(account_claims_router)
-
-
-# ============================================================================
-# Player Profile Create/List Endpoints (no path params)
-# ============================================================================
-
-
-@router.post("", response_model=schemas.PlayerProfileResponse, dependencies=[Depends(require_admin)])
-@handle_api_errors(operation_name="create player profile")
-def create_player_profile(
-    profile: schemas.PlayerProfileCreate, db: Session = Depends(get_db)
-) -> schemas.PlayerProfileResponse:
-    """Create a new player profile."""
-    player_service = PlayerService(db)
-    result = player_service.create_player_profile(profile)
-    logger.info(f"Created player profile: {result.name}")
-    return result
-
-
-@router.get("", response_model=list[schemas.PublicPlayerProfileResponse])
-@handle_api_errors(operation_name="get player profiles")
-def get_all_player_profiles(
-    response: Response,
-    active_only: bool = Query(True, description="Return only active profiles"),
-    db: Session = Depends(get_db),
-) -> list[schemas.PlayerProfileResponse]:
-    """Get all player profiles."""
-    response.headers["Cache-Control"] = "public, max-age=60"
-    player_service = PlayerService(db)
-    profiles = player_service.get_all_player_profiles(active_only=active_only)
-    logger.info(f"Retrieved {len(profiles)} player profiles")
-    return profiles
-
-
-# ============================================================================
-# Player Search Endpoints (static paths - must be before /{player_id})
-# ============================================================================
-
-
-@router.get("/all", response_model=list[schemas.PublicPlayerProfileResponse])
-@handle_api_errors(operation_name="get all players")
-def get_all_players(
-    active_only: bool = Query(True, description="Only return active players"),
-    db: Session = Depends(get_db),
-) -> list[schemas.PlayerProfileResponse]:
-    """Get all player profiles."""
-    player_service = PlayerService(db)
-    return player_service.get_all_player_profiles(active_only=active_only)
-
-
-@router.get("/name/{player_name}", response_model=schemas.PublicPlayerProfileResponse)
-@handle_api_errors(operation_name="get player by name")
-def get_player_profile_by_name(player_name: str, db: Session = Depends(get_db)) -> schemas.PlayerProfileResponse:
-    """Get a player profile by name."""
-    player_service = PlayerService(db)
-    profile = player_service.get_player_profile_by_name(player_name)
-    return require_not_none(profile, "Player", player_name)
-
-
-@router.get("/availability/all", response_model=list[dict])
-@handle_api_errors(operation_name="get all players availability")
-def get_all_players_availability(db: Session = Depends(get_db)) -> list[dict[str, Any]]:
-    """Get all players' weekly availability with their names.
-
-    Uses two queries instead of N+1: one for all players, one for all availability records.
-    """
-    from collections import defaultdict
-
-    players = db.query(models.PlayerProfile).all()
-    all_availability = db.query(models.PlayerAvailability).all()
-
-    # Group availability by player_profile_id
-    availability_by_player: dict[int, list[models.PlayerAvailability]] = defaultdict(list)
-    for avail in all_availability:
-        availability_by_player[avail.player_profile_id].append(avail)
-
-    result: list[dict[str, Any]] = []
-    for player in players:
-        player_data: dict[str, Any] = {
-            "player_id": player.id,
-            "player_name": player.name,
-            "email": player.email,
-            "availability": [
-                {
-                    "day_of_week": avail.day_of_week,
-                    "is_available": avail.is_available,
-                    "available_from_time": avail.available_from_time,
-                    "available_to_time": avail.available_to_time,
-                    "notes": avail.notes,
-                }
-                for avail in availability_by_player.get(player.id, [])
-            ],
-        }
-        result.append(player_data)
-
-    return result
-
-
-# ============================================================================
-# Current User Endpoints (/me) - must be before /{player_id}
-# ============================================================================
-
-
-@router.get("/me", response_model=schemas.PlayerProfileResponse)
-@handle_api_errors(operation_name="get my profile")
-async def get_my_profile(
-    current_user: models.PlayerProfile = Depends(get_current_user),
-    auth0_user: dict[str, Any] = Depends(get_current_auth0_user),
-    db: Session = Depends(get_db),
-) -> schemas.PlayerProfileResponse:
-    """Get current authenticated user's profile.
-
-    Adds two computed fields not stored on the row:
-    - ``legacy_name_suggestion``: when the account has no confirmed legacy link,
-      a fuzzy roster match to *suggest* (never auto-persist) in onboarding (#322).
-    - authorization role: derived from the verified Auth0 login email claim
-      and the server-side super-admin allowlist (never the DB profile email).
-    """
-    profile = schemas.PlayerProfileResponse.model_validate(current_user)
-
-    if not current_user.legacy_name:
-        suggestions = find_unclaimed_similar_players(
-            cast("str", current_user.name),
-            cast("int", current_user.id),
-            max_results=1,
-            db=db,
-        )
-        profile.legacy_name_suggestion = suggestions[0] if suggestions else None
-
-    profile.role = admin_role(db, auth0_user)
-    profile.is_super_admin = profile.role == "super_admin"
-    profile.is_admin = profile.role != "normal"
-    claim = account_claim_service.pending_claim_for(db, cast("int", current_user.id))
-    profile.pending_claim = (
-        schemas.PendingClaimInfo(canonical_name=claim.canonical_name, created_at=claim.created_at) if claim else None
-    )
-    return profile
-
-
-@router.put(
-    "/me/legacy-name",
-    response_model=schemas.PlayerProfileResponse,
-    responses={202: {"description": "Name belongs to an original profile with no login; a claim was sent to admins"}},
+from .my_name import router as my_name_router
+from .players_avatar import (
+    AVATAR_ALLOWED_TYPES,
+    AVATAR_MAX_DIM,
+    AVATAR_MAX_UPLOAD_BYTES,
+    _avatar_jpeg_for_player,
+    _downscale_avatar_jpeg,
 )
-@handle_api_errors(operation_name="update my legacy name")
-async def update_my_legacy_name(
-    legacy_name_update: dict[str, str | None],
-    current_user: models.PlayerProfile = Depends(get_current_user),
-    auth0_user: dict[str, Any] = Depends(get_current_auth0_user),
-    db: Session = Depends(get_db),
-) -> schemas.PlayerProfileResponse:
-    """
-    Update current user's legacy name for tee sheet sync.
-
-    The legacy_name must match a player in the thousand-cranes.com tee sheet system.
-    """
-    legacy_name = legacy_name_update.get("legacy_name")
-
-    if legacy_name:
-        # Validate against legacy player list
-        canonical = get_canonical_name(legacy_name, db)
-        if not canonical:
-            raise HTTPException(
-                status_code=400,
-                detail=f"'{legacy_name}' is not a valid legacy player name. Use /legacy-players to see valid names.",
-            )
-        link_result = link_profile_to_canonical_name(
-            db,
-            cast("int", current_user.id),
-            canonical,
-            allow_relink=True,
-        )
-        if not link_result["linked"]:
-            if link_result["status"] == "claimed":
-                outcome = account_claim_service.request_claim_for_name(
-                    db,
-                    current_user,
-                    canonical,
-                    email=((auth0_user.get("email") or current_user.email or "").strip().lower() or None),
-                    email_verified=auth0_user.get("email_verified"),
-                )
-                if outcome["status"] == "unverified":
-                    raise HTTPException(
-                        status_code=403,
-                        detail="Verify your email address, then pick your name again so a club admin can connect you.",
-                    )
-                if outcome["status"] == "pending":
-                    claim = outcome["claim"]
-                    db.commit()
-                    if outcome["created"]:
-                        account_claim_service.notify_admins_of_claim(canonical, claim.requester_email)
-                    return JSONResponse(
-                        status_code=202,
-                        content={
-                            "status": "claim_pending",
-                            "canonical_name": canonical,
-                            "message": "Request sent — a club admin will connect you to your history.",
-                        },
-                    )
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"'{canonical}' already has a player profile. Ask a club admin to connect your sign-in to that player in Account links.",
-                )
-            raise HTTPException(status_code=400, detail="Could not link this club player.")
-        legacy_name = canonical
-    else:
-        current_user.legacy_name = None
-        current_user.updated_at = utc_now().isoformat()
-
-    stale_claim = account_claim_service.pending_claim_for(db, cast("int", current_user.id))
-    if stale_claim:
-        stale_claim.status = "dismissed"
-        stale_claim.resolved_at = utc_now().isoformat()
-        stale_claim.resolved_by = "superseded"
-
-    db.commit()
-    db.refresh(current_user)
-
-    logger.info(f"Updated legacy_name for user {current_user.id} to '{legacy_name}'")
-    return schemas.PlayerProfileResponse.model_validate(current_user)
-
-
-@router.put("/me/venmo")
-@handle_api_errors(operation_name="update venmo handle")
-async def update_my_venmo(
-    body: dict[str, str | None],
-    current_user: models.PlayerProfile = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """Update current user's Venmo handle."""
-    handle = (body.get("venmo_handle") or "").strip()
-    # Normalize: ensure @ prefix
-    if handle and not handle.startswith("@"):
-        handle = f"@{handle}"
-    current_user.venmo_handle = handle or None
-    current_user.updated_at = utc_now().isoformat()
-    db.commit()
-    db.refresh(current_user)
-    logger.info("Updated venmo_handle for user %s to '%s'", current_user.id, handle)
-    return schemas.PlayerProfileResponse.model_validate(current_user)
-
-
-@router.put("/me/description")
-@handle_api_errors(operation_name="update description")
-async def update_my_description(
-    body: dict[str, str | None],
-    current_user: models.PlayerProfile = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """Update current user's profile description/bio."""
-    description = (body.get("description") or "").strip() or None
-    current_user.description = description
-    current_user.updated_at = utc_now().isoformat()
-    db.commit()
-    db.refresh(current_user)
-    return {"description": current_user.description}
-
-
-@router.post("/me/avatar")
-@handle_api_errors(operation_name="upload avatar")
-async def upload_my_avatar(
-    file: UploadFile = File(...),
-    current_user: models.PlayerProfile = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> dict[str, Any]:
-    """Upload a profile photo. Stored in GCS when MEDIA_BUCKET is set, else DB blob."""
-    content_type = file.content_type or "image/jpeg"
-    if content_type not in AVATAR_ALLOWED_TYPES:
-        raise HTTPException(status_code=400, detail=f"Unsupported image type: {content_type}. Use JPEG, PNG, or WebP.")
-
-    image_bytes = await file.read()
-    if len(image_bytes) > AVATAR_MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=400, detail="Image too large. Maximum size is 8MB.")
-
-    try:
-        jpeg_bytes = _downscale_avatar_jpeg(image_bytes)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Could not read image: {e}") from e
-
-    if media_storage_service.is_enabled():
-        object_path = media_storage_service.avatar_object_path(current_user.id)
-        try:
-            media_storage_service.upload_bytes(object_path, jpeg_bytes, content_type="image/jpeg")
-        except Exception as e:
-            logger.exception("GCS avatar upload failed for player %s", current_user.id)
-            raise HTTPException(status_code=502, detail=f"Could not store avatar: {e}") from e
-        current_user.avatar_url = media_storage_service.avatar_gcs_marker(current_user.id)
-        current_user.avatar_image = None
-    else:
-        current_user.avatar_image = base64.b64encode(jpeg_bytes).decode("ascii")
-
-    current_user.updated_at = utc_now().isoformat()
-    db.commit()
-    db.refresh(current_user)
-    logger.info(f"Updated avatar for user {current_user.id}")
-    return {"has_avatar_image": True, "updated_at": current_user.updated_at}
-
-
-@router.get("/me/availability", response_model=list[schemas.PlayerAvailabilityResponse])
-@handle_api_errors(operation_name="get my availability")
-async def get_my_availability(
-    current_user: models.PlayerProfile = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> list[schemas.PlayerAvailabilityResponse]:
-    """Get current user's weekly availability."""
-    availability = (
-        db.query(models.PlayerAvailability).filter(models.PlayerAvailability.player_profile_id == current_user.id).all()
-    )
-    return [schemas.PlayerAvailabilityResponse.from_orm(a) for a in availability]
-
-
-@router.post("/me/availability", response_model=schemas.PlayerAvailabilityWithMatchesResponse)
-@handle_api_errors(operation_name="set my availability")
-async def set_my_availability(
-    availability: schemas.PlayerAvailabilityCreate,
-    current_user: models.PlayerProfile = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> schemas.PlayerAvailabilityWithMatchesResponse:
-    """Set or update current user's availability for a specific day.
-
-    After saving, automatically runs matchmaking to find compatible groups
-    and notifies matched players.
-    """
-    from .matchmaking import run_matchmaking_for_player
-
-    # Override the player_profile_id with the current user's ID
-    availability.player_profile_id = cast("int", current_user.id)
-
-    existing = (
-        db.query(models.PlayerAvailability)
-        .filter(
-            models.PlayerAvailability.player_profile_id == current_user.id,
-            models.PlayerAvailability.day_of_week == availability.day_of_week,
-        )
-        .first()
-    )
-
-    now = utc_now().isoformat()
-
-    if existing:
-        existing.available_from_time = availability.available_from_time
-        existing.available_to_time = availability.available_to_time
-        existing.is_available = availability.is_available
-        existing.notes = availability.notes
-        existing.updated_at = now
-        db.commit()
-        db.refresh(existing)
-        logger.info(f"Updated availability for user {current_user.id}, day {availability.day_of_week}")
-        avail_response = schemas.PlayerAvailabilityResponse.from_orm(existing)
-    else:
-        # Create new
-        db_availability = models.PlayerAvailability(
-            player_profile_id=current_user.id,
-            day_of_week=availability.day_of_week,
-            available_from_time=availability.available_from_time,
-            available_to_time=availability.available_to_time,
-            is_available=availability.is_available,
-            notes=availability.notes,
-            created_at=now,
-            updated_at=now,
-        )
-        db.add(db_availability)
-        db.commit()
-        db.refresh(db_availability)
-        logger.info(f"Created availability for user {current_user.id}, day {availability.day_of_week}")
-        avail_response = schemas.PlayerAvailabilityResponse.from_orm(db_availability)
-
-    # Auto-trigger matchmaking if user is marking themselves available
-    new_matches: list[dict] = []
-    matches_notified = 0
-    if availability.is_available:
-        try:
-            new_matches = run_matchmaking_for_player(
-                player_id=cast("int", current_user.id),
-                db=db,
-            )
-            matches_notified = sum(m.get("notifications_sent", 0) for m in new_matches)
-            if new_matches:
-                logger.info(
-                    f"Auto-matchmaking for user {current_user.id}: "
-                    f"found {len(new_matches)} new matches, "
-                    f"notified {matches_notified} players"
-                )
-        except Exception as e:
-            # Don't fail the availability save if matchmaking has an error
-            logger.error(f"Auto-matchmaking error for user {current_user.id}: {e}")
-
-    return schemas.PlayerAvailabilityWithMatchesResponse(
-        availability=avail_response,
-        new_matches=new_matches,
-        matches_notified=matches_notified,
-    )
-
-
-@router.get("/me/email-preferences", response_model=schemas.EmailPreferencesResponse)
-@handle_api_errors(operation_name="get my email preferences")
-async def get_my_email_preferences(
-    current_user: models.PlayerProfile = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> schemas.EmailPreferencesResponse:
-    """Get current user's email preferences."""
-    now = utc_now().isoformat()
-
-    prefs = (
-        db.query(models.EmailPreferences).filter(models.EmailPreferences.player_profile_id == current_user.id).first()
-    )
-
-    if not prefs:
-        prefs = models.EmailPreferences(player_profile_id=current_user.id, created_at=now, updated_at=now)
-        db.add(prefs)
-        db.commit()
-        db.refresh(prefs)
-
-    return schemas.EmailPreferencesResponse(
-        id=cast("int", prefs.id),
-        player_profile_id=cast("int", prefs.player_profile_id),
-        daily_signups_enabled=bool(prefs.daily_signups_enabled),
-        signup_confirmations_enabled=bool(prefs.signup_confirmations_enabled),
-        same_day_signups_enabled=bool(prefs.same_day_signups_enabled),
-        signup_reminders_enabled=bool(prefs.signup_reminders_enabled),
-        game_invitations_enabled=bool(prefs.game_invitations_enabled),
-        weekly_summary_enabled=bool(prefs.weekly_summary_enabled),
-        callout_list_enabled=bool(prefs.callout_list_enabled),
-        email_frequency=cast("str", prefs.email_frequency),
-        preferred_notification_time=cast("str", prefs.preferred_notification_time),
-        created_at=cast("str", prefs.created_at),
-        updated_at=cast("str", prefs.updated_at),
-    )
-
-
-@router.put("/me/email-preferences", response_model=schemas.EmailPreferencesResponse)
-@handle_api_errors(operation_name="update my email preferences")
-async def update_my_email_preferences(
-    preferences_update: schemas.EmailPreferencesUpdate,
-    current_user: models.PlayerProfile = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> schemas.EmailPreferencesResponse:
-    """Update current user's email preferences."""
-    now = utc_now().isoformat()
-
-    prefs = (
-        db.query(models.EmailPreferences).filter(models.EmailPreferences.player_profile_id == current_user.id).first()
-    )
-
-    if not prefs:
-        prefs = models.EmailPreferences(player_profile_id=current_user.id, created_at=now)
-        db.add(prefs)
-
-    update_data = preferences_update.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        if hasattr(prefs, field):
-            # Convert bool to int for SQLite
-            if isinstance(value, bool):
-                value = 1 if value else 0
-            setattr(prefs, field, value)
-
-    prefs.updated_at = now  # type: ignore
-    db.commit()
-    db.refresh(prefs)
-
-    logger.info(f"Updated email preferences for user {current_user.id}")
-
-    return schemas.EmailPreferencesResponse(
-        id=cast("int", prefs.id),
-        player_profile_id=cast("int", prefs.player_profile_id),
-        daily_signups_enabled=bool(prefs.daily_signups_enabled),
-        signup_confirmations_enabled=bool(prefs.signup_confirmations_enabled),
-        same_day_signups_enabled=bool(prefs.same_day_signups_enabled),
-        signup_reminders_enabled=bool(prefs.signup_reminders_enabled),
-        game_invitations_enabled=bool(prefs.game_invitations_enabled),
-        weekly_summary_enabled=bool(prefs.weekly_summary_enabled),
-        callout_list_enabled=bool(prefs.callout_list_enabled),
-        email_frequency=cast("str", prefs.email_frequency),
-        preferred_notification_time=cast("str", prefs.preferred_notification_time),
-        created_at=cast("str", prefs.created_at),
-        updated_at=cast("str", prefs.updated_at),
-    )
-
-
-# ============================================================================
-# Player Profile CRUD by ID (parameterized - must be after static paths)
-# ============================================================================
-
-
-@router.get("/{player_id}/avatar")
-@handle_api_errors(operation_name="get player avatar")
-def get_player_avatar(player_id: int, db: Session = Depends(get_db)) -> Response:
-    """Serve a player's uploaded avatar image. Public — used directly as an <img> src."""
-    player = db.query(models.PlayerProfile).filter(models.PlayerProfile.id == player_id).first()
-    if not player:
-        raise HTTPException(status_code=404, detail="No uploaded avatar for this player")
-    image_bytes = _avatar_jpeg_for_player(player)
-    if not image_bytes:
-        raise HTTPException(status_code=404, detail="No uploaded avatar for this player")
-    return Response(content=image_bytes, media_type="image/jpeg")
-
-
-@router.get("/{player_id}/public-profile")
-@handle_api_errors(operation_name="get public player profile")
-def get_public_player_profile(
-    player_id: int,
-    db: Session = Depends(get_db),
-) -> dict[str, Any]:
-    """Public profile — no auth required. Returns only non-sensitive fields
-    (no email, venmo, or GHIN id)."""
-    player = db.query(models.PlayerProfile).filter(models.PlayerProfile.id == player_id).first()
-    if not player:
-        from fastapi import HTTPException
-
-        raise HTTPException(status_code=404, detail="Player not found")
-
-    # Availability days (which days, no times)
-    availability_rows = (
-        db.query(models.PlayerAvailability).filter(models.PlayerAvailability.player_profile_id == player_id).all()
-    )
-    available_days = [a.day_of_week for a in availability_rows if a.is_available]
-
-    # Stats
-    stats = PlayerService(db).get_player_statistics(player_id)
-
-    # Badges — showcased (equipped) ones first, in their chosen order, then
-    # the rest by most-recently-earned.
-    badge_rows = (
-        db.query(models.PlayerBadgeEarned, models.Badge)
-        .join(models.Badge, models.PlayerBadgeEarned.badge_id == models.Badge.id)
-        .filter(models.PlayerBadgeEarned.player_profile_id == player_id)
-        .order_by(
-            models.PlayerBadgeEarned.showcase_position.is_(None),
-            models.PlayerBadgeEarned.showcase_position,
-            models.PlayerBadgeEarned.earned_at.desc(),
-        )
-        .limit(12)
-        .all()
-    )
-    badges = [
-        {
-            "id": pbe.id,
-            "name": b.name,
-            "description": b.description,
-            "rarity": b.rarity,
-            "category": b.category,
-            "emoji": b.emoji,
-            "earned_at": pbe.earned_at,
-            "showcased": pbe.showcase_position is not None,
-        }
-        for pbe, b in badge_rows
-    ]
-    total_badges = db.query(models.Badge).count()
-
-    # Game history — actual played/scored rounds (sheet-synced + in-app).
-    game_history = []
-    if player.legacy_name or player.name:
-        from ..services.canonical_round_reads import canonical_mode
-
-        service = get_unified_data_service(db=db)
-        rounds = (
-            service.get_profile_history(player_id)
-            if canonical_mode(db)
-            else service.get_player_history(player.legacy_name or player.name)
-        )
-        game_history = [
-            {
-                "date": r.date_sortable,
-                "location": r.location,
-                "group": r.group,
-                "score": r.score,
-                "duration": r.duration,
-                "source": r.source,
-                "game_id": r.game_id,
-                "participant_id": r.participant_id,
-                "score_eligible": r.score_eligible,
-                "detail_coverage": r.detail_coverage,
-                # Only ever present for rounds scored live in the app or via
-                # scorecard scan — legacy sheet rounds are a total only.
-                "holes": (
-                    [
-                        {"hole": h.get("hole"), "quarters": h.get("quarters"), "gross_score": h.get("gross_score")}
-                        for h in sorted(r.hole_scores, key=lambda h: h.get("hole") or 0)
-                    ]
-                    if r.hole_scores
-                    else None
-                ),
-            }
-            for r in rounds[:20]
-        ]
-
-    return {
-        "id": player.id,
-        "name": player.name,
-        "handicap": player.handicap,
-        "description": player.description,
-        "avatar_url": player.avatar_url,
-        "has_avatar_image": bool(player.has_avatar_image),
-        "last_played": player.last_played,
-        "created_at": player.created_at,
-        "available_days": available_days,
-        "game_history": game_history,
-        "badges": badges,
-        "total_badges": total_badges,
-        "stats": {
-            "games_played": stats.games_played if stats else 0,
-            "known_participation_count": stats.known_participation_count if stats else 0,
-            "incomplete_round_count": stats.incomplete_round_count if stats else 0,
-            "games_won": stats.games_won if stats else 0,
-            "total_earnings": stats.total_earnings if stats else 0.0,
-            "solo_wins": stats.solo_wins if stats else 0,
-        },
-    }
-
-
-@router.get("/{player_id}", response_model=schemas.PlayerProfileResponse, dependencies=[Depends(require_admin)])
-@handle_api_errors(operation_name="get player profile")
-def get_player_profile(player_id: int, db: Session = Depends(get_db)) -> schemas.PlayerProfileResponse:
-    """Get a specific player profile."""
-    player_service = PlayerService(db)
-    profile = player_service.get_player_profile(player_id)
-    return require_not_none(profile, "Player", player_id)
-
-
-@router.put("/{player_id}", response_model=schemas.PlayerProfileResponse, dependencies=[Depends(require_admin)])
-@handle_api_errors(operation_name="update player profile")
-def update_player_profile(
-    player_id: int,
-    profile_update: schemas.PlayerProfileUpdate,
-    db: Session = Depends(get_db),
-) -> schemas.PlayerProfileResponse:
-    """Update a player profile."""
-    player_service = PlayerService(db)
-    updated_profile = player_service.update_player_profile(player_id, profile_update)
-    result = require_not_none(updated_profile, "Player", player_id)
-    logger.info(f"Updated player profile {player_id}")
-    return result
-
-
-@router.delete("/{player_id}", dependencies=[Depends(require_admin)])
-@handle_api_errors(operation_name="delete player profile")
-def delete_player_profile(player_id: int, db: Session = Depends(get_db)) -> dict[str, str]:
-    """Delete (deactivate) a player profile."""
-    player_service = PlayerService(db)
-    success = player_service.delete_player_profile(player_id)
-    if not success:
-        require_not_none(None, "Player", player_id)  # Raises 404
-    logger.info(f"Deleted player profile {player_id}")
-    return {"message": f"Player {player_id} has been deleted"}
-
-
-# ============================================================================
-# Player Statistics Endpoints
-# ============================================================================
-
-
-@router.get("/{player_id}/statistics", response_model=schemas.PlayerStatisticsResponse)
-@handle_api_errors(operation_name="get player statistics")
-def get_player_statistics(player_id: int, db: Session = Depends(get_db)) -> schemas.PlayerStatisticsResponse:
-    """Get player statistics."""
-    player_service = PlayerService(db)
-    stats = player_service.get_player_statistics(player_id)
-    return require_not_none(stats, "Statistics for player", player_id)
-
-
-@router.get("/{player_id}/analytics", response_model=schemas.PlayerPerformanceAnalytics)
-@handle_api_errors(operation_name="get player analytics")
-def get_player_analytics(player_id: int, db: Session = Depends(get_db)) -> schemas.PlayerPerformanceAnalytics:
-    """Get comprehensive player performance analytics."""
-    player_service = PlayerService(db)
-    analytics = player_service.get_player_performance_analytics(player_id)
-    return require_not_none(analytics, "Analytics for player", player_id)
-
-
-@router.get("/{player_id}/profile-with-stats", response_model=schemas.PlayerProfileWithStats)
-@handle_api_errors(operation_name="get player profile with stats")
-def get_player_profile_with_stats(player_id: int, db: Session = Depends(get_db)) -> schemas.PlayerProfileWithStats:
-    """Get player profile combined with statistics and achievements."""
-    player_service = PlayerService(db)
-
-    profile_result = player_service.get_player_profile(player_id)
-    profile = require_not_none(profile_result, "Player", player_id)
-
-    stats = player_service.get_player_statistics(player_id)
-    if not stats:
-        # Create empty stats if none exist
-        stats = schemas.PlayerStatisticsResponse(
-            id=0,
-            player_id=player_id,
-            games_played=0,
-            games_won=0,
-            total_earnings=0.0,
-            holes_played=0,
-            holes_won=0,
-            avg_earnings_per_hole=0.0,
-            betting_success_rate=0.0,
-            successful_bets=0,
-            total_bets=0,
-            partnership_success_rate=0.0,
-            partnerships_formed=0,
-            partnerships_won=0,
-            solo_attempts=0,
-            solo_wins=0,
-            favorite_game_mode="wolf_goat_pig",
-            preferred_player_count=4,
-            best_hole_performance=[],
-            worst_hole_performance=[],
-            performance_trends=[],
-            last_updated=utc_now().isoformat(),
-        )
-
-    recent_achievements: list[Any] = []  # Placeholder for future implementation
-
-    return schemas.PlayerProfileWithStats(profile=profile, statistics=stats, recent_achievements=recent_achievements)
-
-
-# ============================================================================
-# Advanced Analytics Endpoints
-# ============================================================================
-
-
-@router.get("/{player_id}/advanced-metrics")
-@handle_api_errors(operation_name="get advanced metrics")
-def get_player_advanced_metrics(player_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
-    """Get advanced performance metrics for a player."""
-    from ..services.statistics_service import StatisticsService
-
-    stats_service = StatisticsService(db)
-    metrics = stats_service.get_advanced_player_metrics(player_id)
-
-    return ApiResponse.success(
-        data={"player_id": player_id, "metrics": metrics},
-        message="Advanced metrics retrieved",
-    )
-
-
-@router.get("/{player_id}/trends")
-@handle_api_errors(operation_name="get player trends")
-def get_player_trends(
-    player_id: int,
-    days: int = Query(30, ge=7, le=365, description="Number of days to analyze"),
-    db: Session = Depends(get_db),
-) -> dict[str, Any]:
-    """Get performance trends for a player."""
-    from ..services.statistics_service import StatisticsService
-
-    stats_service = StatisticsService(db)
-    trends = stats_service.get_performance_trends(player_id, days=days)
-
-    return ApiResponse.success(
-        data={"player_id": player_id, "period_days": days, "trends": trends},
-        message="Trends retrieved",
-    )
-
-
-@router.get("/{player_id}/insights")
-@handle_api_errors(operation_name="get player insights")
-def get_player_insights(player_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
-    """Get personalized insights and recommendations for a player."""
-    from ..services.statistics_service import StatisticsService
-
-    stats_service = StatisticsService(db)
-    insights = stats_service.get_player_insights(player_id)
-
-    return ApiResponse.success(
-        data={
-            "player_id": player_id,
-            "insights": [insight.__dict__ for insight in insights],
-        },
-        message="Insights generated",
-    )
-
-
-@router.get("/{player_id}/skill-rating")
-@handle_api_errors(operation_name="get skill rating")
-def get_player_skill_rating(player_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
-    """Get skill rating for a player."""
-    from ..services.statistics_service import StatisticsService
-
-    stats_service = StatisticsService(db)
-    rating = stats_service.calculate_skill_rating(player_id)
-
-    return ApiResponse.success(
-        data={"player_id": player_id, "skill_rating": rating},
-        message="Skill rating calculated",
-    )
-
-
-@router.get("/{player_id}/head-to-head/{opponent_id}")
-@handle_api_errors(operation_name="get head-to-head")
-def get_head_to_head(player_id: int, opponent_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
-    """Get head-to-head record between two players."""
-    from ..services.statistics_service import StatisticsService
-
-    stats_service = StatisticsService(db)
-    h2h = stats_service.get_head_to_head(player_id, opponent_id)
-
-    return ApiResponse.success(
-        data={"player_id": player_id, "opponent_id": opponent_id, "head_to_head": h2h},
-        message="Head-to-head record retrieved",
-    )
-
-
-@router.get("/{player_id}/head-to-head")
-@handle_api_errors(operation_name="get all head-to-head records")
-def get_all_head_to_head(player_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
-    """Get head-to-head records against all opponents."""
-    from ..services.statistics_service import StatisticsService
-
-    stats_service = StatisticsService(db)
-    h2h_records = stats_service.get_all_head_to_head(player_id)
-
-    return ApiResponse.success(
-        data={"player_id": player_id, "opponents": h2h_records},
-        message="All head-to-head records retrieved",
-    )
-
-
-@router.get("/{player_id}/streaks")
-@handle_api_errors(operation_name="get streak analysis")
-def get_streak_analysis(player_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
-    """Get detailed streak analysis for a player."""
-    from ..services.statistics_service import StatisticsService
-
-    stats_service = StatisticsService(db)
-    streaks = stats_service.get_streak_analysis(player_id)
-
-    return ApiResponse.success(
-        data={"player_id": player_id, "streaks": streaks},
-        message="Streak analysis retrieved",
-    )
-
-
-@router.get("/{player_id}/special-events")
-@handle_api_errors(operation_name="get special event analytics")
-def get_special_event_analytics(player_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
-    """Get analytics for special events (ping pong, invisible aardvark, etc.)."""
-    from ..services.statistics_service import StatisticsService
-
-    stats_service = StatisticsService(db)
-    special_events = stats_service.get_special_event_analytics(player_id)
-
-    return ApiResponse.success(
-        data={"player_id": player_id, "special_events": special_events},
-        message="Special event analytics retrieved",
-    )
-
-
-@router.get("/{player_id}/score-performance")
-@handle_api_errors(operation_name="get score performance analytics")
-def get_score_performance_analytics(player_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
-    """Get detailed score performance analytics (eagles, birdies, pars, etc.)."""
-    from ..services.statistics_service import StatisticsService
-
-    stats_service = StatisticsService(db)
-    score_performance = stats_service.get_score_performance_analytics(player_id)
-
-    return ApiResponse.success(
-        data={"player_id": player_id, "score_performance": score_performance},
-        message="Score performance analytics retrieved",
-    )
-
-
-# ============================================================================
-# Player Availability Endpoints (by player_id)
-# ============================================================================
-
-
-@router.get("/{player_id}/availability", response_model=list[schemas.PlayerAvailabilityResponse])
-@handle_api_errors(operation_name="get player availability")
-def get_player_availability(player_id: int, db: Session = Depends(get_db)) -> list[schemas.PlayerAvailabilityResponse]:
-    """Get a player's weekly availability."""
-    availability = (
-        db.query(models.PlayerAvailability)
-        .filter(models.PlayerAvailability.player_profile_id == player_id)
-        .order_by(models.PlayerAvailability.day_of_week)
-        .all()
-    )
-    return [schemas.PlayerAvailabilityResponse.from_orm(avail) for avail in availability]
-
-
-@router.post("/{player_id}/availability", response_model=schemas.PlayerAvailabilityResponse)
-@handle_api_errors(operation_name="set player availability")
-def set_player_availability(
-    player_id: int,
-    availability: schemas.PlayerAvailabilityCreate,
-    db: Session = Depends(get_db),
-) -> schemas.PlayerAvailabilityResponse:
-    """Set or update a player's availability for a specific day."""
-    existing = (
-        db.query(models.PlayerAvailability)
-        .filter(
-            models.PlayerAvailability.player_profile_id == player_id,
-            models.PlayerAvailability.day_of_week == availability.day_of_week,
-        )
-        .first()
-    )
-
-    now = utc_now().isoformat()
-
-    if existing:
-        existing.available_from_time = availability.available_from_time  # type: ignore
-        existing.available_to_time = availability.available_to_time  # type: ignore
-        existing.is_available = int(availability.is_available)  # type: ignore
-        existing.notes = availability.notes  # type: ignore
-        existing.updated_at = now  # type: ignore
-        db.commit()
-        db.refresh(existing)
-        logger.info(f"Updated availability for player {player_id}, day {availability.day_of_week}")
-        return schemas.PlayerAvailabilityResponse.from_orm(existing)
-
-    # Create new
-    db_availability = models.PlayerAvailability(
-        player_profile_id=player_id,
-        day_of_week=availability.day_of_week,
-        available_from_time=availability.available_from_time,
-        available_to_time=availability.available_to_time,
-        is_available=int(availability.is_available),
-        notes=availability.notes,
-        created_at=now,
-        updated_at=now,
-    )
-    db.add(db_availability)
-    db.commit()
-    db.refresh(db_availability)
-
-    logger.info(f"Created availability for player {player_id}, day {availability.day_of_week}")
-    return schemas.PlayerAvailabilityResponse.from_orm(db_availability)
-
-
-# ============================================================================
-# Email Preferences Endpoints (by player_id)
-# ============================================================================
-
-
-@router.get("/{player_id}/email-preferences", response_model=schemas.EmailPreferencesResponse)
-@handle_api_errors(operation_name="get email preferences")
-def get_email_preferences(player_id: int, db: Session = Depends(get_db)) -> schemas.EmailPreferencesResponse:
-    """Get a player's email preferences."""
-    now = utc_now().isoformat()
-
-    preferences = (
-        db.query(models.EmailPreferences).filter(models.EmailPreferences.player_profile_id == player_id).first()
-    )
-
-    if not preferences:
-        preferences = models.EmailPreferences(player_profile_id=player_id, created_at=now, updated_at=now)
-        db.add(preferences)
-        db.commit()
-        db.refresh(preferences)
-
-    return schemas.EmailPreferencesResponse.from_orm(preferences)
-
-
-@router.put("/{player_id}/email-preferences", response_model=schemas.EmailPreferencesResponse)
-@handle_api_errors(operation_name="update email preferences")
-def update_email_preferences(
-    player_id: int,
-    preferences_update: schemas.EmailPreferencesUpdate,
-    db: Session = Depends(get_db),
-) -> schemas.EmailPreferencesResponse:
-    """Update a player's email preferences."""
-    preferences_result = (
-        db.query(models.EmailPreferences).filter(models.EmailPreferences.player_profile_id == player_id).first()
-    )
-
-    preferences = require_not_none(preferences_result, "Email preferences for player", player_id)
-
-    # Update fields that are provided
-    update_data = preferences_update.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        if hasattr(preferences, field):
-            setattr(preferences, field, value)
-
-    preferences.updated_at = utc_now().isoformat()  # type: ignore
-    db.commit()
-    db.refresh(preferences)
-
-    logger.info(f"Updated email preferences for player {player_id}")
-    return schemas.EmailPreferencesResponse.from_orm(preferences)
+from .players_by_id import (
+    delete_player_profile,
+    get_player_avatar,
+    get_player_profile,
+    get_public_player_profile,
+    update_player_profile,
+)
+from .players_directory import (
+    create_player_profile,
+    get_all_player_profiles,
+    get_all_players,
+    get_all_players_availability,
+    get_player_profile_by_name,
+)
+from .players_me import (
+    get_my_availability,
+    get_my_email_preferences,
+    get_my_profile,
+    set_my_availability,
+    update_my_description,
+    update_my_email_preferences,
+    update_my_legacy_name,
+    update_my_venmo,
+    upload_my_avatar,
+)
+from .players_preferences import (
+    _require_self_or_admin,
+    get_email_preferences,
+    get_player_availability,
+    set_player_availability,
+    update_email_preferences,
+)
+from .players_stats import (
+    get_all_head_to_head,
+    get_head_to_head,
+    get_player_advanced_metrics,
+    get_player_analytics,
+    get_player_insights,
+    get_player_profile_with_stats,
+    get_player_skill_rating,
+    get_player_statistics,
+    get_player_trends,
+    get_score_performance_analytics,
+    get_special_event_analytics,
+    get_streak_analysis,
+)
+
+router = APIRouter()
+# Admin sub-routers carry their own "/admin..." prefix; mount them under /players.
+router.include_router(account_links_router, prefix="/players", tags=["players"])
+router.include_router(admin_grants_router, prefix="/players", tags=["players"])
+router.include_router(account_claims_router, prefix="/players", tags=["players"])
+router.include_router(my_name_router, prefix="/players", tags=["players"])
+# Static paths first, then the parameterised /{player_id} routes.
+router.include_router(players_directory.router)
+router.include_router(players_me.router)
+router.include_router(players_by_id.router)
+router.include_router(players_stats.router)
+router.include_router(players_preferences.router)
+
+__all__ = [
+    "AVATAR_ALLOWED_TYPES",
+    "AVATAR_MAX_DIM",
+    "AVATAR_MAX_UPLOAD_BYTES",
+    "_avatar_jpeg_for_player",
+    "_downscale_avatar_jpeg",
+    "_require_self_or_admin",
+    "create_player_profile",
+    "delete_player_profile",
+    "get_all_head_to_head",
+    "get_all_player_profiles",
+    "get_all_players",
+    "get_all_players_availability",
+    "get_email_preferences",
+    "get_head_to_head",
+    "get_my_availability",
+    "get_my_email_preferences",
+    "get_my_profile",
+    "get_player_advanced_metrics",
+    "get_player_analytics",
+    "get_player_availability",
+    "get_player_avatar",
+    "get_player_insights",
+    "get_player_profile",
+    "get_player_profile_by_name",
+    "get_player_profile_with_stats",
+    "get_player_skill_rating",
+    "get_player_statistics",
+    "get_player_trends",
+    "get_public_player_profile",
+    "get_score_performance_analytics",
+    "get_special_event_analytics",
+    "get_streak_analysis",
+    "router",
+    "set_my_availability",
+    "set_player_availability",
+    "update_email_preferences",
+    "update_my_description",
+    "update_my_email_preferences",
+    "update_my_legacy_name",
+    "update_my_venmo",
+    "update_player_profile",
+    "upload_my_avatar",
+]

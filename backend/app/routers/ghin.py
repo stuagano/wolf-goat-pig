@@ -15,6 +15,9 @@ from sqlalchemy.orm import Session
 
 from .. import database
 from ..database import get_db
+from ..services.auth_service import get_current_auth0_user
+from ..utils.admin_auth import require_admin
+from ..utils.job_auth import require_admin_or_job_token
 
 logger = logging.getLogger("app.routers.ghin")
 
@@ -65,7 +68,7 @@ async def ghin_lookup(
         raise HTTPException(status_code=500, detail=f"Failed to lookup golfer: {e!s}")
 
 
-@router.post("/sync-player-handicap/{player_id}", response_model=dict[str, Any])
+@router.post("/sync-player-handicap/{player_id}", response_model=dict[str, Any], dependencies=[Depends(require_admin)])
 async def sync_player_ghin_handicap(
     player_id: int = Path(..., description="The ID of the player to sync"),
     db: Session = Depends(get_db),
@@ -144,7 +147,7 @@ class GHINScorePost(BaseModel):
     number_of_holes: int = 18
 
 
-@router.post("/post-score")
+@router.post("/post-score", dependencies=[Depends(get_current_auth0_user)])
 async def post_score(
     body: GHINScorePost,
     db: Session = Depends(get_db),
@@ -174,7 +177,7 @@ async def post_score(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/sync-handicaps")
+@router.post("/sync-handicaps", dependencies=[Depends(require_admin_or_job_token)])
 async def sync_ghin_handicaps():
     """Sync handicaps for all players with GHIN IDs."""
     try:

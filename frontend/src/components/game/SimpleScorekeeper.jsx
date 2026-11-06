@@ -1,15 +1,15 @@
 // frontend/src/components/game/SimpleScorekeeper.jsx
 // Updated: Offline-first sync for unreliable golf course connectivity
 // Refactored: Using custom hooks for state management (incremental migration)
+// Split: game state, stroke allocation, handlers, running totals, the optional
+// details section and propTypes live in ./scorekeeper/ (hook order preserved).
 import React, {
   useState,
   useEffect,
   useMemo,
-  useReducer,
   useCallback,
   useRef,
 } from "react";
-import PropTypes from "prop-types";
 import { useTheme } from "../../theme/Provider";
 import { Input } from "../ui";
 import CompletedRoundView from "./CompletedRoundView";
@@ -22,69 +22,25 @@ import EditHoleModal from "./EditHoleModal";
 import TeeTossModal from "./TeeTossModal";
 import { SyncStatusBanner } from "../ui/SyncStatusIndicator";
 import { useHoleSync, useUIState, useBettingState } from "../../hooks";
-import { gameReducer, createInitialState } from "./gameReducer";
-import syncManager from "../../services/syncManager";
-import { reconcileGameState } from "../../services/gameReconcile";
-import { fetchJson } from "../../services/fetchJson";
-// NOTE: only getStrokesForHole is shared with utils/strokeAllocation — its
-// calculateStrokeAllocation applies USGA course-handicap conversion, which
-// this component's raw-handicap fallback intentionally does not.
-import { getStrokesForHole } from "../../utils/strokeAllocation";
 import { allHolesPlayed } from "../../utils/holeHistory";
-import { nudgeHittingOrder } from "../../utils/hittingOrder";
+import { netScoresAndWinner } from "../../utils/holeRules";
 import {
-  HoleHeader,
-  TeamSelector,
   QuartersPanel,
   HoleNavigation,
-  StuartModePanel,
-  OptionalEntryPanels,
-  AnalysisPanels,
-  UsageStatsPanel,
-  SpecialActionsPanel,
   ScorekeeperBanners,
   ErrorBanner,
-  ScorecardSection,
-  StuartModeToggle,
-  HolePhaseStrip,
   DoubleOfferControl,
 } from "./scorekeeper";
+import useScorekeeperGameState from "./scorekeeper/useScorekeeperGameState";
+import useStrokeAllocation from "./scorekeeper/useStrokeAllocation";
+import buildScorekeeperHandlers from "./scorekeeper/scorekeeperHandlers";
+import OptionalHoleDetails from "./scorekeeper/OptionalHoleDetails";
+import simpleScorekeeperPropTypes from "./scorekeeper/simpleScorekeeperPropTypes";
 import "../../styles/mobile-touch.css";
-import { apiConfig } from "../../config/api.config";
-import { aiPartnerResponse } from "../../utils/stuartModeAiDecisions";
 import useStuartMode from "../../hooks/useStuartMode";
-import useGameActions from "./useGameActions";
 import useAchievements from "../../hooks/useAchievements";
 import useScorekeeperSync from "../../hooks/useScorekeeperSync";
 import useHoleSubmission from "../../hooks/useHoleSubmission";
-
-const API_URL = apiConfig.baseUrl;
-
-/**
- * Helper component to display player name with authentication indicator
- */
-const PlayerName = ({ name, isAuthenticated }) => (
-  <>
-    {name}
-    {isAuthenticated && (
-      <span style={{ marginLeft: "4px", fontSize: "12px" }}>🔒</span>
-    )}
-  </>
-);
-
-PlayerName.propTypes = {
-  name: PropTypes.string.isRequired,
-  isAuthenticated: PropTypes.bool,
-};
-
-/**
- * Create an object keyed by player ID from a list of players
- * @param {Array} players - Array of player objects with id property
- * @param {Function} getValue - Function that takes a player and returns the value
- * @returns {Object} Object with player IDs as keys
- */
-const createPlayerMap = (players, getValue) =>
-  Object.fromEntries(players.map((p) => [p.id, getValue(p)]));
 
 /**
  * Simplified scorekeeper component - no game engine, just direct data entry
@@ -105,153 +61,42 @@ const SimpleScorekeeper = ({
   const ui = useUIState();
 
   // ============================================================
-  // GAME STATE - Using useReducer for consolidated state management
+  // GAME STATE - useReducer + action dispatchers (useScorekeeperGameState)
   // ============================================================
-
-  // Local is an offline write-buffer: prefer it over the server-provided
-  // initialHoleHistory only when this game has a queued edit OR local holds a
-  // hole the server lacks (an in-flight sync that hasn't landed). Otherwise the
-  // server is authoritative — returning null falls back to initialHoleHistory.
-  // This stops a longer-but-stale/duplicated local cache from winning while
-  // still preserving genuinely unsynced holes.
-  const restoredState = useMemo(() => {
-    const localState = syncManager.loadLocalGameState(gameId);
-    const chosen = reconcileGameState({
-      serverState: { holeHistory: initialHoleHistory },
-      localState,
-      hasPendingEdits: syncManager.hasPendingSyncForGame(gameId),
-    });
-    // reconcile returns localState only when local should win; otherwise it
-    // returns the server object => null => fall back to initialHoleHistory.
-    return chosen === localState && localState?.holeHistory ? localState : null;
-  }, [gameId, initialHoleHistory]);
-
-  // Initialize game state reducer
-  const [gameState, dispatch] = useReducer(
-    gameReducer,
-    {
-      baseWager,
-      initialCurrentHole,
-      initialHoleHistory,
-      players,
-      restoredState,
-    },
-    createInitialState,
-  );
-
-  // Destructure game state for convenience (maintains existing variable names)
+  const { game, actions } = useScorekeeperGameState({
+    gameId,
+    players,
+    baseWager,
+    initialHoleHistory,
+    initialCurrentHole,
+  });
   const {
-    hole,
-    teams,
-    betting: bettingState,
-    rotation,
-    aardvark,
-    history,
-  } = gameState;
-
-  // Hole state
-  const currentHole = hole.currentHole;
-  const scores = hole.scores;
-  const quarters = hole.quarters;
-  const holeNotes = hole.notes;
-  const winner = hole.winner;
-
-  // Team state
-  const teamMode = teams.mode;
-  const team1 = teams.team1;
-  // eslint-disable-next-line no-unused-vars -- team2 computed from team1, kept for clarity
-  const team2 = teams.team2;
-  const captain = teams.captain;
-  const opponents = teams.opponents;
-
-  // Betting state (from reducer)
-  const currentWager = bettingState.currentWager;
-  // eslint-disable-next-line no-unused-vars -- used in resetHole / sync wager path
-  const nextHoleWager = bettingState.nextHoleWager;
-  const floatInvokedBy = bettingState.floatInvokedBy;
-  const optionInvokedBy = bettingState.optionInvokedBy;
-  // eslint-disable-next-line no-unused-vars -- betting state, exposed for future UI
-  const optionActive = bettingState.optionActive;
-  // eslint-disable-next-line no-unused-vars -- betting state, exposed for future UI
-  const optionTurnedOff = bettingState.optionTurnedOff;
-  const duncanInvoked = bettingState.duncanInvoked;
-  const carryOver = bettingState.carryOver;
-  // eslint-disable-next-line no-unused-vars -- betting state, exposed for future UI
-  const vinniesVariation = bettingState.vinniesVariation;
-  // eslint-disable-next-line no-unused-vars -- betting state, exposed for future UI
-  const joesSpecialWager = bettingState.joesSpecialWager;
-
-  // Rotation state
-  const rotationOrder = rotation.order;
-  const captainIndex = rotation.captainIndex;
-  const isHoepfinger = rotation.isHoepfinger;
-  // eslint-disable-next-line no-unused-vars -- rotation state, exposed for Hoepfinger rule UI
-  const goatId = rotation.goatId;
-  const phase = rotation.phase;
-
-  // Aardvark state
-  const aardvarkRequestedTeam = aardvark.requestedTeam;
-  const aardvarkTossed = aardvark.tossed;
-  const aardvarkSolo = aardvark.solo;
-  const invisibleAardvarkTossed = aardvark.invisibleTossed;
-
-  // History state
-  const holeHistory = history.holes;
-  const playerStandings = history.playerStandings;
-
-  // ============================================================
-  // ACTION DISPATCHERS - moved to useGameActions (stable identities)
-  // ============================================================
+    currentHole, scores, quarters, holeNotes, winner,
+    teamMode, team1, captain, opponents,
+    currentWager, floatInvokedBy, optionInvokedBy, duncanInvoked, carryOver,
+    rotationOrder, captainIndex, isHoepfinger, phase,
+    aardvarkRequestedTeam, aardvarkTossed, aardvarkSolo, invisibleAardvarkTossed,
+    holeHistory, playerStandings,
+  } = game;
   const {
-    setCurrentHole,
-    setScores,
-    setQuarters,
-    setHoleNotes,
-    setWinner,
-    setTeamMode,
-    setTeam1,
-    setTeam2,
-    setCaptain,
-    setOpponents,
-    setCurrentWager,
-    setNextHoleWager,
-    setFloatInvokedBy,
-    setOptionInvokedBy,
-    setOptionActive,
-    setOptionTurnedOff,
-    setDuncanInvoked,
-    setCarryOver,
-    setVinniesVariation,
-    setJoesSpecialWager,
-    setRotationOrder,
-    reorderHittingOrder,
-    setCaptainIndex,
-    setIsHoepfinger,
-    setGoatId,
-    setPhase,
-    setAardvarkRequestedTeam,
-    setAardvarkTossed,
-    setAardvarkSolo,
-    setInvisibleAardvarkTossed,
-    setHoleHistory,
-    setPlayerStandings,
-  } = useGameActions(dispatch);
+    setCurrentHole, setScores, setQuarters, setHoleNotes, setWinner,
+    setTeamMode, setTeam1, setCaptain, setOpponents,
+    setCurrentWager, setNextHoleWager, setFloatInvokedBy, setOptionInvokedBy,
+    setDuncanInvoked, setCarryOver, setRotationOrder, reorderHittingOrder,
+    setAardvarkRequestedTeam, setAardvarkTossed, setAardvarkSolo,
+    setInvisibleAardvarkTossed, setHoleHistory, setPlayerStandings,
+  } = actions;
 
   // ============================================================
   // BETTING STATE HOOK - Interactive betting (offers, events)
   // ============================================================
-
   const betting = useBettingState({
     currentHole,
     currentWager,
     setCurrentWager,
     players,
   });
-
-  // Destructure commonly used betting state
-  // Only destructure what's currently used - full API available via `betting` object
   const {
-    currentHoleBettingEvents,
     setCurrentHoleBettingEvents,
     setPendingOffer,
     addBettingEvent,
@@ -261,65 +106,36 @@ const SimpleScorekeeper = ({
     createOffer,
     respondToOffer,
   } = betting;
-  // Additional betting features available: betting.bettingHistory, betting.createOffer,
-  // betting.respondToOffer, betting.showBettingHistory, betting.historyTab, betting.pendingOffer
 
   // UI state (migrated to useUIState hook)
-  // Destructure commonly used UI state for convenience
   const {
-    submitting,
-    setSubmitting,
-    error,
-    setError,
-    showTeamSelection,
-    setShowTeamSelection,
-    showGolfScores,
-    setShowGolfScores,
-    showCommissioner,
-    setShowCommissioner,
-    showNotes,
-    setShowNotes,
-    showSpecialActions,
-    setShowSpecialActions,
-    showUsageStats,
-    setShowUsageStats,
-    // eslint-disable-next-line no-unused-vars -- UI state, exposed for advanced betting accordion
-    showAdvancedBetting,
-    showShotAnalysis,
-    setShowShotAnalysis,
-    showBettingOdds,
-    setShowBettingOdds,
-    editingHole,
-    setEditingHole,
-    editingPlayerName,
-    editPlayerNameValue,
-    setEditPlayerNameValue,
-    isEditingCompleteGame,
-    setIsEditingCompleteGame,
-    isGameMarkedComplete,
-    setIsGameMarkedComplete,
-    startEditingPlayerName,
+    submitting, setSubmitting, error, setError,
+    showTeamSelection, setShowTeamSelection,
+    showGolfScores, setShowGolfScores,
+    showCommissioner, setShowCommissioner,
+    showNotes, setShowNotes,
+    showSpecialActions, setShowSpecialActions,
+    showUsageStats, setShowUsageStats,
+    showShotAnalysis, setShowShotAnalysis,
+    showBettingOdds, setShowBettingOdds,
+    editingHole, setEditingHole,
+    editingPlayerName, editPlayerNameValue, setEditPlayerNameValue,
+    isEditingCompleteGame, setIsEditingCompleteGame,
+    isGameMarkedComplete, setIsGameMarkedComplete,
     cancelEditingPlayerName: handleCancelPlayerNameEdit,
-    stuartModeEnabled,
-    stuartMode,
-    coachMode,
-    assistMode,
-    setAssistMode,
+    stuartModeEnabled, stuartMode, coachMode, assistMode, setAssistMode,
     toggleStuartMode,
   } = ui;
 
   // Offline-first sync hook
-  const {
-    syncHole,
-  } = useHoleSync(gameId);
+  const { syncHole } = useHoleSync(gameId);
   const [localPlayers, setLocalPlayers] = useState(players); // Local copy of players for immediate UI updates
   const [courseData, setCourseData] = useState(null); // Course data with hole information
   const [editingOrder, setEditingOrder] = useState(false); // Track if user is editing hitting order
   const [showTeeToss, setShowTeeToss] = useState(false); // Mid-game full hitting-order redo
+  // eslint-disable-next-line no-unused-vars -- player-card expansion state (kept)
   const [expandedPlayers, setExpandedPlayers] = useState({ 0: true }); // Track which player cards are expanded (first player by default)
   const [editModalHole, setEditModalHole] = useState(null); // Hole data for edit modal (null = closed)
-
-  // Betting state (bettingHistory, pendingOffer, currentHoleBettingEvents) migrated to useBettingState hook
 
   // Derive current hole par from course data (pars are constants and don't change)
   // No defaults - only use actual course data
@@ -327,66 +143,13 @@ const SimpleScorekeeper = ({
     (h) => h.hole_number === currentHole,
   )?.par;
 
-  // Track course data loading state
-
-  // Auto-collapse team selection when teams are set
-  // Team selection stays visible so players can see teams during the hole
-  // (Auto-collapse removed per user request)
-
-  // Use stroke allocation from backend if provided (preferred - calculated with Creecher Feature rules)
-  // Falls back to local calculation only if backend data is not available
   // NOTE: declared before the Stuart Mode effects below, which list it in
   // their dependency arrays — referencing it earlier is a TDZ crash.
-  const strokeAllocation = useMemo(() => {
-    // If we have stroke allocation from the backend, use it (it's more accurate)
-    if (
-      initialStrokeAllocation &&
-      Object.keys(initialStrokeAllocation).length > 0
-    ) {
-      return initialStrokeAllocation;
-    }
-
-    // Fallback: calculate locally if backend didn't provide stroke allocation
-    if (!courseData?.holes) return {};
-
-    const allocation = {};
-
-    // Calculate net handicaps relative to lowest handicap player
-    const playerHandicaps = createPlayerMap(
-      localPlayers,
-      (p) => p.handicap || 0,
-    );
-
-    // Safe array bounds: ensure we have values before calling Math.min
-    const handicapValues = Object.values(playerHandicaps);
-    const lowestHandicap =
-      handicapValues.length > 0 ? Math.min(...handicapValues) : 0;
-
-    const netHandicaps = {};
-    Object.entries(playerHandicaps).forEach(([playerId, handicap]) => {
-      netHandicaps[playerId] = Math.max(0, handicap - lowestHandicap);
-    });
-
-    // getStrokesForHole imported from utils/strokeAllocation (Creecher Feature).
-    localPlayers.forEach((player) => {
-      allocation[player.id] = {};
-      const netHandicap = netHandicaps[player.id];
-
-      for (let holeNum = 1; holeNum <= 18; holeNum++) {
-        const holeData = courseData.holes.find(
-          (h) => h.hole_number === holeNum,
-        );
-        if (holeData?.handicap) {
-          allocation[player.id][holeNum] = getStrokesForHole(
-            netHandicap,
-            holeData.handicap,
-          );
-        }
-      }
-    });
-
-    return allocation;
-  }, [courseData, localPlayers, initialStrokeAllocation]);
+  const strokeAllocation = useStrokeAllocation({
+    courseData,
+    localPlayers,
+    initialStrokeAllocation,
+  });
 
   // Stuart Mode orchestration (toggle listeners, AI decisions, move log).
   // NOTE: must stay before the course-data/rotation effects below — effect
@@ -440,218 +203,48 @@ const SimpleScorekeeper = ({
   const { checkAchievements, achievementCheckFailed, setAchievementCheckFailed } =
     useAchievements(players);
 
-  // Hole submission/edit lifecycle (resetHole, submit, edit-save) — the ctx
-  // object IS the closure surface of the original inline handlers.
+  // Hole submission/edit lifecycle (resetHole, submit, edit-save). The ctx is
+  // the flattened game state + dispatchers plus the extras below; the hook
+  // destructures only the identifiers it needs.
   const {
     resetHole,
     handleSubmitHole,
     handleEditModalSave,
     handleEditHoleFromScorecard,
   } = useHoleSubmission({
+    ...game,
+    ...actions,
     gameId,
     baseWager,
     players,
     localPlayers,
-    quarters,
-    scores,
-    teamMode,
-    team1,
-    team2,
-    captain,
-    opponents,
-    currentHole,
-    currentWager,
-    phase,
-    rotationOrder,
-    captainIndex,
-    holeNotes,
-    winner,
     editingHole,
-    holeHistory,
-    playerStandings,
     syncHole,
     logBettingAction,
     checkAchievements,
-    floatInvokedBy,
-    optionInvokedBy,
-    duncanInvoked,
-    joesSpecialWager,
-    aardvarkRequestedTeam,
-    aardvarkTossed,
-    aardvarkSolo,
-    invisibleAardvarkTossed,
-    carryOver,
-    setQuarters,
-    setScores,
     setError,
     setSubmitting,
-    setCurrentHole,
-    setHoleHistory,
-    setPlayerStandings,
-    setHoleNotes,
-    setWinner,
     setEditingHole,
     setLocalPlayers,
-    setCurrentWager,
-    setNextHoleWager,
-    setTeam1,
-    setTeam2,
-    setCaptain,
-    setOpponents,
-    setFloatInvokedBy,
-    setOptionInvokedBy,
-    setJoesSpecialWager,
-    setOptionTurnedOff,
-    setDuncanInvoked,
-    setCarryOver,
-    setAardvarkRequestedTeam,
-    setAardvarkTossed,
-    setAardvarkSolo,
-    setInvisibleAardvarkTossed,
     setPendingOffer,
     setCurrentHoleBettingEvents,
-    setRotationOrder,
     setAchievementCheckFailed,
   });
 
-  // Handle team selection for partners mode
-  // Toggle players in/out of Team 1. Team 2 is automatically all other players.
-  const togglePlayerTeam = (playerId) => {
-    if (team1.includes(playerId)) {
-      // Remove from team1 (they'll go to team2 automatically)
-      setTeam1(team1.filter((id) => id !== playerId));
-      return;
-    }
-
-    // Stuart Mode: when adding an AI player as partner, run their accept
-    // /decline heuristic. Decline = don't add + log; accept = add + log.
-    if (stuartMode) {
-      const target = players.find((p) => p.id === playerId);
-      if (target && !target.is_authenticated) {
-        const result = aiPartnerResponse({
-          aiPlayer: target,
-          currentHole,
-          strokeAllocation,
-          playerStandings,
-        });
-        setAiMoves((prev) => [
-          ...prev,
-          {
-            type: "partner",
-            text:
-              result.decision === "accept"
-                ? `🤖 ${target.name} accepts partnership — ${result.reason}`
-                : `🤖 ${target.name} declines partnership — ${result.reason}`,
-            timestamp: Date.now(),
-          },
-        ]);
-        if (result.decision === "decline") return; // don't add
-      }
-    }
-
-    // Add to team1
-    setTeam1([...team1, playerId]);
-  };
-
-  // Handle captain selection for solo mode
-  const toggleCaptain = (playerId) => {
-    if (captain === playerId) {
-      setCaptain(null);
-    } else {
-      setCaptain(playerId);
-      // Set all other players as opponents
-      setOpponents(players.filter((p) => p.id !== playerId).map((p) => p.id));
-    }
-  };
-
-  // Betting functions (logBettingAction, getPlayerName, addBettingEvent, createOffer, respondToOffer)
-  // are now provided by useBettingState hook
-
-  // Announce an action (Duncan, Option Off) - no accept needed
-  const announceAction = (actionType, announcedBy) => {
-    addBettingEvent({
-      eventType: `${actionType.toUpperCase()}_ANNOUNCED`,
-      announced_by: announcedBy,
-      actor: announcedBy,
-    });
-  };
-
-  // Handle score input
-  const handleScoreChange = (playerId, value) => {
-    setScores({
-      ...scores,
-      [playerId]: parseInt(value, 10) || 0,
-    });
-  };
-
-  // Note: calculateQuartersForHole removed - quarters are now entered manually
-  // Note: strokeAllocation memo moved above the Stuart Mode effects (TDZ fix)
-
   // Calculate net scores and auto-detect winner
-  const calculateNetScoresAndWinner = useMemo(() => {
-    // Need all scores entered and teams formed
-    const allScoresEntered = players.every(
-      (p) => scores[p.id] !== undefined && scores[p.id] !== null,
-    );
-    const teamsFormed =
-      teamMode === "partners"
-        ? team1.length > 0 && team1.length < players.length
-        : captain !== null;
-
-    if (!allScoresEntered || !teamsFormed) {
-      return {
-        netScores: {},
-        suggestedWinner: null,
-        team1Net: null,
-        team2Net: null,
-      };
-    }
-
-    // Calculate net scores (gross - strokes received)
-    const netScores = createPlayerMap(players, (p) => {
-      const gross = scores[p.id] || 0;
-      const strokesReceived = strokeAllocation?.[p.id]?.[currentHole] || 0;
-      return gross - strokesReceived;
-    });
-
-    // Calculate team totals based on best ball (lowest net score on team)
-    let team1Net, team2Net;
-
-    if (teamMode === "partners") {
-      const team2Ids = players
-        .filter((p) => !team1.includes(p.id))
-        .map((p) => p.id);
-      // Safe array bounds: filter undefined values and provide fallback
-      const team1Scores = team1
-        .map((id) => netScores[id])
-        .filter((s) => s !== undefined);
-      const team2Scores = team2Ids
-        .map((id) => netScores[id])
-        .filter((s) => s !== undefined);
-      team1Net = team1Scores.length > 0 ? Math.min(...team1Scores) : 0;
-      team2Net = team2Scores.length > 0 ? Math.min(...team2Scores) : 0;
-    } else {
-      // Solo mode: captain vs opponents
-      team1Net = netScores[captain] ?? 0; // Captain's net score with fallback
-      // Safe array bounds for opponents
-      const opponentScores = opponents
-        .map((id) => netScores[id])
-        .filter((s) => s !== undefined);
-      team2Net = opponentScores.length > 0 ? Math.min(...opponentScores) : 0;
-    }
-
-    // Determine suggested winner
-    let suggestedWinner = null;
-    if (team1Net < team2Net) {
-      suggestedWinner = teamMode === "partners" ? "team1" : "captain";
-    } else if (team2Net < team1Net) {
-      suggestedWinner = teamMode === "partners" ? "team2" : "opponents";
-    } else {
-      suggestedWinner = "push"; // Tied = push
-    }
-
-    return { netScores, suggestedWinner, team1Net, team2Net };
-  }, [
+  const calculateNetScoresAndWinner = useMemo(
+    () =>
+      netScoresAndWinner({
+        players,
+        scores,
+        teamMode,
+        team1,
+        captain,
+        opponents,
+        strokeAllocation,
+        holeNumber: currentHole,
+      }),
+    [
     scores,
     players,
     team1,
@@ -672,92 +265,6 @@ const SimpleScorekeeper = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- setWinner is stable (useCallback)
   }, [calculateNetScoresAndWinner, winner]);
 
-
-  // Handle player name editing - uses useUIState hook
-  // eslint-disable-next-line no-unused-vars
-  const handlePlayerNameClick = (playerId, currentName) => {
-    startEditingPlayerName(playerId, currentName);
-  };
-
-  // Correct the hitting order after the game has started: first player becomes
-  // captain, current-hole teams/specials clear, and the order sticks for the
-  // rest of the round (tee_order is what a reload rebuilds rotation from).
-  const applyHittingOrder = async (newOrder) => {
-    const previousOrder = rotationOrder;
-    reorderHittingOrder(newOrder);
-    // Interactive betting lives outside the game reducer
-    setPendingOffer(null);
-    setCurrentHoleBettingEvents([]);
-    setShowTeamSelection(true);
-
-    try {
-      await fetchJson(`${API_URL}/games/${gameId}/tee-order`, {
-        method: "PATCH",
-        body: JSON.stringify({ player_order: newOrder }),
-      });
-    } catch (error) {
-      console.error("Error updating hitting order:", error);
-      setRotationOrder(previousOrder);
-    }
-  };
-
-  const movePlayerInOrder = async (fromIndex, direction) => {
-    const newOrder = nudgeHittingOrder(rotationOrder, fromIndex, direction);
-    if (newOrder === rotationOrder) return;
-
-    await applyHittingOrder(newOrder);
-  };
-
-  const handleTeeTossComplete = async (orderedPlayers) => {
-    const newOrder = orderedPlayers.map((p) => p.id);
-    setShowTeeToss(false);
-    setEditingOrder(false);
-    await applyHittingOrder(newOrder);
-  };
-
-  const handleSavePlayerName = async () => {
-    if (!editingPlayerName || !editPlayerNameValue.trim()) {
-      return;
-    }
-
-    try {
-      await fetchJson(
-        `${API_URL}/games/${gameId}/players/${editingPlayerName}/name`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({ name: editPlayerNameValue.trim() }),
-        },
-      );
-
-      // Update local players state immediately for better UX
-      const updatedPlayers = localPlayers.map((p) =>
-        p.id === editingPlayerName
-          ? { ...p, name: editPlayerNameValue.trim() }
-          : p,
-      );
-      setLocalPlayers(updatedPlayers);
-
-      // Also update player standings
-      if (playerStandings[editingPlayerName]) {
-        setPlayerStandings({
-          ...playerStandings,
-          [editingPlayerName]: {
-            ...playerStandings[editingPlayerName],
-            name: editPlayerNameValue.trim(),
-          },
-        });
-      }
-
-      // Close the edit modal
-      handleCancelPlayerNameEdit();
-    } catch (err) {
-      console.error("Failed to update player name:", err);
-      alert("Failed to update player name. Please try again.");
-    }
-  };
-
-  // handleCancelPlayerNameEdit is now provided by useUIState hook
-
   // Memoize courseHoles transformation to prevent Scorecard re-renders
   const scorecardCourseHoles = useMemo(() => {
     if (!courseData?.holes) return [];
@@ -769,17 +276,27 @@ const SimpleScorekeeper = ({
     }));
   }, [courseData?.holes]);
 
-  // Direct hole jump - open edit modal for completed holes
-  const jumpToHole = (holeNumber) => {
-    const holeData = holeHistory.find((h) => h.hole === holeNumber);
-    if (holeData) {
-      setEditModalHole(holeData);
-    } else {
-      setCurrentHole(holeNumber);
-      resetHole({ holeNumber, holeHistory });
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  };
+  // Event handlers (rebuilt each render, as the original inline closures were)
+  const {
+    togglePlayerTeam,
+    toggleCaptain,
+    announceAction,
+    handleScoreChange,
+    movePlayerInOrder,
+    handleTeeTossComplete,
+    handleSavePlayerName,
+    jumpToHole,
+  } = buildScorekeeperHandlers({
+    gameId, players, localPlayers, setLocalPlayers,
+    team1, setTeam1, captain, setCaptain, setOpponents,
+    stuartMode, currentHole, setCurrentHole, strokeAllocation,
+    playerStandings, setPlayerStandings, setAiMoves, addBettingEvent,
+    scores, setScores, rotationOrder, reorderHittingOrder, setRotationOrder,
+    setPendingOffer, setCurrentHoleBettingEvents, setShowTeamSelection,
+    setShowTeeToss, setEditingOrder,
+    editingPlayerName, editPlayerNameValue, handleCancelPlayerNameEdit,
+    holeHistory, setEditModalHole, resetHole,
+  });
 
   // Check if game is complete (all 18 holes played). Gate on the DISTINCT set
   // of holes 1-18 actually played, not holeHistory.length — a duplicate entry
@@ -854,233 +371,34 @@ const SimpleScorekeeper = ({
         handleSubmitHole={handleSubmitHole}
       />
 
-      <details
-        open={isEditingCompleteGame || undefined}
-        style={{ background: theme.colors.paper, border: `1px solid ${theme.colors.border}`, borderRadius: "10px" }}
-      >
-        <summary style={{ padding: "14px 16px", cursor: "pointer", color: theme.colors.textPrimary }}>
-          <strong>Optional hole details</strong>
-        </summary>
-        <div style={{ padding: "0 12px 12px" }}>
-      <HoleHeader
-        currentHole={currentHole}
-        courseData={courseData}
-        players={players}
-        rotationOrder={rotationOrder}
-        captainIndex={captainIndex}
-        currentWager={currentWager}
-        carryOver={carryOver}
-        phase={phase}
-        strokeAllocation={strokeAllocation}
-        isHoepfinger={isHoepfinger}
-        theme={theme}
-        holeHistory={holeHistory}
-        holePar={holePar}
-        editingHole={editingHole}
-        editingOrder={editingOrder}
-        setEditingOrder={setEditingOrder}
-        onRedoOrder={() => setShowTeeToss(true)}
-        jumpToHole={jumpToHole}
-        movePlayerInOrder={movePlayerInOrder}
-      />
-
-      <ScorecardSection
-        theme={theme}
-        players={players}
-        localPlayers={localPlayers}
-        holeHistory={holeHistory}
-        setHoleHistory={setHoleHistory}
-        setPlayerStandings={setPlayerStandings}
-        currentHole={currentHole}
-        setCurrentHole={setCurrentHole}
-        editingHole={editingHole}
-        scorecardCourseHoles={scorecardCourseHoles}
-        strokeAllocation={strokeAllocation}
-        isEditingCompleteGame={isEditingCompleteGame}
-        handleEditHoleFromScorecard={handleEditHoleFromScorecard}
-        jumpToHole={jumpToHole}
-        resetHole={resetHole}
-      />
-
-      {/* Running totals and scorecard remain available in optional details. */}
-      <div
-        data-testid="running-totals"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-          gap: "8px",
-          marginBottom: "16px",
+      <OptionalHoleDetails
+        {...{
+          theme, isEditingCompleteGame,
+          players, localPlayers, currentHole, setCurrentHole, courseData,
+          holePar, holeHistory, setHoleHistory, playerStandings,
+          setPlayerStandings, editingHole, strokeAllocation,
+          scorecardCourseHoles, handleEditHoleFromScorecard, resetHole,
+          jumpToHole,
+          rotationOrder, captainIndex, isHoepfinger, phase, editingOrder,
+          setEditingOrder, movePlayerInOrder,
+          currentWager, carryOver,
+          stuartModeEnabled, stuartMode, coachMode, assistMode, setAssistMode,
+          holePhase, setHolePhase, aiMoves,
+          showUsageStats, setShowUsageStats, showBettingOdds,
+          setShowBettingOdds, showShotAnalysis, setShowShotAnalysis,
+          scores, handleScoreChange, teamMode, setTeamMode, team1, captain,
+          getPlayerName, togglePlayerTeam, toggleCaptain, announceAction,
+          duncanInvoked, setDuncanInvoked, floatInvokedBy, setFloatInvokedBy,
+          optionInvokedBy, setOptionInvokedBy, showTeamSelection,
+          setShowTeamSelection, showSpecialActions, setShowSpecialActions,
+          aardvarkRequestedTeam, setAardvarkRequestedTeam, aardvarkTossed,
+          setAardvarkTossed, aardvarkSolo, setAardvarkSolo,
+          invisibleAardvarkTossed, setInvisibleAardvarkTossed,
+          holeNotes, setHoleNotes, showGolfScores, setShowGolfScores,
+          showCommissioner, setShowCommissioner, showNotes, setShowNotes,
         }}
-      >
-        {players.map((player) => {
-          const total = playerStandings[player.id]?.quarters ?? 0;
-          const formatted =
-            total > 0 ? `+${total.toFixed(1)}` : total.toFixed(1);
-          return (
-            <div
-              key={player.id}
-              style={{
-                padding: "10px 12px",
-                borderRadius: "10px",
-                background: theme.colors.paper,
-                border: `1px solid ${theme.colors.border}`,
-                textAlign: "center",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "11px",
-                  fontWeight: "bold",
-                  color: theme.colors.textSecondary,
-                  textTransform: "uppercase",
-                  marginBottom: "4px",
-                }}
-              >
-                {player.name}
-              </div>
-              <div
-                data-testid={`player-${player.id}-points`}
-                style={{
-                  fontSize: "18px",
-                  fontWeight: "bold",
-                  color:
-                    total > 0
-                      ? "#2E7D32"
-                      : total < 0
-                        ? "#C62828"
-                        : theme.colors.textPrimary,
-                }}
-              >
-                {formatted}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {stuartModeEnabled && <StuartModeToggle
-        assistMode={assistMode}
-        setAssistMode={setAssistMode}
-        theme={theme}
-      />}
-
-      <HolePhaseStrip
-        stuartMode={stuartMode}
-        holePhase={holePhase}
-        setHolePhase={setHolePhase}
-        theme={theme}
+        onRedoOrder={() => setShowTeeToss(true)}
       />
-
-      <UsageStatsPanel
-        theme={theme}
-        players={players}
-        playerStandings={playerStandings}
-        currentHole={currentHole}
-        holeHistory={holeHistory}
-        showUsageStats={showUsageStats}
-        setShowUsageStats={setShowUsageStats}
-      />
-
-      {stuartModeEnabled && <AnalysisPanels
-        theme={theme}
-        players={players}
-        scores={scores}
-        captain={captain}
-        team1={team1}
-        teamMode={teamMode}
-        currentWager={currentWager}
-        currentHole={currentHole}
-        holePar={holePar}
-        playerStandings={playerStandings}
-        courseData={courseData}
-        showBettingOdds={showBettingOdds}
-        setShowBettingOdds={setShowBettingOdds}
-        showShotAnalysis={showShotAnalysis}
-        setShowShotAnalysis={setShowShotAnalysis}
-      />}
-
-      <section style={{ marginBottom: "16px" }}>
-        <h3 style={{ fontSize: "16px", color: theme.colors.textPrimary }}>
-          <strong>Teams &amp; bets</strong>
-          <span data-testid="team-details-summary" style={{ display: "block", marginTop: "4px", fontSize: "13px", color: theme.colors.textSecondary }}>
-            {teamMode === "solo"
-              ? `Solo · ${captain ? getPlayerName(captain) : "Choose captain"}`
-              : `Partners · ${team1.length ? team1.map(getPlayerName).join(" & ") : "Choose players"}`}
-            {duncanInvoked && " · Duncan"}
-            {floatInvokedBy && ` · Float: ${getPlayerName(floatInvokedBy)}`}
-            {optionInvokedBy && ` · Option: ${getPlayerName(optionInvokedBy)}`}
-          </span>
-        </h3>
-      <TeamSelector
-        players={players}
-        teamMode={teamMode}
-        team1={team1}
-        captain={captain}
-        theme={theme}
-        duncanInvoked={duncanInvoked}
-        setDuncanInvoked={setDuncanInvoked}
-        setTeamMode={setTeamMode}
-        togglePlayerTeam={togglePlayerTeam}
-        toggleCaptain={toggleCaptain}
-        announceAction={announceAction}
-        showTeamSelection={showTeamSelection}
-        setShowTeamSelection={setShowTeamSelection}
-        aardvarkRequestedTeam={aardvarkRequestedTeam}
-        setAardvarkRequestedTeam={setAardvarkRequestedTeam}
-        aardvarkTossed={aardvarkTossed}
-        setAardvarkTossed={setAardvarkTossed}
-        aardvarkSolo={aardvarkSolo}
-        setAardvarkSolo={setAardvarkSolo}
-        invisibleAardvarkTossed={invisibleAardvarkTossed}
-        setInvisibleAardvarkTossed={setInvisibleAardvarkTossed}
-      />
-      <SpecialActionsPanel
-        theme={theme}
-        players={players}
-        playerStandings={playerStandings}
-        floatInvokedBy={floatInvokedBy}
-        setFloatInvokedBy={setFloatInvokedBy}
-        optionInvokedBy={optionInvokedBy}
-        setOptionInvokedBy={setOptionInvokedBy}
-        showSpecialActions={showSpecialActions}
-        setShowSpecialActions={setShowSpecialActions}
-      />
-      </section>
-
-      <OptionalEntryPanels
-        theme={theme}
-        players={players}
-        scores={scores}
-        handleScoreChange={handleScoreChange}
-        currentHole={currentHole}
-        playerStandings={playerStandings}
-        holeNotes={holeNotes}
-        setHoleNotes={setHoleNotes}
-        showGolfScores={showGolfScores}
-        setShowGolfScores={setShowGolfScores}
-        showCommissioner={showCommissioner}
-        setShowCommissioner={setShowCommissioner}
-        showNotes={showNotes}
-        setShowNotes={setShowNotes}
-      />
-
-      {/* Strategy panel shows in both Coach (real round, manual scoring) and Auto
-          (full AI). aiMoves is empty in Coach since nothing auto-plays. */}
-      {(stuartMode || coachMode) && (
-        <StuartModePanel
-          players={players}
-          currentHole={currentHole}
-          strokeAllocation={strokeAllocation}
-          playerStandings={playerStandings}
-          courseData={courseData}
-          currentWager={currentWager}
-          theme={theme}
-          aiMoves={aiMoves}
-        />
-      )}
-
-        </div>
-      </details>
 
       {/* Pending offers and dialogs must remain visible outside collapsed details. */}
       <DoubleOfferControl
@@ -1125,83 +443,6 @@ const SimpleScorekeeper = ({
   );
 };
 
-/**
- * PropTypes for SimpleScorekeeper
- * Specific shapes for better validation and documentation
- */
-SimpleScorekeeper.propTypes = {
-  /** Unique game identifier */
-  gameId: PropTypes.string.isRequired,
-
-  /** Array of player objects */
-  players: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.string.isRequired,
-      name: PropTypes.string.isRequired,
-      handicap: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-      user_id: PropTypes.string,
-      tee_order: PropTypes.number,
-      is_authenticated: PropTypes.bool,
-      ghin_id: PropTypes.string,
-    }),
-  ).isRequired,
-
-  /** Base wager amount in quarters (default: 1) */
-  baseWager: PropTypes.number,
-
-  /** History of completed holes */
-  initialHoleHistory: PropTypes.arrayOf(
-    PropTypes.shape({
-      hole: PropTypes.number.isRequired,
-      points_delta: PropTypes.objectOf(PropTypes.number),
-      gross_scores: PropTypes.objectOf(PropTypes.number),
-      teams: PropTypes.shape({
-        type: PropTypes.oneOf(["partners", "solo"]),
-        team1: PropTypes.arrayOf(PropTypes.string),
-        team2: PropTypes.arrayOf(PropTypes.string),
-        captain: PropTypes.string,
-        opponents: PropTypes.arrayOf(PropTypes.string),
-      }),
-      winner: PropTypes.oneOf([
-        "team1",
-        "team2",
-        "captain",
-        "opponents",
-        "push",
-        null,
-      ]),
-      wager: PropTypes.number,
-      phase: PropTypes.string,
-      rotation_order: PropTypes.arrayOf(PropTypes.string),
-      captain_index: PropTypes.number,
-      notes: PropTypes.string,
-      float_invoked_by: PropTypes.string,
-      option_invoked_by: PropTypes.string,
-      duncan_invoked: PropTypes.bool,
-      option_turned_off: PropTypes.bool,
-      betting_events: PropTypes.arrayOf(
-        PropTypes.shape({
-          eventId: PropTypes.string,
-          eventType: PropTypes.string,
-          hole: PropTypes.number,
-          actor: PropTypes.string,
-          timestamp: PropTypes.string,
-          details: PropTypes.object,
-        }),
-      ),
-    }),
-  ),
-
-  /** Starting hole number (default: 1) */
-  initialCurrentHole: PropTypes.number,
-
-  /** Name of the golf course */
-  courseName: PropTypes.string,
-
-  /** Pre-calculated stroke allocation from backend */
-  initialStrokeAllocation: PropTypes.objectOf(
-    PropTypes.objectOf(PropTypes.number),
-  ),
-};
+SimpleScorekeeper.propTypes = simpleScorekeeperPropTypes;
 
 export default SimpleScorekeeper;

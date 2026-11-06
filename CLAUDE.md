@@ -82,40 +82,15 @@ Editing rules that prevent past deploy failures:
 - No `console.log` in production code
 - Separate concerns with clean architecture
 
-## Worktrees — Orca only
+## Worktrees
 
-Orca is the only owner of checkouts for this repo. Do not create, move, or
-remove a worktree any other way.
-
-Never:
-
-- `git worktree add|remove|prune`, `wt`, `.claude/worktrees`, or EnterWorktree
-- a session or subagent with `isolation: "worktree"`
-- a feature branch checked out in this directory (this checkout stays on main)
-
-If Orca is not running, stop and tell the human. Do not fall back to git.
-
-Start (related to the current task):
+Keep this checkout on `main`. Do feature work in a git worktree under
+`.worktrees/` (gitignored):
 
 ```bash
-orca worktree create --name <task> --parent-worktree active --base-branch main --json
+git worktree add -b <branch> .worktrees/<task> origin/main
 ```
 
-Unrelated work: add `--no-parent` and omit `--base-branch`.
-
-Do all commits and the `gh pr create` inside that checkout. Push the branch
-before opening the PR.
-
-Finish, in this order, and do not stop between steps:
-
-1. Working tree clean, branch pushed, PR open. No local-only commits.
-2. `cd` back to the main checkout.
-3. `orca worktree rm --worktree path:<that-checkout> --json`
-4. Confirm with `git worktree list` that only the main checkout remains,
-   plus any checkout whose PR is still open.
-
-`--force` only for generated dirt (`frontend/node_modules`, `.ctk/ledger.json`).
-Never force-delete a checkout with unpushed commits or an untracked file you
-did not generate. If `orca worktree rm` fails, leave the checkout in place and
-report the error. A half-removed worktree is the mixed state this rule exists
-to prevent.
+Commit and open the PR from inside the worktree; push the branch first.
+When the PR is open and the worktree is clean (no uncommitted or unpushed
+work), remove it with `git worktree remove .worktrees/<task>`.

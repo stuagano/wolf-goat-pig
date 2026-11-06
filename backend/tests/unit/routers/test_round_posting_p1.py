@@ -11,7 +11,7 @@ from sqlalchemy.pool import StaticPool
 
 from app import models
 from app.database import get_db
-from app.routers import games, games_holes
+from app.routers import games, games_holes, games_lifecycle
 from app.services.auth_service import get_current_user
 
 
@@ -254,7 +254,7 @@ def test_completion_badges_use_separate_postcommit_session(round_api, monkeypatc
         engine.db.commit()
         return []
 
-    monkeypatch.setattr(games.BadgeEngine, "check_post_game_achievements", badge_check)
+    monkeypatch.setattr(games_lifecycle.BadgeEngine, "check_post_game_achievements", badge_check)
     response = client.post("/games/round/complete")
     assert response.status_code == 200, response.text
     assert badge_sessions

@@ -11,48 +11,16 @@ import { fetchJson } from "../services/fetchJson";
 import { upsertHole } from "../utils/holeHistory";
 import { parseQuarter } from "../utils/quarters";
 import {
-  blocksHole18Push,
   isHolePush,
   resolveCarryOverForHole,
-} from "../utils/carryOver";
+  standingsFromHistory,
+  validateHoleQuarters,
+} from "../utils/holeRules";
 
 const API_URL = apiConfig.baseUrl;
 
 const createPlayerMap = (players, getValue) =>
   Object.fromEntries(players.map((p) => [p.id, getValue(p)]));
-
-/** Rebuild standings from hole history — quarters plus usage counters. */
-export const standingsFromHistory = (players, history) => {
-  const standings = createPlayerMap(players, (p) => ({
-    quarters: 0,
-    name: p.name,
-    soloCount: 0,
-    floatCount: 0,
-    optionCount: 0,
-  }));
-
-  history.forEach((hole) => {
-    const delta = hole.points_delta || {};
-    Object.entries(delta).forEach(([playerId, points]) => {
-      if (standings[playerId]) {
-        standings[playerId].quarters += typeof points === "number" ? points : 0;
-      }
-    });
-    if (hole.teams?.type === "solo" && hole.teams?.captain) {
-      if (standings[hole.teams.captain]) {
-        standings[hole.teams.captain].soloCount += 1;
-      }
-    }
-    if (hole.float_invoked_by && standings[hole.float_invoked_by]) {
-      standings[hole.float_invoked_by].floatCount += 1;
-    }
-    if (hole.option_invoked_by && standings[hole.option_invoked_by]) {
-      standings[hole.option_invoked_by].optionCount += 1;
-    }
-  });
-
-  return standings;
-};
 
 /** Build the hole result + /scores optional_details payload for one hole. */
 export const buildHoleSubmitPayload = ({
@@ -269,58 +237,14 @@ const useHoleSubmission = (ctx) => {
     // Save only amounts the scorekeeper entered or explicitly confirmed.
     const effectiveQuarters = { ...quarters };
 
-    // Validate with effective quarters
-    const allPlayers = players.map((p) => p.id);
-    let validationError = null;
-    // Flag a half-typed / malformed entry explicitly instead of silently
-    // treating it as 0 and reporting a confusing "must sum to zero" error.
-    const malformed = players.find(
-      (p) =>
-        effectiveQuarters[p.id] !== undefined &&
-        effectiveQuarters[p.id] !== "" &&
-        effectiveQuarters[p.id] !== null &&
-        parseQuarter(effectiveQuarters[p.id]) === null,
-    );
-    const missing = allPlayers.some(
-      (id) =>
-        effectiveQuarters[id] === undefined ||
-        effectiveQuarters[id] === "" ||
-        effectiveQuarters[id] === null,
-    );
-    if (malformed) {
-      validationError = `Enter a quarters amount for ${malformed.name}, and choose Won or Lost.`;
-    } else if (missing) {
-      validationError = "Please enter quarters for all players";
-    } else {
-      const quartersSum = allPlayers.reduce(
-        (sum, playerId) => sum + (parseQuarter(effectiveQuarters[playerId]) ?? 0),
-        0,
-      );
-      if (Math.abs(quartersSum) > 0.001) {
-        validationError = `Quarters must sum to zero. Current sum: ${quartersSum > 0 ? "+" : ""}${quartersSum.toFixed(2)}`;
-      }
-    }
+    const validationError = validateHoleQuarters({
+      players,
+      quarters: effectiveQuarters,
+      holeHistory,
+      holeNumber: currentHole,
+    });
     if (validationError) {
       setError(validationError);
-      return;
-    }
-
-    const pushCheck = isHolePush({
-      points_delta: createPlayerMap(
-        players,
-        (p) => parseQuarter(effectiveQuarters[p.id]) ?? 0,
-      ),
-    });
-    if (
-      blocksHole18Push({
-        holeHistory,
-        holeNumber: currentHole,
-        isPush: pushCheck,
-      })
-    ) {
-      setError(
-        "Cannot push on hole 18 with a carry-over wager — someone must win this hole.",
-      );
       return;
     }
 

@@ -142,7 +142,6 @@
   "GET /tee-sheet",
   "GET /tee-sheet/upcoming",
   "GET /test-deployment",
-  "GET /wgp/betting-opportunities",
   "GET /wgp/odds-history/{game_id}",
   "GET /wgp/simplified/{game_id}/hole-history",
   "GET /wgp/simplified/{game_id}/status",

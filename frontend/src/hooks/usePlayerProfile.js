@@ -24,6 +24,9 @@ export const usePlayerProfile = () => {
   const isUnlinked = Boolean(profile && (!profile.legacy_name || profile.legacy_name.includes('@')));
   const pendingClaim = profile?.pending_claim || null;
   const needsLegacyName = isUnlinked && !legacyNameSkipped && !pendingClaim;
+  // Auth0 email logins arrive named with their email. Until they link to a
+  // club player, ask once for a real name so admins never see an email.
+  const needsName = isUnlinked && !pendingClaim && (!profile.name || profile.name.includes('@'));
   const userSub = user?.sub || null;
   const legacyNameSkipKey = userSub ? `legacy_name_skipped:${userSub}` : null;
 
@@ -141,6 +144,36 @@ export const usePlayerProfile = () => {
     [isAuthenticated, getAccessTokenSilently, legacyNameSkipKey, userSub],
   );
 
+  // Replace an email-as-name with the golfer's first and last name.
+  const updateName = useCallback(
+    async (firstName, lastName) => {
+      if (!isAuthenticated || !userSub) {
+        throw new Error("Not authenticated");
+      }
+      const token = await acquireAccessToken(getAccessTokenSilently, apiTokenOptions);
+      const response = await fetch(`${API_URL}/players/me/name`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ first_name: firstName, last_name: lastName }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(typeof body.detail === "string" ? body.detail : "Your name could not be saved. Try again.");
+      }
+      const updatedProfile = await response.json();
+      const merged = { ...(profileRef.current || {}), ...updatedProfile };
+      setProfile(merged);
+      window.dispatchEvent(new CustomEvent(PROFILE_UPDATED_EVENT, {
+        detail: { userSub, profile: merged },
+      }));
+      return merged;
+    },
+    [isAuthenticated, getAccessTokenSilently, userSub],
+  );
+
   // Skip legacy name selection (user says "I'm not in the list")
   const skipLegacyName = useCallback(() => {
     if (!legacyNameSkipKey || !userSub) return;
@@ -202,6 +235,7 @@ export const usePlayerProfile = () => {
     loading,
     error,
     needsLegacyName,
+    needsName,
     legacyNameSkipped,
     legacyNameSuggestion,
     pendingClaim,
@@ -210,6 +244,7 @@ export const usePlayerProfile = () => {
     // Compatibility alias for existing admin screens.
     isAdmin: profile ? !!profile.is_admin : null,
     updateLegacyName,
+    updateName,
     skipLegacyName,
     resetSkip,
     refetch: fetchProfile,

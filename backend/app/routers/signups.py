@@ -41,13 +41,14 @@ def _deliver_signup_confirmation(signup_id: int, to_email: str, player_name: str
     the provider accepts, so retried/duplicate signups never double-send (#317).
     Honors the recipient's ``signup_confirmations_enabled`` preference. A soft
     failure (provider returns False) is logged and reported to Sentry rather
-    than silently reported as delivered.
+    than silently reported as delivered. The row lock serializes overlapping
+    deliveries for one signup (e.g. cancel + rejoin mid-send) on PostgreSQL.
     """
     if not to_email:
         return
     db = database.SessionLocal()
     try:
-        signup = db.query(models.DailySignup).filter(models.DailySignup.id == signup_id).first()
+        signup = db.query(models.DailySignup).filter(models.DailySignup.id == signup_id).with_for_update().first()
         if signup is None or signup.confirmation_email_sent_at:
             return  # already sent, or the row vanished — never double-send
 
@@ -96,6 +97,26 @@ def _send_signup_confirmation(signup_id: int, to_email: str | None, player_name:
     ).start()
 
 
+def notify_signup_joined(signup_id: int, to_email: str | None, player_name: str, signup_date: str) -> None:
+    """Side effects of a player joining a day. Every join path calls this.
+
+    Both sends are idempotent: the confirmation is stamped once
+    (``confirmation_email_sent_at``) and same-day alerts record recipients.
+    """
+    _send_signup_confirmation(signup_id, to_email, player_name, signup_date)
+    send_same_day_signup_notifications(signup_id)
+
+
+def _day_signups(db, date_str: str) -> list[models.DailySignup]:
+    """Active signups for one day, in signup order."""
+    return (
+        db.query(models.DailySignup)
+        .filter(models.DailySignup.date == date_str, models.DailySignup.status != "cancelled")
+        .order_by(models.DailySignup.signup_time, models.DailySignup.id)
+        .all()
+    )
+
+
 @router.get("/legacy-players")
 def list_legacy_players():
     """Get all players known to the legacy tee sheet system.
@@ -136,6 +157,10 @@ class AddLegacyPlayerRequest(BaseModel):
     name: str
 
 
+class PromotePendingRequest(BaseModel):
+    name: str | None = None
+
+
 @router.post("/legacy-players", dependencies=[Depends(require_admin)])
 def admin_add_legacy_player(
     body: AddLegacyPlayerRequest,
@@ -162,13 +187,15 @@ def admin_list_pending_players(
 @router.post("/legacy-players/pending/{pending_id}/promote", dependencies=[Depends(require_admin)])
 def admin_promote_pending_player(
     pending_id: int,
+    payload: PromotePendingRequest | None = None,
     db=Depends(database.get_db),
 ):
     """Promote a pending capture into the canonical roster (admin only).
 
     Call this once the player has been added to Jeff's legacy dropdown.
+    Send ``name`` when the capture is an email or needs correcting.
     """
-    result = promote_pending_player(pending_id, db=db)
+    result = promote_pending_player(pending_id, db=db, name=payload.name if payload else None)
     if not result.get("promoted"):
         status = 400 if result.get("invalid") else 404
         raise HTTPException(status_code=status, detail=result.get("message", "Cannot promote"))
@@ -201,15 +228,7 @@ def get_weekly_signups(week_start: str = Query(description="YYYY-MM-DD format fo
             current_date = start_date + timedelta(days=i)
             date_str = current_date.strftime("%Y-%m-%d")
 
-            signups = (
-                db.query(models.DailySignup)
-                .filter(
-                    models.DailySignup.date == date_str,
-                    models.DailySignup.status != "cancelled",
-                )
-                .order_by(models.DailySignup.signup_time, models.DailySignup.id)
-                .all()
-            )
+            signups = _day_signups(db, date_str)
 
             daily_summaries.append(
                 schemas.DailySignupSummary(
@@ -380,12 +399,9 @@ def create_signup(
                 db_signup.id,
             )
 
-        # Send a confirmation email to the AUTHENTICATED player's address (never
-        # client-supplied). Non-blocking and idempotent; see _send_signup_confirmation.
-        _send_signup_confirmation(db_signup.id, getattr(current_user, "email", None), player_name, signup.date)
-
-        # Separately, alert players already signed up for this date who opted in.
-        send_same_day_signup_notifications(db_signup.id)
+        # Confirmation goes to the AUTHENTICATED player's address (never
+        # client-supplied), plus same-day alerts to opted-in players.
+        notify_signup_joined(db_signup.id, getattr(current_user, "email", None), player_name, signup.date)
 
         return schemas.DailySignupResponse.from_orm(db_signup).model_copy(update={"legacy_sync": legacy_sync})
 
@@ -446,7 +462,8 @@ def update_signup(
             logger.exception("Legacy signup sync failed for update id=%s", db_signup.id)
 
         if joined_day:
-            send_same_day_signup_notifications(db_signup.id)
+            owner = db.get(models.PlayerProfile, db_signup.player_profile_id) if db_signup.player_profile_id else None
+            notify_signup_joined(db_signup.id, owner.email if owner else None, db_signup.player_name, db_signup.date)
 
         return schemas.DailySignupResponse.from_orm(db_signup)
 
@@ -511,7 +528,7 @@ def cancel_signup(
         db.close()
 
 
-@router.post("/signups/{signup_id}/replicate-legacy")
+@router.post("/signups/{signup_id}/replicate-legacy", dependencies=[Depends(require_admin)])
 def replicate_signup_to_legacy(signup_id: int):  # type: ignore
     """Manually replicate a signup to the legacy CGI tee sheet for testing."""
     try:
@@ -566,16 +583,7 @@ def get_weekly_signups_with_messages(week_start: str = Query(description="YYYY-M
             current_date = start_date + timedelta(days=i)
             date_str = current_date.strftime("%Y-%m-%d")
 
-            # Get signups
-            signups = (
-                db.query(models.DailySignup)
-                .filter(
-                    models.DailySignup.date == date_str,
-                    models.DailySignup.status != "cancelled",
-                )
-                .order_by(models.DailySignup.signup_time, models.DailySignup.id)
-                .all()
-            )
+            signups = _day_signups(db, date_str)
 
             # Get messages
             messages = (

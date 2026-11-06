@@ -3230,6 +3230,7 @@ export interface paths {
          * @description Promote a pending capture into the canonical roster (admin only).
          *
          *     Call this once the player has been added to Jeff's legacy dropdown.
+         *     Send ``name`` when the capture is an email or needs correcting.
          */
         post: operations["admin_promote_pending_player_legacy_players_pending__pending_id__promote_post"];
         delete?: never;
@@ -4111,6 +4112,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/players/me/name": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update My Name
+         * @description Replace an email-as-name with the golfer's first and last name (once).
+         */
+        put: operations["update_my_name_players_me_name_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/players/me/round": {
         parameters: {
             query?: never;
@@ -4936,7 +4957,8 @@ export interface paths {
          *     Rate limited to once per hour to prevent excessive API calls from external sources.
          *     Results are cached for 1 hour.
          *
-         *     Scheduled jobs (with X-Scheduled-Job header) bypass rate limiting.
+         *     Requires an admin bearer token. Admin callers that also send
+         *     ``X-Scheduled-Job: true`` skip the hourly rate limit.
          *
          *     Uses isolated sessions per player to ensure failures are isolated and
          *     don't cascade to other players' data.
@@ -5294,27 +5316,6 @@ export interface paths {
          * @description Test that new deployments are working.
          */
         get: operations["test_deployment_test_deployment_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/wgp/betting-opportunities": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Current Betting Opportunities
-         * @description Get current betting opportunities based on game state.
-         *     Lightweight endpoint for real-time updates.
-         */
-        get: operations["get_current_betting_opportunities_wgp_betting_opportunities_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6360,6 +6361,13 @@ export interface components {
             /** Suggested Tee Time */
             suggested_tee_time: string;
         };
+        /** MyNameUpdate */
+        MyNameUpdate: {
+            /** First Name */
+            first_name: string;
+            /** Last Name */
+            last_name: string;
+        };
         /** OAuth2TestEmailRequest */
         OAuth2TestEmailRequest: {
             /** Test Email */
@@ -6867,6 +6875,11 @@ export interface components {
             location?: string | null;
             /** Results */
             results: components["schemas"]["PlayerRoundResult"][];
+        };
+        /** PromotePendingRequest */
+        PromotePendingRequest: {
+            /** Name */
+            name?: string | null;
         };
         /**
          * PublicPlayerProfileResponse
@@ -10031,7 +10044,9 @@ export interface operations {
             query?: {
                 force?: boolean;
             };
-            header?: never;
+            header?: {
+                "x-internal-job-token"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -12169,7 +12184,9 @@ export interface operations {
     sync_ghin_handicaps_ghin_sync_handicaps_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-internal-job-token"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -12182,6 +12199,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -12278,7 +12304,9 @@ export interface operations {
             query?: {
                 max_pages?: number;
             };
-            header?: never;
+            header?: {
+                "x-internal-job-token"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -12569,7 +12597,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PromotePendingRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -14023,6 +14055,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_my_name_players_me_name_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MyNameUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayerProfileResponse"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -16181,26 +16246,6 @@ export interface operations {
         };
     };
     test_deployment_test_deployment_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_current_betting_opportunities_wgp_betting_opportunities_get: {
         parameters: {
             query?: never;
             header?: never;

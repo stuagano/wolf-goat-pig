@@ -406,7 +406,7 @@ def generate_and_save_pairings(  # type: ignore
         db.close()
 
 
-@router.post("/pairings/{date}/notify")
+@router.post("/pairings/{date}/notify", dependencies=[Depends(require_admin)])
 def resend_pairing_notifications(date: str = Path(description="Date in YYYY-MM-DD format")):  # type: ignore
     """Resend pairing notifications for an existing pairing.
 
@@ -439,7 +439,7 @@ def resend_pairing_notifications(date: str = Path(description="Date in YYYY-MM-D
         db.close()
 
 
-@router.post("/pairings/run-saturday-job")
+@router.post("/pairings/run-saturday-job", dependencies=[Depends(require_admin)])
 def run_saturday_pairing_job():  # type: ignore
     """Manually trigger the Saturday pairing job.
 
@@ -466,7 +466,7 @@ def run_saturday_pairing_job():  # type: ignore
         db.close()
 
 
-@router.delete("/pairings/{date}")
+@router.delete("/pairings/{date}", dependencies=[Depends(require_admin)])
 def delete_generated_pairings(date: str = Path(description="Date in YYYY-MM-DD format")):  # type: ignore
     """Delete generated pairings for a specific date.
 

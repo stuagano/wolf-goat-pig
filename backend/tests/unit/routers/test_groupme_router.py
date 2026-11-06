@@ -5,10 +5,14 @@ All GroupMe HTTP calls are mocked; no network.
 
 from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
 from app.services import groupme_service
+
+# Behavior tests for guarded routes; auth is tested in test_write_endpoints_require_auth.py.
+pytestmark = pytest.mark.usefixtures("job_caller")
 
 client = TestClient(app)
 

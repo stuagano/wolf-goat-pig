@@ -14,6 +14,9 @@ from app import database, models
 from app.main import app
 from app.utils.admin_auth import require_admin
 
+# Behavior tests for guarded routes; auth is tested in test_write_endpoints_require_auth.py.
+pytestmark = pytest.mark.usefixtures("signed_in_admin")
+
 client = TestClient(app)
 
 

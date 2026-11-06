@@ -16,15 +16,6 @@ class DecisionQuality(Enum):
     TERRIBLE = "terrible"
 
 
-class InsightCategory(Enum):
-    PARTNERSHIP = "partnership"
-    BETTING = "betting"
-    TIMING = "timing"
-    RISK_MANAGEMENT = "risk"
-    SHOT_SELECTION = "shots"
-    STRATEGY = "strategy"
-
-
 @dataclass
 class DecisionPoint:
     """Represents a key decision point during the hole"""

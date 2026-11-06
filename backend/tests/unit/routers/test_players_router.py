@@ -374,7 +374,7 @@ class TestPublicProfile:
         fake_service = MagicMock()
         fake_service.get_player_history.return_value = rounds
 
-        with patch("app.routers.players.get_unified_data_service", return_value=fake_service):
+        with patch("app.routers.players_by_id.get_unified_data_service", return_value=fake_service):
             resp = client.get(f"/players/{player_id}/public-profile")
 
         assert resp.status_code == 200

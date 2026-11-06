@@ -35,6 +35,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from ..database import SessionLocal
 from ..models import LegacyRosterPlayer, PendingLegacyPlayer, PlayerProfile
 from ..utils.time import utc_now
+from .pending_queue_service import (
+    capture_pending_player,
+    dismiss_pending_player,
+    list_pending_players,
+    promote_pending_player,
+)
+from .pending_signup_service import resolve_pending_for_profile
 
 logger = logging.getLogger(__name__)
 
@@ -106,12 +113,6 @@ def get_legacy_players(db: Any = None) -> list[str]:
     return sorted(_canonical_names(db))
 
 
-def is_valid_legacy_player(name: str, db: Any = None) -> bool:
-    """Check if a player name exists in the canonical roster (case-insensitive)."""
-    lowered = name.lower()
-    return any(p.lower() == lowered for p in _canonical_names(db))
-
-
 def get_canonical_name(name: str, db: Any = None) -> str | None:
     """Get the canonical (correctly cased) name for a player, or None."""
     lowered = name.lower()
@@ -162,7 +163,11 @@ def link_profile_to_canonical_name(
         return {"linked": False, "status": "missing_profile"}
 
     current_name = (profile.legacy_name or "").strip()
+    if "@" in current_name:
+        # An email in legacy_name is a sign-up placeholder, not a roster link.
+        current_name = ""
     if current_name.casefold() == canonical_name.casefold():
+        resolve_pending_for_profile(db, player_profile_id, current_name)
         return {"linked": True, "status": "already_linked"}
 
     if is_canonical_name_claimed(
@@ -180,6 +185,8 @@ def link_profile_to_canonical_name(
 
     profile.legacy_name = canonical_name
     profile.updated_at = utc_now().isoformat()
+    # A linked profile needs no admin action, however it got linked.
+    resolve_pending_for_profile(db, player_profile_id, canonical_name)
     return {
         "linked": True,
         "status": "relinked" if current_name else "linked",
@@ -301,161 +308,6 @@ def add_legacy_player(name: str, *, source: str = "admin", db: Any = None) -> di
             db.close()
 
 
-# ---------------------------------------------------------------------------
-# Pending capture queue
-# ---------------------------------------------------------------------------
-def capture_pending_player(
-    name: str,
-    *,
-    email: str | None = None,
-    player_profile_id: int | None = None,
-    db: Any = None,
-) -> dict:
-    """Capture a self-signed-up golfer who has no canonical match yet.
-
-    No-op when the name is already canonical or already queued. Returns a dict
-    describing what happened (``captured`` flag + reason).
-    """
-    name = (name or "").strip()
-    if not name or name == "Unknown Player":
-        return {"captured": False, "reason": "blank_or_unknown"}
-
-    own_session = db is None
-    if own_session:
-        db = SessionLocal()
-    try:
-        if get_canonical_name(name, db):
-            return {"captured": False, "reason": "already_canonical"}
-
-        already = (
-            db.query(PendingLegacyPlayer)
-            .filter(PendingLegacyPlayer.name == name, PendingLegacyPlayer.status == "pending")
-            .first()
-        )
-        if already:
-            return {"captured": False, "reason": "already_pending", "pending_id": already.id}
-
-        row = PendingLegacyPlayer(
-            name=name,
-            email=email,
-            player_profile_id=player_profile_id,
-            status="pending",
-            created_at=utc_now().isoformat(),
-        )
-        db.add(row)
-        db.commit()
-        db.refresh(row)
-        logger.info(f"Captured pending legacy player '{name}' (id={row.id})")
-        return {"captured": True, "pending_id": row.id, "name": name}
-    finally:
-        if own_session:
-            db.close()
-
-
-def list_pending_players(status: str = "pending", db: Any = None) -> list[dict]:
-    """List capture-queue rows for the given status (default: pending)."""
-    own_session = db is None
-    if own_session:
-        db = SessionLocal()
-    try:
-        rows = (
-            db.query(PendingLegacyPlayer)
-            .filter(PendingLegacyPlayer.status == status)
-            .order_by(PendingLegacyPlayer.created_at.desc())
-            .all()
-        )
-        return [
-            {
-                "id": r.id,
-                "name": r.name,
-                "email": r.email,
-                "player_profile_id": r.player_profile_id,
-                "status": r.status,
-                "created_at": r.created_at,
-                "resolved_at": r.resolved_at,
-            }
-            for r in rows
-        ]
-    finally:
-        if own_session:
-            db.close()
-
-
-def promote_pending_player(pending_id: int, db: Any = None) -> dict:
-    """Promote a pending capture into the canonical roster.
-
-    Call this once the player has been added to Jeff's legacy dropdown. When
-    the capture came from an authenticated profile, link that same profile to
-    the newly canonical name. Never overwrite a different existing link.
-    """
-    own_session = db is None
-    if own_session:
-        db = SessionLocal()
-    try:
-        row = db.query(PendingLegacyPlayer).filter(PendingLegacyPlayer.id == pending_id).first()
-        if not row:
-            return {"promoted": False, "message": f"No pending player with id={pending_id}"}
-        if row.status != "pending":
-            return {"promoted": False, "message": f"Pending player id={pending_id} is already {row.status}"}
-
-        roster_result = add_legacy_player(row.name, source="promoted", db=db)
-        if roster_result.get("invalid"):
-            return {"promoted": False, "invalid": True, "message": roster_result["message"]}
-        canonical_name = str(roster_result.get("canonical_name") or row.name)
-
-        profile_link_status = "no_profile"
-        if row.player_profile_id is not None:
-            link_result = link_profile_to_canonical_name(db, row.player_profile_id, canonical_name)
-            profile_link_status = link_result["status"]
-            if profile_link_status == "missing_profile":
-                logger.warning(
-                    "Promoted pending player '%s', but player profile id=%s no longer exists",
-                    row.name,
-                    row.player_profile_id,
-                )
-            elif not link_result["linked"]:
-                logger.warning(
-                    "Promoted pending player '%s' without linking profile id=%s (status=%s)",
-                    row.name,
-                    row.player_profile_id,
-                    profile_link_status,
-                )
-
-        row.status = "promoted"
-        row.resolved_at = utc_now().isoformat()
-        db.commit()
-        logger.info(f"Promoted pending player '{row.name}' (id={pending_id}) to canonical roster")
-        return {
-            "promoted": True,
-            "canonical_name": canonical_name,
-            "profile_linked": profile_link_status in {"linked", "already_linked"},
-            "profile_link_status": profile_link_status,
-        }
-    finally:
-        if own_session:
-            db.close()
-
-
-def dismiss_pending_player(pending_id: int, db: Any = None) -> dict:
-    """Dismiss a pending capture (e.g. a misspelling of an existing player)."""
-    own_session = db is None
-    if own_session:
-        db = SessionLocal()
-    try:
-        row = db.query(PendingLegacyPlayer).filter(PendingLegacyPlayer.id == pending_id).first()
-        if not row:
-            return {"dismissed": False, "message": f"No pending player with id={pending_id}"}
-
-        row.status = "dismissed"
-        row.resolved_at = utc_now().isoformat()
-        db.commit()
-        logger.info(f"Dismissed pending player '{row.name}' (id={pending_id})")
-        return {"dismissed": True, "name": row.name}
-    finally:
-        if own_session:
-            db.close()
-
-
 def _looks_like_dropdown_name(name: str) -> bool:
     """Heuristic: does this look like a canonical 'First Last' dropdown name?
 
@@ -555,6 +407,21 @@ def sync_roster_from_members(names: Any, db: Any = None) -> dict:
             db.close()
 
 
-def reload_players() -> int:
-    """Return the current canonical roster size (kept for API compatibility)."""
-    return len(get_legacy_players())
+# The pending capture queue lives in ``pending_queue_service``; its functions
+# are re-exported here so existing ``legacy_player_service`` imports keep working.
+__all__ = [
+    "add_legacy_player",
+    "capture_pending_player",
+    "dismiss_pending_player",
+    "find_similar_players",
+    "find_unclaimed_similar_players",
+    "get_canonical_name",
+    "get_legacy_players",
+    "is_canonical_name_claimed",
+    "link_profile_to_canonical_name",
+    "list_pending_players",
+    "promote_pending_player",
+    "seed_roster_if_empty",
+    "sync_roster_from_members",
+    "validate_player_for_legacy",
+]

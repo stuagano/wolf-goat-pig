@@ -54,15 +54,16 @@ backend/
 
 ### Key Backend Modules
 
-- `app/routers/` — FastAPI routers split by area: `games.py`, `games_holes.py`,
-  `games_players.py`, `players.py`, `courses.py`, `leaderboard.py`,
+- `app/routers/` — FastAPI routers split by area: `games.py` (aggregates
+  `games_setup.py`, `games_lifecycle.py`, `games_scorecard.py`,
+  `games_queries.py`), `games_holes.py`, `games_players.py`, `players.py`, `courses.py`, `leaderboard.py`,
   `callouts.py`, `ghin.py`, `foretees.py`, `commissioner.py`, `admin.py`,
   `health.py`, and more.
 - `app/services/` — integration and business services: `email_service.py`,
   `ghin_service.py`, `foretees_service.py`, `callout_service.py`,
   `legacy_player_service.py`, `matchmaking_service.py`, etc.
 - `app/engine/` — scoring and wagering engine: `scoring.py`, `betting_actions.py`,
-  `partnership.py`, `aardvark.py`, `simulation_api.py`.
+  `partnership.py`, `aardvark.py`.
 
 ## Frontend Structure (`/frontend`)
 
@@ -96,8 +97,9 @@ frontend/
 - `src/config/api.config.js` — resolves the backend base URL from
   `import.meta.env.VITE_API_URL`.
 - `src/context/AuthContext.jsx` — Auth0 wiring (reads `VITE_AUTH0_*`).
-- `src/services/` — `fetchJson.jsx`, `syncManager.jsx`, `offlineStorage.jsx`,
-  `gameReconcile.js`, `cacheManager.jsx`, `ghinService.js`.
+- `src/services/` — `fetchJson.jsx`, `syncManager.jsx` (offline queue + the
+  load-time server-vs-local rule), `offlineStorage.jsx`, `cacheManager.jsx`,
+  `ghinService.js`.
 
 ## Documentation (`/docs`)
 

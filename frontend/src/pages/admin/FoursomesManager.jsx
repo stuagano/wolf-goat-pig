@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from '../../components/ui';
 import { apiConfig } from '../../config/api.config';
+import { useAuthenticatedFetch } from '../../hooks/useAuthenticatedFetch';
 
 const API_URL = apiConfig.baseUrl;
 
 const FoursomesManager = () => {
+  const authFetch = useAuthenticatedFetch();
   const [selectedDate, setSelectedDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -45,7 +47,7 @@ const FoursomesManager = () => {
     setResult(null);
 
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `${API_URL}/pairings/${selectedDate}/generate?force=${force}&send_notifications=true`,
         {
           method: 'POST',
@@ -72,7 +74,7 @@ const FoursomesManager = () => {
     if (!window.confirm('Are you sure you want to delete these foursomes?')) return;
 
     try {
-      const response = await fetch(`${API_URL}/pairings/${selectedDate}`, {
+      const response = await authFetch(`${API_URL}/pairings/${selectedDate}`, {
         method: 'DELETE'
       });
 
@@ -94,7 +96,7 @@ const FoursomesManager = () => {
     setResult(null);
 
     try {
-      const response = await fetch(`${API_URL}/pairings/run-saturday-job`, {
+      const response = await authFetch(`${API_URL}/pairings/run-saturday-job`, {
         method: 'POST'
       });
 

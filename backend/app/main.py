@@ -4,7 +4,6 @@ import traceback
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from typing import Any
 
 from fastapi import (
     Depends,
@@ -16,7 +15,6 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 
 from . import database, models, schemas
 from .badge_routes import router as badge_router
@@ -410,38 +408,6 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     return JSONResponse(status_code=500, content={"error": "Internal server error"})
 
 
-async def run_seeding_process():
-    """Run the data seeding process during startup."""
-    try:
-        from .seed_data import seed_all_data
-
-        logger.info("🌱 Starting data seeding process...")
-
-        # Run seeding in a try-catch to prevent startup failure
-        seeding_results = seed_all_data(force_reseed=False)
-
-        if seeding_results["status"] == "success":
-            logger.info("✅ Data seeding completed successfully")
-
-            # Log seeding summary
-            if "results" in seeding_results:
-                for component, result in seeding_results["results"].items():
-                    added_count = result.get("added", 0)
-                    if added_count > 0:
-                        logger.info(f"  📊 {component}: {added_count} items added")
-
-        elif seeding_results["status"] == "warning":
-            logger.warning(f"⚠️ Data seeding completed with warnings: {seeding_results.get('message')}")
-
-        else:
-            logger.error(f"❌ Data seeding failed: {seeding_results.get('message')}")
-            logger.warning("🔄 Application will continue with fallback data")
-
-    except Exception as e:
-        logger.error(f"❌ Critical error during seeding: {e}")
-        logger.warning("🔄 Application will continue with fallback data")
-
-
 @app.get("/rules", response_model=list[schemas.Rule])
 def get_rules():
     """Get Wolf Goat Pig rules"""
@@ -456,7 +422,9 @@ def get_rules():
         db.close()
 
 
-# Games routes moved to routers/games.py, routers/games_holes.py, routers/games_players.py
+# Games routes live in routers/games.py (aggregator over games_setup.py,
+# games_lifecycle.py, games_scorecard.py, games_queries.py), plus
+# routers/games_holes.py and routers/games_players.py.
 
 # WGP gameplay /action engine retired (orphaned — frontend never called it).
 # The WolfGoatPigGame engine code remains as a state-generation library used by
@@ -470,76 +438,6 @@ def get_rules():
 
 # Banner and admin routes moved to routers/admin.py
 
-
-# ============================================================================
-# SIMULATION API ENDPOINTS
-# ============================================================================
-
-
-class BettingDecisionRequest(BaseModel):
-    """Request model for betting decisions"""
-
-    decision: dict[str, Any]
-
-
-def _get_current_hole_state():
-    """Safely fetch the current hole state from the active simulation."""
-    if not wgp_simulation:  # type: ignore
-        return None
-    return wgp_simulation.hole_states.get(wgp_simulation.current_hole)  # type: ignore
-
-
-def _get_default_player_id(preferred_role: str = "captain") -> str | None:
-    """
-    Provide a sensible default player identifier for legacy API calls that
-    don't explicitly include a player context.
-    """
-    hole_state = _get_current_hole_state()
-    if hole_state and getattr(hole_state, "teams", None):
-        if preferred_role == "captain" and getattr(hole_state.teams, "captain", None):
-            return hole_state.teams.captain  # type: ignore
-        if preferred_role == "solo" and getattr(hole_state.teams, "solo_player", None):
-            return hole_state.teams.solo_player  # type: ignore
-
-    if wgp_simulation and getattr(wgp_simulation, "players", None):  # type: ignore
-        for player in wgp_simulation.players:  # type: ignore
-            if player.id == "human":
-                return player.id  # type: ignore
-        return wgp_simulation.players[0].id if wgp_simulation.players else None  # type: ignore
-    return None
-
-
-def _get_opposing_team_id(reference_player_id: str | None = None) -> str:
-    """
-    Determine the opposing team identifier for double responses.
-    Falls back to generic label when team structure is not yet established.
-    """
-    hole_state = _get_current_hole_state()
-    if not hole_state or not getattr(hole_state, "teams", None):
-        return "opponents"
-
-    if hole_state.teams.type == "partners":
-        team1 = set(hole_state.teams.team1 or [])
-        team2 = set(hole_state.teams.team2 or [])
-
-        if reference_player_id and reference_player_id in team1:
-            return "team2"
-        if reference_player_id and reference_player_id in team2:
-            return "team1"
-        return "team2" if team1 else "opponents"
-
-    return "opponents"
-
-
-def _get_pending_partnership_request() -> dict[str, Any]:
-    """Return any pending partnership request details from the current hole."""
-    hole_state = _get_current_hole_state()
-    if hole_state and getattr(hole_state, "teams", None):
-        return hole_state.teams.pending_request or {}
-    return {}
-
-
-# Probability helpers moved to routers/betting_odds.py
 
 # Legacy Player + Daily Sign-up endpoints moved to routers/signups.py
 

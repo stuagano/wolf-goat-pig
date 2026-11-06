@@ -161,23 +161,11 @@
     "waiver": null
   },
   "correction-save-feedback": {
-    "at": "2026-10-26T15:55:36.237746+00:00",
+    "at": "2026-11-01T17:54:57.628044+00:00",
     "detail": null,
-    "duration": 4.335,
-    "files": {
-      "frontend/src/components/game/EditHoleModal.jsx": "sha256:16cc344d88cf95d9ea99e03e0cc6243f04b09f45e7b240cf4fa5831fde1abc2d",
-      "frontend/src/components/game/Scorecard.jsx": "sha256:26cef3cd2f6e779c2c1e9617e1db4c3732ec4dae655e94f8cc8cb2e6099b0647",
-      "frontend/src/components/game/__tests__/EditHoleModal.save.test.jsx": "sha256:ddbf87bc9127d8d34ab883ca3fa40bc16796e4a5ef9a9eb765e77117a7f02348",
-      "frontend/src/hooks/__tests__/useGameData.test.js": "sha256:732c5813dd6fa2896010c45e1d60da1576af3ccb5842bd4afde4a49c3c956703",
-      "frontend/src/hooks/useCorrectionSyncFeedback.js": "sha256:08a0b2a0aad8fb3c3fc939023cf48d4c4d5f9c2bf1640c204598ba0affa0d714",
-      "frontend/src/hooks/useGameData.js": "sha256:2de40af88d7d53f0002a2cba4a4627a530b860458962747013802a3f50571a47",
-      "frontend/src/hooks/useHoleSubmission.js": "sha256:023571557e24059f6b58860223bfbc392ada5b87be3f228f628870eba95ab085",
-      "frontend/src/pages/SimpleScorekeeperPage.jsx": "sha256:7d2b89453c0a8f225008bc1da29e8da5cfb09f6a45ff8d0af024012f16044a90",
-      "frontend/src/pages/__tests__/SimpleScorekeeperPage.syncWarning.test.jsx": "sha256:ae640c369122c9876f0193274aad18e0c69dccdf0cf7fdeb6b5a77cb8bdde337",
-      "frontend/src/services/__tests__/syncManager.correlation.test.js": "sha256:e01fdea17cecdfe0a7cc31a5c32422cc65aeb81a30d98b6093f73c5e7e9abf8b",
-      "frontend/src/services/syncManager.jsx": "sha256:1673868c080d1e5c7754d9b84068112d9d2b9dca38b350eee4372bf5fd676597"
-    },
-    "fingerprint": "sha256:96fcdd6f2ccbf4be13b4b5352c6650d5610969c303bb79982a25eb994f69fef7",
+    "duration": null,
+    "files": null,
+    "fingerprint": "sha256:3225241a1611695906b6a27e49d219c699780295227ed8a4c7fd39ce7efc8831",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -344,16 +332,6 @@
     "tier": "cheap",
     "waiver": null
   },
-  "hole-completion-points-zero-sum": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
-    "detail": null,
-    "duration": null,
-    "files": null,
-    "fingerprint": "sha256:0ca6f74daff172a46ebc9af1d5ea59794658d60c98129223cf56ed2d29d6c90d",
-    "result": "pass",
-    "tier": "cheap",
-    "waiver": null
-  },
   "leaderboard-from-db": {
     "at": "2026-09-02T16:16:54.165694+00:00",
     "detail": null,
@@ -465,11 +443,11 @@
     "waiver": null
   },
   "new-player-capture-persists": {
-    "at": "2026-10-26T19:52:15.297181+00:00",
+    "at": "2026-11-01T17:01:55.086021+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:0bdcf3e85f3b55764fc5e024e04e5b3c1c6c057cc09d015abb01250b04f06537",
+    "fingerprint": "sha256:9eeb34d9285742276711fb4449d780252ded1b4748685f1c65237f6a455af844",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -577,11 +555,11 @@
     "waiver": null
   },
   "resend-email-contract": {
-    "at": "2026-10-26T19:49:59.587031+00:00",
+    "at": "2026-10-27T04:31:01.500085+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:c9ea4e470392c6e85e91d1ffb72c0019a5ca43e8aa90e0f56811a6249730faee",
+    "fingerprint": "sha256:ef35c3843388a72adaaf3e71949094ce17f99e2174280765bafcac29003cc037",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -627,21 +605,21 @@
     "waiver": null
   },
   "signup-server-owns-identity": {
-    "at": "2026-10-26T19:52:47.618077+00:00",
+    "at": "2026-11-01T17:01:44.441287+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:5247d2f6b4009adac5a0d6d3435445df0f3f101b2eaeeda416720b2329da5003",
+    "fingerprint": "sha256:842ca9e17378850d51f0769d0068d31f08ee9b792f81500398d90161428723bd",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "signups-create-persists": {
-    "at": "2026-10-26T19:50:39.283753+00:00",
+    "at": "2026-11-01T17:01:40.976242+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:255238fda38606d162b2e2e2d6dc495183d6f4d92ff851f9c58b42fc2b00ff9b",
+    "fingerprint": "sha256:16267083612f4954990089b6fbc90735640a6f974588d27f0c28611943b46c9c",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -657,14 +635,11 @@
     "waiver": null
   },
   "stale-local-heals-from-server": {
-    "at": "2026-10-26T15:55:40.704633+00:00",
+    "at": "2026-11-01T17:55:02.222165+00:00",
     "detail": null,
-    "duration": 1.589,
-    "files": {
-      "frontend/src/services/gameReconcile.js": "sha256:de188fdd57515e8c127eaf6194784cec629bc35753bc78297c6ec70bc4bc0445",
-      "frontend/src/services/syncManager.jsx": "sha256:1673868c080d1e5c7754d9b84068112d9d2b9dca38b350eee4372bf5fd676597"
-    },
-    "fingerprint": "sha256:b162331b0fdd57717827beb4b0fc69a094512b909da0d1193a36afe6e51008a2",
+    "duration": null,
+    "files": null,
+    "fingerprint": "sha256:f6a35d95eea2db002366c511c14f5b4f0a8d9fb8aa7e3726a42cb2cbc8e844e3",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -720,11 +695,11 @@
     "waiver": null
   },
   "tee-sheet-contract": {
-    "at": "2026-10-26T19:50:17.728792+00:00",
+    "at": "2026-11-01T17:02:08.332910+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:a9863bb6f54aabdd6798a5bacb0f60935a734014e4cc9b202db4b5730f41f1eb",
+    "fingerprint": "sha256:a120b5f9cc0119ffa8fb16170c6d1c23aaabfdc11ea9d5af991e358bf700b293",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -750,11 +725,11 @@
     "waiver": null
   },
   "welcome-email-sent": {
-    "at": "2026-10-26T19:52:04.708291+00:00",
+    "at": "2026-10-27T04:31:02.887157+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:aecd876a361c559a2e4db684900290b7d1160a95e103ca9eb22c620c9b633eda",
+    "fingerprint": "sha256:2abbf340c88d630204ee0c27ac29d04833803fca829ac61b55adb00248a281ab",
     "result": "pass",
     "tier": "cheap",
     "waiver": null

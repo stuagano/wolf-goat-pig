@@ -126,6 +126,37 @@ describe("RosterManager", () => {
     });
   });
 
+  test("PROMOTE sends the captured name by default", async () => {
+    render(<RosterManager />);
+    const row = await screen.findByTestId("pending-row-11");
+    fireEvent.click(within(row).getByText("Promote"));
+    await waitFor(() => {
+      const call = findCall((url) => url.endsWith("/legacy-players/pending/11/promote"));
+      expect(JSON.parse(call[1].body)).toEqual({ name: "Alice Adams" });
+    });
+  });
+
+  test("email-named sign-up needs a typed name before PROMOTE", async () => {
+    installAdminFetch([
+      { id: 33, name: "golfer@example.com", email: "golfer@example.com", status: "pending" },
+    ]);
+    render(<RosterManager />);
+    const row = await screen.findByTestId("pending-row-33");
+    const input = within(row).getByLabelText(/Roster name for golfer@example.com/i);
+    expect(input).toHaveValue("");
+
+    fireEvent.click(within(row).getByText("Promote"));
+    expect(await screen.findByText(/Enter golfer@example.com's name/i)).toBeInTheDocument();
+    expect(findCall((url) => url.endsWith("/pending/33/promote"))).toBeFalsy();
+
+    fireEvent.change(input, { target: { value: "Gary Golfer" } });
+    fireEvent.click(within(row).getByText("Promote"));
+    await waitFor(() => {
+      const call = findCall((url) => url.endsWith("/legacy-players/pending/33/promote"));
+      expect(JSON.parse(call[1].body)).toEqual({ name: "Gary Golfer" });
+    });
+  });
+
   test("DISMISS posts to the dismiss endpoint with bearer auth", async () => {
     render(<RosterManager />);
     await screen.findByTestId("pending-row-22");

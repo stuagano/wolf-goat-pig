@@ -4,6 +4,9 @@ import useTeeTimes from '../../hooks/useTeeTimes';
 import { FORETEES_ENABLED } from '../../config/features';
 import BookingModal from '../foretees/BookingModal';
 import { api } from '../../api/client';
+import { useAuth0 } from '@auth0/auth0-react';
+import { acquireAccessToken, apiTokenOptions } from '../../services/authToken';
+import { usePlayerProfile } from '../../hooks/usePlayerProfile';
 
 // Get the next occurrence of a day-of-week (0=Mon, 6=Sun)
 const getNextDateForDay = (dayOfWeek) => {
@@ -38,6 +41,9 @@ const formatDateDisplay = (dateStr) => {
 
 const MatchmakingSuggestions = () => {
   const navigate = useNavigate();
+  const { getAccessTokenSilently } = useAuth0();
+  // "Notify All" emails every matched player, so the server only allows admins.
+  const { isAdmin } = usePlayerProfile();
   const {
     fetchTeeTimes,
     bookTeeTime, bookingLoading, clearBookingError,
@@ -100,7 +106,10 @@ const MatchmakingSuggestions = () => {
   const sendAllNotifications = async () => {
     try {
       setSendingNotifications(true);
-      const { data: result } = await api.POST('/matchmaking/create-and-notify', {});
+      const token = await acquireAccessToken(getAccessTokenSilently, apiTokenOptions);
+      const { data: result } = await api.POST('/matchmaking/create-and-notify', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       if (result) {
         alert(`Sent ${result.notifications_sent} notifications for ${result.matches_created} matches!`);
@@ -323,6 +332,7 @@ const MatchmakingSuggestions = () => {
         >
           Refresh
         </button>
+        {isAdmin && (
         <button
           onClick={sendAllNotifications}
           disabled={sendingNotifications || matches.length === 0}
@@ -340,6 +350,7 @@ const MatchmakingSuggestions = () => {
         >
           {sendingNotifications ? 'Sending...' : 'Notify All'}
         </button>
+        )}
       </div>
 
       {/* Results Count */}

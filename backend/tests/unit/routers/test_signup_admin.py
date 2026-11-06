@@ -11,7 +11,7 @@ from sqlalchemy.pool import StaticPool
 from app.database import Base, get_db
 from app.main import app
 from app.models import DailySignup, PlayerProfile
-from app.routers import signup_admin
+from app.routers import signup_admin, signups
 from app.services.auth_service import get_current_auth0_user
 from app.utils.time import club_today
 
@@ -46,8 +46,8 @@ def env(monkeypatch):
 
     sent = []
     alerted = []
-    monkeypatch.setattr(signup_admin, "_send_signup_confirmation", lambda *args: sent.append(args))
-    monkeypatch.setattr(signup_admin, "send_same_day_signup_notifications", lambda *args: alerted.append(args))
+    monkeypatch.setattr(signups, "_send_signup_confirmation", lambda *args: sent.append(args))
+    monkeypatch.setattr(signups, "send_same_day_signup_notifications", lambda *args: alerted.append(args))
     monkeypatch.setenv("SUPER_ADMIN_EMAILS", "admin@example.com")
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_auth0_user] = lambda: ADMIN

@@ -806,32 +806,3 @@ class LeaderboardService:
                 )
 
         return leaderboard
-
-
-# ====================================================================================
-# SINGLETON PATTERN
-# ====================================================================================
-
-_leaderboard_service_instance: LeaderboardService | None = None
-
-
-def get_leaderboard_service(db: Session) -> LeaderboardService:
-    """
-    Get or create the singleton LeaderboardService instance.
-
-    Args:
-        db: SQLAlchemy database session
-
-    Returns:
-        LeaderboardService instance
-    """
-    global _leaderboard_service_instance
-
-    if _leaderboard_service_instance is None:
-        _leaderboard_service_instance = LeaderboardService(db)
-        logger.info("Created new LeaderboardService singleton instance")
-    else:
-        # Update the database session for the existing instance
-        _leaderboard_service_instance.db = db
-
-    return _leaderboard_service_instance

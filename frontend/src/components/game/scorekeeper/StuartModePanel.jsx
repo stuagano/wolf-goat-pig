@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { apiConfig } from '../../../config/api.config';
 import { generateInsights } from '../../../utils/stuartModeInsights';
+import { useAuthenticatedFetch } from '../../../hooks/useAuthenticatedFetch';
 
 const SOLO_BADGE = {
   go:      { label: 'Solo ✓', bg: '#4CAF50', color: 'white' },
@@ -27,6 +28,7 @@ const StuartModePanel = ({
   theme,
   aiMoves = [],
 }) => {
+  const authFetch = useAuthenticatedFetch();
   const [teeShots, setTeeShots] = useState({});
 
   // Reset tee shot results whenever the hole changes
@@ -66,7 +68,7 @@ const StuartModePanel = ({
     setWhispererLoading(true);
     setWhispererOpen(true);
     try {
-      const resp = await fetch(`${apiConfig.baseUrl}/api/commissioner/chat`, {
+      const resp = await authFetch(`${apiConfig.baseUrl}/api/commissioner/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

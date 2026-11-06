@@ -24,6 +24,7 @@ from ..services.player_name_index import profile_id_for_member, profile_ids_by_m
 from ..services.spreadsheet_sync_service import PRIMARY_SHEET_ID, PRIMARY_SHEET_TAB_GID
 from ..services.unified_data_service import get_unified_data_service
 from ..utils.admin_auth import admin_role, require_admin
+from ..utils.job_auth import require_admin_or_job_token
 from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
@@ -615,7 +616,7 @@ def set_official_team_logos(db: Session = Depends(get_db)) -> Any:
     return {"updated": updated, "count": len(updated)}
 
 
-@router.post("/livsow/snapshot")
+@router.post("/livsow/snapshot", dependencies=[Depends(require_admin_or_job_token)])
 def post_livsow_snapshot(force: bool = Query(False), db: Session = Depends(get_db)) -> Any:
     """Run the roster snapshot/diff check now. Called by the daily cron and
     available for manual triggering. Idempotent and guarded — safe to call

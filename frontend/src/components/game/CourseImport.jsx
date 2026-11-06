@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiConfig } from '../../config/api.config';
+import { useAuthenticatedFetch } from '../../hooks/useAuthenticatedFetch';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -58,6 +59,7 @@ const inputStyle = {
 };
 
 const CourseImport = ({ onClose, onCourseImported }) => {
+  const authFetch = useAuthenticatedFetch();
   const [importSources, setImportSources] = useState([]);
   const [selectedSource, setSelectedSource] = useState(null);
   const [courseName, setCourseName] = useState("");
@@ -116,7 +118,7 @@ const CourseImport = ({ onClose, onCourseImported }) => {
     setSuccess("");
 
     try {
-      const response = await fetch(`${API_URL}/courses/import/preview`, {
+      const response = await authFetch(`${API_URL}/courses/import/preview`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -148,7 +150,7 @@ const CourseImport = ({ onClose, onCourseImported }) => {
     const formData = new FormData();
     formData.append("file", selectedFile);
 
-    return await fetch(`${API_URL}/courses/import/file`, {
+    return await authFetch(`${API_URL}/courses/import/file`, {
       method: "POST",
       body: formData,
     });
@@ -156,7 +158,7 @@ const CourseImport = ({ onClose, onCourseImported }) => {
 
   // Extracted function for search-based import
   const handleSearchImport = async () => {
-    return await fetch(`${API_URL}/courses/import/search`, {
+    return await authFetch(`${API_URL}/courses/import/search`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

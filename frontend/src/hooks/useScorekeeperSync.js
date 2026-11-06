@@ -12,7 +12,7 @@
 import { useState, useEffect } from "react";
 import { apiConfig } from "../config/api.config";
 import syncManager from "../services/syncManager";
-import { resolveCarryOverForHole } from "../utils/carryOver";
+import { resolveCarryOverForHole } from "../utils/holeRules";
 
 const API_URL = apiConfig.baseUrl;
 

@@ -18,16 +18,6 @@ class GamePhase(Enum):
     HOEPFINGER = "hoepfinger"  # Final holes with Goat choosing position
 
 
-class PlayerRole(Enum):
-    """Player roles in Wolf Goat Pig"""
-
-    CAPTAIN = "captain"
-    SECOND_CAPTAIN = "second_captain"  # 6-man game only
-    AARDVARK = "aardvark"  # 5th or 6th in rotation
-    INVISIBLE_AARDVARK = "invisible_aardvark"  # 4-man game only
-    GOAT = "goat"  # Player furthest down
-
-
 @dataclass
 class TimelineEvent:
     """Represents a chronological event in the hole timeline"""

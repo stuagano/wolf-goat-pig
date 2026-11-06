@@ -22,6 +22,7 @@ from .. import models, schemas
 from ..course_import import import_course_by_name, import_course_from_json
 from ..database import get_db
 from ..state.course_manager import CourseManager
+from ..utils.admin_auth import require_admin
 from ..utils.api_helpers import ApiResponse, handle_api_errors
 from ..utils.time import utc_now
 
@@ -277,7 +278,7 @@ def get_course_by_id(course_id: int) -> dict[str, Any]:
     raise HTTPException(status_code=500, detail="Invalid courses data structure")
 
 
-@router.post("", response_model=dict)
+@router.post("", response_model=dict, dependencies=[Depends(require_admin)])
 @handle_api_errors(operation_name="add course")
 def add_course(course: schemas.CourseCreate, db: Session = Depends(get_db)) -> dict[str, Any]:
     """Add a new course - persists to database with Hole records"""
@@ -340,7 +341,7 @@ def add_course(course: schemas.CourseCreate, db: Session = Depends(get_db)) -> d
     )
 
 
-@router.put("/{course_name}")
+@router.put("/{course_name}", dependencies=[Depends(require_admin)])
 @handle_api_errors(operation_name="update course")
 def update_course(
     course_name: str, course_update: schemas.CourseUpdate, db: Session = Depends(get_db)
@@ -423,7 +424,7 @@ def update_course(
     )
 
 
-@router.delete("/{course_name}")
+@router.delete("/{course_name}", dependencies=[Depends(require_admin)])
 @handle_api_errors(operation_name="delete course")
 def delete_course(course_name: str = Path(...), db: Session = Depends(get_db)) -> dict[str, Any]:
     """Delete a course - removes from database"""
@@ -444,7 +445,7 @@ def delete_course(course_name: str = Path(...), db: Session = Depends(get_db)) -
 # ============================================================================
 
 
-@router.post("/import/search")
+@router.post("/import/search", dependencies=[Depends(require_admin)])
 @handle_api_errors(operation_name="import course by search")
 async def import_course_by_search(
     request: schemas.CourseImportRequest,
@@ -454,7 +455,7 @@ async def import_course_by_search(
     return cast("dict[str, Any]", result if result else {})
 
 
-@router.post("/import/file")
+@router.post("/import/file", dependencies=[Depends(require_admin)])
 @handle_api_errors(operation_name="import course from file")
 async def import_course_from_file(file: UploadFile = File(...)) -> dict[str, Any]:
     """Import a course from uploaded JSON file"""
@@ -489,7 +490,7 @@ def get_import_sources() -> dict[str, Any]:
     }
 
 
-@router.post("/import/preview")
+@router.post("/import/preview", dependencies=[Depends(require_admin)])
 @handle_api_errors(operation_name="preview course import")
 async def preview_course_import(request: schemas.CourseImportRequest) -> dict[str, Any]:
     """Preview course data before importing"""

@@ -408,10 +408,9 @@ capabilities:
       holes are preserved
     tier: cheap
     deps:
-    - frontend/src/services/gameReconcile.js
     - frontend/src/services/syncManager.jsx
     check:
-      shell: cd frontend && npx vitest run src/services/__tests__/gameReconcile.test.js
+      shell: cd frontend && npx vitest run src/services/__tests__/syncManager.chooseGameState.test.js
         src/services/__tests__/syncManager.reconcile.test.js
   - id: wgp-scoring-rules
     description: the WGP rules engine computes betting/scoring rules correctly (wagers,
@@ -717,20 +716,6 @@ capabilities:
     - backend/tests/unit/services/test_email_scheduler.py
     check:
       shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_email_scheduler.py
-        -q -p no:cacheprovider
-  - id: hole-completion-points-zero-sum
-    description: hole completion scoring is zero-sum, rejects Big Dick off hole 18,
-      and doubles points on 17-18
-    given: a valid partners CompleteHoleRequest and game state
-    when: process_complete_hole / validate_big_dick / apply_multipliers run
-    then: points_delta sums to zero, history advances, invalid Big Dick is 400, and
-      late holes double
-    tier: cheap
-    deps:
-    - backend/app/services/hole_completion_service.py
-    - backend/tests/unit/services/test_hole_completion_service.py
-    check:
-      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_hole_completion_service.py
         -q -p no:cacheprovider
   - id: league-media-harvest-upserts
     description: league media harvest upserts GroupMe videos/images and refreshes likes

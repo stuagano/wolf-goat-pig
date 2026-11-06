@@ -178,8 +178,9 @@ def _mirror_signup_to_db(name: str, date: str) -> None:
     working. Never raises: the CGI write has already succeeded.
     """
     from ..database import SessionLocal
-    from ..models import DailySignup, EmailPreferences, PlayerProfile
+    from ..models import DailySignup, PlayerProfile
     from ..utils.time import utc_now
+    from .signups import notify_signup_joined
 
     to_email: str | None = None
     display_name = name
@@ -222,10 +223,8 @@ def _mirror_signup_to_db(name: str, date: str) -> None:
             db.flush()
             joined_signup_id = joined.id
 
-        if profile and profile.email:
-            prefs = db.query(EmailPreferences).filter(EmailPreferences.player_profile_id == profile_id).first()
-            if prefs is None or prefs.signup_confirmations_enabled:
-                to_email = profile.email
+        if profile:
+            to_email = profile.email
 
         db.commit()
     except Exception:
@@ -235,18 +234,10 @@ def _mirror_signup_to_db(name: str, date: str) -> None:
     finally:
         db.close()
 
+    # Only an actual join fires side effects; a repeat mirror of an active
+    # signup used to re-send the confirmation every time (#450).
     if joined_signup_id is not None:
-        from ..services.same_day_signup_service import send_same_day_signup_notifications
-
-        send_same_day_signup_notifications(joined_signup_id)
-
-    if to_email:
-        try:
-            from ..services.email_service import get_email_service
-
-            get_email_service().send_signup_confirmation(to_email, display_name, date)
-        except Exception:
-            logger.exception("Signup confirmation email failed for %s", to_email)
+        notify_signup_joined(joined_signup_id, to_email, display_name, date)
 
 
 @router.post("/signup")

@@ -19,6 +19,7 @@ from ..database import get_db
 from ..middleware.caching import sheet_sync_cache
 from ..middleware.rate_limiting import rate_limiter
 from ..services.player_service import PlayerService
+from ..utils.admin_auth import require_admin
 from ..utils.time import utc_now
 
 logger = logging.getLogger("app.routers.sheet_integration")
@@ -61,37 +62,6 @@ def safe_float(
         return default
 
 
-def safe_int(
-    value: Any,
-    default: int = 0,
-    min_val: int | None = None,
-    max_val: int | None = None,
-) -> int:
-    """
-    Safely convert value to int with bounds checking.
-
-    Args:
-        value: Value to convert
-        default: Default value if conversion fails
-        min_val: Optional minimum value
-        max_val: Optional maximum value
-
-    Returns:
-        Int value, or default if conversion fails
-    """
-    try:
-        if value is None:
-            return default
-        result = int(float(value))  # Handle "3.0" -> 3
-        if min_val is not None:
-            result = max(min_val, result)
-        if max_val is not None:
-            result = min(max_val, result)
-        return result
-    except (ValueError, TypeError):
-        return default
-
-
 router = APIRouter(
     prefix="/sheet-integration",
     tags=["sheet_integration"],
@@ -107,7 +77,7 @@ class CompareSheetRequest(BaseModel):
     sheet_data: list[dict[str, Any]] = Field(..., min_length=1)
 
 
-@router.post("/analyze-structure")
+@router.post("/analyze-structure", dependencies=[Depends(require_admin)])
 async def analyze_sheet_structure(sheet_headers: list[str], db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Analyze Google Sheets structure and suggest column mappings.
@@ -152,7 +122,7 @@ async def analyze_sheet_structure(sheet_headers: list[str], db: Session = Depend
         db.close()
 
 
-@router.post("/create-leaderboard")
+@router.post("/create-leaderboard", dependencies=[Depends(require_admin)])
 async def create_leaderboard_from_sheet(sheet_data: list[dict], db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Transform Google Sheets data into leaderboard format.
@@ -178,7 +148,7 @@ async def create_leaderboard_from_sheet(sheet_data: list[dict], db: Session = De
         db.close()
 
 
-@router.post("/sync-data")
+@router.post("/sync-data", dependencies=[Depends(require_admin)])
 async def sync_sheet_data(request: dict, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Generic sheet data sync endpoint.
@@ -219,7 +189,7 @@ def export_current_data_for_sheet(
     )
 
 
-@router.post("/sync-wgp-sheet")
+@router.post("/sync-wgp-sheet", dependencies=[Depends(require_admin)])
 async def sync_wgp_sheet_data(
     request: CsvUrlRequest,
     db: Session = Depends(get_db),
@@ -231,7 +201,8 @@ async def sync_wgp_sheet_data(
     Rate limited to once per hour to prevent excessive API calls from external sources.
     Results are cached for 1 hour.
 
-    Scheduled jobs (with X-Scheduled-Job header) bypass rate limiting.
+    Requires an admin bearer token. Admin callers that also send
+    ``X-Scheduled-Job: true`` skip the hourly rate limit.
 
     Uses isolated sessions per player to ensure failures are isolated and
     don't cascade to other players' data.
@@ -575,7 +546,7 @@ async def sync_wgp_sheet_data(
         raise HTTPException(status_code=500, detail=f"Failed to sync data: {e!s}")
 
 
-@router.post("/fetch-google-sheet")
+@router.post("/fetch-google-sheet", dependencies=[Depends(require_admin)])
 async def fetch_google_sheet(request: CsvUrlRequest) -> dict[str, Any]:
     """
     Fetch raw data from Google Sheets.
@@ -626,7 +597,7 @@ async def fetch_google_sheet(request: CsvUrlRequest) -> dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"Failed to process sheet: {e!s}")
 
 
-@router.post("/compare-data")
+@router.post("/compare-data", dependencies=[Depends(require_admin)])
 async def compare_sheet_to_db_data(request: CompareSheetRequest, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Compare Google Sheets data with current database data.

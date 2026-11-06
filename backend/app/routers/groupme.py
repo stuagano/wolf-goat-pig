@@ -13,6 +13,7 @@ from ..services.auth_service import get_current_user
 from ..services.groupme_service import get_messages, is_configured, list_groups, post_message
 from ..services.league_media_service import harvest_media, list_media
 from ..utils.admin_auth import require_admin
+from ..utils.job_auth import require_admin_or_job_token
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ def groupme_media(
     return list_media(db, kind=kind, limit=limit, offset=offset)
 
 
-@router.post("/media/harvest")
+@router.post("/media/harvest", dependencies=[Depends(require_admin_or_job_token)])
 def groupme_media_harvest(max_pages: int = Query(50, ge=1, le=100), db: Session = Depends(get_db)) -> Any:
     """Walk chat history and archive all media. Idempotent; cron + manual."""
     return harvest_media(db, max_pages=max_pages)

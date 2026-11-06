@@ -60,6 +60,8 @@ def test_normal_fresh_default_legacy_commissioner_http(db, monkeypatch):
             yield session
 
     app.dependency_overrides[database.get_db] = sessions
+    # data-chat requires a signed-in user; any authenticated caller is enough here.
+    app.dependency_overrides[commissioner.get_current_auth0_user] = lambda: {"sub": "auth0|fixture"}
     monkeypatch.setattr(commissioner, "commissioner_provider", lambda: "fake")
 
     async def fake_llm(question, system):
@@ -78,10 +80,10 @@ def test_mounted_attestation_and_delete_refuse_paused_unchanged(db):
     from sqlalchemy.orm import sessionmaker
 
     from app.database import get_db
-    from app.routers import games, member_rounds
+    from app.routers import games, games_lifecycle, member_rounds
     from app.services.auth_service import get_current_user
 
-    require_admin = games.require_admin
+    require_admin = games_lifecycle.require_admin
 
     engine = db.get_bind()
     factory = sessionmaker(engine)

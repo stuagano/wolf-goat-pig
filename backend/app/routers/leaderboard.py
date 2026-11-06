@@ -10,6 +10,7 @@ from .. import schemas
 from ..database import get_db
 from ..services.ghin_service import GHINService
 from ..services.player_service import PlayerService
+from ..utils.admin_auth import require_admin
 
 logger = logging.getLogger("app.routers.leaderboard")
 
@@ -35,7 +36,7 @@ def get_ghin_enhanced_leaderboard(  # type: ignore
         raise HTTPException(status_code=500, detail=f"Failed to get GHIN enhanced leaderboard: {e!s}")
 
 
-@router.post("/game-results")
+@router.post("/game-results", dependencies=[Depends(require_admin)])
 def record_game_result(game_result: schemas.GamePlayerResultCreate, db: Session = Depends(get_db)) -> dict[str, Any]:
     """Record a game result for a player."""
     try:

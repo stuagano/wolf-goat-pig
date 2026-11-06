@@ -26,6 +26,7 @@ from .legacy_player_service import (
     get_canonical_name,
     link_profile_to_canonical_name,
 )
+from .profile_name_service import display_name_from_claims
 
 logger = logging.getLogger(__name__)
 
@@ -237,7 +238,7 @@ class AuthService:
         if info.get("sub") != auth0_user.get("sub"):
             raise HTTPException(status_code=401, detail="Your sign-in could not be verified. Please sign in again.")
         enriched = dict(auth0_user)
-        for key in ("email", "name", "picture", "nickname"):
+        for key in ("email", "name", "given_name", "family_name", "picture", "nickname"):
             if not enriched.get(key) and info.get(key):
                 enriched[key] = info[key]
         if (info.get("email") or "").strip().lower() == (enriched.get("email") or "").strip().lower():
@@ -250,7 +251,7 @@ class AuthService:
 
         auth0_id = auth0_user.get("sub")
         email = (auth0_user.get("email") or "").strip().lower() or None
-        name = auth0_user.get("name") or (email.split("@")[0] if email else None) or "Unknown Player"
+        name = display_name_from_claims(auth0_user, email)
         picture = auth0_user.get("picture")
 
         if not auth0_id:

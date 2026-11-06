@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import OnboardingModal from './OnboardingModal';
+import NameRequiredModal from './NameRequiredModal';
 import usePlayerProfile from '../../hooks/usePlayerProfile';
 
 /**
@@ -15,8 +16,10 @@ const OnboardingWrapper = ({ children }) => {
   const {
     loading: profileLoading,
     needsLegacyName,
+    needsName,
     legacyNameSuggestion,
     updateLegacyName,
+    updateName,
     skipLegacyName,
     error,
     refetch,
@@ -25,6 +28,7 @@ const OnboardingWrapper = ({ children }) => {
 
   const ready = isAuthenticated && !authLoading && !profileLoading;
   const canLink = ready && !error && needsLegacyName;
+  const askName = ready && !error && needsName && !findingPlayer;
 
   // Fuzzy legacy-name match to SUGGEST (not auto-linked). The backend returns
   // this as legacy_name_suggestion; the account's legacy_name stays null until
@@ -43,7 +47,7 @@ const OnboardingWrapper = ({ children }) => {
       {ready && !error && pendingClaim && <section aria-label="Claim pending" style={{ padding: 16, background: '#eef5ed', color: '#234422' }}>
         <p style={{ margin: 0 }}>Waiting for a club admin to connect you to {pendingClaim.canonical_name}. You can keep using the app in the meantime.</p>
       </section>}
-      {canLink && !findingPlayer && <section aria-label="Player history" style={{ padding: 16, background: '#eef5ed', color: '#234422' }}>
+      {canLink && !findingPlayer && !askName && <section aria-label="Player history" style={{ padding: 16, background: '#eef5ed', color: '#234422' }}>
         <p style={{ marginTop: 0 }}>Already play with the club? Connect your player history once.</p>
         <button type="button" onClick={() => setFindingPlayer(true)}>Find my player history</button>
         {' '}
@@ -51,6 +55,10 @@ const OnboardingWrapper = ({ children }) => {
         <p style={{ marginBottom: 0 }}>You can also do this from Account → Club Player.</p>
       </section>}
       {children}
+      {askName && <NameRequiredModal
+        updateName={updateName}
+        onFindPlayerHistory={canLink ? () => setFindingPlayer(true) : null}
+      />}
       {canLink && findingPlayer && <OnboardingModal
         onComplete={() => {
           setFindingPlayer(false);

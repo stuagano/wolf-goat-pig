@@ -59,6 +59,7 @@ def test_csv_revalidates_after_each_transaction_end(canonical_history, monkeypat
     from app.database import get_db
     from app.main import app
     from app.routers import sheet_integration as route
+    from app.utils.admin_auth import require_admin
 
     db = canonical_history
     db.add(models.PlayerProfile(id=2, name="Blair", created_at="2026-01-01"))
@@ -110,6 +111,8 @@ def test_csv_revalidates_after_each_transaction_end(canonical_history, monkeypat
         yield db
 
     app.dependency_overrides[get_db] = override
+    # The sheet sync endpoint is admin-only; this test exercises the writer fence.
+    app.dependency_overrides[require_admin] = lambda: {}
     try:
         with TestClient(app) as client:
             result = client.post(
@@ -130,6 +133,7 @@ def test_csv_revalidates_after_each_transaction_end(canonical_history, monkeypat
             assert db.query(models.PlayerStatistics).filter_by(player_id=1).one().total_earnings == 999
     finally:
         app.dependency_overrides.pop(get_db, None)
+        app.dependency_overrides.pop(require_admin, None)
 
 
 def test_live_ghin_and_player_fallback_publish_shared_coverage(canonical_history, monkeypatch):

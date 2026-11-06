@@ -184,40 +184,6 @@ class BadgeEngine:
 
         return earned_badges
 
-    def check_real_time_achievement(
-        self, player_profile_id: int, event_type: str, event_data: dict[str, Any]
-    ) -> PlayerBadgeEarned | None:
-        """
-        Check for badges earned during gameplay (real-time).
-        Example: Hole-in-one badge awarded immediately when it happens.
-        """
-        # Get badges that match this event type
-        badges = (
-            self.db.query(Badge)
-            .filter(
-                and_(
-                    Badge.is_active == True,
-                    Badge.trigger_condition.contains({"event": event_type}),
-                )
-            )
-            .all()
-        )
-
-        for badge in badges:
-            if self._player_has_badge(player_profile_id, int(badge.id)):
-                continue
-
-            # Check specific event criteria
-            trigger_cond: dict[Any, Any] = badge.trigger_condition if isinstance(badge.trigger_condition, dict) else {}
-            if self._check_event_criteria(trigger_cond, event_data):
-                return self._award_badge(
-                    player_profile_id=player_profile_id,
-                    badge_id=int(badge.id),
-                    game_record_id=event_data.get("game_record_id"),
-                )
-
-        return None
-
     # ====================================================================================
     # ACHIEVEMENT CHECKERS - One-Time Badges
     # ====================================================================================
@@ -755,8 +721,3 @@ class BadgeEngine:
                 )
 
         self.db.commit()
-
-    def _check_event_criteria(self, trigger_condition: dict, event_data: dict) -> bool:
-        """Check if event data meets badge criteria"""
-        # Implement specific event matching logic
-        return True  # Placeholder
