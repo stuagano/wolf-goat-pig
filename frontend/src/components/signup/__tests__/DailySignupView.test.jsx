@@ -65,6 +65,12 @@ const weeklyResponse = (signups = []) => ({
   ],
 });
 
+// DayTeeTimes shows its own role="status" "Loading…" line while its GET is in
+// flight. Wait for that load to settle before acting, or a later
+// findByRole('status') can grab the loading line instead of the signup notice.
+const waitForTeeTimesLoaded = () =>
+  waitFor(() => expect(screen.getByRole('textbox', { name: 'Tee times' })).toBeEnabled());
+
 describe('DailySignupView', () => {
   afterEach(() => vi.useRealTimers());
 
@@ -171,6 +177,7 @@ describe('DailySignupView', () => {
         return jsonResponse(createdSignup);
       }
 
+      if (url.includes('/signups/tee-times/')) return jsonResponse({ tee_times: '' });
       throw new Error(`Unexpected fetch: ${url}`);
     });
 
@@ -179,6 +186,7 @@ describe('DailySignupView', () => {
     const firstSignupButton = await screen.findByRole('button', {
       name: 'Be the first to sign up!',
     });
+    await waitForTeeTimesLoaded();
     const emptyStateActions = firstSignupButton.parentElement;
     fireEvent.click(firstSignupButton);
     expect(within(emptyStateActions).getByText(/Preview — sign up/)).toBeInTheDocument();
@@ -252,12 +260,14 @@ describe('DailySignupView', () => {
           date: selectedDate,
         });
       }
+      if (url.includes('/signups/tee-times/')) return jsonResponse({ tee_times: '' });
       throw new Error(`Unexpected fetch: ${request.method} ${url}`);
     });
 
     render(<DailySignupView selectedDate={selectedDate} />);
 
     const firstSignupButton = await screen.findByRole('button', { name: 'Be the first to sign up!' });
+    await waitForTeeTimesLoaded();
     const emptyStateActions = firstSignupButton.parentElement;
     fireEvent.click(firstSignupButton);
     expect(within(emptyStateActions).getByText(/This changes the/)).toHaveTextContent('LIVE');
