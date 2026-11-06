@@ -141,7 +141,7 @@ export const storage = {
  * Create a namespaced storage instance
  * All operations will be prefixed with the namespace
  *
- * @param {string} namespace - The namespace prefix (e.g., 'game', 'profile', 'tutorial')
+ * @param {string} namespace - The namespace prefix (e.g., 'game', 'profile', 'sync')
  * @returns {object} Namespaced storage interface
  *
  * @example

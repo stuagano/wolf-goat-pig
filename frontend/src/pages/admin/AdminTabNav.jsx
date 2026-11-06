@@ -27,16 +27,6 @@ const AdminTabNav = ({ activeTab, setActiveTab }) => {
         📊 Sheets Integration
       </button>
                   <button
-                    onClick={() => setActiveTab('analytics')}
-                    className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${
-                      activeTab === 'analytics'
-                        ? 'bg-white text-blue-600 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    📈 Analytics
-                  </button>
-                  <button
                     onClick={() => setActiveTab('database')}
                     className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${
                       activeTab === 'database'

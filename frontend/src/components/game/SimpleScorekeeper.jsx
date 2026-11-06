@@ -15,7 +15,6 @@ import { Input } from "../ui";
 import CompletedRoundView from "./CompletedRoundView";
 import Scorecard from "./Scorecard";
 import ShotAnalysisWidget from "./ShotAnalysisWidget";
-import BettingOddsPanel from "../betting/BettingOddsPanel";
 import CommissionerChat from "./CommissionerChat";
 import EditPlayerNameModal from "./EditPlayerNameModal";
 import EditHoleModal from "./EditHoleModal";

@@ -29,7 +29,7 @@ Provides all necessary context providers for component testing.
 ```javascript
 import { TestWrapper } from '../test-utils/testHelpers';
 
-<TestWrapper tutorialState={{ isActive: true }} theme="default">
+<TestWrapper theme="default">
   <YourComponent />
 </TestWrapper>
 ```
@@ -43,7 +43,6 @@ import { renderWithContext } from '../test-utils/testHelpers';
 const { getByText } = renderWithContext(
   <YourComponent />,
   {
-    tutorialState: { isActive: true },
     theme: 'dark'
   }
 );

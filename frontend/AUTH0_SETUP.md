@@ -64,11 +64,9 @@ The following routes are now protected and require authentication:
 - `/game` - Main game interface
 - `/simulation` - Simulation mode
 - `/monte-carlo` - Monte Carlo simulation
-- `/analytics` - Analytics dashboard
 
 Public routes (no authentication required):
 - `/` - Home page
-- `/tutorial` - Tutorial system
 
 ### Navigation Updates
 
@@ -136,7 +134,6 @@ function MyComponent() {
 1. The Auth0Provider wraps the entire application in `App.js`
 2. Authentication state is automatically managed by Auth0
 3. Protected routes will redirect to Auth0 login when accessed without authentication
-4. The tutorial remains public to allow new users to learn the game
 
 ## Next Steps (Backend Integration)
 
