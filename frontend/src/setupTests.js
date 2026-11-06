@@ -58,7 +58,13 @@ const localStorageMock = (() => {
     }),
   };
 })();
-global.localStorage = localStorageMock;
+// Vitest 5's jsdom environment exposes localStorage as a getter-only global,
+// so plain assignment throws; redefine the property instead.
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true,
+  writable: true,
+  value: localStorageMock,
+});
 
 // Mock window.innerWidth for responsive tests
 Object.defineProperty(window, 'innerWidth', {
