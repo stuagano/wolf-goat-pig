@@ -52,6 +52,14 @@ permissions:
   contents: read
   id-token: write   # required for Workload Identity Federation
 
+# One deploy at a time per branch. Back-to-back merges used to run in parallel,
+# and whichever Cloud Run revision finished last took traffic — sometimes the
+# older commit. Queue instead of cancelling so a half-finished deploy is never
+# killed; GitHub keeps only the newest pending run, so main HEAD always wins.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   RUN_SERVICE: wolf-goat-pig-api
   BOOKING_SERVICE: wgp-booking
