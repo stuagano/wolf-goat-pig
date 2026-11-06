@@ -119,7 +119,8 @@ def test_me_reports_the_pending_claim(env):
 def test_other_profile_responses_never_carry_pending_claim(env):
     client, _, _ = env
     pick(client, "Gregg Colburn")
-    assert client.get("/players/name/gregg@example.com").json().get("pending_claim") is None
+    players = client.get("/players/all").json()
+    assert players and all(p.get("pending_claim") is None for p in players)
 
 
 def test_linking_another_name_dismisses_the_stale_pending_claim(env):

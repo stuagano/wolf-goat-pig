@@ -178,40 +178,6 @@ class TestLegacyPlayers:
         assert data["count"] == len(data["players"])
 
 
-# ── GET /legacy-players/validate/{name} ──────────────────────────────────────
-
-
-class TestValidateLegacyPlayer:
-    def test_validate_nonexistent_player_returns_200(self):
-        resp = client.get("/legacy-players/validate/NonExistentPlayerXYZ")
-        assert resp.status_code == 200
-
-    def test_validate_returns_valid_field(self):
-        resp = client.get("/legacy-players/validate/SomeName")
-        data = resp.json()
-        assert "valid" in data or "is_valid" in data or "exact_match" in data
-
-
-# ── GET /legacy-players/search ───────────────────────────────────────────────
-
-
-class TestSearchLegacyPlayers:
-    def test_search_returns_200(self):
-        resp = client.get("/legacy-players/search", params={"q": "test"})
-        assert resp.status_code == 200
-
-    def test_search_returns_query_and_count(self):
-        resp = client.get("/legacy-players/search", params={"q": "xyz"})
-        data = resp.json()
-        assert data["query"] == "xyz"
-        assert "count" in data
-        assert "players" in data
-
-    def test_search_missing_query_returns_422(self):
-        resp = client.get("/legacy-players/search")
-        assert resp.status_code == 422
-
-
 # ── GET /signups ─────────────────────────────────────────────────────────────
 
 

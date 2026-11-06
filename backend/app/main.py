@@ -25,7 +25,6 @@ from .post_hole_analytics import PostHoleAnalyzer
 # Import routers
 from .routers import (
     admin_oauth,
-    analytics,
     courses,
     features,
     foretees,
@@ -40,7 +39,6 @@ from .routers import (
     notifications,
     players,
     sheet_integration,
-    tee_sheet,
 )
 from .routers.email_routes import initialize_email_scheduler
 
@@ -297,7 +295,6 @@ app.include_router(round_stories.router)
 app.include_router(health.router)
 app.include_router(features.router)
 app.include_router(sheet_integration.router)
-app.include_router(tee_sheet.router)
 app.include_router(players.router)
 from .routers import day_tee_times, feedback, member_rounds
 
@@ -305,11 +302,6 @@ app.include_router(member_rounds.router)
 app.include_router(day_tee_times.router)
 app.include_router(feedback.router)
 app.include_router(courses.router)
-
-# Import and include course data update router
-from .routers import course_data_update
-
-app.include_router(course_data_update.router)
 app.include_router(foretees.router)
 app.include_router(matchmaking.router)
 app.include_router(notifications.router)
@@ -321,21 +313,18 @@ from .routers import commissioner, ghin, scorecard
 app.include_router(commissioner.router)
 app.include_router(ghin.router)
 app.include_router(scorecard.router)
-app.include_router(analytics.router)
 app.include_router(leaderboard.router)
 from .routers import (
     admin,
     betting_odds,
     email_routes,
     legacy_scoring,
-    messages,
     roster_admin,
     signup_admin,
     signups,
     team_formation,
 )
 
-app.include_router(messages.router)
 app.include_router(email_routes.router)
 app.include_router(signup_admin.router)  # before signups: keep /signups/admin out of /signups/{signup_id}
 app.include_router(signups.router)
