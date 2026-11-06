@@ -136,36 +136,195 @@ def ensure_legacy_rounds_official_view(bind) -> None:
 
     The view excludes unattested member self-posts (``status='pending'``) and is
     the only legacy-rounds source the Commissioner's read-only SQL path may query.
-    Safe to call on every boot: ``CREATE OR REPLACE`` / ``CREATE IF NOT EXISTS``.
+    DDL-only boot compatibility; no identity rows are backfilled.
     Skips when the ``status`` column is missing (pre-attestation schema).
     """
     dialect = bind.dialect.name
+    inspector = inspect(bind)
+    if not inspector.has_table("legacy_rounds") or "status" not in {
+        column["name"] for column in inspector.get_columns("legacy_rounds")
+    }:
+        logger.warning("Skipping legacy_rounds_official view — legacy_rounds.status column missing")
+        return
+    # Explicit legacy compatibility columns: expansion must not silently alter
+    # a view's schema or make boot perform identity backfill/contraction.
+    names = [c["name"] for c in inspector.get_columns("legacy_rounds")]
+    projection = ", ".join(f'"{name}"' for name in names)
     with bind.begin() as conn:
         if dialect == "postgresql":
-            has_status = conn.execute(
-                text(
-                    "SELECT 1 FROM information_schema.columns "
-                    "WHERE table_name = 'legacy_rounds' AND column_name = 'status'"
-                )
-            ).first()
-            if not has_status:
-                logger.warning("Skipping legacy_rounds_official view — legacy_rounds.status column missing")
-                return
+            # Existing PostgreSQL views may have a pre-expansion column order.
+            # Appending columns is legal; never reorder or drop at boot.
             conn.execute(
                 text(
                     "CREATE OR REPLACE VIEW legacy_rounds_official AS "
-                    "SELECT * FROM legacy_rounds WHERE status <> 'pending'"
+                    f"SELECT {projection} FROM legacy_rounds WHERE status <> 'pending'"
                 )
             )
             return
-
-        # SQLite (dev/test)
+        conn.execute(text("DROP VIEW IF EXISTS legacy_rounds_official"))
         conn.execute(
             text(
-                "CREATE VIEW IF NOT EXISTS legacy_rounds_official AS "
-                "SELECT * FROM legacy_rounds WHERE status <> 'pending'"
+                "CREATE VIEW legacy_rounds_official AS "
+                f"SELECT {projection} FROM legacy_rounds WHERE status <> 'pending'"
             )
         )
+
+
+# Columns the Commissioner's read-only SQL path may read. Keep in sync with the
+# schema documented in routers/commissioner.py.
+CANONICAL_ROUND_RESULTS_VIEW = """
+SELECT r.game_id AS game_id, p.participant_id AS participant_id,
+       p.player_profile_id AS player_profile_id, p.player_name AS member,
+       p.total_earnings AS score, r.played_on AS played_on, r.raw_date AS raw_date,
+       r.course_name AS location, r."group" AS "group", r.detail_coverage AS detail_coverage,
+       r.score_eligible AS score_eligible, r.accepted_revision AS accepted_revision
+FROM game_records r
+JOIN game_player_results p ON p.game_record_id = r.id
+WHERE r.is_retracted = false AND p.is_retracted = false
+  AND r.accepted_revision > 0 AND p.participant_id IS NOT NULL
+"""
+
+
+def ensure_canonical_round_results_view(bind) -> None:
+    """Current-season eligible verified-profile results for Commissioner standings.
+
+    This scored-only projection matches the profile leaderboard, not all-time
+    history or guest-inclusive extreme scores. COUNT(*) is scored appearances;
+    known participation coverage comes from UnifiedDataService, not this view.
+    """
+    inspector = inspect(bind)
+    required = {"game_records": ("is_retracted", "accepted_revision"), "game_player_results": ("is_retracted",)}
+    for table, columns in required.items():
+        if not inspector.has_table(table) or not set(columns) <= {c["name"] for c in inspector.get_columns(table)}:
+            logger.warning("Skipping canonical_round_results view — %s expansion incomplete", table)
+            return
+    sql = (
+        CANONICAL_ROUND_RESULTS_VIEW
+        + """
+  AND r.score_eligible = true AND r.roster_complete = true
+  AND r.played_on IS NOT NULL AND p.total_earnings IS NOT NULL
+  AND p.player_profile_id IS NOT NULL
+  AND EXISTS (SELECT 1 FROM game_state g WHERE g.game_id = r.game_id)
+  AND r.player_count = (SELECT COUNT(*) FROM game_player_results x
+                       WHERE x.game_record_id = r.id AND x.is_retracted = false
+                       AND x.participant_id IS NOT NULL)
+   AND NOT EXISTS (SELECT 1 FROM game_player_results x
+                   WHERE x.game_record_id = r.id AND x.is_retracted = false
+                   AND x.participant_id IS NOT NULL AND x.total_earnings IS NULL)
+"""
+    )
+    if bind.dialect.name == "postgresql":
+        sql += " AND EXTRACT(YEAR FROM r.played_on) = (SELECT (value->>'season')::integer FROM app_config WHERE name = 'round_identity')"
+    else:
+        sql += " AND CAST(strftime('%Y', r.played_on) AS INTEGER) = (SELECT json_extract(value, '$.season') FROM app_config WHERE name = 'round_identity')"
+    with bind.begin() as conn:
+        if bind.dialect.name == "postgresql":
+            conn.execute(text(f"CREATE OR REPLACE VIEW canonical_round_results AS {sql}"))
+            return
+        # SQLite has no CREATE OR REPLACE VIEW. Refresh in the same DDL
+        # transaction so an expanded definition never remains silently stale.
+        conn.execute(text("DROP VIEW IF EXISTS canonical_round_results"))
+        conn.execute(text(f"CREATE VIEW canonical_round_results AS {sql.replace('false', '0')}"))
+
+
+# Only additive columns at boot. Backfill, old index retirement, and legacy
+# foreign-key accounting belong to the explicit offline migration.
+ROUND_IDENTITY_COLUMNS = {
+    "game_state": ("revision",),
+    "game_records": (
+        "played_on",
+        "raw_date",
+        "group",
+        "detail_coverage",
+        "roster_complete",
+        "score_eligible",
+        "accepted_revision",
+        "is_retracted",
+    ),
+    "game_player_results": ("participant_id", "is_retracted"),
+    "legacy_rounds": ("game_id", "participant_id"),
+    "round_comments": ("game_id",),
+    "round_reactions": ("game_id",),
+    "pending_sheet_syncs": (
+        "game_id",
+        "source_round_token",
+        "source_scope",
+        "operation_key",
+        "expected_revision",
+        "expected_epoch",
+        "expected_source_version",
+        "payload_fingerprint",
+        "contract_fingerprint",
+        "payload",
+        "lease_owner",
+        "lease_expires_at",
+        "claim_generation",
+        "prewrite",
+        "provider_receipt",
+        "verified_readback",
+    ),
+    "notifications": ("delivery_key",),
+}
+
+
+def expand_round_identity_schema(bind) -> None:
+    """Expand disposable/restored SQLite without rebuilding any existing table.
+
+    PostgreSQL expansion is handled by the restart-safe SQL migration. SQLite
+    cannot relax NOT NULL or remove defaults without a table rebuild; fail
+    explicitly so a restored database must be upgraded offline, never erased.
+    """
+    if bind.dialect.name != "sqlite":
+        return
+    from sqlalchemy.schema import CreateColumn
+
+    from . import models  # noqa: F401
+
+    inspector = inspect(bind)
+    tables = set(inspector.get_table_names())
+    for table_name in ("game_records", "game_player_results"):
+        if table_name not in tables:
+            continue
+        for column in inspector.get_columns(table_name):
+            model_column = Base.metadata.tables[table_name].columns.get(column["name"])
+            if model_column is None or not model_column.nullable:
+                continue
+            if not column["nullable"] or (model_column.default is None and column["default"] is not None):
+                raise RuntimeError(
+                    f"Round identity requires an offline SQLite upgrade for {table_name}.{column['name']}; "
+                    "boot will not rebuild tables or discard data"
+                )
+    if "round_deliveries" in tables:
+        columns = {c["name"]: c for c in inspector.get_columns("round_deliveries")}
+        if not columns["recipient_profile_id"]["nullable"] or columns["delivery_key"]["nullable"]:
+            raise RuntimeError(
+                "Round delivery requires an offline SQLite upgrade; boot will not rebuild evidence tables"
+            )
+    with bind.begin() as conn:
+        for table_name, names in ROUND_IDENTITY_COLUMNS.items():
+            if table_name not in tables:
+                continue
+            existing = {column["name"] for column in inspector.get_columns(table_name)}
+            table = Base.metadata.tables[table_name]
+            for name in names:
+                if name not in existing:
+                    ddl = str(CreateColumn(table.c[name]).compile(dialect=bind.dialect))
+                    conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN {ddl}'))
+        # New nullable keys contain no legacy values; safe without backfill.
+        if "pending_sheet_syncs" in tables:
+            conn.execute(
+                text("CREATE UNIQUE INDEX IF NOT EXISTS uq_sheet_sync_operation ON pending_sheet_syncs(operation_key)")
+            )
+        if "notifications" in tables:
+            conn.execute(
+                text("CREATE UNIQUE INDEX IF NOT EXISTS uq_notifications_delivery_key ON notifications(delivery_key)")
+            )
+        if "game_player_results" in tables:
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS uq_game_result_participant ON game_player_results(game_record_id, participant_id)"
+                )
+            )
 
 
 def init_db():
@@ -176,6 +335,7 @@ def init_db():
 
         # Create all tables
         Base.metadata.create_all(bind=engine)
+        expand_round_identity_schema(engine)
         # Preserve existing local data when upgrading the group-posting audit field.
         # Production PostgreSQL uses add_member_round_submitter_postgres.sql.
         if engine.dialect.name == "sqlite":
@@ -197,9 +357,10 @@ def init_db():
         # Round stories and reactions are new tables; create_all covers fresh
         # SQLite. Production PostgreSQL uses add_round_comments_postgres.sql and
         # add_round_reactions_postgres.sql.
-        # Filtered view used by Commissioner SQL reads (SQLite dev; Postgres gets
-        # it from the attestation migration).
+        # Legacy remains the default serving authority until accepted activation.
+        # View DDL is compatibility, never identity backfill or contraction.
         ensure_legacy_rounds_official_view(engine)
+        ensure_canonical_round_results_view(engine)
         logger.info("Database initialized successfully")
 
         # Test database connection

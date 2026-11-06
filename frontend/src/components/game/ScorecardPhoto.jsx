@@ -5,6 +5,7 @@ import GHINPostModal from './GHINPostModal';
 import { apiConfig } from '../../config/api.config';
 import { useAuthenticatedFetch } from '../../hooks/useAuthenticatedFetch';
 import { preprocessScorecardImage, downscaleToBase64 } from '../../utils/scorecardImage';
+import { readDraft, keepDraft, clearDraft, extractionFromQuarters } from './roundWriteDraft';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -49,15 +50,41 @@ const ScorecardPhoto = ({
   const [photoUrl, setPhotoUrl] = useState(null);
   const photoUrlRef = useRef(null);
   const photoB64Ref = useRef(null);
+  const photoFileRef = useRef(null);
+  const retainedSubmission = mode === 'attach' ? readDraft(gameId, 'attach') : null;
+  const submissionRef = useRef(retainedSubmission ? {
+    key: retainedSubmission.key, content: JSON.stringify(retainedSubmission.quarters),
+  } : null);
+  const reviewedSnapshot = useRef(null);
+  const [photoWarning, setPhotoWarning] = useState('');
+  // Held attach edits live locally only; reapply is an explicit user action.
+  const [held, setHeld] = useState(() => (mode === 'attach' ? readDraft(gameId, 'attach') : null));
+  const reloadAccepted = async () => {
+    try {
+      const res = await authenticatedFetch(`${API_URL}/games/${gameId}/state`);
+      if (!res.ok) throw new Error('Could not reload the accepted round. Your edits are retained locally.');
+      const snapshot = await res.json();
+      if (!Number.isInteger(snapshot.revision)) throw new Error('Round revision unavailable; nothing was submitted.');
+      reviewedSnapshot.current = snapshot;
+      const next = { ...held, revision: snapshot.revision };
+      keepDraft(gameId, 'attach', next);
+      setHeld(next);
+      setExtraction(extractionFromQuarters(players, next.quarters));
+      setErrorMsg(null);
+      setStage('review');
+    } catch (err) { setErrorMsg(err.message); }
+  };
   // Free the retained object URL when this flow unmounts.
   useEffect(() => () => { if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current); }, []);
 
   const enterManually = () => {
-    setExtraction(buildBlankExtraction(players));
+    const roster = players.length ? players : pickedPlayers.map(name => ({ name }));
+    setExtraction(buildBlankExtraction(roster));
     setStage('review');
   };
 
   const handleCapture = async (file) => {
+    photoFileRef.current = file;
     setStage('processing');
     setErrorMsg(null);
 
@@ -115,36 +142,87 @@ const ScorecardPhoto = ({
 
     try {
       if (mode === 'new-round') {
+        const body = JSON.stringify({ ...payload, image_base64: photoB64Ref.current || undefined });
+        if (!submissionRef.current || submissionRef.current.body !== body) {
+          submissionRef.current = { body, key: crypto.randomUUID() };
+        }
         const res = await authenticatedFetch(`${API_URL}/games/from-scorecard`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...payload, course_name: 'Wing Point', image_base64: photoB64Ref.current || undefined }),
+          headers: { 'Content-Type': 'application/json', 'Idempotency-Key': submissionRef.current.key },
+          body: submissionRef.current.body,
         });
         if (!res.ok) {
           const detail = await res.json().catch(() => ({}));
           throw new Error(detail.detail || `Save failed: ${res.status}`);
         }
         const data = await res.json();
+        if (res.status === 202) {
+          setErrorMsg('Round identity needs review. No duplicate round was created.');
+          setStage('conflict');
+          return;
+        }
         onSaved(data); // skip GHIN on this path
         return;
       }
 
       const holeQuarters = payload;
-      const holes = Object.keys(holeQuarters).map(holeStr => ({
-        hole_number: parseInt(holeStr, 10),
-        quarters: holeQuarters[holeStr],
-      }));
+      if (!submissionRef.current || submissionRef.current.content !== JSON.stringify(holeQuarters)) {
+        submissionRef.current = { content: JSON.stringify(holeQuarters), key: crypto.randomUUID() };
+      }
+      keepDraft(gameId, 'attach', { quarters: holeQuarters, revision: held?.revision, key: submissionRef.current.key });
+      let snapshot = reviewedSnapshot.current;
+      if (!snapshot) {
+        const current = await authenticatedFetch(`${API_URL}/games/${gameId}/state`);
+        if (!current.ok) throw new Error('Reload the round before attaching scores.');
+        snapshot = await current.json();
+      }
+      if (!Number.isInteger(snapshot.revision)) throw new Error('Round revision unavailable; nothing was submitted.');
+      // Whole-snapshot semantics: keep server holes this card does not cover.
+      const submitted = new Set(Object.keys(holeQuarters).map(h => parseInt(h, 10)));
+      const holes = [
+        ...(snapshot.hole_history || [])
+          .filter(h => !submitted.has(h.hole))
+          .map(h => ({ hole_number: h.hole, quarters: h.points_delta, gross_scores: h.gross_scores || null, notes: h.notes || null, teams: h.teams || null })),
+        ...Object.keys(holeQuarters).map(holeStr => ({
+          hole_number: parseInt(holeStr, 10),
+          quarters: holeQuarters[holeStr],
+        })),
+      ];
       const res = await authenticatedFetch(`${API_URL}/games/${gameId}/scores`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ holes, current_hole: 18 }),
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': submissionRef.current.key },
+        body: JSON.stringify({ holes, current_hole: 18, expected_revision: snapshot.revision }),
       });
 
+      if (photoFileRef.current) {
+        try {
+          const form = new FormData();
+          form.append('file', photoFileRef.current);
+          const photo = await authenticatedFetch(`${API_URL}/games/${gameId}/scorecard-photo`, { method: 'PUT', body: form });
+          if (!photo.ok) throw new Error('Photo upload failed');
+        } catch {
+          setPhotoWarning('Scores were submitted, but the photo was not saved. Attach the photo separately; do not create another round.');
+        }
+      }
+      if (res.status === 409) {
+        const rejected = await res.json().catch(() => ({}));
+        const draft = { quarters: holeQuarters, revision: snapshot.revision, key: submissionRef.current.key, response: rejected };
+        keepDraft(gameId, 'attach', draft);
+        setHeld(draft);
+        reviewedSnapshot.current = null;
+        // Existing issue IDs can predate this stale request, so none proves
+        // that these particular edits were staged.
+        setErrorMsg('Round changed. Your edited scores are retained locally; this response does not confirm server staging. Reload accepted round, review, then explicitly confirm again.');
+        setStage('conflict');
+        return;
+      }
       if (!res.ok) {
         const detail = await res.json().catch(() => ({}));
-        throw new Error(detail.detail || `Save failed: ${res.status}`);
+        throw new Error(typeof detail.detail === 'string' ? detail.detail : `Save failed: ${res.status}`);
       }
 
+      clearDraft(gameId, 'attach');
+      setHeld(null);
       setSavedQuarters(holeQuarters);
       setStage('ghin_prompt');
     } catch (err) {
@@ -152,6 +230,12 @@ const ScorecardPhoto = ({
       setStage('error');
     }
   };
+
+  if (held && !reviewedSnapshot.current && stage !== 'saving' && stage !== 'conflict') {
+    return <div role="alert"><p>{errorMsg || 'Unaccepted edits are retained locally. Reload before reviewing and explicitly resubmitting.'}</p>
+      <button onClick={reloadAccepted}>Reload accepted round and reapply my retained edits</button>
+      <button onClick={onCancel}>Close</button></div>;
+  }
 
   if (stage === 'capture') {
     return (
@@ -197,14 +281,21 @@ const ScorecardPhoto = ({
     );
   }
 
+  if (stage === 'conflict') {
+    return <div role="alert"><p>{errorMsg}</p><p>{photoWarning}</p>
+      <a href={gameId ? `/game/${gameId}` : '/rounds/reconciliation'}>Open review / reload round</a>
+      {held && <button onClick={reloadAccepted}>Reload accepted round and reapply my retained edits</button>}
+      <button onClick={onCancel}>Close</button></div>;
+  }
+
   if (stage === 'ghin_prompt') {
     return (
-      <GHINPostModal
+      <><p role="status">{photoWarning}</p><GHINPostModal
         players={players}
         playedAt={new Date().toISOString().slice(0, 10)}
         onPosted={() => onSaved(savedQuarters)}
         onSkip={() => onSaved(savedQuarters)}
-      />
+      /></>
     );
   }
 

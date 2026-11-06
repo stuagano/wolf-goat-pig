@@ -40,6 +40,7 @@ class TestRunDataChatAdk:
         monkeypatch.setenv("COMMISSIONER_MODEL", "gemini-2.5-flash")
 
         mock_db = MagicMock()
+        mock_db.get.return_value = None  # explicit legacy configuration
         final_event = MagicMock()
         final_event.is_final_response.return_value = True
         final_event.content = MagicMock(parts=[MagicMock(text="Steve leads.")])

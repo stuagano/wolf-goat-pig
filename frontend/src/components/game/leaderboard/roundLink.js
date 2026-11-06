@@ -6,7 +6,9 @@ export function scorecardPath({ game_id } = {}) {
     : null;
 }
 
-export function roundPath({ date, date_sortable, group, location }) {
+export function roundPath({ game_id, date, date_sortable, group, location }) {
+  const resolved = scorecardPath({ game_id });
+  if (resolved) return resolved;
   const params = new URLSearchParams();
   if (location) params.set('location', location);
   const query = params.toString();

@@ -25,15 +25,15 @@ export default function ExtremeScores({ title, scores, emptyLabel }) {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {scores.map((row) => (
-                <tr key={`${row.game_id || row.date_sortable}-${row.member}-${row.quarters}-${row.group || ''}-${row.location || ''}`}>
+              {scores.map((row, index) => (
+                <tr key={`${row.game_id || row.date_sortable}-${row.participant_id || index}`}>
                   <td className="px-6 py-4 text-sm text-gray-700">
                     <Link to={roundPath(row)} className="hover:text-blue-600 hover:underline">{row.date}</Link>
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">
                     <PlayerName name={row.member} playerId={row.player_id} />
                   </td>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{row.quarters}</td>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{row.quarters ?? 'Not recorded'}</td>
                   <td className="px-6 py-4 text-sm">
                     <ScorecardLink gameId={row.game_id} className="text-blue-700 hover:underline" />
                   </td>

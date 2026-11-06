@@ -51,8 +51,8 @@ capabilities:
     given: hole-score submissions that may contain a duplicate hole or fewer than 18
       distinct holes
     when: scores are saved via POST /games/{id}/scores
-    then: completion fires only on the full 1-18 distinct set and duplicate holes dedupe
-      (last write wins)
+    then: completion fires only on the full 1-18 distinct set and duplicate-hole
+      payloads are rejected without changing state, events, or final results
     tier: cheap
     deps:
     - backend/app/routers/games_holes.py

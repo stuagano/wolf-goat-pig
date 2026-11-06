@@ -81,6 +81,19 @@ test('treats possible totals-only history conservatively and compares only expli
   expect(screen.getByText(/may contain only a final total/i)).toBeVisible();
 });
 
+test.each([2.5, null])('canonical comparison uses the accepted final total %s, never the partial-hole sum', async accepted => {
+  mockScan({ ...extraction, running_totals: [{ player_index: 0, hole: 18, value: 2.5, confidence: 1 }] });
+  render(<CardExtractionValidation {...props} acceptedTotals={{ p1: accepted }} detailCoverage="partial" />);
+  scan();
+  const table = await screen.findByRole('table');
+  const rows = within(table).getAllByRole('row');
+  expect(rows).toHaveLength(2);
+  expect([...rows[1].children].map(cell => cell.textContent)).toEqual([
+    '18', accepted == null ? '—' : '2.5', '2.5', accepted == null ? 'Saved quarters unavailable' : 'Match',
+  ]);
+  expect(screen.getByText(/accepted final totals.*partial hole detail/i)).toBeVisible();
+});
+
 test('duplicate saved holes invalidate cumulative quarters rather than choosing a winner', async () => {
   mockScan();
   render(<CardExtractionValidation {...props} holeHistory={[...holeHistory, holeHistory[0]]} />);

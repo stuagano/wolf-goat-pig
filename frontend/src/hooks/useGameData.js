@@ -25,6 +25,9 @@ export function normalizeGameState(data) {
     courseName: data.course_name || DEFAULT_COURSE,
     baseWager: data.base_wager || 1,
     isComplete,
+    gameStatus: data.game_status,
+    expectedRevision: data.revision,
+    writerEpoch: data.writer_epoch,
   };
 }
 
@@ -44,14 +47,14 @@ export default function useGameData(gameId) {
   // doing so unmounts editors and discards their unsubmitted drafts.
   const retrySync = useCallback(() => {
     try {
-      const queued = syncManager.ensureScoresQueued(gameId, { holeHistory: [] });
-      setSyncError(null);
+      const queued = syncManager.ensureScoresQueued(gameId, game);
+      setSyncError(queued ? null : 'Reload the round before retrying cached corrections.');
       return queued;
     } catch (queueError) {
       setSyncError(`Could not queue cached scores for sync: ${queueError.message}`);
       return false;
     }
-  }, [gameId]);
+  }, [gameId, game]);
 
   const reload = useCallback(async () => {
     try {
@@ -65,6 +68,12 @@ export default function useGameData(gameId) {
       }
 
       const data = await response.json();
+      // A round may finish between the lifecycle gate and this read. Never
+      // reconcile completed evidence through the active write buffer.
+      if (data.game_status === 'completed') {
+        setGame({ ...normalizeGameState(data), readVerified: true });
+        return;
+      }
       // Reconcile the local cache against server truth: flush unsynced edits,
       // or heal a stale/duplicated cache by overwriting it with server state.
       syncManager.reconcileOnLoad(gameId, {
@@ -74,23 +83,19 @@ export default function useGameData(gameId) {
         players: data.players || [],
         baseWager: data.base_wager || 1,
         courseName: data.course_name,
+        gameStatus: data.game_status,
+        expectedRevision: data.revision,
+        writerEpoch: data.writer_epoch,
       });
       localStorage.setItem('wgp_current_game', gameId);
-      setGame(normalizeGameState(data));
+      setGame({ ...normalizeGameState(data), readVerified: true });
     } catch (err) {
       console.error('Error loading game:', err);
       // Bad course signal: open from the local write-buffer if we have a roster.
       const local = syncManager.loadLocalGameState(gameId);
-      if (local?.players?.length) {
-        try {
-          syncManager.ensureScoresQueued(gameId, { holeHistory: [] });
-        } catch (queueError) {
-          // Queue persistence is independent of readable cached round data, so
-          // the round stays open. Non-fatal on purpose: `error` blanks the
-          // round, which is exactly what must not happen here. Never imply the
-          // scores were queued or that a retry is scheduled.
-          setSyncError(`Could not queue cached scores for sync: ${queueError.message}`);
-        }
+      if (local?.players?.length && local.gameStatus !== 'completed' && !(local.currentHole > 18)) {
+        // A failed read cannot establish a revision or authorize an upload.
+        setSyncError('Offline cached round. Reload before submitting any corrections.');
         localStorage.setItem('wgp_current_game', gameId);
         setGame(normalizeGameState({
           players: local.players,
@@ -99,7 +104,8 @@ export default function useGameData(gameId) {
           standings: local.playerStandings,
           course_name: local.courseName,
           base_wager: local.baseWager,
-          game_status: 'in_progress',
+          game_status: local.gameStatus || (local.currentHole > 18 ? 'completed' : 'in_progress'),
+          revision: local.expectedRevision,
         }));
       } else {
         setError(err.message);

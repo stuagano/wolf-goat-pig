@@ -86,6 +86,7 @@ const useScorekeeperSync = ({
   useEffect(() => {
     if (gameId && holeHistory.length > 0) {
       syncManager.saveLocalGameState(gameId, {
+        ...syncManager.loadLocalGameState(gameId),
         holeHistory,
         currentHole,
         playerStandings,

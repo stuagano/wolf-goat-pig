@@ -118,47 +118,50 @@ class PlayerStatisticsResponse(BaseModel):
     player_id: int
     games_played: int
     games_won: int
+    known_participation_count: int = 0
+    scored_round_count: int = 0
+    incomplete_round_count: int = 0
     total_earnings: float
-    holes_played: int
-    holes_won: int
-    avg_earnings_per_hole: float
-    betting_success_rate: float
-    successful_bets: int
-    total_bets: int
-    partnership_success_rate: float
-    partnerships_formed: int
-    partnerships_won: int
-    solo_attempts: int
-    solo_wins: int
+    holes_played: int | None
+    holes_won: int | None
+    avg_earnings_per_hole: float | None
+    betting_success_rate: float | None
+    successful_bets: int | None
+    total_bets: int | None
+    partnership_success_rate: float | None
+    partnerships_formed: int | None
+    partnerships_won: int | None
+    solo_attempts: int | None
+    solo_wins: int | None
     # Special event stats
-    ping_pong_count: int = 0
-    ping_pong_wins: int = 0
-    invisible_aardvark_appearances: int = 0
-    invisible_aardvark_wins: int = 0
+    ping_pong_count: int | None = None
+    ping_pong_wins: int | None = None
+    invisible_aardvark_appearances: int | None = None
+    invisible_aardvark_wins: int | None = None
     # Specific solo type stats
-    duncan_attempts: int = 0
-    duncan_wins: int = 0
-    tunkarri_attempts: int = 0
-    tunkarri_wins: int = 0
-    big_dick_attempts: int = 0
-    big_dick_wins: int = 0
+    duncan_attempts: int | None = None
+    duncan_wins: int | None = None
+    tunkarri_attempts: int | None = None
+    tunkarri_wins: int | None = None
+    big_dick_attempts: int | None = None
+    big_dick_wins: int | None = None
     # Score performance metrics
-    eagles: int = 0
-    birdies: int = 0
-    pars: int = 0
-    bogeys: int = 0
-    double_bogeys: int = 0
-    worse_than_double: int = 0
+    eagles: int | None = None
+    birdies: int | None = None
+    pars: int | None = None
+    bogeys: int | None = None
+    double_bogeys: int | None = None
+    worse_than_double: int | None = None
     # Streak tracking
     current_win_streak: int = 0
     current_loss_streak: int = 0
     best_win_streak: int = 0
     worst_loss_streak: int = 0
     # Role tracking
-    times_as_wolf: int = 0
-    times_as_goat: int = 0
-    times_as_pig: int = 0
-    times_as_aardvark: int = 0
+    times_as_wolf: int | None = None
+    times_as_goat: int | None = None
+    times_as_pig: int | None = None
+    times_as_aardvark: int | None = None
     favorite_game_mode: str
     preferred_player_count: int
     best_hole_performance: list[dict[str, Any]] = []
@@ -222,7 +225,10 @@ class LeaderboardEntry(BaseModel):
     player_id: int
     player_name: str
     games_played: int
+    known_participation_count: int = 0
+    scored_round_count: int = 0
+    incomplete_round_count: int = 0
     win_percentage: float
-    avg_earnings: float
+    avg_earnings: float | None
     total_earnings: float
-    partnership_success: float
+    partnership_success: float | None

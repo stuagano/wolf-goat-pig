@@ -13,20 +13,20 @@ uvicorn[standard]>=0.49.0
 python-multipart>=0.0.9
 
 # Database dependencies
-SQLAlchemy>=2.0.51,<3.0
+SQLAlchemy>=2.1.4,<3.0
 psycopg2-binary>=2.9.9
 
 # HTTP client and configuration
 httpx>=0.27.0
 python-dotenv>=1.0.1
-requests>=2.31.0
+requests>=2.34.2
 
 # Data validation and serialization
 # pydantic is PINNED (exact) for the same reason as fastapi — it drives JSON
 # Schema serialization for the committed OpenAPI contract. Bump deliberately and
 # regenerate the spec + frontend types in the same change. (pydantic pins its own
 # compatible pydantic-core, so that stays deterministic too.)
-pydantic==2.13.4
+pydantic==2.14.1
 
 # SQL parsing — Commissioner read-only SQL validator (_validate_sql) uses
 # sqlglot's AST to enumerate table refs, closing regex-based bypasses.

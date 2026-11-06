@@ -11,11 +11,18 @@ from fastapi import APIRouter
 from . import games_lifecycle, games_queries, games_scorecard, games_setup
 from .games_lifecycle import (
     _check_game_achievements,
+    _check_saved_game_achievements,
     delete_game,
     mark_game_complete,
     start_game_from_lobby,
 )
-from .games_queries import get_game_details, get_game_history, get_game_state_by_id, get_games
+from .games_queries import (
+    get_game_details,
+    get_game_history,
+    get_game_state_by_id,
+    get_games,
+    get_round_summary,
+)
 from .games_scorecard import (
     ScorecardBackfillRequest,
     ScorecardRoundHoleQuarter,
@@ -48,6 +55,7 @@ __all__ = [
     "ScorecardRoundRequest",
     "SetTeeOrderRequest",
     "_check_game_achievements",
+    "_check_saved_game_achievements",
     "_get_current_captain_id",
     "backfill_scorecard",
     "create_game_with_join_code",
@@ -58,6 +66,7 @@ __all__ = [
     "get_game_lobby",
     "get_game_state_by_id",
     "get_games",
+    "get_round_summary",
     "get_scorecard_photo",
     "join_game_with_code",
     "mark_game_complete",

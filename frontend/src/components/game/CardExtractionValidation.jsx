@@ -10,7 +10,7 @@ export default function CardExtractionValidation(props) {
   return <ValidationSession key={JSON.stringify([props.photoSrc, props.players])} {...props} />;
 }
 
-function ValidationSession({ photoSrc, players, holeHistory = [] }) {
+function ValidationSession({ photoSrc, players, holeHistory = [], acceptedTotals, detailCoverage }) {
   const [result, setResult] = useState(null);
   const [mapping, setMapping] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -58,18 +58,20 @@ function ValidationSession({ photoSrc, players, holeHistory = [] }) {
       </>}
       {error && <p role="alert">{error}</p>}
       {result && <>
-        <p>Running quarters after each hole: saved per-hole quarters added together, compared with the raw card reading. Strokes are not compared. Low or unknown confidence is marked uncertain.</p>
+        <p>{acceptedTotals ? `Comparing accepted final totals only (${detailCoverage || 'unknown'} hole detail); intermediate balances are not verified.` : 'Running quarters after each hole: saved per-hole quarters added together, compared with the raw card reading.'} Strokes are not compared. Low or unknown confidence is marked uncertain.</p>
         {result.players.length === 0 && <p role="status">No players were extracted. Try another extraction or inspect the photo.</p>}
         {players.filter((_, i) => !mapping.includes(String(i))).map((p, i) => <p key={i}>Not compared: {p.name} — no mapped extraction.</p>)}
         {result.players.map((entry, index) => {
           const selected = mapping[index];
           const player = selected !== '' ? players[Number(selected)] : null;
           const duplicate = selected !== '' && mapping.filter(m => m === selected).length > 1;
-          const balances = player ? savedBalances(holeHistory, player.id) : [];
+          const balances = player ? (acceptedTotals
+            ? Array.from({ length: 18 }, (_, i) => i === 17 ? acceptedTotals[player.id] ?? null : null)
+            : savedBalances(holeHistory, player.id)) : [];
           // Totals-only imports store zeros on 1–17. There is no provenance flag;
           // do not label those intermediate placeholders as extraction errors.
-          const possibleTotalsOnly = balances.length === 18 && balances.slice(0, 17).every(v => v === 0) && balances[17] !== null;
-          const rows = player ? comparisonRows(result.running_totals, index, balances).filter(row => !possibleTotalsOnly || row.hole === 18) : [];
+          const possibleTotalsOnly = !acceptedTotals && balances.length === 18 && balances.slice(0, 17).every(v => v === 0) && balances[17] !== null;
+          const rows = player ? comparisonRows(result.running_totals, index, balances).filter(row => !(acceptedTotals || possibleTotalsOnly) || row.hole === 18) : [];
           return <div className="card-validation__player" key={index}>
             <label>
               Card row {index + 1}: {typeof entry?.name === 'string' && entry.name.trim() ? entry.name : 'Unreadable name'} → recorded player

@@ -184,36 +184,39 @@ class TestSyncRoundToSpreadsheet:
         payload.update(overrides)
         return payload
 
-    def test_returns_202_for_valid_request(self):
+    def test_rejects_historical_date_name_only_enqueue(self):
         resp = client.post(
             "/admin/spreadsheet/sync-round",
             json=self._make_sync_payload(),
             headers=ADMIN_HEADER,
         )
+        assert resp.status_code == 422
+
+    def test_uuid_contract_reaches_single_enqueue_caller(self):
+        payload = {
+            "game_id": "df531d22-1842-446d-af39-54503218004d",
+            "source_scope": "synthetic:42:2026",
+            "source_round_token": "round-token",
+            "operation_key": "operation",
+            "expected_revision": 1,
+            "expected_epoch": 2,
+            "expected_source_version": "reviewed-version",
+            "action": "insert",
+        }
+        job = MagicMock(id=901, game_id=payload["game_id"])
+        with patch("app.services.round_sheet_delivery.enqueue_sheet_sync", return_value=job) as enqueue:
+            resp = client.post("/admin/spreadsheet/sync-round", json=payload, headers=ADMIN_HEADER)
         assert resp.status_code == 202
+        assert resp.json() == {"status": "queued", "job_id": 901, "game_id": payload["game_id"]}
+        assert enqueue.call_count == 1 and enqueue.call_args.kwargs == payload
 
-    def test_returns_queued_status(self):
-        resp = client.post(
-            "/admin/spreadsheet/sync-round",
-            json=self._make_sync_payload(),
-            headers=ADMIN_HEADER,
-        )
-        data = resp.json()
-        assert data["status"] == "queued"
-        assert "job_id" in data
-        assert data["date"] == "2026-04-08"
-        assert data["group"] == "A"
-        assert "Alice" in data["players"]
-        assert "Bob" in data["players"]
-
-    def test_returns_400_for_invalid_date_format(self):
+    def test_invalid_historical_date_does_not_bypass_uuid_contract(self):
         resp = client.post(
             "/admin/spreadsheet/sync-round",
             json=self._make_sync_payload(date="April 8 2026"),
             headers=ADMIN_HEADER,
         )
-        assert resp.status_code == 400
-        assert "Invalid date format" in resp.json()["detail"]
+        assert resp.status_code == 422
 
     def test_returns_422_for_missing_player_scores(self):
         resp = client.post(
@@ -235,13 +238,13 @@ class TestSyncRoundToSpreadsheet:
         )
         assert resp.status_code == 422
 
-    def test_accepts_optional_duration(self):
+    def test_duration_does_not_authorize_unbound_job(self):
         resp = client.post(
             "/admin/spreadsheet/sync-round",
             json=self._make_sync_payload(duration="02:30:00"),
             headers=ADMIN_HEADER,
         )
-        assert resp.status_code == 202
+        assert resp.status_code == 422
 
     def test_returns_403_without_header(self):
         resp = client.post(

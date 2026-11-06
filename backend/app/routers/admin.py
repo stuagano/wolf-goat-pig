@@ -20,6 +20,9 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .. import database, models, schemas
+from ..schemas.participant_correction import ParticipantCorrection
+from ..schemas.round_identity import RoundModeRequest
+from ..services.auth_service import get_current_user
 from ..services.email_service import EmailService, get_email_service
 from ..state.app_state import set_email_service_instance
 from ..utils.admin_auth import require_admin
@@ -30,9 +33,73 @@ logger = logging.getLogger("app.routers.admin")
 router = APIRouter(tags=["admin"])
 
 
+@router.get("/admin/participant-results/{result_id}")
+def preview_participant_correction(
+    result_id: int,
+    replacement_profile_id: int = Query(gt=0),
+    user=Depends(get_current_user),
+    db: Session = Depends(database.get_db),
+):
+    from ..services.participant_correction import preview
+
+    try:
+        return preview(db, user, result_id, replacement_profile_id)
+    finally:
+        db.rollback()  # release preview locks; never retain a preview transaction
+
+
+@router.post("/admin/participant-results/{result_id}/correct")
+def correct_participant(
+    result_id: int,
+    request: ParticipantCorrection,
+    user=Depends(get_current_user),
+    db: Session = Depends(database.get_db),
+):
+    from ..services.participant_correction import correct, result_values
+    from ..services.participant_correction_roster import readback_values
+
+    try:
+        audit_id = correct(db, user, result_id, request)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    # New transaction, forced SQL refresh, not the pre-commit identity map.
+    db.expire_all()
+    audit = db.query(models.ParticipantCorrectionAudit).filter_by(id=audit_id).populate_existing().one()
+    row = db.query(models.GamePlayerResult).filter_by(id=result_id).populate_existing().one()
+    record = db.query(models.GameRecord).filter_by(id=row.game_record_id).populate_existing().one()
+    if readback_values(db, row, audit.after) != audit.after or record.game_id != audit.game_id:
+        raise HTTPException(409, "Committed correction changed during read-back; preview again")
+    return {"audit_id": audit.id, "game_id": record.game_id, "result": result_values(row)}
+
+
 class AdminTestEmailRequest(BaseModel):
     test_email: str = Field(..., min_length=1)
     config: dict[str, Any] = Field(default_factory=dict)
+
+
+@router.put("/admin/round-identity/mode")
+def set_round_identity_mode(
+    request: RoundModeRequest,
+    user=Depends(get_current_user),
+    _admin=Depends(require_admin),
+    db: Session = Depends(database.get_db),
+):
+    """Activate only fresh server-stored verification plus separate Gate D.
+
+    Caller JSON selects a manifest checksum, never supplies passing evidence.
+    Connector and dispatch remain paused pending their separate approvals.
+    """
+    from ..services.round_cutover import activate_canonical
+
+    try:
+        result = activate_canonical(db, request, user.id)
+        db.commit()
+        return result
+    except Exception:
+        db.rollback()
+        raise
 
 
 # =============================================================================

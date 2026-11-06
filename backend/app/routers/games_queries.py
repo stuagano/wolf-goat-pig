@@ -8,6 +8,7 @@ from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from .. import database, models
+from ..schemas.round_identity import RoundSummary
 from ..services.completed_game_service import round_played_at
 
 logger = logging.getLogger(__name__)
@@ -98,6 +99,14 @@ async def get_games(  # type: ignore
         raise HTTPException(status_code=500, detail=f"Error retrieving games: {e!s}")
 
 
+@router.get("/{game_id}/round-summary", response_model=RoundSummary)
+def get_round_summary(game_id: str, db: Session = Depends(database.get_db)):
+    """Accepted final results and actual detail on the permanent UUID."""
+    from ..services.round_review import round_summary
+
+    return round_summary(db, game_id)
+
+
 @router.get("/{game_id}/state")
 async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_db)) -> dict[str, Any]:
     """Get current game state for a specific multiplayer game.
@@ -115,9 +124,18 @@ async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
 
+        from ..schemas.round_identity import read_round_identity_config
+
+        writer_epoch = read_round_identity_config(db).epoch
         # If game is completed, just return the saved state
         if game.game_status == "completed":
-            return game.state  # type: ignore
+            return {
+                **(game.state or {}),
+                "game_id": game_id,
+                "game_status": "completed",
+                "revision": game.revision,
+                "writer_epoch": writer_epoch,
+            }
 
         # If game is in setup, return lobby info
         if game.game_status == "setup":
@@ -153,6 +171,8 @@ async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_
         # Enrich with players from database
         saved_state = game.state.copy() if game.state else {}  # type: ignore
         saved_state["game_id"] = game_id
+        saved_state["revision"] = game.revision
+        saved_state["writer_epoch"] = writer_epoch
         saved_state["game_status"] = "in_progress"
 
         # Get players from database to ensure fresh data

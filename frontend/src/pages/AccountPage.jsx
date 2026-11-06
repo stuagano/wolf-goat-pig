@@ -126,18 +126,23 @@ const gatherStats = () => {
  * ``score`` / quarters on these rounds is won/lost wager units, not strokes.
  */
 export const mapClubHistoryToStats = (history) => {
-  if (!history?.found || !history.rounds_played) return null;
+  if (!history?.found) return null;
 
+  // Unknown totals stay unavailable; a canonical NULL is not the number zero.
   return {
-    gamesPlayed: history.rounds_played,
-    totalEarnings: history.total_quarters ?? 0,
-    averageScore: history.average_per_round ?? 0,
+    gamesPlayed: history.scored_round_count ?? history.rounds_played ?? 0,
+    knownParticipation: history.known_participation_count ?? null,
+    incompleteRounds: history.incomplete_round_count ?? null,
+    totalEarnings: history.total_quarters ?? null,
+    averageScore: history.average_per_round ?? null,
     bestScore: history.best_round ?? null,
-    recentGames: (history.recent_rounds || []).map((round) => ({
+    recentGames: (history.recent_rounds || []).map((round, index) => ({
+      key: round.game_id ? `${round.game_id}-${round.participant_id ?? index}` : `round-${index}`,
       date: round.date || round.date_display,
       game_id: round.game_id ?? null,
-      score: round.score,
-      earnings: round.score,
+      score: round.score ?? null,
+      earnings: round.score ?? null,
+      scoreEligible: round.score_eligible !== false,
       course: round.location || 'Round',
     })),
   };
@@ -441,7 +446,7 @@ function AccountPage() {
       <div style={cardStyle}>
         <h3 style={sectionTitle}>Personal Stats</h3>
 
-        {stats && stats.gamesPlayed > 0 ? (
+        {stats && (stats.gamesPlayed > 0 || stats.knownParticipation > 0 || stats.recentGames.length > 0) ? (
           <>
             <div style={{
               display: 'flex',
@@ -451,14 +456,28 @@ function AccountPage() {
             }}>
               <div style={statBoxStyle}>
                 <div style={statValueStyle}>{stats.gamesPlayed}</div>
-                <div style={statLabelStyle}>Rounds Played</div>
+                <div style={statLabelStyle}>Scored Rounds</div>
               </div>
+              {stats.knownParticipation != null && (
+                <div style={statBoxStyle}>
+                  <div style={statValueStyle}>{stats.knownParticipation}</div>
+                  <div style={statLabelStyle}>Known Appearances</div>
+                </div>
+              )}
+              {stats.incompleteRounds > 0 && (
+                <div style={statBoxStyle}>
+                  <div style={statValueStyle}>{stats.incompleteRounds}</div>
+                  <div style={statLabelStyle}>Incomplete / Provisional</div>
+                </div>
+              )}
               <div style={statBoxStyle}>
                 <div style={{
                   ...statValueStyle,
-                  color: stats.totalEarnings >= 0 ? theme.colors.success : theme.colors.error,
+                  color: stats.totalEarnings == null ? theme.colors.textSecondary
+                    : stats.totalEarnings >= 0 ? theme.colors.success : theme.colors.error,
                 }}>
-                  {stats.totalEarnings >= 0 ? '+' : ''}{stats.totalEarnings.toFixed(0)}
+                  {stats.totalEarnings == null ? 'Unavailable'
+                    : `${stats.totalEarnings >= 0 ? '+' : ''}${stats.totalEarnings}`}
                 </div>
                 <div style={statLabelStyle}>Quarters</div>
               </div>
@@ -470,28 +489,28 @@ function AccountPage() {
               marginTop: '12px',
               flexWrap: 'wrap',
             }}>
-              {stats.averageScore != null && stats.gamesPlayed > 0 && (
-                <div style={statBoxStyle}>
-                  <div style={{
-                    ...statValueStyle,
-                    color: stats.averageScore >= 0 ? theme.colors.success : theme.colors.error,
-                  }}>
-                    {stats.averageScore >= 0 ? '+' : ''}{stats.averageScore}
-                  </div>
-                  <div style={statLabelStyle}>Avg Quarters</div>
+              <div style={statBoxStyle}>
+                <div style={{
+                  ...statValueStyle,
+                  color: stats.averageScore == null ? theme.colors.textSecondary
+                    : stats.averageScore >= 0 ? theme.colors.success : theme.colors.error,
+                }}>
+                  {stats.averageScore == null ? 'Unavailable'
+                    : `${stats.averageScore >= 0 ? '+' : ''}${stats.averageScore}`}
                 </div>
-              )}
-              {stats.bestScore !== null && (
-                <div style={statBoxStyle}>
-                  <div style={{
-                    ...statValueStyle,
-                    color: stats.bestScore >= 0 ? theme.colors.success : theme.colors.error,
-                  }}>
-                    {stats.bestScore >= 0 ? '+' : ''}{stats.bestScore}
-                  </div>
-                  <div style={statLabelStyle}>Best Round</div>
+                <div style={statLabelStyle}>Avg Quarters (scored rounds)</div>
+              </div>
+              <div style={statBoxStyle}>
+                <div style={{
+                  ...statValueStyle,
+                  color: stats.bestScore == null ? theme.colors.textSecondary
+                    : stats.bestScore >= 0 ? theme.colors.success : theme.colors.error,
+                }}>
+                  {stats.bestScore == null ? 'Unavailable'
+                    : `${stats.bestScore >= 0 ? '+' : ''}${stats.bestScore}`}
                 </div>
-              )}
+                <div style={statLabelStyle}>Best Round</div>
+              </div>
             </div>
 
             {/* Recent Games */}
@@ -506,7 +525,7 @@ function AccountPage() {
                   Recent Rounds
                 </div>
                 {stats.recentGames.map((game, i) => (
-                  <div key={i} style={{
+                  <div key={game.key || i} style={{
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
@@ -526,6 +545,8 @@ function AccountPage() {
                       <ScorecardLink gameId={game.game_id} className="text-sm text-blue-700 hover:underline" />
                     </div>
                     <div style={{ textAlign: 'right' }}>
+                      {game.earnings == null && <span>Not recorded</span>}
+                      {game.scoreEligible === false && <span>Incomplete — excluded from score standings</span>}
                       {game.earnings != null && (
                         <div style={{
                           fontSize: '14px',
