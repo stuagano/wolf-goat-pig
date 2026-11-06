@@ -21,6 +21,7 @@ from app.services.auth_service import get_current_user
 
 STAMP = "2026-01-02T03:04:05+00:00"
 TABLES = (
+    models.AppConfig,
     models.GameStateModel,
     models.GamePlayer,
     models.PlayerProfile,

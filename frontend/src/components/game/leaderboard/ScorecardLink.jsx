@@ -13,7 +13,7 @@ export default function ScorecardLink({ gameId, className }) {
   const path = scorecardPath({ game_id: gameId });
   if (!path) return null;
   return (
-    <Link to={path} className={className} title="View the hole-by-hole scorecard">
+    <Link to={path} className={className} title="View accepted round scores and available detail">
       📊 Scorecard
     </Link>
   );

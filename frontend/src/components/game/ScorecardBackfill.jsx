@@ -4,6 +4,7 @@ import { computeHoleDeltas } from '../../utils/quarters';
 import ScorecardPhotoButton from './ScorecardPhotoButton';
 import { useAuthenticatedFetch } from '../../hooks/useAuthenticatedFetch';
 import { apiConfig } from '../../config/api.config';
+import { readDraft, keepDraft, clearDraft } from './roundWriteDraft';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -23,9 +24,9 @@ function holeHistoryToRunningTotals(holeHistory, players) {
     const deltas = entry.points_delta || {};
     for (let i = 0; i < players.length; i++) {
       const playerId = players[i].id;
-      const delta = deltas[playerId] ?? 0;
+      const delta = deltas[playerId];
       const key = `${i}-${hole}`;
-      deltasByPlayerHole[key] = delta;
+      if (Number.isFinite(delta)) deltasByPlayerHole[key] = delta;
     }
   }
 
@@ -36,11 +37,9 @@ function holeHistoryToRunningTotals(holeHistory, players) {
     for (const h of HOLES) {
       const key = `${i}-${h}`;
       const delta = deltasByPlayerHole[key];
-      if (delta != null) {
-        cumulative += delta;
-        running[key] = cumulative;
-      }
-      // holes not in history are left blank (undefined)
+      if (delta == null) break; // no inferred zero across a missing hole
+      cumulative += delta;
+      running[key] = cumulative;
     }
   }
   return running;
@@ -52,7 +51,9 @@ function holeHistoryToRunningTotals(holeHistory, players) {
  *
  * Props:
  *   gameId      — game identifier
- *   players     — [{id, name}, ...] (order = player_index)
+ *   players     — [{id, name}, ...] (visible cell/draft order)
+ *   statePlayers — full state.players roster for stable-ID → PATCH index lookup;
+ *                  omit only when players already IS the full state roster.
  *   holeHistory — [{hole, points_delta: {playerId: delta}}, ...]
  *   standings   — {playerId: signedTotal}
  *   onSaved     — called after a successful PATCH
@@ -65,6 +66,8 @@ const ScorecardBackfill = ({
   standings,
   onSaved,
   onCancel,
+  expectedRevision,
+  statePlayers,
 }) => {
   const authenticatedFetch = useAuthenticatedFetch();
   // Pre-fill running totals from existing hole_history
@@ -73,9 +76,57 @@ const ScorecardBackfill = ({
     [holeHistory, players],
   );
 
-  const [values, setValues] = useState(initialValues);
+  // Undefined preserves the existing full-state-roster caller contract. The
+  // summary caller must supply a full roster (or null to fail closed).
+  const [writeRoster, setWriteRoster] = useState(statePlayers === undefined ? players : statePlayers);
+  const writeIndices = players.map(player => {
+    const matches = (writeRoster || []).flatMap((slot, index) => slot.id === player.id ? [index] : []);
+    return matches.length === 1 ? matches[0] : null;
+  });
+  const mappingAvailable = new Set(players.map(p => p.id)).size === players.length
+    && writeIndices.every(index => index !== null);
+  const [recovered] = useState(() => readDraft(gameId, 'backfill'));
+  const sameSlots = recovered?.slots?.join('|') === players.map(p => p.id).join('|');
+  const [values, setValues] = useState(sameSlots ? recovered.values : initialValues);
+  const [revision, setRevision] = useState(sameSlots ? recovered.revision : expectedRevision);
+  const [needsReview, setNeedsReview] = useState(Boolean(recovered));
+  const [rosterDraftHeld, setRosterDraftHeld] = useState(Boolean(recovered && !sameSlots));
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  const [acceptedStandings, setAcceptedStandings] = useState(standings);
+  const retain = (next, rev = revision) => {
+    // Index-keyed cells cannot be relabeled using a changed accepted roster.
+    // Preserve the original copy until the user explicitly discards it.
+    if (rosterDraftHeld) return;
+    keepDraft(gameId, 'backfill', { values: next, revision: rev, slots: players.map(p => p.id) });
+  };
+  const discardRosterDraft = () => {
+    try {
+      keepDraft(gameId, 'backfill', { values, revision, slots: players.map(p => p.id) });
+      setRosterDraftHeld(false);
+      // Still require the existing explicit reload/review before any submission.
+      setNeedsReview(true);
+    } catch { setSaveError('Could not replace the retained draft on this device. Original draft is still held.'); }
+  };
+  const reloadAccepted = async () => {
+    if (rosterDraftHeld) return;
+    try {
+      const res = await authenticatedFetch(`${API_URL}/games/${gameId}/state`);
+      if (!res.ok) throw new Error('Could not reload accepted round. Your draft is retained.');
+      const snapshot = await res.json();
+      if (!Number.isInteger(snapshot.revision)) throw new Error('Round revision unavailable.');
+      const roster = snapshot.players;
+      if (!Array.isArray(roster) || !players.every(p => roster.filter(slot => slot.id === p.id).length === 1)) {
+        throw new Error('Participant mapping unavailable. Reload the game page; retained cells remain tied to their original stable slot IDs.');
+      }
+      setWriteRoster(roster);
+      setRevision(snapshot.revision);
+      setAcceptedStandings(snapshot.standings || {});
+      retain(values, snapshot.revision);
+      setNeedsReview(false);
+      setSaveError('Accepted round reloaded. Compare locked totals, then explicitly save your retained detail.');
+    } catch (err) { setSaveError(err.message); }
+  };
 
   const handleChange = useCallback((playerIdx, hole, raw) => {
     const parsed = raw === '' ? undefined : Number(raw);
@@ -87,9 +138,11 @@ const ScorecardBackfill = ({
       } else {
         next[key] = parsed;
       }
+      try { retain(next); }
+      catch { setSaveError('Could not retain edits on this device. Keep this editor open and copy your entries before leaving.'); }
       return next;
     });
-  }, []);
+  }, [gameId, revision, players, rosterDraftHeld]);
 
   // Compute per-hole deltas for each player from the running-total grid
   const allDeltas = useMemo(() => {
@@ -123,7 +176,7 @@ const ScorecardBackfill = ({
   const mismatches = useMemo(() => {
     return players
       .map((player, i) => {
-        const locked = standings[player.id];
+        const locked = acceptedStandings[player.id];
         const entered = playerFinalTotals[i];
         if (entered == null) return null; // nothing entered yet — no warning
         if (entered !== locked) {
@@ -136,33 +189,51 @@ const ScorecardBackfill = ({
         return null;
       })
       .filter(Boolean);
-  }, [players, standings, playerFinalTotals]);
+  }, [players, acceptedStandings, playerFinalTotals]);
 
   const handleSave = async () => {
+    if (!mappingAvailable) {
+      setSaveError('Participant mapping unavailable. Reload the game page before submitting detail; no positions or names were guessed.');
+      return;
+    }
+    if (needsReview || !Number.isInteger(revision)) {
+      setNeedsReview(true);
+      setSaveError('Reload accepted round before submitting retained detail.');
+      return;
+    }
+    if (!players.every((_, i) => HOLES.every(h => Number.isFinite(values[`${i}-${h}`])))) {
+      setSaveError('Enter every running total; missing holes cannot be inferred as zero.');
+      return;
+    }
     setSaving(true);
     setSaveError(null);
 
-    // Build per_hole_quarters: emit every hole 1-18 per player so the backend
-    // hole_history contains all 18 entries and allHolesPlayed() returns true
-    // even for no-op saves. Zero-delta holes are included (quarters: 0).
+    // A full-detail write requires explicitly observed/entered cells.
     const perHoleQuarters = [];
     for (let i = 0; i < players.length; i++) {
       const deltas = allDeltas[i] || {};
       for (const h of HOLES) {
-        perHoleQuarters.push({ player_index: i, hole: h, quarters: deltas[h] ?? 0 });
+        perHoleQuarters.push({ player_index: writeIndices[i], hole: h, quarters: deltas[h] });
       }
     }
 
     try {
+      retain(values);
       const res = await authenticatedFetch(`${API_URL}/games/${gameId}/scorecard`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ per_hole_quarters: perHoleQuarters }),
+        body: JSON.stringify({ per_hole_quarters: perHoleQuarters, expected_revision: revision }),
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.detail || `Save failed (${res.status})`);
+      const body = await res.json().catch(() => ({}));
+      if (res.status === 409) {
+        // Held, not staged durably: retained locally for an explicit reload.
+        setNeedsReview(true);
+        retain(values);
+        throw new Error('Round changed. Your edits are retained locally; reload accepted round, then resubmit.');
       }
+      if (!res.ok) throw new Error(body.detail || `Save failed (${res.status})`);
+      if (Number.isInteger(body.revision)) setRevision(body.revision);
+      clearDraft(gameId, 'backfill');
       onSaved();
     } catch (err) {
       setSaveError(err.message);
@@ -207,6 +278,28 @@ const ScorecardBackfill = ({
         </div>
       )}
 
+      {rosterDraftHeld && (
+        <div role="alert" className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-sm text-amber-800">
+          The accepted roster changed. Your original draft is held below with its original slot IDs and cell indices.
+          Copy this JSON to recover all entries, including removed players. Current grid edits will not replace it
+          or be submitted until you explicitly discard the original. Current grid edits are not retained while it is held.
+          <textarea aria-label="Retained backfill draft JSON" readOnly value={JSON.stringify(recovered, null, 2)}
+            className="block w-full mt-2" rows={6} />
+          <button type="button" onClick={discardRosterDraft} className="underline font-semibold">
+            Discard retained draft and use current grid
+          </button>
+        </div>
+      )}
+
+      {needsReview && !rosterDraftHeld && (
+        <div role="alert" className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-sm text-amber-800">
+          Your retained edits were not accepted and are not staged on the server.
+          <button type="button" onClick={reloadAccepted} className="ml-2 underline font-semibold">
+            Reload accepted round
+          </button>
+        </div>
+      )}
+
       {/* Save error */}
       {saveError && (
         <div className="bg-red-50 border border-red-300 rounded-lg p-3 text-sm text-red-700">
@@ -237,7 +330,7 @@ const ScorecardBackfill = ({
           </thead>
           <tbody>
             {players.map((player, i) => {
-              const locked = standings[player.id];
+              const locked = acceptedStandings[player.id];
               const finalEntered = playerFinalTotals[i];
               const mismatch =
                 finalEntered != null && finalEntered !== locked;
@@ -354,6 +447,7 @@ ScorecardBackfill.propTypes = {
     }),
   ).isRequired,
   standings: PropTypes.objectOf(PropTypes.number).isRequired,
+  expectedRevision: PropTypes.number,
   onSaved: PropTypes.func.isRequired,
   onCancel: PropTypes.func.isRequired,
 };

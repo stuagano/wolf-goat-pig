@@ -85,12 +85,39 @@ describe('PlayerProfilePage game history', () => {
     mockUsePlayerProfile.mockReturnValue({ profile: { id: 999 } });
     renderPage();
 
-    expect(await screen.findByText('Quarters')).toBeInTheDocument();
-    expect(screen.getByText('Avg Quarters')).toBeInTheDocument();
+    expect(await screen.findByText('Quarters (shown)')).toBeInTheDocument();
+    expect(screen.getByText('Avg Quarters (scored, shown)')).toBeInTheDocument();
     expect(screen.queryByText('Wins')).toBeNull();
 
     const scoreboard = [...document.querySelectorAll('.wgp-profile__stat')].map(el => el.textContent);
-    expect(scoreboard).toEqual(['2Rounds', '+2Quarters', '+1Avg Quarters']);
+    expect(scoreboard).toEqual([
+      '2Known appearances (shown)',
+      '2Scored rounds (shown)',
+      '0Incomplete / provisional (shown)',
+      '+2Quarters (shown)',
+      '+1Avg Quarters (scored, shown)',
+    ]);
+  });
+
+  test('keeps incomplete participation outside scored totals and preserves fractions', async () => {
+    mockUsePlayerProfile.mockReturnValue({ profile: { id: 999 } });
+    global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({
+      ...baseProfile,
+      game_history: [
+        { game_id: 'g1', participant_id: 'one', date: '2026-06-13', score: 2.5, score_eligible: true },
+        { game_id: 'g2', participant_id: 'two', date: '2026-06-06', score: null, score_eligible: false },
+        { game_id: 'g3', participant_id: 'three', date: '2026-06-05', score: 99, score_eligible: false },
+      ],
+    }) }));
+    renderPage();
+
+    expect(await screen.findByText('Scored rounds (shown)')).toBeInTheDocument();
+    const scoreboard = [...document.querySelectorAll('.wgp-profile__stat')].map(el => el.textContent);
+    expect(scoreboard).toEqual([
+      '3Known appearances (shown)', '1Scored rounds (shown)',
+      '2Incomplete / provisional (shown)', '+2.5Quarters (shown)', '+2.5Avg Quarters (scored, shown)',
+    ]);
+    expect(screen.getByText('Not recorded')).toBeInTheDocument();
   });
 
   test('shows empty state when no rounds recorded', async () => {

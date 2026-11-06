@@ -45,6 +45,7 @@ const holeHistory = [
 
 beforeEach(() => {
   vi.resetAllMocks();
+  localStorage.clear();
 });
 
 describe('ScorecardBackfill — money path', () => {
@@ -60,6 +61,7 @@ describe('ScorecardBackfill — money path', () => {
     render(
       <ScorecardBackfill
         gameId="g1"
+        expectedRevision={4}
         players={players}
         holeHistory={holeHistory}
         standings={standings}
@@ -72,7 +74,10 @@ describe('ScorecardBackfill — money path', () => {
     expect(screen.getAllByText(/Locked: 6/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Locked: -6/).length).toBeGreaterThan(0);
 
-    // Enter running totals for hole 18 only (simplest path: 1 nonzero delta each)
+    // Explicitly enter every known running total. Unknown holes stay unknown.
+    for (const p of players) {
+      for (let h = 1; h < 18; h++) fireEvent.change(screen.getByLabelText(`running total ${p.name} hole ${h}`), { target: { value: '0' } });
+    }
     // p1 (row 0, Alice): running total at hole 18 = 6
     // p2 (row 1, Bob): running total at hole 18 = -6
     const aliceHole18 = screen.getByRole('spinbutton', {
@@ -135,6 +140,7 @@ describe('ScorecardBackfill — mismatch warning', () => {
     render(
       <ScorecardBackfill
         gameId="g1"
+        expectedRevision={4}
         players={players}
         holeHistory={holeHistory}
         standings={standings}
@@ -143,6 +149,10 @@ describe('ScorecardBackfill — mismatch warning', () => {
       />,
     );
 
+    for (const p of players) {
+      for (let h = 1; h < 18; h++) fireEvent.change(screen.getByLabelText(`running total ${p.name} hole ${h}`), { target: { value: '0' } });
+    }
+    fireEvent.change(screen.getByLabelText('running total Bob hole 18'), { target: { value: '-6' } });
     // Enter a wrong total for Alice (4 instead of 6) → mismatch
     const aliceHole18 = screen.getByRole('spinbutton', {
       name: /running total alice hole 18/i,
@@ -168,6 +178,7 @@ describe('ScorecardBackfill — photo button', () => {
     render(
       <ScorecardBackfill
         gameId="g1"
+        expectedRevision={4}
         players={players}
         holeHistory={holeHistory}
         standings={standings}

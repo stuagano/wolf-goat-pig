@@ -29,7 +29,7 @@ const formatGameDate = (dateStr) => {
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-const formatScore = (q) => `${q >= 0 ? '+' : ''}${q}`;
+const formatScore = (q) => q == null ? 'Not recorded' : `${q >= 0 ? '+' : ''}${q}`;
 
 // A handicap_source of "default" means the 18.0 placeholder — i.e. unknown /
 // pending a GHIN sync — so we must not present it as a real handicap.
@@ -187,8 +187,12 @@ const PlayerProfilePage = () => {
   // Quarters are the club's only standing metric, and `game_history` (sheet +
   // attested + in-app) is the complete record — the player_statistics table
   // only covers rounds scored live in the app.
-  const totalQuarters = game_history.reduce((sum, g) => sum + (g.score || 0), 0);
-  const avgQuarters = game_history.length ? totalQuarters / game_history.length : 0;
+  // Only accepted, score-eligible totals may be summed or averaged. A NULL
+  // quarters value is unknown, so it cannot enter either the sum or the
+  // denominator; known appearances are reported separately.
+  const scored = game_history.filter(g => g.score != null && g.score_eligible !== false);
+  const totalQuarters = scored.length ? scored.reduce((sum, g) => sum + g.score, 0) : null;
+  const avgQuarters = scored.length ? totalQuarters / scored.length : null;
 
   return (
     <div className="wgp-clubhouse wgp-profile">
@@ -255,9 +259,11 @@ const PlayerProfilePage = () => {
 
           <div className="wgp-profile__scoreboard">
             {[
-              { label: 'Rounds', value: game_history.length },
-              { label: 'Quarters', value: formatScore(totalQuarters) },
-              { label: 'Avg Quarters', value: formatScore(Number(avgQuarters.toFixed(1))) },
+              { label: 'Known appearances (shown)', value: game_history.length },
+              { label: 'Scored rounds (shown)', value: scored.length },
+              { label: 'Incomplete / provisional (shown)', value: game_history.length - scored.length },
+              { label: 'Quarters (shown)', value: totalQuarters == null ? 'Unavailable' : formatScore(totalQuarters) },
+              { label: 'Avg Quarters (scored, shown)', value: avgQuarters == null ? 'Unavailable' : formatScore(avgQuarters) },
             ].map(({ label, value }) => (
               <div key={label} className="wgp-profile__stat">
                 <div className="wgp-profile__stat-value">{value}</div>
@@ -304,13 +310,13 @@ const PlayerProfilePage = () => {
                 const hasHoleDetail = Array.isArray(g.holes) && g.holes.length > 0;
                 const isExpanded = expandedRound === i;
                 return (
-                  <div key={`${g.date}-${i}`} className="wgp-profile__ledger-item">
+                  <div key={`${g.game_id || g.date}-${g.participant_id || i}`} className="wgp-profile__ledger-item">
                     <div
                       className={`wgp-profile__ledger-row${hasHoleDetail ? ' wgp-profile__ledger-row--clickable' : ''}`}
                       onClick={() => hasHoleDetail && setExpandedRound(isExpanded ? null : i)}
                     >
                       <div className="wgp-profile__ledger-primary">
-                        {g.group ? (
+                        {g.game_id || g.group ? (
                           <Link to={roundPath(g)} className="hover:underline">
                             {formatGameDate(g.date)}
                           </Link>
@@ -320,6 +326,8 @@ const PlayerProfilePage = () => {
                           gameId={g.game_id}
                           className="wgp-profile__ledger-secondary hover:underline"
                         />
+                        {g.score_eligible === false && <span>Incomplete — excluded from score standings</span>}
+                        {g.detail_coverage === 'partial' && <span>Partial recorded holes only</span>}
                         {hasHoleDetail && <span className="wgp-profile__ledger-expand-hint">{isExpanded ? '▲' : '▾'} hole-by-hole</span>}
                       </div>
                       <span className={`wgp-profile__score ${g.score >= 0 ? 'wgp-profile__score--win' : 'wgp-profile__score--loss'}`}>

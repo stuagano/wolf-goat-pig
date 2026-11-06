@@ -43,19 +43,50 @@ describe('mapClubHistoryToStats', () => {
       }),
     ).toEqual({
       gamesPlayed: 61,
+      knownParticipation: null,
+      incompleteRounds: null,
       totalEarnings: -3372,
       averageScore: -55.3,
       bestScore: 716,
       recentGames: [
         {
+          key: 'round-0',
           date: '2026-08-24',
           game_id: null,
           score: -58,
           earnings: -58,
+          scoreEligible: true,
           course: 'Wing Point',
         },
       ],
     });
+  });
+
+  it('keeps unknown club totals unavailable and reports coverage separately', () => {
+    expect(
+      mapClubHistoryToStats({
+        found: true,
+        scored_round_count: 0,
+        known_participation_count: 3,
+        incomplete_round_count: 3,
+        total_quarters: null,
+        average_per_round: null,
+        best_round: null,
+        recent_rounds: [{ date: '2026-08-24', score: null, score_eligible: false, game_id: 'g9', participant_id: 'slot' }],
+      }),
+    ).toEqual({
+      gamesPlayed: 0,
+      knownParticipation: 3,
+      incompleteRounds: 3,
+      totalEarnings: null,
+      averageScore: null,
+      bestScore: null,
+      recentGames: [{ key: 'g9-slot', date: '2026-08-24', game_id: 'g9', score: null, earnings: null, scoreEligible: false, course: 'Round' }],
+    });
+  });
+
+  it('preserves a fractional club average rather than rounding it away', () => {
+    expect(mapClubHistoryToStats({ found: true, rounds_played: 2, average_per_round: -55.3, recent_rounds: [] }).averageScore).toBe(-55.3);
   });
 
   it('returns null when the member has no club history', () => {

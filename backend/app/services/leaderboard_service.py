@@ -163,6 +163,12 @@ class LeaderboardService:
                     detail=f"Invalid leaderboard type. Must be one of: {', '.join(self.LEADERBOARD_TYPES)}",
                 )
 
+            from .canonical_round_reads import canonical_mode
+
+            if canonical_mode(db):
+                # A process cache must not outlive a correction, retraction or season change.
+                return self._generate_leaderboard(leaderboard_type, db, limit, offset)
+
             # Check cache
             cache_key = f"leaderboard:{leaderboard_type}:{limit}:{offset}"
             cached_data = self.cache.get(cache_key)
@@ -387,6 +393,27 @@ class LeaderboardService:
         Returns:
             List of leaderboard entries
         """
+        from .canonical_round_reads import canonical_mode
+
+        if canonical_mode(db):
+            from .canonical_round_reads import profile_statistics_pairs
+
+            pairs = profile_statistics_pairs(db)
+            if leaderboard_type in {"total_earnings", "games_played", "partnerships_won"}:
+                return self._canonical_stat_leaderboard(pairs, leaderboard_type, limit, offset)
+            if leaderboard_type == "average_score":
+                # Positions are derived from accepted totals by the shared rebuild.
+                stats = pairs
+                rows = [
+                    (profile, sum(t["position"] for t in s.performance_trends) / s.games_played)
+                    for profile, s in stats
+                    if s.games_played >= 5
+                ]
+                rows.sort(key=lambda pair: (pair[1], pair[0].id))
+                return [
+                    {"rank": rank, "player_id": p.id, "player_name": p.name, "value": round(value, 2)}
+                    for rank, (p, value) in enumerate(rows[offset : offset + limit], offset + 1)
+                ]
         # Map leaderboard type to query method
         query_methods = {
             "total_earnings": self._query_total_earnings,
@@ -424,6 +451,37 @@ class LeaderboardService:
         Returns:
             List of leaderboard entries
         """
+        from .canonical_round_reads import accepted_ranks, accepted_rows, canonical_mode
+
+        if canonical_mode(db):
+            rows, _ = accepted_rows(db, eligible_only=True, season_only=True)
+            ranks = accepted_ranks(rows)
+            grouped = {}
+            for record, result in rows:
+                if result.player_profile_id is not None and start_date.date() <= record.played_on <= end_date.date():
+                    grouped.setdefault(result.player_profile_id, []).append(result)
+            values = []
+            for profile in db.query(PlayerProfile).filter_by(is_active=1, is_ai=0).all():
+                sample = grouped.get(profile.id, [])
+                if not sample:
+                    continue
+                if leaderboard_type == "average_score":
+                    value = sum(ranks[r.id] for r in sample) / len(sample)
+                elif leaderboard_type == "games_played":
+                    value = len(sample)
+                elif leaderboard_type == "partnerships_won":
+                    if any(r.partnerships_won is None for r in sample):
+                        continue
+                    value = sum(r.partnerships_won for r in sample)
+                else:
+                    value = sum(r.total_earnings for r in sample)
+                values.append((profile, value))
+            values.sort(key=lambda pair: (pair[1] if leaderboard_type == "average_score" else -pair[1], pair[0].id))
+            return [
+                {"rank": i, "player_id": p.id, "player_name": p.name, "value": round(v, 2)}
+                for i, (p, v) in enumerate(values[:limit], 1)
+            ]
+
         # For time-filtered leaderboards, we need to query GamePlayerResult
         # and aggregate data for the specified time period
 
@@ -494,6 +552,14 @@ class LeaderboardService:
             )
 
         return leaderboard
+
+    def _canonical_stat_leaderboard(self, pairs, metric, limit, offset):
+        values = [(p, getattr(s, metric)) for p, s in pairs if s.games_played >= 1 and getattr(s, metric) is not None]
+        values.sort(key=lambda pair: (-pair[1], pair[0].id))
+        return [
+            {"rank": i, "player_id": p.id, "player_name": p.name, "value": round(v, 2)}
+            for i, (p, v) in enumerate(values[offset : offset + limit], offset + 1)
+        ]
 
     def _query_total_earnings(self, db: Session, limit: int, offset: int) -> list[dict[str, Any]]:
         """Query total earnings leaderboard."""
@@ -603,6 +669,7 @@ class LeaderboardService:
                     PlayerProfile.is_active == 1,
                     PlayerProfile.is_ai == 0,
                     PlayerStatistics.partnerships_formed >= 1,
+                    PlayerStatistics.partnerships_won.isnot(None),
                 )
             )
             .order_by(desc(PlayerStatistics.partnerships_won))

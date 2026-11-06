@@ -4,8 +4,8 @@ import logging
 import traceback
 from typing import Any, cast
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
 
 from .. import database, models
@@ -22,6 +22,15 @@ from ..wolf_goat_pig import Player, WolfGoatPigGame
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/games", tags=["games"])
+
+
+def _check_saved_game_achievements(sessions, game_id: str, record_id: int) -> None:
+    """Best-effort side effect after saving; never reuse the score transaction."""
+    try:
+        with sessions() as badge_db:
+            _check_game_achievements(badge_db, game_id, record_id)
+    except Exception:
+        logger.warning("Post-save badge processing failed for game %s", game_id)
 
 
 def _check_game_achievements(db: Session, game_id: str, record_id: int) -> None:
@@ -214,7 +223,13 @@ async def delete_game(game_id: str, db: Session = Depends(database.get_db)):  # 
         Success message with deletion details
     """
     try:
-        # Check if game exists
+        from app.services.canonical_round_reads import canonical_mode
+        from app.services.round_cutover import guard_writer
+
+        guard_writer(db)
+        if canonical_mode(db):
+            raise HTTPException(409, "Permanent round UUIDs cannot be deleted; use reviewed retraction")
+        # Check if game exists under the transaction fence, retained until commit.
         game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
 
         if not game:
@@ -262,7 +277,9 @@ async def delete_game(game_id: str, db: Session = Depends(database.get_db)):  # 
 
 
 @router.post("/{game_id}/complete", dependencies=[Depends(require_round_member_or_admin)])
-async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db)):
+async def mark_game_complete(
+    game_id: str, expected_epoch: int | None = Query(None), db: Session = Depends(database.get_db)
+):
     """
     Mark a game as completed and persist results to GameRecord / GamePlayerResult.
 
@@ -270,7 +287,12 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
     permanent results tables so it's queryable by the Commissioner data explorer.
     """
     try:
-        game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
+        from ..services.round_cutover import guard_client_epoch
+
+        guard_client_epoch(db, expected_epoch if isinstance(expected_epoch, int) else None)
+        game = (
+            db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).populate_existing().first()
+        )
 
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
@@ -286,6 +308,9 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
                     "message": "Game is already marked as completed",
                     "game_id": game_id,
                     "game_status": "completed",
+                    "revision": game.revision,
+                    "status": "unchanged",
+                    "issue_ids": [],
                 }
             # Fall through to persist results for previously completed games
             logger.info("Game %s was completed but has no GameRecord — backfilling", game_id)
@@ -327,8 +352,13 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
             results_created,
         )
 
-        # Check achievements for all players with a linked profile
-        _check_game_achievements(db, game_id, record_id)
+        # Snapshot IDs/factory before commit; source ORM session is never read
+        # afterwards. BadgeEngine owns separate best-effort transactions.
+        badge_sessions = sessionmaker(bind=db.get_bind())
+        saved_game_id = str(game.game_id)
+        saved_revision = game.revision
+        db.commit()
+        _check_saved_game_achievements(badge_sessions, saved_game_id, record_id)
 
         return {
             "success": True,
@@ -336,6 +366,9 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
             "game_id": game_id,
             "game_status": "completed",
             "results_created": results_created,
+            "revision": saved_revision,
+            "status": "accepted",
+            "issue_ids": [],
         }
 
     except HTTPException:

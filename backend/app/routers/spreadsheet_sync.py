@@ -7,7 +7,6 @@ These endpoints allow admins to:
 """
 
 import logging
-from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -24,7 +23,6 @@ from ..services.spreadsheet_sync_service import (
     get_reconciliation_service,
 )
 from ..utils.admin_auth import require_admin
-from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -43,13 +41,16 @@ class PlayerScoreInput(BaseModel):
 
 
 class SyncRoundRequest(BaseModel):
-    """Request to sync a completed round to the spreadsheet."""
+    """Queue accepted UUID results, never client date/name guesses."""
 
-    date: str = Field(..., description="Date in YYYY-MM-DD format")
-    group: str = Field("A", description="Group letter (A, B, C, D)")
-    location: str = Field("Wing Point", description="Course name")
-    duration: str | None = Field(None, description="Duration in HH:MM:SS format")
-    player_scores: list[PlayerScoreInput] = Field(..., description="List of player scores")
+    game_id: str
+    source_scope: str = Field(min_length=1)
+    source_round_token: str = Field(min_length=1)
+    operation_key: str = Field(min_length=1)
+    expected_revision: int = Field(ge=0, strict=True)
+    expected_epoch: int = Field(ge=0, strict=True)
+    expected_source_version: str = Field(min_length=1)
+    action: str = Field(pattern="^(insert|update)$")
 
 
 class LeaderboardEntry(BaseModel):
@@ -57,27 +58,75 @@ class LeaderboardEntry(BaseModel):
 
     rank: int
     member: str
-    quarters: int
-    average: int
+    quarters: float
+    average: float | None
     rounds: int
-    qb: int
+    qb: float
+    known_participation_count: int = 0
+    incomplete_round_count: int = 0
 
 
 class RoundResultResponse(BaseModel):
     """Response model for a round result."""
 
-    date: str
+    date: str | None
     # group/location are nullable: member-posted rounds may omit them.
     group: str | None = None
     member: str
-    score: int
+    score: float | None
+    game_id: str | None = None
+    participant_id: str | None = None
+    score_eligible: bool = True
     location: str | None = None
     duration: str | None = None
+
+
+def _canonical(db: Session):
+    """The one canonical read authority, or None before cutover."""
+    from ..services.canonical_round_reads import canonical_mode
+    from ..services.unified_data_service import get_unified_data_service
+
+    return get_unified_data_service(db) if canonical_mode(db) else None
+
+
+def _round_rows(rounds) -> list[RoundResultResponse]:
+    return [
+        RoundResultResponse(
+            date=r.date_sortable or r.date,
+            group=r.group,
+            member=r.member,
+            score=r.score,
+            location=r.location,
+            duration=r.duration,
+            game_id=r.game_id,
+            participant_id=r.participant_id,
+            score_eligible=r.score_eligible,
+        )
+        for r in rounds
+    ]
 
 
 @router.get("/leaderboard", response_model=list[LeaderboardEntry])
 def get_spreadsheet_leaderboard(db: Session = Depends(get_db)):
     """Get the current leaderboard computed from the legacy_rounds DB (synced every 2h)."""
+    service = _canonical(db)
+    if service is not None:
+        entries = service.get_unified_leaderboard()
+        leader = entries[0].quarters if entries else 0
+        return [
+            LeaderboardEntry(
+                rank=i,
+                member=e.member,
+                quarters=e.quarters,
+                rounds=e.rounds,
+                # Old integer floor-division misreported fractional averages.
+                average=round(e.average, 2) if e.average is not None else None,
+                qb=leader - e.quarters,
+                known_participation_count=e.known_participation_count,
+                incomplete_round_count=e.incomplete_round_count,
+            )
+            for i, e in enumerate(entries, 1)
+        ]
     rows = (
         db.query(
             LegacyRound.member,
@@ -118,7 +167,10 @@ def get_all_rounds(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of results"),
     db: Session = Depends(get_db),
 ) -> Any:
-    """Get all round results from legacy_rounds DB (synced every 2h)."""
+    """Get accepted canonical history, or the pre-cutover cache."""
+    service = _canonical(db)
+    if service is not None:
+        return _round_rows(service.get_all_rounds()[:limit])
     rows = (
         db.query(LegacyRound)
         .filter(LegacyRound.status != "pending")  # exclude unattested member rounds
@@ -145,6 +197,30 @@ def get_rounds_by_date(date: str, db: Session = Depends(get_db)) -> Any:
 
     Date format: YYYY-MM-DD (e.g., "2026-07-21").
     """
+    service = _canonical(db)
+    if service is not None:
+        summaries = {}
+        for r in service.get_all_rounds():
+            if r.date_sortable != date:
+                continue
+            summary = summaries.setdefault(
+                r.game_id,
+                {
+                    "game_id": r.game_id,
+                    "date": r.date_sortable,
+                    "group": r.group,
+                    "location": r.location,
+                    "duration": r.duration,
+                    "player_count": 0,
+                    "total_score": 0 if r.score_eligible else None,
+                    "players": [],
+                },
+            )
+            summary["player_count"] += 1
+            if summary["total_score"] is not None:
+                summary["total_score"] += r.score
+            summary["players"].append({"member": r.member, "score": r.score, "participant_id": r.participant_id})
+        return list(summaries.values())
     rows = (
         db.query(LegacyRound)
         .filter(LegacyRound.date == date, LegacyRound.status != "pending")
@@ -175,7 +251,10 @@ def get_rounds_by_date(date: str, db: Session = Depends(get_db)) -> Any:
 
 @router.get("/player/{member_name}", response_model=list[RoundResultResponse])
 def get_player_history(member_name: str, db: Session = Depends(get_db)) -> Any:
-    """Get all rounds for a specific player from legacy_rounds DB (synced every 2h)."""
+    """Get profile-associated history without assigning guests by display name."""
+    service = _canonical(db)
+    if service is not None:
+        return _round_rows(service.get_player_history(member_name))
     rows = (
         db.query(LegacyRound)
         .filter(LegacyRound.member == member_name, LegacyRound.status != "pending")
@@ -197,50 +276,16 @@ def get_player_history(member_name: str, db: Session = Depends(get_db)) -> Any:
 
 @router.post("/sync-round", status_code=202)
 def sync_round_to_spreadsheet(request: SyncRoundRequest, db: Session = Depends(get_db)) -> Any:
-    """Enqueue a completed round for background sync to Google Sheets.
+    """Enqueue a revision-bound accepted UUID; Gate B must already be approved."""
+    from ..services.round_sheet_delivery import enqueue_sheet_sync
 
-    Returns 202 immediately. The background processor runs every 5 minutes,
-    deduplicates against existing legacy_rounds, and writes new/updated rounds
-    to the sheet.
-
-    Dedup logic:
-      - Same date + group + same player set + same scores → skipped as duplicate
-      - Same date + group + same player set but different scores → written as update
-      - New player set for that date/group → written as new round
-
-    NOTE: player_scores should be summed totals (not per-hole). The app tracks
-    per-hole detail internally; the legacy sheet only stores round totals.
-    """
     try:
-        datetime.strptime(request.date, "%Y-%m-%d")
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
-
-    total = sum(p.score for p in request.player_scores)
-    if total != 0:
-        logger.warning(f"Scores for {request.date} group={request.group} sum to {total}, not 0")
-
-    job = PendingSheetSync(
-        date=request.date,
-        group=request.group,
-        location=request.location,
-        duration=request.duration,
-        player_scores={p.name: p.score for p in request.player_scores},
-        status="pending",
-        created_at=utc_now().isoformat(),
-    )
-    db.add(job)
-    db.commit()
-    db.refresh(job)
-
-    return {
-        "status": "queued",
-        "job_id": job.id,
-        "message": "Round queued for background sync. Check /admin/spreadsheet/sync-status for progress.",
-        "date": request.date,
-        "group": request.group,
-        "players": [p.name for p in request.player_scores],
-    }
+        job = enqueue_sheet_sync(db, **request.model_dump())
+        db.commit()
+        return {"status": "queued", "job_id": job.id, "game_id": job.game_id}
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.get("/sync-status")
@@ -268,45 +313,13 @@ def get_sync_queue_status(
 
 @router.post("/sync-legacy-rounds")
 def trigger_legacy_rounds_sync(db: Session = Depends(get_db)) -> Any:
-    """Manually trigger a sync of Google Sheets data into the legacy_rounds table.
+    """Manually trigger the shared complete-snapshot ingestion boundary.
 
-    Normally runs automatically every 2 hours. Use this to force an immediate refresh.
+    Normally runs every two hours; held evidence never replaces accepted data.
     """
-    from datetime import UTC
-    from datetime import datetime as dt
+    from ..services.spreadsheet_sync_service import refresh_round_history
 
-    from ..models import LegacyRound
-    from ..services.unified_data_service import get_unified_data_service
-
-    try:
-        svc = get_unified_data_service(db=db)
-        rounds = svc.get_all_rounds(include_database=False, use_sheet_cache=False)
-        if not rounds:
-            return {"success": False, "message": "No rounds returned from Google Sheets — OAuth may be expired"}
-
-        synced_at = dt.now(UTC).isoformat()
-        db.query(LegacyRound).filter(LegacyRound.source.in_(["primary_sheet", "writable_sheet"])).delete(
-            synchronize_session=False
-        )
-        for r in rounds:
-            db.add(
-                LegacyRound(
-                    date=r.date_sortable,
-                    group=r.group,
-                    member=r.member,
-                    score=r.score,
-                    location=r.location or "",
-                    duration=r.duration,
-                    source=r.source,
-                    synced_at=synced_at,
-                )
-            )
-        db.commit()
-        return {"success": True, "rows_synced": len(rounds), "synced_at": synced_at}
-    except Exception as exc:
-        db.rollback()
-        logger.error("Manual legacy rounds sync failed: %s", exc)
-        raise HTTPException(status_code=500, detail=f"Sync failed: {exc}") from exc
+    return refresh_round_history(db)
 
 
 @router.get("/config")

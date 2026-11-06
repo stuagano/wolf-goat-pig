@@ -56,6 +56,9 @@ class PersistenceMixin:
         try:
             state_json = self._serialize()
             session = self._db_session
+            from ..services.round_cutover import guard_writer
+
+            guard_writer(session)
 
             # Find existing game by game_id
             obj = session.query(GameStateModel).filter(GameStateModel.game_id == self.game_id).first()
@@ -155,6 +158,10 @@ class PersistenceMixin:
 
         try:
             session = self._db_session
+            from ..services.round_writes import writer_mode
+
+            if writer_mode(session) == "canonical":
+                raise ValueError("Use the shared canonical completion writer with stable participant slots")
             current_time = utc_now().isoformat()
 
             # Calculate game duration

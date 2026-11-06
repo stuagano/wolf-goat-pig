@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import CompletedRoundView from '../CompletedRoundView';
+import syncManager from '../../../services/syncManager';
 
 vi.mock('../../../config/api.config', () => ({
   apiConfig: { baseUrl: 'http://test-api' },
@@ -54,19 +55,22 @@ describe('CompletedRoundView', () => {
     expect(screen.getByText('sync-status-banner')).toBeVisible();
     await waitFor(() => expect(authFetch).toHaveBeenCalled());
   });
-  test('marking complete POSTs /complete and reports success', async () => {
+  test('marking complete uses verified cached server epoch after activation', async () => {
+    syncManager.saveLocalGameState('g1', { writerEpoch: 9 });
     const onMarkedComplete = vi.fn();
     render(<CompletedRoundView {...baseProps} gameId="g1" onMarkedComplete={onMarkedComplete} onEditScores={vi.fn()} />);
 
     fireEvent.click(screen.getByText('mark'));
 
     await waitFor(() => expect(onMarkedComplete).toHaveBeenCalled());
-    expect(authFetch).toHaveBeenCalledWith('http://test-api/games/g1/complete', { method: 'POST' });
+    expect(authFetch).toHaveBeenCalledWith('http://test-api/games/g1/complete?expected_epoch=9', { method: 'POST' });
+    syncManager.clearLocalGameState('g1');
   });
 
-  test('a failed save alerts and does not report success', async () => {
-    authFetch.mockImplementation((url) => url.endsWith('/complete')
-      ? Promise.resolve({ ok: false, json: async () => ({ detail: 'boom' }) })
+  test('epoch mismatch retains scores, alerts, and does not report success', async () => {
+    syncManager.saveLocalGameState('g1', { writerEpoch: 8, holeQuarters: { 18: { p1: 3 } } });
+    authFetch.mockImplementation((url) => url.includes('/complete')
+      ? Promise.resolve({ ok: false, status: 409, json: async () => ({ detail: 'Round writes paused or writer epoch advanced' }) })
       : card(NO_PHOTO));
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -75,8 +79,10 @@ describe('CompletedRoundView', () => {
 
     fireEvent.click(screen.getByText('mark'));
 
-    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith('Failed to save game: boom'));
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith('Failed to save game: Round writes paused or writer epoch advanced'));
     expect(onMarkedComplete).not.toHaveBeenCalled();
+    expect(syncManager.loadLocalGameState('g1')).toMatchObject({ writerEpoch: 8, holeQuarters: { 18: { p1: 3 } } });
+    syncManager.clearLocalGameState('g1');
   });
 
   test('shows the photo pane only when there is a game id, and forwards authorized edit', async () => {

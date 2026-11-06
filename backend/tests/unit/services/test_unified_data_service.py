@@ -17,7 +17,9 @@ from app.services.unified_data_service import (
 def make_service():
     """Create a UnifiedDataService with mocked sheet clients."""
     with patch("app.services.unified_data_service.SpreadsheetSyncService"):
-        svc = UnifiedDataService(db=MagicMock())
+        db = MagicMock()
+        db.get.return_value = None  # Explicit pre-cutover configuration.
+        svc = UnifiedDataService(db=db)
     return svc
 
 
@@ -241,6 +243,7 @@ class TestGetUnifiedLeaderboard:
         svc.primary_sheet = MagicMock()
         svc.primary_sheet.get_all_rounds.return_value = []
         svc._db = MagicMock()
+        svc._db.get.return_value = None
         # Would fail AttributeError if code still called writable_sheet
         assert not hasattr(svc, "writable_sheet")
         rounds = svc.get_all_rounds(include_database=False, use_sheet_cache=False)

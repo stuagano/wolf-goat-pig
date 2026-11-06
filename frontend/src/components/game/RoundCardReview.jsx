@@ -6,7 +6,7 @@ import CardExtractionValidation from './CardExtractionValidation';
 import './RoundCardReview.css';
 
 /** A view-only reference pane around the existing completed-round score UI. */
-const RoundCardReview = ({ gameId, photoVersion = 0, players, holeHistory, uploading = false, children }) => {
+const RoundCardReview = ({ gameId, photoVersion = 0, players, holeHistory, acceptedTotals, detailCoverage, uploading = false, children }) => {
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState('loading');
   // Readiness belongs to the loaded URL, not the previous photo's status.
@@ -54,7 +54,7 @@ const RoundCardReview = ({ gameId, photoVersion = 0, players, holeHistory, uploa
         <div className="round-card-review__scores" aria-label="Recorded scores" role="region">
           <h3>Recorded scores</h3>
           {players && loadedSrc === src && status === 'ready' && !uploading && (
-            <CardExtractionValidation photoSrc={src} players={players} holeHistory={holeHistory} />
+            <CardExtractionValidation photoSrc={src} players={players} holeHistory={holeHistory} acceptedTotals={acceptedTotals} detailCoverage={detailCoverage} />
           )}
           {children}
         </div>
