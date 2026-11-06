@@ -16,6 +16,7 @@ from . import players_by_id, players_directory, players_me, players_preferences,
 from .account_claims import router as account_claims_router
 from .account_links import router as account_links_router
 from .admin_grants import router as admin_grants_router
+from .my_name import router as my_name_router
 from .players_avatar import (
     AVATAR_ALLOWED_TYPES,
     AVATAR_MAX_DIM,
@@ -76,6 +77,7 @@ router = APIRouter()
 router.include_router(account_links_router, prefix="/players", tags=["players"])
 router.include_router(admin_grants_router, prefix="/players", tags=["players"])
 router.include_router(account_claims_router, prefix="/players", tags=["players"])
+router.include_router(my_name_router, prefix="/players", tags=["players"])
 # Static paths first, then the parameterised /{player_id} routes.
 router.include_router(players_directory.router)
 router.include_router(players_me.router)

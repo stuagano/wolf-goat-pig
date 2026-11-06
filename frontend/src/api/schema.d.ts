@@ -3964,6 +3964,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/players/me/name": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update My Name
+         * @description Replace an email-as-name with the golfer's first and last name (once).
+         */
+        put: operations["update_my_name_players_me_name_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/players/me/round": {
         parameters: {
             query?: never;
@@ -6012,6 +6032,13 @@ export interface components {
             suggested_date?: string | null;
             /** Suggested Tee Time */
             suggested_tee_time: string;
+        };
+        /** MyNameUpdate */
+        MyNameUpdate: {
+            /** First Name */
+            first_name: string;
+            /** Last Name */
+            last_name: string;
         };
         /** OAuth2TestEmailRequest */
         OAuth2TestEmailRequest: {
@@ -13269,6 +13296,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_my_name_players_me_name_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MyNameUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayerProfileResponse"];
+                };
             };
             /** @description Validation Error */
             422: {
