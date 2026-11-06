@@ -19,16 +19,6 @@ class TeamConfiguration(Enum):
     PARTNERS = "partners"
 
 
-class ShotDifficulty(Enum):
-    """Shot difficulty levels"""
-
-    VERY_EASY = "very_easy"
-    EASY = "easy"
-    MODERATE = "moderate"
-    DIFFICULT = "difficult"
-    VERY_DIFFICULT = "very_difficult"
-
-
 @dataclass
 class PlayerState:
     """Current state of a player for odds calculation"""

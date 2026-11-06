@@ -200,15 +200,6 @@ export const BettingConcepts = {
   }
 };
 
-// Higher-order component for easy tooltip integration
-export const withTooltip = (Component, tooltipProps) => {
-  return (props) => (
-    <EducationalTooltip {...tooltipProps}>
-      <Component {...props} />
-    </EducationalTooltip>
-  );
-};
-
 // Strategic insights generator
 export const generateStrategicInsight = (scenario, gameState) => {
   const insights = [];

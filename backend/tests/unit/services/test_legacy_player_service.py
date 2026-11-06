@@ -55,12 +55,6 @@ def test_add_and_get_canonical_name_is_case_insensitive(db):
     assert svc.get_canonical_name("TIGER WOODS", db) == "Tiger Woods"
 
 
-def test_is_valid_legacy_player(db):
-    svc.add_legacy_player("Phil Mickelson", db=db)
-    assert svc.is_valid_legacy_player("phil mickelson", db) is True
-    assert svc.is_valid_legacy_player("Nobody Here", db) is False
-
-
 def test_get_legacy_players_is_sorted(db):
     svc.add_legacy_player("Zed Zee", db=db)
     svc.add_legacy_player("Aaron Able", db=db)
@@ -247,7 +241,6 @@ def test_pending_player_never_reads_as_canonical(db):
     svc.capture_pending_player("Ghost Golfer", db=db)
 
     assert svc.get_canonical_name("Ghost Golfer", db) is None
-    assert svc.is_valid_legacy_player("Ghost Golfer", db) is False
     assert "Ghost Golfer" not in svc.get_legacy_players(db)
     assert "Ghost Golfer" not in svc.find_similar_players("Ghost Golfer", db=db)
     assert svc.validate_player_for_legacy("Ghost Golfer", db)["valid"] is False

@@ -551,7 +551,7 @@ class TestCompareSheetToDbData:
 
 
 # =============================================================================
-# safe_float / safe_int helpers
+# safe_float helper
 # =============================================================================
 
 
@@ -592,40 +592,6 @@ class TestSafeFloat:
         from app.routers.sheet_integration import safe_float
 
         assert safe_float(200.0, max_val=100.0) == 100.0
-
-
-class TestSafeInt:
-    """Test the safe_int utility used by the router."""
-
-    def test_normal_conversion(self):
-        from app.routers.sheet_integration import safe_int
-
-        assert safe_int("5") == 5
-
-    def test_float_string(self):
-        from app.routers.sheet_integration import safe_int
-
-        assert safe_int("3.0") == 3
-
-    def test_none_returns_default(self):
-        from app.routers.sheet_integration import safe_int
-
-        assert safe_int(None) == 0
-
-    def test_invalid_returns_default(self):
-        from app.routers.sheet_integration import safe_int
-
-        assert safe_int("abc") == 0
-
-    def test_min_clamp(self):
-        from app.routers.sheet_integration import safe_int
-
-        assert safe_int(-5, min_val=0) == 0
-
-    def test_max_clamp(self):
-        from app.routers.sheet_integration import safe_int
-
-        assert safe_int(200, max_val=100) == 100
 
 
 class TestSheetIntegrationBodyValidation:

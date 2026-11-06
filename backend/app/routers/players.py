@@ -21,7 +21,6 @@ from .players_avatar import (
     AVATAR_MAX_DIM,
     AVATAR_MAX_UPLOAD_BYTES,
     _avatar_jpeg_for_player,
-    _downscale_avatar,
     _downscale_avatar_jpeg,
 )
 from .players_by_id import (
@@ -88,7 +87,6 @@ __all__ = [
     "AVATAR_MAX_DIM",
     "AVATAR_MAX_UPLOAD_BYTES",
     "_avatar_jpeg_for_player",
-    "_downscale_avatar",
     "_downscale_avatar_jpeg",
     "_require_self_or_admin",
     "create_player_profile",

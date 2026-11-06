@@ -7,7 +7,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  APP_VERSION,
   checkForUpdates,
   forceRefresh,
   dismissUpdate,
@@ -226,37 +225,6 @@ export function UpdateNotification({ onUpdate }) {
       </div>
     </div>
   );
-}
-
-/**
- * Hook to manually trigger update check
- */
-export function useUpdateCheck() {
-  const [updateAvailable, setUpdateAvailable] = useState(false);
-  const [checking, setChecking] = useState(false);
-
-  const check = useCallback(async () => {
-    setChecking(true);
-    try {
-      const result = await checkForUpdates();
-      setUpdateAvailable(result.updateAvailable);
-      return result;
-    } finally {
-      setChecking(false);
-    }
-  }, []);
-
-  const update = useCallback(async () => {
-    await forceRefresh();
-  }, []);
-
-  return {
-    updateAvailable,
-    checking,
-    currentVersion: APP_VERSION,
-    check,
-    update,
-  };
 }
 
 export default UpdateNotification;

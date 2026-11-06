@@ -99,19 +99,6 @@ export function unregister() {
 }
 
 /**
- * Request background sync when game state changes
- */
-export function requestBackgroundSync(tag = 'sync-game-state') {
-  if ('serviceWorker' in navigator && 'SyncManager' in window) {
-    navigator.serviceWorker.ready.then((registration) => {
-      return registration.sync.register(tag);
-    }).catch(() => {
-      // Background sync not available
-    });
-  }
-}
-
-/**
  * Check if the app is currently offline
  */
 export function isOffline() {

@@ -24,11 +24,6 @@ def _downscale_avatar_jpeg(image_bytes: bytes) -> bytes:
     return buf.getvalue()
 
 
-def _downscale_avatar(image_bytes: bytes) -> str:
-    """Legacy helper: downscale and return base64 JPEG (DB blob fallback)."""
-    return base64.b64encode(_downscale_avatar_jpeg(image_bytes)).decode("ascii")
-
-
 def _avatar_jpeg_for_player(player: models.PlayerProfile) -> bytes | None:
     """Resolve uploaded avatar bytes from GCS, data: URL, or legacy DB blob."""
     if media_storage_service.is_gcs_avatar_url(player.avatar_url):
