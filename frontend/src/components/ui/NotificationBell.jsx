@@ -8,7 +8,7 @@ const API_URL = apiConfig.baseUrl;
 const POLL_INTERVAL_MS = 60_000;
 
 const MATCH_TYPES = new Set(['match_found', 'match_accepted', 'match_declined', 'match_confirmed']);
-const BELL_TYPES = new Set([...MATCH_TYPES, 'round_comment', 'round_conflict']);
+const BELL_TYPES = new Set([...MATCH_TYPES, 'round_comment', 'round_conflict', 'venmo_missing']);
 
 const safePath = (path) => {
   if (typeof path !== 'string' || !path.startsWith('/')) return null;

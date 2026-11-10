@@ -16747,7 +16747,7 @@
     },
     "/players/{player_id}/public-profile": {
       "get": {
-        "description": "Public profile — no auth required. Returns only non-sensitive fields\n(no email, venmo, or GHIN id).",
+        "description": "Public profile — no auth required. Returns only non-sensitive fields\n(no email or GHIN id). Venmo is included: it's how players settle up,\nand GET /players already lists it publicly.",
         "operationId": "get_public_player_profile_players__player_id__public_profile_get",
         "parameters": [
           {

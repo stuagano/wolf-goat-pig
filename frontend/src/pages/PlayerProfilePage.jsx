@@ -168,7 +168,7 @@ const PlayerProfilePage = () => {
     );
   }
 
-  const { name, handicap, handicap_source, ghin_last_updated, description, avatar_url, has_avatar_image, last_played, created_at, available_days, game_history, badges, total_badges } = profile;
+  const { name, handicap, handicap_source, ghin_last_updated, description, venmo_handle, avatar_url, has_avatar_image, last_played, created_at, available_days, game_history, badges, total_badges } = profile;
   const handicapPending = isPendingHandicap(handicap_source) || handicap == null;
   const ghinFreshness = handicap_source === 'ghin' ? formatGhinFreshness(ghin_last_updated) : null;
   const avatarSrc = has_avatar_image
@@ -248,6 +248,18 @@ const PlayerProfilePage = () => {
                 {features.livsow && livsowTeam && (
                   <span className="wgp-profile__livsow-pill">
                     ⛳ {livsowTeam.team} · {livsowTeam.role}
+                  </span>
+                )}
+                {venmo_handle && (
+                  <span>
+                    Venmo{' '}
+                    <a
+                      href={`https://venmo.com/u/${encodeURIComponent(venmo_handle.replace(/^@/, ''))}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <strong>@{venmo_handle.replace(/^@/, '')}</strong>
+                    </a>
                   </span>
                 )}
                 {last_played && <span>Last played <strong>{formatDate(last_played)}</strong></span>}

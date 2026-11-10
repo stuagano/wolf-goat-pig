@@ -40,11 +40,11 @@
     "waiver": null
   },
   "api-surface-no-drift": {
-    "at": "2026-10-26T19:48:35.730879+00:00",
+    "at": "2026-11-10T15:26:42.300496+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:d4a80b1956af1b504d30fbcc9daca6d28568f0b2f235da3c46ded0a4e2010e9e",
+    "fingerprint": "sha256:fcb13dc676847387945d6ab00096800b8786310a342ac9e49b6ab838fcfd16bc",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -453,21 +453,21 @@
     "waiver": null
   },
   "notifications-mark-read-persists": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
+    "at": "2026-11-10T15:26:33.204380+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:af720e4652b57bd867dc26c663e9f2f189fd00e04871f8667453c8b829171515",
+    "fingerprint": "sha256:9d49f222aaa59cd16c291be7c5e5ba72e94d360190848d374ffe7a656bd7c011",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "notifications-persist-and-readback": {
-    "at": "2026-10-12T03:02:54.514598+00:00",
+    "at": "2026-11-10T15:26:38.000788+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:a9a561963396601055d04ad6a878f6b9f1249a0bf13d136de7fc23a3f29588bf",
+    "fingerprint": "sha256:af43dd71060389bd09eacefe8576720c4288312a11b73cea9eec99a444319158",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -493,11 +493,11 @@
     "waiver": null
   },
   "player-profiles-persist": {
-    "at": "2026-10-09T19:21:12.691966+00:00",
+    "at": "2026-11-10T15:26:45.319589+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:12d37f9089a2694bf8a7afddc1b90ba77210969591cbbcc8ed936f0da34d45cb",
+    "fingerprint": "sha256:f3b1566d3def0d6aedcc89f6ea8e24b7e8a0902d006b818c990832b26ee1f8b0",
     "result": "pass",
     "tier": "cheap",
     "waiver": null

@@ -332,6 +332,21 @@ class TestPublicProfile:
         assert body["id"] == player_id
         assert "game_history" in body
 
+    def test_public_profile_shows_venmo_handle(self):
+        from app import database
+
+        player_id = post_player_as_admin({"name": unique_name("VenmoProfile"), "handicap": 10.0}).json()["id"]
+        db = database.SessionLocal()
+        try:
+            db.query(PlayerProfile).filter(PlayerProfile.id == player_id).update({"venmo_handle": "@sg-golf"})
+            db.commit()
+        finally:
+            db.close()
+
+        body = client.get(f"/players/{player_id}/public-profile").json()
+        assert body["venmo_handle"] == "@sg-golf"
+        assert "email" not in body
+
     def test_public_profile_nonexistent_player_returns_404(self):
         resp = client.get("/players/999999/public-profile")
         assert resp.status_code == 404

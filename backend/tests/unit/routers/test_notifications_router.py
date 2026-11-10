@@ -21,6 +21,12 @@ _PLAYER_ID = 900000 + (uuid.uuid4().int % 90000)
 
 class _FakeUser:
     id = _PLAYER_ID
+    venmo_handle = "@fake"  # has a handle, so no Venmo nudge skews counts
+
+
+class _NoVenmoUser:
+    id = _PLAYER_ID
+    venmo_handle = None
 
 
 def _override_user():
@@ -122,6 +128,37 @@ class TestMarkAllRead:
 
             # Read-back: nothing unread remains.
             assert client.get("/notifications/unread-count").json()["unread_count"] == 0
+        finally:
+            _cleanup()
+            _clear_override()
+
+
+def _venmo_nudges():
+    return [n for n in client.get("/notifications").json() if n["notification_type"] == "venmo_missing"]
+
+
+class TestVenmoNudge:
+    def test_nudge_created_once_and_not_recreated_after_read(self):
+        app.dependency_overrides[get_current_user] = lambda: _NoVenmoUser()
+        try:
+            first = _venmo_nudges()
+            assert len(first) == 1
+            assert first[0]["data"]["path"] == "/account"
+
+            # Polling again doesn't duplicate it.
+            assert [n["id"] for n in _venmo_nudges()] == [first[0]["id"]]
+
+            # Dismissed = done: never re-created.
+            client.post(f"/notifications/{first[0]['id']}/read")
+            assert _venmo_nudges() == []
+        finally:
+            _cleanup()
+            _clear_override()
+
+    def test_no_nudge_when_handle_set(self):
+        _override_user()
+        try:
+            assert _venmo_nudges() == []
         finally:
             _cleanup()
             _clear_override()

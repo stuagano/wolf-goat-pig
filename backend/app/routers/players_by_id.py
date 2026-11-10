@@ -47,7 +47,8 @@ def get_public_player_profile(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Public profile — no auth required. Returns only non-sensitive fields
-    (no email, venmo, or GHIN id)."""
+    (no email or GHIN id). Venmo is included: it's how players settle up,
+    and GET /players already lists it publicly."""
     player = db.query(models.PlayerProfile).filter(models.PlayerProfile.id == player_id).first()
     if not player:
         from fastapi import HTTPException
@@ -134,6 +135,7 @@ def get_public_player_profile(
         "name": player.name,
         "handicap": player.handicap,
         "description": player.description,
+        "venmo_handle": player.venmo_handle,
         "avatar_url": player.avatar_url,
         "has_avatar_image": bool(player.has_avatar_image),
         "last_played": player.last_played,
