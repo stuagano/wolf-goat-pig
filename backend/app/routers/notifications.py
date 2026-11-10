@@ -17,10 +17,41 @@ from ..database import get_db
 from ..models import Notification, PlayerProfile
 from ..services.auth_service import get_current_user
 from ..utils.admin_auth import is_admin_profile
+from ..utils.time import utc_now
 
 logger = logging.getLogger("app.routers.notifications")
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
+
+VENMO_NUDGE_TYPE = "venmo_missing"
+
+
+def _ensure_venmo_nudge(db: Session, user: PlayerProfile) -> None:
+    """One-time bell nudge for players with no Venmo handle.
+
+    Created lazily on the first list after sign-in; never re-created once it
+    exists (read or not), so dismissing it ends the nudge.
+    """
+    if (getattr(user, "venmo_handle", None) or "").strip():
+        return
+    exists = (
+        db.query(Notification.id)
+        .filter(Notification.player_profile_id == user.id, Notification.notification_type == VENMO_NUDGE_TYPE)
+        .first()
+    )
+    if exists:
+        return
+    db.add(
+        Notification(
+            player_profile_id=user.id,
+            notification_type=VENMO_NUDGE_TYPE,
+            message="Add your Venmo handle so the group can settle up with you.",
+            data={"path": "/account"},
+            is_read=False,
+            created_at=utc_now().isoformat(),
+        )
+    )
+    db.commit()
 
 
 @router.get("")
@@ -32,6 +63,10 @@ def get_notifications(
     db: Session = Depends(get_db),
     include_delivery_health: bool = False,
 ):
+    # Only when this request could return it, so type-filtered reads stay pure.
+    if types is None or VENMO_NUDGE_TYPE in types.split(","):
+        _ensure_venmo_nudge(db, current_user)
+
     from sqlalchemy import and_, or_
 
     from ..models import RoundDelivery, RoundIssue

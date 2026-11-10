@@ -4438,7 +4438,8 @@ export interface paths {
         /**
          * Get Public Player Profile
          * @description Public profile — no auth required. Returns only non-sensitive fields
-         *     (no email, venmo, or GHIN id).
+         *     (no email or GHIN id). Venmo is included: it's how players settle up,
+         *     and GET /players already lists it publicly.
          */
         get: operations["get_public_player_profile_players__player_id__public_profile_get"];
         put?: never;
