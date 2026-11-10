@@ -1,10 +1,10 @@
 {
   "admin-banner-readback": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
+    "at": "2026-11-10T20:31:40.048144+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:78490652431208392b405bed4777bf48f7d3df1bbfd6bb2e1fd4d679bdd9fbdc",
+    "fingerprint": "sha256:09e5aa6d59cd46799ba58f7c6d17787cd91077a1c45013b577e12fb8567d6454",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -60,7 +60,7 @@
     "waiver": null
   },
   "auth-rejects-junk-token": {
-    "at": "2026-10-26T22:40:03.484802+00:00",
+    "at": "2026-11-10T20:30:38.869981+00:00",
     "detail": null,
     "duration": null,
     "files": null,
@@ -70,21 +70,21 @@
     "waiver": null
   },
   "auth0-contract": {
-    "at": "2026-10-08T17:56:53.840252+00:00",
+    "at": "2026-11-10T20:31:24.500534+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:92bb15b8574da38a7312429dd012056b1118a5a8d395856cbafd2f3177e2db2a",
+    "fingerprint": "sha256:34d2bd1636f47fe69c4f2e939d5d05d36f62c7ac9da60fe3ae36c9f4b9245ec0",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "badges-awarded": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
+    "at": "2026-11-10T20:31:58.056158+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:92998a5a3d436abcdcf58e72baf580e7eb09aaa5439602a3eca1e3b64808dff1",
+    "fingerprint": "sha256:e953fc0f9ca521688d20c7dfe5cc04886660810fd943f72dd6bb0120c6db7d86",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -100,11 +100,11 @@
     "waiver": null
   },
   "betting-odds-probabilities": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
+    "at": "2026-11-10T20:31:50.869333+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:091f2109fadc3961b1c4178df4e5f289e811fda8753cccaa78adf5052fb9c5a7",
+    "fingerprint": "sha256:7fccd249d59af256e09f5167e0626f113b2b3c1e1f8cd2a708a31b536c78b589",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -130,62 +130,54 @@
     "waiver": null
   },
   "completed-correction-postgres-readback": {
-    "at": "2026-10-26T16:11:29.592427+00:00",
+    "at": "2026-11-10T20:33:39.647234+00:00",
     "detail": null,
-    "duration": 3.386,
-    "files": {
-      "backend/app/database.py": "sha256:ce013f019a65c12fb5388ecbf519d21d4b14d2d4540f1c56761ca7c7facb01be",
-      "backend/app/main.py": "sha256:a3d4bf66715513e2de054535aa4dcea62acc07e935461eb836ab81a95458fdc5",
-      "backend/app/observability/score_save.py": "sha256:81b774a5f741c3fa7f857c47f757044e3bbef8b1168b856ef904c65cca7c3b36",
-      "backend/app/routers/games_holes.py": "sha256:5f85317c15b90b95067614a9778be54445662e837c888307d8116c3196aa4644",
-      "backend/app/services/completed_game_service.py": "sha256:0a66cd9473eaa701efa7027a3857e2d3af40e946317524ab05c0af457900d325",
-      "backend/tests/unit/score_save_postgres_support.py": "sha256:dc4cc08273e1d05880fcf793b26b1a568e55abd8030fe685ba7a78babcfd3b52",
-      "backend/tests/unit/test_score_save_diagnostics.py": "sha256:1592e717072f755a118cc8ade34adae59b44b3e8062acccea50784cecea28f94",
-      "backend/tests/unit/test_score_save_postgres.py": "sha256:f4d058f2315694c6622eeb0e299a2f6313949ae6661dbfdbc849a48f56577af7"
-    },
-    "fingerprint": "sha256:ed79c1125c23dcd8baa807c00953f9417c90541affdcc24872fb2f23129d2576",
-    "result": "pass",
+    "duration": null,
+    "files": null,
+    "fingerprint": null,
+    "result": "waived",
     "tier": "cheap",
-    "waiver": null
+    "waiver": {
+      "reason": "Needs a disposable local Postgres *_test DB (SCORE_SAVE_TEST_DATABASE_URL), not available here; passed in CI on main 5817d44 (backend test 3.11/3.12)",
+      "until": "2026-11-11T20:33:39.647234+00:00"
+    }
   },
   "completed-game-persists-results": {
-    "at": "2026-10-26T12:25:09.166702+00:00",
+    "at": "2026-11-10T20:32:16.084356+00:00",
     "detail": null,
-    "duration": 3.007,
-    "files": {
-      "backend/app/services/completed_game_service.py": "sha256:0a66cd9473eaa701efa7027a3857e2d3af40e946317524ab05c0af457900d325"
-    },
-    "fingerprint": "sha256:dad771003662028ca329537a58684500c132a2ab930a2238c625289b9c730bb7",
+    "duration": null,
+    "files": null,
+    "fingerprint": "sha256:8f4682157b6b0dc54fb3e4cc2f3aa3c923ff4a4748a058f79b60d78806d9d9cc",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "correction-save-feedback": {
-    "at": "2026-11-01T17:54:57.628044+00:00",
+    "at": "2026-11-10T20:33:22.313206+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:3225241a1611695906b6a27e49d219c699780295227ed8a4c7fd39ce7efc8831",
+    "fingerprint": "sha256:1a0f7e003487742c790211a0233ba1e092440597f2ebda856cad940a8d55a9db",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "course-update-preserves-holes": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
+    "at": "2026-11-10T20:31:28.204116+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:0d1e1013615abe81f7b0a11bad29826fe19eaa9d8087f2865dc7fa2115d6a844",
+    "fingerprint": "sha256:93ea8218d3d6b46da82e657d5ab2ae54094f4f57eb17cd13487593fad8c1f19a",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "daily-signup-uses-current-player": {
-    "at": "2026-10-26T19:53:21.259483+00:00",
+    "at": "2026-11-10T20:33:26.271090+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:d06d306cc3a3af69e5571e23b23b0384e51a2a62cccf14e022d1a5ac35b10443",
+    "fingerprint": "sha256:d7b40af83019a7020a37b084de6f0ce4c82653f2a61e921c5297886d082efac7",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -201,11 +193,11 @@
     "waiver": null
   },
   "email-scheduler-sheet-dedup": {
-    "at": "2026-10-13T16:49:10.081460+00:00",
+    "at": "2026-11-10T20:32:18.136213+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:f4f2d1f6f0c6166720e3cc68cda875d3ba1939b08e231291e9a47f53da3e5f25",
+    "fingerprint": "sha256:0979be0b00ce0b6e281a14b18341413a1a8d46d347e3a65e29fff6586f7f81b4",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -241,7 +233,7 @@
     "waiver": null
   },
   "frontend-live-production": {
-    "at": "2026-10-26T22:40:06.909951+00:00",
+    "at": "2026-11-10T20:30:39.259051+00:00",
     "detail": null,
     "duration": null,
     "files": null,
@@ -261,41 +253,41 @@
     "waiver": null
   },
   "game-state-db-authoritative": {
-    "at": "2026-10-26T19:48:47.560847+00:00",
+    "at": "2026-11-10T20:31:25.429808+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:2453095d6819a138bf0fcab7fb19d9a2b5e2dad4a223610da278882e1e1a1d4d",
+    "fingerprint": "sha256:33019f2ad1ea06b36a536402af945ddcd5cd51f31e8e862cc8ae81230715f406",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "ghin-client-contract": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
+    "at": "2026-11-10T20:31:19.519174+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:35273fc83abed607fb1dca563cc377ab09645f6fe6168c9f1d607dfa3b8e82bb",
+    "fingerprint": "sha256:a07b3b81cf388cb7eb5d88ccc136a1137796b60f335fd00374343be6c4d323aa",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "google-sheets-contract": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
+    "at": "2026-11-10T20:31:22.100487+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:a8bdef7f3c6b6cc74c203e34c4b6a7e418bce5ea056134da40893418f9cec418",
+    "fingerprint": "sha256:e1709879727c93bd259db29b77516ccdfb59013b1e2f34a13ff2cbfb982a2bbc",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "groq-commissioner-contract": {
-    "at": "2026-09-02T16:27:39.603317+00:00",
+    "at": "2026-11-10T20:31:22.981896+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:c549b46339d62f76e3a96a70ce83af190b1b7e4cdd6da7f0dddbb873cf9022d0",
+    "fingerprint": "sha256:4914ae4c5fa460861de1f9197c75ac762eb9dc85fef6363e863c9226116d14fc",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -311,7 +303,7 @@
     "waiver": null
   },
   "health-live-production": {
-    "at": "2026-10-26T22:40:01.881504+00:00",
+    "at": "2026-11-10T20:30:38.469972+00:00",
     "detail": null,
     "duration": null,
     "files": null,
@@ -321,23 +313,21 @@
     "waiver": null
   },
   "hole-completion-distinct-18": {
-    "at": "2026-10-26T12:24:59.830427+00:00",
+    "at": "2026-11-10T20:31:14.150449+00:00",
     "detail": null,
-    "duration": 3.315,
-    "files": {
-      "backend/app/routers/games_holes.py": "sha256:5f85317c15b90b95067614a9778be54445662e837c888307d8116c3196aa4644"
-    },
-    "fingerprint": "sha256:950f0dda39ed0460f50f8a0e629cc9b2f5a7547efd2d6c0100290bef87561f6c",
+    "duration": null,
+    "files": null,
+    "fingerprint": "sha256:60e0b29e658019ea6498783306ea2eec51fb043b0999a6ea020f87eb133e6c02",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "leaderboard-from-db": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
+    "at": "2026-11-10T20:31:34.683338+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:8d35fd5ff5500eabab84545266ae386cf2749f0318b8c5c67d141187d083ce8f",
+    "fingerprint": "sha256:2f866214ee75aba8ce4b2d31ed95c83200c828742a894bcbc05461160c21253e",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -413,11 +403,11 @@
     "waiver": null
   },
   "messages-create-readback": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
+    "at": "2026-11-10T20:31:37.154490+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:29a809c920289e4d6ebefb04b2c1941c2075a95ed3fcffb5f1dd9b12f6d4011c",
+    "fingerprint": "sha256:5aeb7d28c4ef8c67d15800d0ebfd4d97eea0eda573917053d8a79600d95ce4df",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -443,11 +433,11 @@
     "waiver": null
   },
   "new-player-capture-persists": {
-    "at": "2026-11-01T17:01:55.086021+00:00",
+    "at": "2026-11-10T20:32:08.963529+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:9eeb34d9285742276711fb4449d780252ded1b4748685f1c65237f6a455af844",
+    "fingerprint": "sha256:b1c630d0062e2594dbae05ce7c424c2345f2952de6bf935d2606b862c78869c5",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -503,11 +493,11 @@
     "waiver": null
   },
   "player-updates-persist": {
-    "at": "2026-10-14T02:45:09.284002+00:00",
+    "at": "2026-11-10T20:31:31.658871+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:7d0b62dee7805ab3c42e51772e8290e3dc8554ea8c8a931629ee1d4ce2dd5541",
+    "fingerprint": "sha256:58e6fea2f9145d0660612a67a423cc2fc6cbfaeb10aa521a6afb8f825ffeff87",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -523,11 +513,11 @@
     "waiver": null
   },
   "post-hole-analytics": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
+    "at": "2026-11-10T20:31:57.205807+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:fcb6e6ba10bab9e72d89d4b8cccc6d0b2ef331f1ec9f2d67578f24c2a14dd3bd",
+    "fingerprint": "sha256:0230cb4b899a07adc0f3decf972760848f2b5eedf8d3015b8f298639699eee60",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -543,23 +533,21 @@
     "waiver": null
   },
   "request-validation-422-envelope": {
-    "at": "2026-10-26T15:39:40.961605+00:00",
+    "at": "2026-11-10T20:31:17.212581+00:00",
     "detail": null,
-    "duration": 1.971,
-    "files": {
-      "backend/app/main.py": "sha256:a3d4bf66715513e2de054535aa4dcea62acc07e935461eb836ab81a95458fdc5"
-    },
-    "fingerprint": "sha256:f5a73a2f1dd4182bd7a8a806b2f624015f98fd624641bf4a942a22a608fcf802",
+    "duration": null,
+    "files": null,
+    "fingerprint": "sha256:687272cc9b28f85ed0dbb55a6d95c0715addb733b10383fee0edaf298700873e",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "resend-email-contract": {
-    "at": "2026-10-27T04:31:01.500085+00:00",
+    "at": "2026-11-10T20:31:21.187789+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:ef35c3843388a72adaaf3e71949094ce17f99e2174280765bafcac29003cc037",
+    "fingerprint": "sha256:fb161048331f656638cb290fb871901d7c4a04b5e3d62c7b3d53c27f83d2351b",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -595,31 +583,31 @@
     "waiver": null
   },
   "sheet-sync-tolerates-bad-rows": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
+    "at": "2026-11-10T20:32:17.014632+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:e197ab3d90bd47ceec6b37c4a29015c13af40bd1c1d4c7549daa2977e375f54e",
+    "fingerprint": "sha256:ea196d9b6292bc409d17b181472b8c5f94046fce575bc1d9d462cf1559e757d6",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "signup-server-owns-identity": {
-    "at": "2026-11-01T17:01:44.441287+00:00",
+    "at": "2026-11-10T20:33:28.198429+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:842ca9e17378850d51f0769d0068d31f08ee9b792f81500398d90161428723bd",
+    "fingerprint": "sha256:ad412368e119f54c7ab87a1e47e4aba38b1b22f7233f5105e2e5fa5094cdcc68",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "signups-create-persists": {
-    "at": "2026-11-01T17:01:40.976242+00:00",
+    "at": "2026-11-10T20:31:43.014335+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:16267083612f4954990089b6fbc90735640a6f974588d27f0c28611943b46c9c",
+    "fingerprint": "sha256:36d3e8fc150dab6847ba8a73b45836eed9ccf5e237adf859acf07190ceaca817",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -635,21 +623,21 @@
     "waiver": null
   },
   "stale-local-heals-from-server": {
-    "at": "2026-11-01T17:55:02.222165+00:00",
+    "at": "2026-11-10T20:31:54.507955+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:f6a35d95eea2db002366c511c14f5b4f0a8d9fb8aa7e3726a42cb2cbc8e844e3",
+    "fingerprint": "sha256:d520f577c12a94a3af695f486503d82db68e3d84e3198f1aac74918954dc7d00",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "statistics-computed": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
+    "at": "2026-11-10T20:32:00.519933+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:69a2fd5a28b104f2aaf89cf612f96546debe147bed57b32f401f8dafeb27876b",
+    "fingerprint": "sha256:e8e27b74b605eb16b4ef2327c547d22c434926c8bda2d40ade4807b70f75925e",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -665,21 +653,21 @@
     "waiver": null
   },
   "swallowed-outages-are-captured": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
+    "at": "2026-11-10T20:31:53.238772+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:f9c64b291ae94701ae7fd2c7d895740510ab84618155dbc103a583c5daba5f34",
+    "fingerprint": "sha256:9d10c29d82a1026a6845cf95b374ac9a4421a7660ca78f688c04d2641ba22fdc",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "team-formation-partitions-roster": {
-    "at": "2026-10-12T03:02:44.087602+00:00",
+    "at": "2026-11-10T20:31:47.833240+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:a82c3f180fb8cbc2a37b060cc08c0d9c8a9031594cac29ee8ab8132422a545dd",
+    "fingerprint": "sha256:17fbe926ea7c71d912e34a734c457e31bf4b508825d923f4e93ad77c90901cd0",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -705,11 +693,11 @@
     "waiver": null
   },
   "unified-data-aggregation": {
-    "at": "2026-10-26T19:48:25.806222+00:00",
+    "at": "2026-11-10T20:32:05.839311+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:14d00fddb5f99c3eef4bd102f20e1b1852845a58153aa3d63f241f164db9fdff",
+    "fingerprint": "sha256:f2e273e6b393f3c1138b97aa029a96f93f45dd971c7c8c2cd19be60a756eb079",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -725,21 +713,21 @@
     "waiver": null
   },
   "welcome-email-sent": {
-    "at": "2026-10-27T04:31:02.887157+00:00",
+    "at": "2026-11-10T20:32:06.785302+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:2abbf340c88d630204ee0c27ac29d04833803fca829ac61b55adb00248a281ab",
+    "fingerprint": "sha256:f63225c60873b40c041430cee25679a442c951dfca006b9e5ccbe20be98640f5",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "wgp-scoring-rules": {
-    "at": "2026-09-02T16:16:54.165694+00:00",
+    "at": "2026-11-10T20:31:56.355117+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:786c7bdbf8ce57aaef4e8ad9466020aeb9657b6eed31646c7d8f88e74f31bd3f",
+    "fingerprint": "sha256:80513a702cb9db57af382123573e5e82dfb420f6e91597b10704e65c79a14c85",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
