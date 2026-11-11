@@ -8,7 +8,8 @@ const API_URL = apiConfig.baseUrl;
 const POLL_INTERVAL_MS = 60_000;
 
 const MATCH_TYPES = new Set(['match_found', 'match_accepted', 'match_declined', 'match_confirmed']);
-const BELL_TYPES = new Set([...MATCH_TYPES, 'round_comment', 'round_conflict', 'venmo_missing']);
+const ROUND_TYPES = new Set(['round_comment', 'round_conflict', 'story_prompt']);
+const BELL_TYPES = new Set([...MATCH_TYPES, ...ROUND_TYPES, 'venmo_missing']);
 
 const safePath = (path) => {
   if (typeof path !== 'string' || !path.startsWith('/')) return null;
@@ -102,7 +103,7 @@ const NotificationBell = () => {
     }
     setNotifications(prev => prev.filter(x => x.id !== n.id || hasDeliveryTrouble(x)));
     setOpen(false);
-    const isRound = n.notification_type === 'round_comment' || n.notification_type === 'round_conflict';
+    const isRound = ROUND_TYPES.has(n.notification_type);
     navigate((isRound && safePath(n.data?.path)) || '/account');
   }, [getToken, navigate]);
 
