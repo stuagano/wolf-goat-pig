@@ -245,6 +245,7 @@ def test_intro_facts_drop_bookkeeping_counts_and_links():
         "rounds": 5,
         "known_participation_count": 22,
         "scored_participation_count": 22,
+        "incomplete_rounds": 0,
         "intro": "old",
         "stories": [{"author": "Bob", "body": "Pond, twice.", "where": "13-Oct", "path": "/game/g-1", "reactions": 2}],
     }
