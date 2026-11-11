@@ -543,11 +543,11 @@
     "waiver": null
   },
   "resend-email-contract": {
-    "at": "2026-11-11T17:06:27.544057+00:00",
+    "at": "2026-11-11T18:33:04.749453+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:d34e70abc5198b3d6f6172ef023922580fb91a25028508c102bdcd1b1b540b77",
+    "fingerprint": "sha256:d4fb00e00ef2371dc4a70cc0fff2f92b07e65b85acdb73479d4315aa50f425d9",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -713,11 +713,11 @@
     "waiver": null
   },
   "welcome-email-sent": {
-    "at": "2026-11-11T17:06:28.693626+00:00",
+    "at": "2026-11-11T18:33:07.344512+00:00",
     "detail": null,
     "duration": null,
     "files": null,
-    "fingerprint": "sha256:b081871354379f4aac14bf5a4b92a24575c93a070e301dc5859375be76fe6a25",
+    "fingerprint": "sha256:4255510efc32831d8eb2ccd1880a20f1e3ceb89e466d1b9235b4173539dc57ec",
     "result": "pass",
     "tier": "cheap",
     "waiver": null

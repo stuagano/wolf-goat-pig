@@ -180,5 +180,8 @@ class TestEmailStories:
 
     def test_section_omitted_without_stories(self, monkeypatch):
         sent = self._render(monkeypatch, [])
-        assert "From the round stories" not in sent["html_body"]
-        assert "From the round stories" not in sent["text_body"]
+        for fmt in ("html_body", "text_body"):
+            assert "From the round stories" not in sent[fmt]
+            # No incomplete rounds: no coverage line, and never the appearance counts.
+            assert "incomplete" not in sent[fmt]
+            assert "appearances" not in sent[fmt]
