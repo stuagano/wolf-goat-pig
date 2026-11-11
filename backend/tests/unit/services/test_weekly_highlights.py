@@ -238,3 +238,18 @@ def test_one_intro_per_run_reaches_the_email(db, stub_intro):
     assert len(stub_intro) == 1
     assert stub_intro[0][1]["biggest_round"]["player"] == "Mike"
     assert seen == ["The Commissioner has notes."] * 2
+
+
+def test_intro_facts_drop_bookkeeping_counts_and_links():
+    highlights = {
+        "rounds": 5,
+        "known_participation_count": 22,
+        "scored_participation_count": 22,
+        "intro": "old",
+        "stories": [{"author": "Bob", "body": "Pond, twice.", "where": "13-Oct", "path": "/game/g-1", "reactions": 2}],
+    }
+    assert wh.intro_facts(highlights) == {
+        "rounds": 5,
+        "stories": [{"author": "Bob", "body": "Pond, twice.", "reactions": 2}],
+    }
+    assert "known_participation_count" in highlights  # the email's own copy is untouched
