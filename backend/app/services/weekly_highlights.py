@@ -12,10 +12,10 @@ from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from ..models import EmailPreferences, PlayerProfile, WeeklyHighlightSend
+from ..models import EmailPreferences, PlayerProfile, RoundComment, RoundReaction, WeeklyHighlightSend
 from ..utils.time import CLUB_TZ, utc_now
 from . import email_voice
 from .email_service import get_email_service
@@ -100,7 +100,53 @@ def compute_highlights(db: Session, start: str, end: str) -> dict[str, Any] | No
         "ironman": {"players": sorted(labels[n] for n, c in rounds.items() if c == most), "rounds": most}
         if most > 1
         else None,
+        "stories": top_stories(db, history),
     }
+
+
+def top_stories(db: Session, rounds, limit: int = 3) -> list[dict[str, Any]]:
+    """The week's best round stories: most reactions first, then newest."""
+    from .round_social import _date_keys
+    from .story_prompts import round_path
+
+    by_game = {r.game_id: r for r in rounds if r.game_id}
+    # Comment dates may be YYYY-MM-DD or the sheet's "6-Oct" form.
+    by_key = {
+        (d, r.group, r.location or ""): r
+        for r in rounds
+        if not r.game_id and r.date_sortable
+        for d in _date_keys(r.date_sortable)
+    }
+    picked = []
+    for c in db.query(RoundComment).all():  # ponytail: full scan; filter by created_at if comments grow large
+        r = by_game.get(c.game_id) if c.game_id else by_key.get((c.round_date, c.round_group, c.location or ""))
+        if r is not None:
+            picked.append((c, r))
+    if not picked:
+        return []
+
+    likes = dict(
+        db.query(RoundReaction.comment_id, func.count(RoundReaction.id))
+        .filter(RoundReaction.comment_id.in_([c.id for c, _ in picked]))
+        .group_by(RoundReaction.comment_id)
+        .all()
+    )
+    authors = dict(
+        db.query(PlayerProfile.id, PlayerProfile.name).filter(
+            PlayerProfile.id.in_({c.author_profile_id for c, _ in picked})
+        )
+    )
+    picked.sort(key=lambda cr: (likes.get(cr[0].id, 0), cr[0].created_at or ""), reverse=True)
+    return [
+        {
+            "author": authors.get(c.author_profile_id) or "Someone",
+            "body": c.body if len(c.body) <= 280 else f"{c.body[:277]}...",
+            "where": f"{r.date} at {r.location}" if r.location else r.date,
+            "path": round_path(r),
+            "reactions": likes.get(c.id, 0),
+        }
+        for c, r in picked[:limit]
+    ]
 
 
 def get_recipients(db: Session) -> list[PlayerProfile]:

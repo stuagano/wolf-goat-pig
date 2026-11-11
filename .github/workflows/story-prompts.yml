@@ -1,0 +1,30 @@
+name: Round Story Prompts
+
+# Nightly: bell-prompts every linked player in a recent round to check the
+# scores and add a story. Once per (player, round), ever: the backend uses the
+# prompts it already sent as the dedup log, so re-runs are safe.
+on:
+  schedule:
+    - cron: '0 4 * * *'  # Daily 04:00 UTC = 9pm PDT / 8pm PST, after the day's rounds
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run: report how many prompts would be created, create none'
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: story-prompts
+  cancel-in-progress: false
+
+jobs:
+  prompts:
+    uses: ./.github/workflows/_cron-curl.yml
+    with:
+      label: Round story prompts (dry_run=${{ github.event.inputs.dry_run || 'false' }})
+      url: https://wolf-goat-pig-api-i5v2shrpoa-uc.a.run.app/internal/jobs/story-prompts?dry_run=${{ github.event.inputs.dry_run || 'false' }}
+      headers: 'Content-Type: application/json'
+      max-time: 300
+    secrets:
+      INTERNAL_JOB_TOKEN: ${{ secrets.INTERNAL_JOB_TOKEN }}

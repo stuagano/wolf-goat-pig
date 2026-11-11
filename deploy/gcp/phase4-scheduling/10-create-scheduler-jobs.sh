@@ -44,6 +44,7 @@ gc run services add-iam-policy-binding "${RUN_SERVICE}" --region="${GCP_REGION}"
 # weekly-summaries and sunday-reminder are driven only by GitHub Actions
 # (.github/workflows/weekly-highlights.yml, sunday-reminder.yml); the old
 # wgp-weekly-summaries / wgp-daily-reminders jobs are paused — delete them.
+# story-prompts is likewise GitHub Actions only (.github/workflows/story-prompts.yml).
 JOBS=(
   "wgp-saturday-pairings|0 14 * * 6|saturday-pairings"
   "wgp-legacy-rounds-sync|0 */2 * * *|legacy-rounds-sync"

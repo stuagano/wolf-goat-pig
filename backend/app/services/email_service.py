@@ -296,20 +296,42 @@ class EmailService:
             f"{rounds} round{'s' if rounds != 1 else ''} at {esc(', '.join(highlights['courses']))} "
             f"with {len(highlights['players'])} players."
         )
+        incomplete = highlights.get("incomplete_rounds", 0)
         coverage = (
-            f"{highlights.get('known_participation_count', len(highlights['players']))} known appearances; "
-            f"{highlights.get('scored_participation_count', len(highlights['players']))} scored appearances; "
-            f"{highlights.get('incomplete_rounds', 0)} incomplete round(s). "
-            "Incomplete rounds are visible but excluded from score awards."
+            f"{incomplete} incomplete round{'s' if incomplete != 1 else ''} excluded from score awards."
+            if incomplete
+            else ""
         )
         items = "".join(f"<li>{line}</li>" for line in lines)
+        site = os.getenv("FRONTEND_URL", "https://seventh-country-232522.web.app").rstrip("/")
+        stories = highlights.get("stories") or []
+        stories_html = (
+            "<h3>From the round stories</h3>"
+            + "".join(
+                f'<blockquote style="margin: 0 0 12px; padding-left: 12px; border-left: 3px solid #d1d5db;">'
+                f"&ldquo;{esc(s['body'])}&rdquo;<br>"
+                f'<span style="color: #6b7280; font-size: 13px;">{esc(s["author"])}, '
+                f'<a href="{esc(site + s["path"])}">{esc(s["where"])}</a></span></blockquote>'
+                for s in stories
+            )
+            if stories
+            else ""
+        )
+        stories_text = (
+            "From the round stories:\n"
+            + "".join(f'- "{s["body"]}" ({s["author"]}, {s["where"]}) {site}{s["path"]}\n' for s in stories)
+            + "\n"
+            if stories
+            else ""
+        )
         content = f"""
         <h2>&#9971; This week in Wolf Goat Pig</h2>
         <p>Hi {esc(player_name)},</p>
         {self._intro_html(highlights.get("intro"))}
         <p>{intro}</p>
-        <p>{coverage}</p>
+        {f"<p>{coverage}</p>" if coverage else ""}
         <ul>{items}</ul>
+        {stories_html}
         <p style="color: #6b7280; font-size: 13px;">Played: {esc(", ".join(highlights["players"]))}</p>
         """
         html_body = Template(self._get_base_template()).render(subject="This week in Wolf Goat Pig", content=content)
@@ -317,8 +339,9 @@ class EmailService:
             f"This week in Wolf Goat Pig\n\nHi {player_name},\n\n"
             + (f"{highlights['intro']}\n\n" if highlights.get("intro") else "")
             + f"{html.unescape(intro)}\n\n"
-            + f"{coverage}\n\n"
+            + (f"{coverage}\n\n" if coverage else "")
             + "".join(f"- {html.unescape(line)}\n" for line in lines)
+            + (f"\n{stories_text}" if stories_text else "")
             + f"\nPlayed: {', '.join(highlights['players'])}\n\n"
             f"Manage your email preferences: {self._preferences_url()}\n"
         )

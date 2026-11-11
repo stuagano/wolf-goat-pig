@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 import schedule
 
 from ..database import SessionLocal
-from . import sunday_reminder, weekly_highlights
+from . import story_prompts, sunday_reminder, weekly_highlights
 from .email_service import get_email_service
 from .pairing_scheduler_service import PairingSchedulerService
 
@@ -37,6 +37,7 @@ class EmailScheduler:
         "pending-sheet-syncs": "_process_pending_sheet_syncs",
         "ghin-sync": "_sync_ghin_handicaps",
         "round-deliveries": "_dispatch_round_deliveries",
+        "story-prompts": "_send_story_prompts",
     }
 
     def __init__(self):
@@ -100,6 +101,14 @@ class EmailScheduler:
         finally:
             db.close()
 
+    def _send_story_prompts(self, dry_run: bool = False) -> dict[str, Any]:
+        """Bell-prompt players in recent rounds to add a story. Errors propagate so the cron fails loudly."""
+        db = self._get_db()
+        try:
+            return story_prompts.run(db, dry_run=dry_run)
+        finally:
+            db.close()
+
     def _run_scheduler(self):
         """Run the scheduler in a loop"""
         while self.is_running:
@@ -124,7 +133,7 @@ class EmailScheduler:
             logger.info("Email scheduler stopped")
 
     # Jobs whose method accepts dry_run=True (compute + report, send nothing).
-    DRY_RUN_JOBS = {"weekly-summaries", "sunday-reminder"}
+    DRY_RUN_JOBS = {"weekly-summaries", "sunday-reminder", "story-prompts"}
 
     def run_job(self, job_name: str, dry_run: bool = False) -> dict:
         """Run a single scheduled job once, by its registry key.

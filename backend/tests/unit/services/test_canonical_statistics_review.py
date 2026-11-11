@@ -139,9 +139,8 @@ def test_incomplete_week_renders_coverage_without_fabricated_awards(canonical_hi
     assert email.send_weekly_highlights("synthetic@example.test", "Avery", summary)
     body = email._send_email.call_args.kwargs
     for fmt in ("html_body", "text_body"):
-        assert "known appearances" in body[fmt]
-        assert "scored appearances" in body[fmt]
-        assert "incomplete round" in body[fmt]
+        assert "known appearances" not in body[fmt]
+        assert "1 incomplete round excluded from score awards" in body[fmt]
     monkeypatch.setattr("app.services.weekly_highlights.email_voice.commissioner_intro", lambda *a: None)
     db.get(models.PlayerProfile, 1).email = "synthetic@example.test"
     db.commit()
