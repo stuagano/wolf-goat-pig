@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import GameCompletionView from "./GameCompletionView";
 import RoundCardReview from "./RoundCardReview";
 import EditHoleModal from "./EditHoleModal";
+import SettleUp from "./SettleUp";
 import { SyncStatusBanner } from "../ui/SyncStatusIndicator";
 import { apiConfig } from "../../config/api.config";
 import { useAuthenticatedFetch } from "../../hooks/useAuthenticatedFetch";
@@ -99,6 +100,7 @@ const CompletedRoundView = ({
         <p>Revision {summary.revision} · {summary.detail_coverage?.replaceAll('_', ' ') || 'Detail not recorded'}</p>
         {!summary.score_eligible && <p>Incomplete or retracted results — not included in score standings.</p>}
         <ul>{players.map(player => <li key={player.id}><span>{player.name || 'Unnamed participant'}</span>: {player.quarters == null ? 'Not recorded' : `${player.quarters > 0 ? '+' : ''}${player.quarters}`}</li>)}</ul>
+        {summary.score_eligible && <SettleUp players={players} note={['Wolf Goat Pig', summary.played_on || summary.raw_date, summary.course_name].filter(Boolean).join(' · ')} />}
         {summary.detail_coverage === 'partial' && <p>Partial recorded holes only; these do not imply a complete round.</p>}
         {holeHistory.length === 0 ? <p>Hole detail: Not recorded</p> : <table>
           <caption>Recorded hole detail (final totals above remain authoritative)</caption>
