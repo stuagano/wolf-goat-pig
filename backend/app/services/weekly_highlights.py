@@ -172,6 +172,17 @@ def get_recipients(db: Session) -> list[PlayerProfile]:
     )
 
 
+def intro_facts(highlights: dict[str, Any]) -> dict[str, Any]:
+    """What the Commissioner may riff on: no bookkeeping counts, no link paths."""
+    facts = {
+        k: v
+        for k, v in highlights.items()
+        if k not in {"known_participation_count", "scored_participation_count", "intro"}
+    }
+    facts["stories"] = [{k: s[k] for k in ("author", "body", "reactions")} for s in highlights.get("stories") or []]
+    return facts
+
+
 def run(db: Session, *, now: datetime | None = None, email_service=None, dry_run: bool = False) -> dict[str, Any]:
     """Compute last week's highlights and email everyone who hasn't had them yet."""
     week_start, week_end = week_window(now or utc_now())
@@ -188,7 +199,7 @@ def run(db: Session, *, now: datetime | None = None, email_service=None, dry_run
     pending = [p for p in get_recipients(db) if p.id not in already]
 
     if dry_run:
-        highlights["intro"] = email_voice.commissioner_intro("weekly league highlights", highlights)
+        highlights["intro"] = email_voice.commissioner_intro("weekly league highlights", intro_facts(highlights))
         return {
             "dry_run": True,
             "week_start": week_start,
@@ -204,7 +215,7 @@ def run(db: Session, *, now: datetime | None = None, email_service=None, dry_run
 
     # One Commissioner-voice intro for everyone; None (plain email) if the AI is unavailable.
     if pending:
-        highlights["intro"] = email_voice.commissioner_intro("weekly league highlights", highlights)
+        highlights["intro"] = email_voice.commissioner_intro("weekly league highlights", intro_facts(highlights))
 
     sent = failed = 0
     for player in pending:

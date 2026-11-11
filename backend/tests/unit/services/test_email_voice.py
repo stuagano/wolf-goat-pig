@@ -21,8 +21,9 @@ FACTS = {
 def fake_llm(text=None, exc=None, delay=0.0):
     calls = []
 
-    async def generate(prompt, system_instruction):
+    async def generate(prompt, system_instruction, **kwargs):
         calls.append((prompt, system_instruction))
+        generate.kwargs = kwargs
         if delay:
             await asyncio.sleep(delay)
         if exc:
@@ -78,6 +79,46 @@ def test_timeout_falls_back_to_none(use_llm, monkeypatch):
     monkeypatch.setattr(email_voice, "TIMEOUT_SECONDS", 0.05)
     use_llm(fake_llm("too late", delay=1))
     assert email_voice.commissioner_intro("weekly_highlights", FACTS) is None
+
+
+def test_thinking_is_off_so_intros_are_not_cut_short(use_llm):
+    fake = use_llm(fake_llm("Dan Anderson again. Sigh."))
+    email_voice.commissioner_intro("x", FACTS)
+    assert fake.kwargs == {"thinking_budget": 0}
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Dan Anderson took 370 quarters, but only one truly knows how",  # the real cut-off from prod
+        "Dan Anderson took 370 quarters and",
+    ],
+)
+def test_cut_off_intro_is_dropped(use_llm, text):
+    use_llm(fake_llm(text))
+    assert email_voice.commissioner_intro("x", FACTS) is None
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Dan Anderson took 370 quarters. Somebody check his pockets.",
+        "Brett Saks, are you okay?",
+        "Dan Anderson called it “skill.”",
+        "Dan Anderson wins again. 🙄",
+        "Brett Saks, still waiting…",
+    ],
+)
+def test_complete_intro_is_kept(use_llm, text):
+    use_llm(fake_llm(text))
+    assert email_voice.commissioner_intro("x", FACTS) == text
+
+
+def test_system_prompt_roasts_instead_of_recapping():
+    system = email_voice.SYSTEM_INSTRUCTION.lower()
+    assert "sarcastic" in system
+    assert "do not recap" in system
+    assert "stories" in system
 
 
 def test_empty_or_overlong_reply_is_dropped(use_llm):

@@ -24,14 +24,18 @@ def commissioner_provider() -> str:
     return _provider()
 
 
-async def llm_generate(prompt: str, system_instruction: str) -> str:
-    """Generate commissioner text from a user prompt and system instruction."""
+async def llm_generate(prompt: str, system_instruction: str, *, thinking_budget: int | None = None) -> str:
+    """Generate commissioner text from a user prompt and system instruction.
+
+    ``thinking_budget`` caps Gemini's thinking tokens, which share the output
+    limit; 0 turns thinking off so short text isn't cut off. Groq ignores it.
+    """
     if _provider() == "groq":
         return await _groq_generate(prompt, system_instruction)
-    return await _vertex_generate(prompt, system_instruction)
+    return await _vertex_generate(prompt, system_instruction, thinking_budget)
 
 
-async def _vertex_generate(prompt: str, system_instruction: str) -> str:
+async def _vertex_generate(prompt: str, system_instruction: str, thinking_budget: int | None = None) -> str:
     project = os.getenv("GCP_PROJECT_ID", "").strip()
     if not project:
         raise ValueError("Commissioner AI is not configured (GCP_PROJECT_ID missing)")
@@ -48,6 +52,9 @@ async def _vertex_generate(prompt: str, system_instruction: str) -> str:
                 system_instruction=system_instruction,
                 temperature=0.7,
                 max_output_tokens=2048,
+                thinking_config=None
+                if thinking_budget is None
+                else types.ThinkingConfig(thinking_budget=thinking_budget),
             ),
         )
     except Exception as exc:
