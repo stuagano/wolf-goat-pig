@@ -182,6 +182,6 @@ class TestEmailStories:
         sent = self._render(monkeypatch, [])
         for fmt in ("html_body", "text_body"):
             assert "From the round stories" not in sent[fmt]
-            # No incomplete rounds: no coverage line, and never the appearance counts.
+            # Never the bookkeeping counts.
             assert "incomplete" not in sent[fmt]
             assert "appearances" not in sent[fmt]

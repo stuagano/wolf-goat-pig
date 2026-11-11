@@ -177,7 +177,7 @@ def intro_facts(highlights: dict[str, Any]) -> dict[str, Any]:
     facts = {
         k: v
         for k, v in highlights.items()
-        if k not in {"known_participation_count", "scored_participation_count", "intro"}
+        if k not in {"known_participation_count", "scored_participation_count", "incomplete_rounds", "intro"}
     }
     facts["stories"] = [{k: s[k] for k in ("author", "body", "reactions")} for s in highlights.get("stories") or []]
     return facts
