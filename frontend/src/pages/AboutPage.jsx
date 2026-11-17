@@ -321,7 +321,7 @@ function AboutPage() {
             flexWrap: 'wrap'
           }}>
             <button
-              onClick={() => navigate('/tutorial')}
+              onClick={() => navigate('/rules')}
               style={{
                 padding: '14px 32px',
                 background: '#10B981',

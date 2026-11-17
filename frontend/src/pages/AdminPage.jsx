@@ -5,7 +5,6 @@ import { usePlayerProfile } from '../hooks/usePlayerProfile';
 import { useAuthenticatedFetch } from '../hooks/useAuthenticatedFetch';
 import { Card } from '../components/ui';
 import SheetIntegrationDashboard from '../components/integration/SheetIntegrationDashboard';
-import WGPAnalyticsDashboard from '../components/analytics/WGPAnalyticsDashboard';
 import GHINIntegration from '../components/integration/GHINIntegration';
 import FoursomesManager from './admin/FoursomesManager';
 import DatabaseManager from './admin/DatabaseManager';
@@ -94,7 +93,7 @@ const AdminPage = () => {
       <div className="max-w-7xl mx-auto px-4">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">🔧 Admin Dashboard</h1>
-          <p className="text-gray-600">Manage email settings, sheets integration, and analytics</p>
+          <p className="text-gray-600">Manage email settings, sheets integration, and league data</p>
           <a href="/round-reconciliation">Round reconciliation, delivery status & confirmed recipient</a>
         </div>
 
@@ -112,11 +111,6 @@ const AdminPage = () => {
         {/* GHIN Integration Tab */}
         {activeTab === 'ghin' && (
           <GHINIntegration />
-        )}
-
-        {/* Analytics Tab */}
-        {activeTab === 'analytics' && (
-          <WGPAnalyticsDashboard />
         )}
 
         {/* Database Tab */}

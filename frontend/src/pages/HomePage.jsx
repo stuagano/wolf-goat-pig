@@ -15,7 +15,6 @@ const ADVANCED_TOOLS = [
   { path: '/scorecard-scan', label: 'Scan scorecard' },
   { path: '/game-scorer', label: 'Hole-by-hole scorer' },
   { path: '/games/completed', label: 'Game history' },
-  { path: '/tutorial', label: 'Tutorial' },
   { path: '/livsow', label: 'LivSow' },
   { path: '/chat', label: 'League chat' },
   { path: '/find-a-game', label: 'Find a game' },
