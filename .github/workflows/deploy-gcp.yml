@@ -71,6 +71,9 @@ jobs:
   changes:
     if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read   # list previous runs to find the last deployed commit
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
@@ -78,9 +81,32 @@ jobs:
       scorecard: ${{ steps.filter.outputs.scorecard }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      # Diff against the last commit that deployed successfully, not just the
+      # previous push. The concurrency group replaces a queued run with the
+      # newest one, so a replaced run's changes (e.g. a backend-only merge)
+      # must be picked up by whichever run deploys next. A failed run also
+      # leaves its changes for the next run to retry.
+      - name: Find last successfully deployed commit
+        id: base
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow deploy-gcp.yml \
+            --branch "$GITHUB_REF_NAME" --event push --status success --limit 1 \
+            --json headSha --jq '.[0].headSha // empty')
+          if [ -n "$sha" ] && git cat-file -e "$sha^{commit}" 2>/dev/null; then
+            echo "Diffing against last deployed commit $sha"
+          else
+            sha="${{ github.event.before }}"
+            echo "No usable last deploy; diffing against previous push $sha"
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
       - uses: dorny/paths-filter@v4
         id: filter
         with:
+          base: ${{ steps.base.outputs.sha }}
           filters: |
             backend:
               - 'backend/**'
