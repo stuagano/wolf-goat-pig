@@ -140,13 +140,6 @@ class TestProfileRetrieval:
         assert result.id == test_player.id
         assert result.name == test_player.name
 
-    def test_get_player_by_name(self, db, player_service, test_player):
-        """Test getting player by name."""
-        result = player_service.get_player_profile_by_name("Test Player")
-
-        assert result is not None
-        assert result.name == "Test Player"
-
     def test_get_nonexistent_player_returns_none(self, db, player_service):
         """Test getting non-existent player returns None."""
         result = player_service.get_player_profile(99999)

@@ -238,43 +238,6 @@ def _find_similar_names(name: str, players: list[str], max_results: int) -> list
     return [lower_to_original[m] for m in matches]
 
 
-def validate_player_for_legacy(name: str, db: Any = None) -> dict:
-    """Validate a player name for legacy system compatibility.
-
-    Returns a dict with:
-    - valid: bool - whether the name is canonical (will sync to the legacy sheet)
-    - canonical_name: str or None - the correctly-cased name if valid
-    - suggestions: list - similar names if not valid
-    - message: str - human-readable explanation
-    """
-    canonical = get_canonical_name(name, db)
-
-    if canonical:
-        return {
-            "valid": True,
-            "canonical_name": canonical,
-            "suggestions": [],
-            "message": f"Player '{canonical}' found in legacy system",
-        }
-
-    suggestions = find_similar_players(name, db=db)
-
-    if suggestions:
-        return {
-            "valid": False,
-            "canonical_name": None,
-            "suggestions": suggestions,
-            "message": f"Player '{name}' not found. Did you mean: {', '.join(suggestions)}?",
-        }
-
-    return {
-        "valid": False,
-        "canonical_name": None,
-        "suggestions": [],
-        "message": f"Player '{name}' not found in legacy system",
-    }
-
-
 # ---------------------------------------------------------------------------
 # Canonical roster writes
 # ---------------------------------------------------------------------------
@@ -423,5 +386,4 @@ __all__ = [
     "promote_pending_player",
     "seed_roster_if_empty",
     "sync_roster_from_members",
-    "validate_player_for_legacy",
 ]

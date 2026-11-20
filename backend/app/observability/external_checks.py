@@ -132,20 +132,24 @@ async def check_resend() -> ServiceStatus:
     return await _timed("resend", probe())
 
 
+# The legacy tee sheet's read endpoint (the bare base path 301-redirects).
+TEE_SHEET_READ_URL = "https://thousand-cranes.com/WolfGoatPig/wgp_tee_sheet.cgi"
+
+
+def legacy_tee_sheet_enabled() -> bool:
+    """Whether to probe the legacy thousand-cranes.com tee sheet (off by default)."""
+    return os.getenv("LEGACY_TEE_SHEET_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+
+
 async def check_tee_sheet() -> ServiceStatus:
     # The legacy thousand-cranes.com connection is disabled by default. When off,
     # report "not_configured" (never alerts) and make no outbound request, so the
     # app no longer depends on the legacy CGI being reachable.
-    from app.routers.tee_sheet import legacy_tee_sheet_enabled
-
     if not legacy_tee_sheet_enabled():
         return ServiceStatus("tee_sheet", "not_configured", detail="disabled")
 
     async def probe() -> str:
-        # Probe the exact endpoint the app reads (the bare base path 301-redirects),
-        # following redirects, with the same Referer the real request sends.
-        from app.routers.tee_sheet import TEE_SHEET_READ_URL
-
+        # Probe with the same Referer a browser read sends, following redirects.
         async with httpx.AsyncClient(timeout=_TIMEOUT, follow_redirects=True) as client:
             resp = await client.get(TEE_SHEET_READ_URL, headers={"Referer": TEE_SHEET_READ_URL})
             resp.raise_for_status()

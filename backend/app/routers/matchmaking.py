@@ -545,66 +545,6 @@ async def respond_to_match(
 
 
 # ============================================================================
-# GET /matchmaking/matches/{match_id} - Get match details
-# ============================================================================
-
-
-@router.get("/matches/{match_id}")
-@handle_api_errors(operation_name="get match details")
-async def get_match_details(
-    match_id: int = Path(description="Match suggestion ID"),
-    current_user: models.PlayerProfile = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> dict[str, Any]:
-    """Get full details of a match suggestion including all player responses."""
-    match = db.query(models.MatchSuggestion).filter(models.MatchSuggestion.id == match_id).first()
-    if not match:
-        raise HTTPException(status_code=404, detail=f"Match suggestion {match_id} not found")
-
-    # Verify current user is in this match
-    my_player = (
-        db.query(models.MatchPlayer)
-        .filter(
-            models.MatchPlayer.match_suggestion_id == match_id,
-            models.MatchPlayer.player_profile_id == current_user.id,
-        )
-        .first()
-    )
-    if not my_player:
-        raise HTTPException(status_code=403, detail="You are not part of this match")
-
-    all_players = db.query(models.MatchPlayer).filter(models.MatchPlayer.match_suggestion_id == match_id).all()
-
-    day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-
-    return {
-        "id": match.id,
-        "day_of_week": match.day_of_week,
-        "day_name": day_names[cast("int", match.day_of_week)],
-        "suggested_date": match.suggested_date,
-        "overlap_start": match.overlap_start,
-        "overlap_end": match.overlap_end,
-        "suggested_tee_time": match.suggested_tee_time,
-        "match_quality_score": match.match_quality_score,
-        "status": match.status,
-        "created_at": match.created_at,
-        "expires_at": match.expires_at,
-        "players": [
-            {
-                "player_profile_id": p.player_profile_id,
-                "player_name": p.player_name,
-                "response": p.response,
-                "responded_at": p.responded_at,
-                "is_me": p.player_profile_id == current_user.id,
-            }
-            for p in all_players
-        ],
-        "all_accepted": all(p.response == "accepted" for p in all_players),
-        "can_book": (match.status == "accepted" and all(p.response == "accepted" for p in all_players)),
-    }
-
-
-# ============================================================================
 # GET /matchmaking/suggestions - Get match suggestions
 # ============================================================================
 

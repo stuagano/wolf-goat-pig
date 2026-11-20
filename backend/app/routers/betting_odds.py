@@ -5,7 +5,7 @@ import time
 import traceback
 from typing import Any
 
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from ..domain.shot_range_analysis import analyze_shot_decision
@@ -148,98 +148,3 @@ async def calculate_real_time_odds(request: OddsCalculationRequest) -> dict[str,
         logger.error(f"Error calculating odds: {e}")
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Failed to calculate odds: {e!s}")
-
-
-@router.post("/quick-odds")
-async def calculate_quick_odds(
-    players_data: list[dict[str, Any]] = Body(...),
-) -> dict[str, Any]:
-    """
-    Quick odds calculation for immediate feedback.
-    Optimized for sub-50ms response time.
-    """
-    try:
-        from ..services.odds_calculator import HoleState, OddsCalculator, PlayerState, TeamConfiguration
-
-        start_time = time.time()
-
-        # Simple validation
-        if len(players_data) < 2:
-            raise HTTPException(status_code=400, detail="At least 2 players required")
-
-        # Create simplified player states
-        players = []
-        for i, p_data in enumerate(players_data):
-            player = PlayerState(
-                id=p_data.get("id", f"p{i}"),
-                name=p_data.get("name", f"Player {i + 1}"),
-                handicap=float(p_data.get("handicap", 18)),
-                distance_to_pin=float(p_data.get("distance_to_pin", 150)),
-                lie_type=p_data.get("lie_type", "fairway"),
-            )
-            players.append(player)
-
-        # Create basic hole state
-        hole = HoleState(hole_number=1, par=4, teams=TeamConfiguration.PENDING)
-
-        # Quick calculation
-        calculator = OddsCalculator()
-
-        # Calculate win probabilities only
-        quick_probs = {}
-        for player in players:
-            win_prob = calculator._calculate_player_win_vs_field(player, players, hole)
-            quick_probs[player.id] = {
-                "name": player.name,
-                "win_probability": win_prob,
-                "handicap": player.handicap,
-                "distance": player.distance_to_pin,
-            }
-
-        calculation_time = (time.time() - start_time) * 1000
-
-        return {
-            "probabilities": quick_probs,
-            "calculation_time_ms": calculation_time,
-            "method": "quick_analytical",
-            "timestamp": time.time(),
-        }
-
-    except Exception as e:
-        logger.error(f"Error in quick odds calculation: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to calculate quick odds: {e!s}")
-
-
-@router.get("/odds-history/{game_id}")
-async def get_odds_history(game_id: str, hole_number: int | None = None) -> dict[str, Any]:
-    """
-    Get historical odds data for analysis and trends.
-    """
-    try:
-        # This would typically query a database for historical odds
-        # For now, return mock data structure
-
-        history_data = {
-            "game_id": game_id,
-            "holes": {},
-            "trends": {
-                "volatility_by_hole": {},
-                "betting_patterns": {},
-                "accuracy_metrics": {},
-            },
-        }
-
-        # If specific hole requested
-        if hole_number:
-            history_data["holes"][str(hole_number)] = {  # type: ignore
-                "initial_odds": {},
-                "final_odds": {},
-                "betting_actions": [],
-                "outcome": {},
-            }
-
-        return history_data
-
-    except Exception as e:
-        logger.error(f"Error getting odds history: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get odds history: {e!s}")

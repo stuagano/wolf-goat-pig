@@ -56,7 +56,3 @@ class TestMatchmakingAuthRequired:
             json={"response": "accepted"},
         )
         assert resp.status_code in (401, 403, 422, 500)
-
-    def test_get_match_details_requires_auth(self):
-        resp = client.get("/matchmaking/matches/1")
-        assert resp.status_code in (401, 403, 500)

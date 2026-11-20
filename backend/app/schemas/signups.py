@@ -225,17 +225,6 @@ class PlayerWithAvailability(BaseModel):
 
 
 # Daily Message schemas
-class DailyMessageCreate(BaseModel):
-    date: str  # YYYY-MM-DD format
-    message: str
-    player_profile_id: int | None = None
-    player_name: str | None = None
-
-
-class DailyMessageUpdate(BaseModel):
-    message: str | None = None
-
-
 class DailyMessageResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

@@ -85,19 +85,3 @@ class PartnershipValidationError(ValidationError):
     - Partnership offer after tee shots complete
     - Invalid player ID in partnership
     """
-
-
-class RuleViolationError(ValidationError):
-    """
-    Raised when a game rule is violated.
-
-    This is a high-level exception used by the RuleManager to indicate
-    that a requested action violates the game rules. It extends ValidationError
-    to provide consistent error handling across the application.
-
-    Examples:
-    - Attempting to form partnership after deadline
-    - Trying to double when not allowed
-    - Invalid player attempting to take action out of turn
-    - Invoking Duncan after partnership formed
-    """

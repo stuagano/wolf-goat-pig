@@ -34,9 +34,9 @@ def test_manual_achievement_check_requires_authentication():
     assert resp.status_code == 401
 
 
-def test_badge_holders_rejects_normal_user(mock_admin_identity):
-    resp = client.get(
-        "/api/badges/admin/badge/1/holders",
+def test_manual_achievement_check_rejects_normal_user(mock_admin_identity):
+    resp = client.post(
+        "/api/badges/admin/check-achievements/1",
         headers={"X-Admin-Email": "normal@example.com"},
     )
     assert resp.status_code == 403

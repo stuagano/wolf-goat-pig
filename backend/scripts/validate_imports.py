@@ -25,10 +25,6 @@ def validate_critical_imports():
 
     critical_imports = [
         "app.main",
-        "app.managers",
-        "app.managers.websocket_manager",
-        "app.managers.rule_manager",
-        "app.managers.scoring_manager",
         "app.models",
         "app.database",
         "app.schemas",
@@ -46,44 +42,6 @@ def validate_critical_imports():
             errors.append(f"  ❌ {module_name}: ImportError - {e}")
         except Exception as e:
             errors.append(f"  ❌ {module_name}: {type(e).__name__} - {e}")
-
-    return errors
-
-
-def validate_managers_package():
-    """Validate that managers package exports are correct."""
-    errors = []
-
-    print("\n🔍 Validating managers package exports...")
-
-    try:
-        import app.managers as managers
-
-        required_exports = [
-            "RuleManager",
-            "RuleViolationError",
-            "ScoringManager",
-            "get_scoring_manager",
-            "WebSocketManager",
-            "manager",
-        ]
-
-        # Check __all__ exists
-        if not hasattr(managers, '__all__'):
-            errors.append("  ❌ managers package missing __all__ attribute")
-            return errors
-
-        # Check all required exports are in __all__
-        for export_name in required_exports:
-            if export_name not in managers.__all__:
-                errors.append(f"  ❌ {export_name} not in managers.__all__")
-            elif not hasattr(managers, export_name):
-                errors.append(f"  ❌ {export_name} defined in __all__ but not exported")
-            else:
-                print(f"  ✅ {export_name}")
-
-    except Exception as e:
-        errors.append(f"  ❌ Failed to validate managers package: {e}")
 
     return errors
 
@@ -119,7 +77,6 @@ def main():
 
     # Run validation checks
     all_errors.extend(validate_critical_imports())
-    all_errors.extend(validate_managers_package())
     all_errors.extend(validate_app_startup())
 
     # Print results

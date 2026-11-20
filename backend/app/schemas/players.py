@@ -204,12 +204,6 @@ class PlayerAchievementResponse(BaseModel):
 
 
 # Composite Schemas
-class PlayerProfileWithStats(BaseModel):
-    profile: PlayerProfileResponse
-    statistics: PlayerStatisticsResponse
-    recent_achievements: list[PlayerAchievementResponse] = []
-
-
 class PlayerPerformanceAnalytics(BaseModel):
     player_id: int
     player_name: str

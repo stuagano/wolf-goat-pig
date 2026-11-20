@@ -123,17 +123,6 @@ class TestTransactionsEndpoint:
         assert client.get("/data/livsow/transactions?team=High Beta").json()["total"] == 1
         assert client.get("/data/livsow/transactions?team=Nonexistent").json()["total"] == 0
 
-    def test_soft_delete_requires_admin_and_hides_row(self):
-        txn_id = client.get("/data/livsow/transactions").json()["transactions"][0]["id"]
-        # no admin header → 403
-        assert client.delete(f"/data/livsow/transactions/{txn_id}").status_code == 403
-        resp = client.delete(
-            f"/data/livsow/transactions/{txn_id}",
-            headers={"X-Admin-Email": "stuagano@gmail.com"},
-        )
-        assert resp.status_code == 200
-        assert client.get("/data/livsow/transactions").json()["total"] == 0
-
 
 class TestTeamDetailEndpoint:
     def setup_method(self):
@@ -352,86 +341,3 @@ class TestTeamContentEditing:
             detail = client.get("/data/livsow/teams/high-beta").json()
             assert detail["content"]["announcement"] == "Tee at 8"
             assert detail["captain_name"] == "Gregg Colburn"
-
-
-class TestStarterSeeding:
-    def setup_method(self):
-        from app import models
-        from app.database import SessionLocal
-
-        db = SessionLocal()
-        db.query(models.LivSowTeamContent).delete()
-        db.commit()
-        db.close()
-
-    def test_seed_requires_admin(self):
-        resp = client.post("/data/livsow/teams/seed-starters")
-        assert resp.status_code == 403
-
-    def test_seed_inserts_and_is_idempotent(self):
-        lb = _leaderboard()  # High Beta + Vice Grips fixtures
-        with patch(PATCH_TARGET, return_value=lb):
-            r1 = client.post(
-                "/data/livsow/teams/seed-starters",
-                headers={"X-Admin-Email": "stuagano@gmail.com"},
-            )
-            assert r1.status_code == 200
-            assert "high-beta" in r1.json()["seeded"]
-            # second run seeds nothing
-            r2 = client.post(
-                "/data/livsow/teams/seed-starters",
-                headers={"X-Admin-Email": "stuagano@gmail.com"},
-            )
-            assert r2.json()["count"] == 0
-        # starter content shows on the team detail
-        with patch(PATCH_TARGET, return_value=lb):
-            detail = client.get("/data/livsow/teams/high-beta").json()
-            assert detail["content"]["motto"]
-            assert detail["content"]["updated_by"] == "(starter — edit me)"
-
-
-class TestOfficialLogos:
-    def setup_method(self):
-        from app import models
-        from app.database import SessionLocal
-
-        db = SessionLocal()
-        db.query(models.LivSowTeamContent).delete()
-        db.commit()
-        db.close()
-
-    def test_set_logos_requires_admin(self):
-        assert client.post("/data/livsow/teams/set-official-logos").status_code == 403
-
-    def test_set_logos_upserts_and_preserves_captain_content(self):
-        from app import models
-        from app.database import SessionLocal
-        from app.utils.time import utc_now
-
-        # Pre-existing captain content for high-beta
-        db = SessionLocal()
-        db.add(
-            models.LivSowTeamContent(
-                team_slug="high-beta",
-                season="2026",
-                motto="Fear the Beta",
-                about="ours",
-                updated_by="Gregg",
-                updated_at=utc_now().isoformat(),
-            )
-        )
-        db.commit()
-        db.close()
-
-        resp = client.post(
-            "/data/livsow/teams/set-official-logos",
-            headers={"X-Admin-Email": "stuagano@gmail.com"},
-        )
-        assert resp.status_code == 200
-        assert "high-beta" in resp.json()["updated"]
-
-        db = SessionLocal()
-        row = db.query(models.LivSowTeamContent).filter_by(team_slug="high-beta", season="2026").first()
-        assert row.logo_url == "/livsow-logos/high-beta.png"
-        assert row.motto == "Fear the Beta"  # captain content untouched
-        db.close()

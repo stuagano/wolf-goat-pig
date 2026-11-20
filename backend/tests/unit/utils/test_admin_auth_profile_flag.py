@@ -125,6 +125,7 @@ def test_me_reports_admin_role_for_flagged_profile(env):
 def test_stored_flag_does_not_leak_into_profile_responses(env):
     client, _ = env
     login("auth0|plain", "plain@example.com")
-    resp = client.get("/players/name/Flagged")
+    resp = client.get("/players/all")
     assert resp.status_code == 200
-    assert resp.json()["is_admin"] is False
+    flagged = next(p for p in resp.json() if p["name"] == "Flagged")
+    assert flagged["is_admin"] is False

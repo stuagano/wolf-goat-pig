@@ -16,13 +16,7 @@ from .games_lifecycle import (
     mark_game_complete,
     start_game_from_lobby,
 )
-from .games_queries import (
-    get_game_details,
-    get_game_history,
-    get_game_state_by_id,
-    get_games,
-    get_round_summary,
-)
+from .games_queries import get_game_state_by_id, get_games, get_round_summary
 from .games_scorecard import (
     ScorecardBackfillRequest,
     ScorecardRoundHoleQuarter,
@@ -61,8 +55,6 @@ __all__ = [
     "create_game_with_join_code",
     "create_round_from_scorecard",
     "delete_game",
-    "get_game_details",
-    "get_game_history",
     "get_game_lobby",
     "get_game_state_by_id",
     "get_games",

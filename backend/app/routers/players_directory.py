@@ -15,7 +15,7 @@ from .. import models, schemas
 from ..database import get_db
 from ..services.player_service import PlayerService
 from ..utils.admin_auth import require_admin
-from ..utils.api_helpers import handle_api_errors, require_not_none
+from ..utils.api_helpers import handle_api_errors
 
 logger = logging.getLogger("app.routers.players")
 
@@ -68,15 +68,6 @@ def get_all_players(
     """Get all player profiles."""
     player_service = PlayerService(db)
     return player_service.get_all_player_profiles(active_only=active_only)
-
-
-@router.get("/name/{player_name}", response_model=schemas.PublicPlayerProfileResponse)
-@handle_api_errors(operation_name="get player by name")
-def get_player_profile_by_name(player_name: str, db: Session = Depends(get_db)) -> schemas.PlayerProfileResponse:
-    """Get a player profile by name."""
-    player_service = PlayerService(db)
-    profile = player_service.get_player_profile_by_name(player_name)
-    return require_not_none(profile, "Player", player_name)
 
 
 @router.get("/availability/all", response_model=list[dict])

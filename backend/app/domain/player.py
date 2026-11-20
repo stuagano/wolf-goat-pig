@@ -144,35 +144,6 @@ class Player:
         """Reset the float option (typically at the start of a new hole)."""
         self.float_used = False
 
-    def to_dict(self) -> dict:
-        """Convert player to dictionary format for serialization."""
-        return {
-            "id": self.id,
-            "name": self.name,
-            "handicap": self.handicap,
-            "points": self.points,
-            "strength": self.strength,
-            "is_human": self.is_human,
-            "hole_scores": self.hole_scores.copy(),
-            "float_used": self.float_used,
-            "last_points": self.last_points,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "Player":
-        """Create a Player instance from a dictionary."""
-        return cls(
-            id=data["id"],
-            name=data["name"],
-            handicap=data["handicap"],
-            points=data.get("points", 0),
-            strength=data.get("strength"),
-            is_human=data.get("is_human", False),
-            hole_scores=data.get("hole_scores", {}),
-            float_used=data.get("float_used", False),
-            last_points=data.get("last_points", 0),
-        )
-
     def __str__(self) -> str:
         """String representation of the player."""
         return f"{self.name} (Handicap: {self.handicap}, Points: {self.points})"
