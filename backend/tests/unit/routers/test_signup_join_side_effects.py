@@ -47,11 +47,16 @@ def env(monkeypatch):
         Base.metadata.drop_all(bind=engine)
 
 
-def test_repeat_tee_sheet_mirror_sends_one_confirmation(env):
+def test_repeat_tee_sheet_mirror_sends_one_confirmation(env, monkeypatch):
+    monkeypatch.setenv("SIGNUP_CANCEL_SECRET", "confirm-email-secret")
+    monkeypatch.setenv("FRONTEND_URL", "https://wolfgoatpig.com")
     svc, alerts = env
 
     tee_sheet_module._mirror_signup_to_db("Brett Saks", "2026-11-01")
     tee_sheet_module._mirror_signup_to_db("Brett Saks", "2026-11-01")
 
-    svc.send_signup_confirmation.assert_called_once_with("brett@example.com", "Brett Saks", "2026-11-01")
+    svc.send_signup_confirmation.assert_called_once()
+    args, kwargs = svc.send_signup_confirmation.call_args
+    assert args == ("brett@example.com", "Brett Saks", "2026-11-01")
+    assert "/signup/cancel/" in kwargs["cancel_url"]
     alerts.assert_called_once()

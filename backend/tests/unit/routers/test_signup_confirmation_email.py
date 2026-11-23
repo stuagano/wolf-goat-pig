@@ -5,7 +5,9 @@ profile (passed in, never client input), idempotency via
 confirmation_email_sent_at, preference opt-out, and observable soft failure.
 """
 
+from datetime import datetime
 from unittest.mock import Mock
+from zoneinfo import ZoneInfo
 
 import pytest
 from sqlalchemy import create_engine
@@ -14,6 +16,7 @@ from sqlalchemy.orm import sessionmaker
 from app.models import Base, DailySignup, EmailPreferences
 from app.observability import report as report_mod
 from app.routers import signups as signups_module
+from app.services.signup_cancel_token import read_cancel_token
 from app.utils.time import utc_now
 
 engine = create_engine("sqlite:///./test_signup_confirm.db", connect_args={"check_same_thread": False})
@@ -54,6 +57,8 @@ def _reread(signup_id: int) -> DailySignup:
 
 
 def test_confirmation_sent_and_marked(db, monkeypatch):
+    monkeypatch.setenv("SIGNUP_CANCEL_SECRET", "confirm-email-secret")
+    monkeypatch.setenv("FRONTEND_URL", "https://wolfgoatpig.com")
     signup = _make_signup(db)
     svc = Mock()
     svc.is_configured.return_value = True
@@ -62,7 +67,16 @@ def test_confirmation_sent_and_marked(db, monkeypatch):
 
     signups_module._deliver_signup_confirmation(signup.id, "brett@example.com", "Brett Saks", "2026-08-02")
 
-    svc.send_signup_confirmation.assert_called_once_with("brett@example.com", "Brett Saks", "2026-08-02")
+    svc.send_signup_confirmation.assert_called_once()
+    args, kwargs = svc.send_signup_confirmation.call_args
+    assert args == ("brett@example.com", "Brett Saks", "2026-08-02")
+    cancel_url = kwargs["cancel_url"]
+    assert cancel_url.startswith("https://wolfgoatpig.com/signup/cancel/")
+    token = cancel_url.rsplit("/", 1)[-1]
+    claims = read_cancel_token(token, now=datetime(2026, 8, 2, tzinfo=ZoneInfo("America/Los_Angeles")))
+    assert claims.signup_id == signup.id
+    assert claims.player_profile_id == signup.player_profile_id
+    assert claims.signup_date == "2026-08-02"
     assert _reread(signup.id).confirmation_email_sent_at is not None
 
 
@@ -112,6 +126,39 @@ def test_confirmation_soft_failure_is_observable_and_not_marked(db, monkeypatch)
 
     assert _reread(signup.id).confirmation_email_sent_at is None
     assert any("rejected" in m for m in messages)
+
+
+def test_confirmation_still_sends_when_cancel_link_cannot_be_signed(db, monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.delenv("SIGNUP_CANCEL_SECRET", raising=False)
+    monkeypatch.delenv("FORETEES_ENCRYPTION_KEY", raising=False)
+    monkeypatch.delenv("JWT_SECRET_KEY", raising=False)
+    signup = _make_signup(db)
+    svc = Mock()
+    svc.is_configured.return_value = True
+    svc.send_signup_confirmation.return_value = True
+    monkeypatch.setattr("app.services.email_service.get_email_service", lambda: svc)
+
+    signups_module._deliver_signup_confirmation(signup.id, "brett@example.com", "Brett Saks", "2026-08-02")
+
+    _args, kwargs = svc.send_signup_confirmation.call_args
+    assert kwargs["cancel_url"] is None
+    assert _reread(signup.id).confirmation_email_sent_at is not None
+
+
+def test_confirmation_without_a_player_omits_the_cancel_link(db, monkeypatch):
+    signup = _make_signup(db)
+    signup.player_profile_id = None
+    db.commit()
+    svc = Mock()
+    svc.is_configured.return_value = True
+    svc.send_signup_confirmation.return_value = True
+    monkeypatch.setattr("app.services.email_service.get_email_service", lambda: svc)
+
+    signups_module._deliver_signup_confirmation(signup.id, "brett@example.com", "Brett Saks", "2026-08-02")
+
+    _args, kwargs = svc.send_signup_confirmation.call_args
+    assert kwargs["cancel_url"] is None
 
 
 def test_no_recipient_is_a_noop(db, monkeypatch):

@@ -5032,6 +5032,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/signups/cancel/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview Signup Cancellation
+         * @description Show whose signup this link would cancel. Does not change anything.
+         */
+        get: operations["preview_signup_cancellation_signups_cancel__token__get"];
+        put?: never;
+        /**
+         * Confirm Signup Cancellation
+         * @description Cancel the signup this token was issued for, after the player confirms.
+         */
+        post: operations["confirm_signup_cancellation_signups_cancel__token__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/signups/tee-times/{date}": {
         parameters: {
             query?: never;
@@ -7388,6 +7412,32 @@ export interface components {
              * @default solo
              */
             team_situation: string;
+        };
+        /** SignupCancelPreview */
+        SignupCancelPreview: {
+            /** Can Cancel */
+            can_cancel: boolean;
+            /** Date */
+            date: string;
+            /** Player Name */
+            player_name: string;
+            /** Status */
+            status: string;
+        };
+        /** SignupCancelResult */
+        SignupCancelResult: {
+            /** Already Cancelled */
+            already_cancelled: boolean;
+            /** Date */
+            date: string;
+            /** Legacy Sync */
+            legacy_sync: string;
+            /** Live Write */
+            live_write: boolean;
+            /** Message */
+            message: string;
+            /** Name */
+            name: string;
         };
         /**
          * SignupPreviewResponse
@@ -15733,6 +15783,68 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    preview_signup_cancellation_signups_cancel__token__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignupCancelPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_signup_cancellation_signups_cancel__token__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignupCancelResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

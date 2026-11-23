@@ -11,10 +11,30 @@ with `--set-secrets`.
 | `GHIN_API_PASS` | GHIN authentication. |
 | `RESEND_API_KEY` | Email delivery (Resend). |
 | `BOOKING_SERVICE_SECRET` | Shared secret between the API and booking agent (also used for scorecard agent auth). |
-| `FORETEES_ENCRYPTION_KEY` | Fernet key for per-user ForeTees creds — **losing/rotating it breaks stored creds**. |
+| `FORETEES_ENCRYPTION_KEY` | Fernet key for per-user ForeTees creds — **losing/rotating it breaks stored creds**. Also signs signup-confirmation cancel links when `SIGNUP_CANCEL_SECRET` is unset. |
 | `INTERNAL_JOB_TOKEN` | Guards `POST /internal/jobs/*`; Cloud Scheduler sends it as `X-Internal-Job-Token`. Endpoints are disabled (503) when unset. |
 | `WGP_FEEDBACK_GITHUB_TOKEN` | Server-only `stuagano` token for `POST /feedback`, creating issues in `stuagano/wolf-goat-pig`. Prefer a fine-grained token restricted to this repository with **Issues: read and write**. |
 | `CLOUD_SQL_PASSWORD` | Provisioning-only Cloud SQL `wgp` user password; not injected into the app. |
+
+## Signup confirmation cancel links
+
+The confirmation email links to `/signup/cancel/{token}`. The token is an HMAC-SHA256
+over the signup id, player id, date, and expiry — not a guessable id. Opening the
+link only shows a confirmation page; the signup is cancelled on POST.
+
+Signing key, first match wins:
+
+1. `SIGNUP_CANCEL_SECRET`
+2. `FORETEES_ENCRYPTION_KEY` (already in Secret Manager and injected on Cloud Run)
+3. `JWT_SECRET_KEY`
+
+No new secret or Cloud Run flag is required. Leave `SIGNUP_CANCEL_SECRET` unset
+unless cancel links should survive a ForeTees key rotation. If you do set it,
+add the secret in Secret Manager and append
+`SIGNUP_CANCEL_SECRET=SIGNUP_CANCEL_SECRET:latest` to `_SECRETS` in
+`deploy/gcp/cloudbuild.yaml` before the next deploy. Rotating the key that signed
+a link makes that link stop working. In production the email still sends if no
+key is available; it just has no cancel link.
 
 ## Intentionally **not** wired on GCP
 

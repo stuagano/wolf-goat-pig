@@ -298,3 +298,49 @@ class TestEmailService:
         _, _, html_body, text_body = mock_provider.send_email.call_args.args
         assert "Quiet week. Suspicious." in html_body
         assert "Hi Al,\n\nQuiet week. Suspicious.\n\n" in text_body
+
+    @patch.dict("os.environ", {"SMTP_USER": "u", "SMTP_PASSWORD": "p", "FRONTEND_URL": "https://example.test"})
+    @patch("app.services.email_service.SMTPEmailProvider")
+    def test_signup_confirmation_keeps_wording_and_adds_cancel_link(self, mock_smtp_provider):
+        mock_provider = Mock()
+        mock_provider.is_configured.return_value = True
+        mock_provider.send_email.return_value = True
+        mock_smtp_provider.return_value = mock_provider
+        cancel_url = "https://example.test/signup/cancel/signed-token"
+
+        assert (
+            EmailService().send_signup_confirmation(
+                "stuart@example.com",
+                "Stuart Gano",
+                "2026-11-27",
+                cancel_url=cancel_url,
+            )
+            is True
+        )
+
+        _, subject, html_body, text_body = mock_provider.send_email.call_args.args
+        assert subject == "You're signed up for Wolf Goat Pig - 2026-11-27"
+        assert "Signup Confirmed!" in html_body
+        assert "Hi Stuart Gano," in html_body
+        assert "You're all set for Wolf Goat Pig on <strong>2026-11-27</strong>." in html_body
+        assert "Wing Point Golf & Country Club" in html_body
+        assert f'<a href="{cancel_url}">Can\'t make it? Cancel your signup</a>' in html_body
+        assert "Signup Confirmed!" in text_body
+        assert "Hi Stuart Gano," in text_body
+        assert "You're all set for Wolf Goat Pig on 2026-11-27." in text_body
+        assert f"Can't make it? Cancel your signup: {cancel_url}" in text_body
+        assert "Manage your email preferences: https://example.test/account" in text_body
+
+    @patch.dict("os.environ", {"SMTP_USER": "u", "SMTP_PASSWORD": "p", "FRONTEND_URL": "https://example.test"})
+    @patch("app.services.email_service.SMTPEmailProvider")
+    def test_signup_confirmation_without_cancel_url_leaves_wording_alone(self, mock_smtp_provider):
+        mock_provider = Mock()
+        mock_provider.is_configured.return_value = True
+        mock_provider.send_email.return_value = True
+        mock_smtp_provider.return_value = mock_provider
+
+        EmailService().send_signup_confirmation("stuart@example.com", "Stuart Gano", "2026-11-27")
+
+        _, _, html_body, text_body = mock_provider.send_email.call_args.args
+        assert "Can't make it?" not in html_body
+        assert text_body is None or "Can't make it?" not in text_body

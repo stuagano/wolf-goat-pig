@@ -47,7 +47,18 @@ export default defineConfig({
       '/banner': { target: 'http://localhost:8000', changeOrigin: true },
       '/admin': { target: 'http://localhost:8000', changeOrigin: true },
       '/data': { target: 'http://localhost:8000', changeOrigin: true },
-      '/signup': { target: 'http://localhost:8000', changeOrigin: true },
+      // API is POST /signup (tee sheet) and /signups/*. Browser navigations to the
+      // SPA (/signup and /signup/cancel/:token) must stay here; Firebase does that
+      // with a hosting rewrite, which this dev proxy does not.
+      '/signup': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        bypass(req) {
+          if (req.headers.accept && req.headers.accept.includes('text/html')) {
+            return req.url;
+          }
+        },
+      },
       '/matchmaking': { target: 'http://localhost:8000', changeOrigin: true },
       '/email': { target: 'http://localhost:8000', changeOrigin: true },
       '/ws': { target: 'ws://localhost:8000', ws: true },

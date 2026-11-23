@@ -27,6 +27,7 @@ import { initCacheManager } from "./services/cacheManager";
 import syncManager from "./services/syncManager";
 import { useAuthenticatedFetch } from "./hooks/useAuthenticatedFetch";
 import { apiConfig } from "./config/api.config";
+import { isLoginOptionalRoute } from "./utils/publicRoutes";
 import { useFeatureFlags } from "./hooks/useFeatureFlags";
 import "./styles/mobile-touch.css"; // Import mobile touch optimization styles
 
@@ -37,6 +38,7 @@ const WGPAnalyticsDashboard = React.lazy(() => import("./components/analytics/WG
 const SheetIntegrationDashboard = React.lazy(() => import("./components/integration/SheetIntegrationDashboard"));
 const GoogleSheetsLiveSync = React.lazy(() => import("./components/integration/GoogleSheetsLiveSync"));
 const SignupPage = React.lazy(() => import("./pages/SignupPage"));
+const CancelSignupPage = React.lazy(() => import("./pages/CancelSignupPage"));
 const AboutPage = React.lazy(() => import("./pages/AboutPage"));
 const RulesPage = React.lazy(() => import("./pages/RulesPage"));
 const AdminPage = React.lazy(() => import("./pages/AdminPage"));
@@ -71,9 +73,8 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, isLoading } = useAuth0();
-  const isScorekeeperRoute = /^\/game\/[^/]+$/.test(location.pathname);
   const mockAuthEnabled = import.meta.env.VITE_USE_MOCK_AUTH === "true";
-  const canUseApp = isAuthenticated || mockAuthEnabled || isScorekeeperRoute;
+  const canUseApp = isAuthenticated || mockAuthEnabled || isLoginOptionalRoute(location.pathname);
 
   const features = useFeatureFlags();
   const [backendReady, setBackendReady] = useState(false);
@@ -150,7 +151,7 @@ function App() {
     );
   }
 
-  // Scorekeeper deep-links and E2E mock auth must reach the game without login.
+  // Scorekeeper deep-links, email cancel links, and E2E mock auth skip login.
   if (!canUseApp) {
     return (
       <ThemeProvider>
@@ -363,6 +364,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/signup/cancel/:token" element={<CancelSignupPage />} />
               <Route
                 path="/signup"
                 element={
