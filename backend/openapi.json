@@ -5370,6 +5370,72 @@
         "title": "ShotRangeAnalysisRequest",
         "type": "object"
       },
+      "SignupCancelPreview": {
+        "properties": {
+          "can_cancel": {
+            "title": "Can Cancel",
+            "type": "boolean"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "player_name": {
+            "title": "Player Name",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "player_name",
+          "date",
+          "status",
+          "can_cancel"
+        ],
+        "title": "SignupCancelPreview",
+        "type": "object"
+      },
+      "SignupCancelResult": {
+        "properties": {
+          "already_cancelled": {
+            "title": "Already Cancelled",
+            "type": "boolean"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "legacy_sync": {
+            "title": "Legacy Sync",
+            "type": "string"
+          },
+          "live_write": {
+            "title": "Live Write",
+            "type": "boolean"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message",
+          "name",
+          "date",
+          "already_cancelled",
+          "live_write",
+          "legacy_sync"
+        ],
+        "title": "SignupCancelResult",
+        "type": "object"
+      },
       "SignupPreviewResponse": {
         "description": "What a dry-run signup would write, without writing it (issue #323).",
         "properties": {
@@ -18214,6 +18280,90 @@
           }
         ],
         "summary": "List Signup Players",
+        "tags": [
+          "signups"
+        ]
+      }
+    },
+    "/signups/cancel/{token}": {
+      "get": {
+        "description": "Show whose signup this link would cancel. Does not change anything.",
+        "operationId": "preview_signup_cancellation_signups_cancel__token__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignupCancelPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Signup Cancellation",
+        "tags": [
+          "signups"
+        ]
+      },
+      "post": {
+        "description": "Cancel the signup this token was issued for, after the player confirms.",
+        "operationId": "confirm_signup_cancellation_signups_cancel__token__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignupCancelResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Signup Cancellation",
         "tags": [
           "signups"
         ]

@@ -331,6 +331,7 @@ from .routers import (
     messages,
     roster_admin,
     signup_admin,
+    signup_cancel,
     signups,
     team_formation,
 )
@@ -338,6 +339,7 @@ from .routers import (
 app.include_router(messages.router)
 app.include_router(email_routes.router)
 app.include_router(signup_admin.router)  # before signups: keep /signups/admin out of /signups/{signup_id}
+app.include_router(signup_cancel.router)  # before /signups/{signup_id}; token path is not an id
 app.include_router(signups.router)
 app.include_router(roster_admin.router)
 app.include_router(admin_oauth.router)

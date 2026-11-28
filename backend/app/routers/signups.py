@@ -69,7 +69,9 @@ def _deliver_signup_confirmation(signup_id: int, to_email: str, player_name: str
             report_message(f"Signup confirmation skipped: provider not configured (signup_id={signup_id})")
             return
 
-        accepted = svc.send_signup_confirmation(to_email, player_name, signup_date)
+        accepted = svc.send_signup_confirmation(
+            to_email, player_name, signup_date, cancel_url=_signup_cancel_url(signup)
+        )
         if accepted:
             signup.confirmation_email_sent_at = utc_now().isoformat()
             db.commit()
@@ -83,6 +85,25 @@ def _deliver_signup_confirmation(signup_id: int, to_email: str, player_name: str
         db.rollback()
     finally:
         db.close()
+
+
+def _signup_cancel_url(signup: models.DailySignup) -> str | None:
+    """Link for this signup only. Omitted when it cannot be signed."""
+    if not signup.player_profile_id or not signup.date:
+        return None
+    try:
+        from ..services.signup_cancel_token import cancel_signup_url, issue_cancel_token
+
+        token = issue_cancel_token(
+            signup_id=signup.id,
+            player_profile_id=signup.player_profile_id,
+            signup_date=signup.date,
+        )
+    except Exception as exc:
+        logger.warning("Signup cancel link omitted for signup %s: %s", signup.id, exc)
+        report_exception(exc)
+        return None
+    return cancel_signup_url(token)
 
 
 def _send_signup_confirmation(signup_id: int, to_email: str | None, player_name: str, signup_date: str) -> None:
@@ -421,6 +442,39 @@ def _require_owner_or_admin(db_signup: models.DailySignup, current_user: models.
         raise HTTPException(status_code=403, detail="You can only change your own sign-up.")
 
 
+def apply_signup_cancellation(db, db_signup: models.DailySignup) -> dict:
+    """Cancel one signup and mirror it to the live tee sheet when that is enabled.
+
+    Shared by the logged-in delete and the email confirm-cancel POST so both
+    paths update the app and the club sheet the same way.
+    """
+    db_signup.status = "cancelled"  # type: ignore
+    db_signup.updated_at = utc_now().isoformat()  # type: ignore
+    db.commit()
+
+    logger.info("Cancelled signup %s", db_signup.id)
+
+    legacy_service = get_legacy_signup_service()
+    legacy_sync = "skipped"
+    if legacy_service.live_writes_allowed():
+        try:
+            mirrored = legacy_service.sync_signup_cancelled(db_signup)
+        except Exception:
+            logger.exception("Legacy signup sync failed for cancel id=%s", db_signup.id)
+            report_exception()
+            mirrored = False
+        legacy_sync = "mirrored" if mirrored else "failed"
+        if legacy_sync == "failed":
+            logger.error("Live tee-sheet cancel mirror FAILED for signup id=%s", db_signup.id)
+    return {
+        "message": "Sign-up cancelled successfully",
+        "live_write": legacy_sync == "mirrored",
+        "legacy_sync": legacy_sync,
+        "name": db_signup.player_name,
+        "date": db_signup.date,
+    }
+
+
 @router.put("/signups/{signup_id}", response_model=schemas.DailySignupResponse)
 def update_signup(
     signup_id: int,
@@ -490,33 +544,7 @@ def cancel_signup(
         if not db_signup:
             raise HTTPException(status_code=404, detail="Sign-up not found")
         _require_owner_or_admin(db_signup, current_user)
-
-        db_signup.status = "cancelled"  # type: ignore
-        db_signup.updated_at = utc_now().isoformat()  # type: ignore
-
-        db.commit()
-
-        logger.info(f"Cancelled signup {signup_id}")
-
-        legacy_service = get_legacy_signup_service()
-        legacy_sync = "skipped"
-        if legacy_service.live_writes_allowed():
-            try:
-                mirrored = legacy_service.sync_signup_cancelled(db_signup)
-            except Exception:
-                logger.exception("Legacy signup sync failed for cancel id=%s", db_signup.id)
-                report_exception()
-                mirrored = False
-            legacy_sync = "mirrored" if mirrored else "failed"
-            if legacy_sync == "failed":
-                logger.error("Live tee-sheet cancel mirror FAILED for signup id=%s", signup_id)
-        return {
-            "message": "Sign-up cancelled successfully",
-            "live_write": legacy_sync == "mirrored",
-            "legacy_sync": legacy_sync,
-            "name": db_signup.player_name,
-            "date": db_signup.date,
-        }
+        return apply_signup_cancellation(db, db_signup)
 
     except HTTPException:
         raise

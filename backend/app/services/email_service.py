@@ -344,20 +344,46 @@ class EmailService:
             text_body=text_body,
         )
 
-    def send_signup_confirmation(self, to_email: str, player_name: str, signup_date: str) -> bool:
-        """Sends a signup confirmation email."""
+    def send_signup_confirmation(
+        self, to_email: str, player_name: str, signup_date: str, cancel_url: str | None = None
+    ) -> bool:
+        """Sends a signup confirmation email.
+
+        ``cancel_url`` is optional so test and admin sends that are not tied to
+        a real signup stay unchanged. When present, both the HTML and plain-text
+        parts include the same cancel link. The link only opens a confirmation
+        page; it does not cancel by itself.
+        """
+        cancel_html = ""
+        cancel_text = ""
+        if cancel_url:
+            safe_url = html.escape(cancel_url, quote=True)
+            cancel_html = f'<p><a href="{safe_url}">Can\'t make it? Cancel your signup</a></p>'
+            cancel_text = f"Can't make it? Cancel your signup: {cancel_url}\n"
         content = f"""
         <h2>Signup Confirmed!</h2>
         <p>Hi {player_name},</p>
         <p>You're all set for Wolf Goat Pig on <strong>{signup_date}</strong>.</p>
+        {cancel_html}
         """
         template = Template(self._get_base_template())
         html_body = template.render(subject="Golf Signup Confirmed", content=content)
+        text_body = None
+        if cancel_url:
+            text_body = (
+                "Signup Confirmed!\n\n"
+                f"Hi {player_name},\n\n"
+                f"You're all set for Wolf Goat Pig on {signup_date}.\n\n"
+                f"{cancel_text}\n"
+                "Wing Point Golf & Country Club\n"
+                f"Manage your email preferences: {self._preferences_url()}\n"
+            )
 
         return self._send_email(
             to_email=to_email,
             subject=f"You're signed up for Wolf Goat Pig - {signup_date}",
             html_body=html_body,
+            text_body=text_body,
         )
 
     def send_same_day_signup_notification(
