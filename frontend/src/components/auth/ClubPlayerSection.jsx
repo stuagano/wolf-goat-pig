@@ -17,7 +17,7 @@ const ClubPlayerSection = ({ cardStyle, sectionTitle, theme }) => {
     ? profile.legacy_name
     : null;
   const isLinked = Boolean(rosterName);
-  const showSelector = !loading && !dismissed && (!isLinked || editing);
+  const showSelector = !loading && (editing || (!isLinked && !dismissed));
   const showLinkedSummary = isLinked && !editing;
 
   useEffect(() => {

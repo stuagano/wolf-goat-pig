@@ -372,6 +372,47 @@ class TestCreateSignup:
         assert resp.json()["legacy_sync"] == "mirrored"
         legacy.sync_signup_created.assert_called_once()
 
+    def test_cancel_after_unlinking_still_removes_the_old_sheet_row(self, monkeypatch):
+        legacy = Mock()
+        legacy.live_writes_allowed.return_value = True
+        legacy.sync_signup_created.return_value = True
+        legacy.sync_signup_cancelled.return_value = True
+        monkeypatch.setattr(signups_module, "get_legacy_signup_service", Mock(return_value=legacy))
+        player = SimpleNamespace(
+            id=987659,
+            name="Auth0 Display",
+            legacy_name="Stuart Gano",
+            email="stuart@example.com",
+        )
+        app.dependency_overrides[get_current_user] = lambda: player
+        created = client.post("/signups", json={"date": _unique_signup_date()})
+        assert created.status_code == 200, created.text
+        assert created.json()["legacy_sync"] == "mirrored"
+
+        player.legacy_name = None
+        cancelled = client.delete(f"/signups/{created.json()['id']}")
+        assert cancelled.status_code == 200, cancelled.text
+        assert cancelled.json()["legacy_sync"] == "mirrored"
+        legacy.sync_signup_cancelled.assert_called_once()
+
+    def test_cancel_of_unlinked_signup_does_not_touch_the_old_sheet(self, monkeypatch):
+        legacy = Mock()
+        legacy.live_writes_allowed.return_value = True
+        legacy.sync_signup_cancelled.return_value = True
+        monkeypatch.setattr(signups_module, "get_legacy_signup_service", Mock(return_value=legacy))
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+            id=987660,
+            name="Patrick Cook",
+            legacy_name=None,
+            email="patrick@example.com",
+        )
+        created = client.post("/signups", json={"date": _unique_signup_date()})
+        assert created.status_code == 200, created.text
+        cancelled = client.delete(f"/signups/{created.json()['id']}")
+        assert cancelled.status_code == 200, cancelled.text
+        assert cancelled.json()["legacy_sync"] == "skipped"
+        legacy.sync_signup_cancelled.assert_not_called()
+
     def test_signup_without_any_name_is_rejected(self):
         app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
             id=987658,

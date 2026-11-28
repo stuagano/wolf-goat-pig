@@ -542,6 +542,10 @@ class DailySignup(Base):
     # provider. Null = not yet sent; used to avoid duplicate confirmations on
     # retried/duplicate signup requests. See issue #317.
     confirmation_email_sent_at = Column(String, nullable=True)
+    # 1 when this signup was written to the old tee sheet. Cancel and update
+    # follow this flag, not the owner's current roster link, so clearing
+    # legacy_name does not leave the old sheet row behind.
+    legacy_mirrored = Column(Integer, nullable=False, default=0)
 
 
 class PlayerAvailability(Base):

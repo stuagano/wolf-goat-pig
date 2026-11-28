@@ -91,7 +91,9 @@ def admin_add_signup(
 
     if roster_link(player.legacy_name):
         try:
-            get_legacy_signup_service().sync_signup_created(signup)
+            if get_legacy_signup_service().sync_signup_created(signup):
+                signup.legacy_mirrored = 1
+                db.commit()
         except Exception:
             logger.exception("Legacy signup sync failed for admin create id=%s", signup.id)
     notify_signup_joined(signup.id, player.email, display_name, signup_date)

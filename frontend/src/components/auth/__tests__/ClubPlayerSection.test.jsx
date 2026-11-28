@@ -9,10 +9,11 @@ vi.mock('../../../hooks/usePlayerProfile', () => ({
 }));
 
 vi.mock('../LegacyNameSelector', () => ({
-  default: ({ allowSkip, onSelect }) => (
+  default: ({ allowSkip, onSelect, onSkip }) => (
     <div>
       <span>selector skip: {String(allowSkip)}</span>
       <button onClick={() => onSelect('Jane Smith')}>Select Jane Smith</button>
+      {onSkip ? <button onClick={onSkip}>Skip roster</button> : null}
     </div>
   ),
 }));
@@ -56,6 +57,25 @@ describe('ClubPlayerSection', () => {
 
     expect(screen.getByText('selector skip: true')).toBeInTheDocument();
     expect(screen.queryByText(/Linked as/i)).not.toBeInTheDocument();
+  });
+
+  test('Change reopens the selector after Skip', () => {
+    let profile = { id: 7, name: 'Patrick Cook', legacy_name: null };
+    usePlayerProfile.mockImplementation(() => ({
+      profile,
+      loading: false,
+      legacyNameSuggestion: null,
+      updateLegacyName: vi.fn(),
+    }));
+
+    const view = render(<ClubPlayerSection cardStyle={{}} sectionTitle={{}} theme={theme} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Skip roster' }));
+    expect(screen.queryByText(/selector skip/)).not.toBeInTheDocument();
+
+    profile = { id: 7, name: 'Patrick Cook', legacy_name: 'Pat Cook' };
+    view.rerender(<ClubPlayerSection cardStyle={{}} sectionTitle={{}} theme={theme} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+    expect(screen.getByText('selector skip: false')).toBeInTheDocument();
   });
 
   test('allows a linked player to change the roster link', async () => {

@@ -397,6 +397,9 @@ def create_signup(
                     signup.date,
                     db_signup.id,
                 )
+            elif mirrored:
+                db_signup.legacy_mirrored = 1
+                db.commit()
         else:
             logger.info(
                 "Live tee-sheet mirror skipped for %s on %s (signup id=%s): writes disabled",
@@ -462,7 +465,7 @@ def update_signup(
         logger.info(f"Updated signup {signup_id}")
 
         owner = db.get(models.PlayerProfile, db_signup.player_profile_id) if db_signup.player_profile_id else None
-        if owner and roster_link(owner.legacy_name):
+        if db_signup.legacy_mirrored or (owner and roster_link(owner.legacy_name)):
             try:
                 legacy_service = get_legacy_signup_service()
                 legacy_service.sync_signup_updated(db_signup)
@@ -507,8 +510,9 @@ def cancel_signup(
 
         legacy_service = get_legacy_signup_service()
         legacy_sync = "skipped"
-        owner = db.get(models.PlayerProfile, db_signup.player_profile_id) if db_signup.player_profile_id else None
-        if owner and roster_link(owner.legacy_name) and legacy_service.live_writes_allowed():
+        # Follow the signup's own mirror flag. The owner may have cleared
+        # legacy_name after the old sheet already had this row.
+        if db_signup.legacy_mirrored and legacy_service.live_writes_allowed():
             try:
                 mirrored = legacy_service.sync_signup_cancelled(db_signup)
             except Exception:

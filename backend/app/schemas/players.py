@@ -118,6 +118,14 @@ class PublicPlayerProfileResponse(PlayerProfileResponse):
     ghin_id: str | None = Field(default=None, exclude=True)
     preferences: dict[str, Any] | None = Field(default=None, exclude=True)
 
+    @field_validator("legacy_name", mode="before")
+    @classmethod
+    def hide_email_placeholder(cls, value: object) -> object:
+        """An email stored in legacy_name is a signup placeholder, not a public roster name."""
+        if isinstance(value, str) and "@" in value:
+            return None
+        return value
+
 
 # Player Statistics Schemas
 class PlayerStatisticsResponse(BaseModel):

@@ -273,6 +273,7 @@ class TestGetPlayers:
                 {
                     "venmo_handle": "@secret-venmo",
                     "ghin_id": ghin_id,
+                    "legacy_name": email,
                     "preferences": {"auth0_id": "auth0|secret-subject", "display_hints": True},
                 }
             )
@@ -288,6 +289,7 @@ class TestGetPlayers:
             player = payload if isinstance(payload, dict) else next(p for p in payload if p["id"] == player_id)
             assert player["name"] == name
             assert player["id"] == player_id
+            assert player["legacy_name"] is None
             for key in secret_keys:
                 assert key not in player
             dumped = json.dumps(player)
@@ -315,6 +317,24 @@ class TestGetPlayers:
         assert row["player_name"] == name
         assert "email" not in row
         assert email not in json.dumps(row)
+
+        app.dependency_overrides[require_admin] = lambda: {"sub": "auth0|admin"}
+        try:
+            private = client.get(f"/players/{player_id}")
+            assert private.status_code == 200, private.text
+            assert private.json()["legacy_name"] == email
+        finally:
+            app.dependency_overrides.pop(require_admin, None)
+
+        db = database.SessionLocal()
+        try:
+            db.query(PlayerProfile).filter(PlayerProfile.id == player_id).update({"legacy_name": "Pat Cook"})
+            db.commit()
+        finally:
+            db.close()
+        rostered = client.get(f"/players/name/{name}")
+        assert rostered.status_code == 200, rostered.text
+        assert rostered.json()["legacy_name"] == "Pat Cook"
 
         anonymous = client.get("/players/member-contacts")
         assert anonymous.status_code in (401, 403)
