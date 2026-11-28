@@ -76,7 +76,10 @@ def get_player_profile_with_stats(player_id: int, db: Session = Depends(get_db))
 
     recent_achievements: list[Any] = []  # Placeholder for future implementation
 
-    return schemas.PlayerProfileWithStats(profile=profile, statistics=stats, recent_achievements=recent_achievements)
+    public_profile = schemas.PublicPlayerProfileResponse.model_validate(profile.model_dump())
+    return schemas.PlayerProfileWithStats(
+        profile=public_profile, statistics=stats, recent_achievements=recent_achievements
+    )
 
 
 # ============================================================================

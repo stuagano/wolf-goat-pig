@@ -323,6 +323,7 @@ class TestGetPlayersForDate:
         player = data["players"][0]
         assert "handicap" in player
         assert player["handicap"] == profiles[0]["handicap"]
+        assert "email" not in player
 
 
 # ── GET /pairings/{date} ──────────────────────────────────────────────────

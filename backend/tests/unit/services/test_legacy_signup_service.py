@@ -190,3 +190,45 @@ def test_sync_uses_json_payload_when_configured(monkeypatch):
     assert record["json"]["state"] == "signed_up"
     assert record["json"]["sheet_id"] == "wing"
     assert record["json"]["action"] == "modify"
+
+
+def test_payload_keeps_roster_name_and_ignores_email_placeholder(monkeypatch):
+    """The old tee sheet only understands a roster name. An email stored in
+    legacy_name is a placeholder, so the mirror uses the profile name instead."""
+
+    class _Query:
+        def __init__(self, profile):
+            self._profile = profile
+
+        def filter(self, *_args, **_kwargs):
+            return self
+
+        def first(self):
+            return self._profile
+
+    class _DB:
+        def __init__(self, profile):
+            self._profile = profile
+
+        def query(self, _model):
+            return _Query(self._profile)
+
+        def close(self):
+            return None
+
+    profile = SimpleNamespace(id=3, legacy_name="Pat Cook", name="Patrick Cook")
+
+    # build_payload imports SessionLocal lazily from the service's own database module.
+    import importlib
+
+    database = importlib.import_module("..database", legacy_sync.__package__)
+    monkeypatch.setattr(database, "SessionLocal", lambda: _DB(profile))
+    service = legacy_sync.LegacySignupSyncService(legacy_sync.LegacySignupConfig())
+    signup = SimpleNamespace(id=1, player_profile_id=3, player_name="Patrick Cook", date="2026-07-01")
+    assert service.build_payload(signup, None, None)["player_name"] == "Pat Cook"
+
+    profile.legacy_name = "patrick@example.com"
+    assert service.build_payload(signup, None, None)["player_name"] == "Patrick Cook"
+
+    profile.legacy_name = None
+    assert service.build_payload(signup, None, None)["player_name"] == "Patrick Cook"

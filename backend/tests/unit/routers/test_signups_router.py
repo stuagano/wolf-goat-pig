@@ -309,15 +309,78 @@ class TestCreateSignup:
         assert body["legacy_sync"] == "skipped"
         assert _signups_for_week(signup_date) == {}
 
-    def test_create_signup_requires_linked_club_player(self):
+    def test_unlinked_player_signs_up_with_profile_name(self, monkeypatch):
+        """New members have no old tee-sheet row. Signup uses the profile name
+        and does not try to write that name onto the legacy sheet."""
+        legacy = Mock()
+        legacy.live_writes_allowed.return_value = True
+        legacy.sync_signup_created.return_value = True
+        monkeypatch.setattr(signups_module, "get_legacy_signup_service", Mock(return_value=legacy))
         app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
             id=987655,
-            name="Unlinked Test Player",
+            name="Patrick Cook",
+            legacy_name=None,
+            email="patrick@example.com",
+        )
+        signup_date = _unique_signup_date()
+        resp = client.post(
+            "/signups",
+            json={"date": signup_date, "player_name": "Spoofed Player"},
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["player_name"] == "Patrick Cook"
+        assert body["player_profile_id"] == 987655
+        assert body["legacy_sync"] == "skipped"
+        legacy.sync_signup_created.assert_not_called()
+        persisted = _signups_for_week(signup_date)[body["id"]]
+        assert persisted["player_name"] == "Patrick Cook"
+        assert persisted["player_profile_id"] == 987655
+
+    def test_email_placeholder_is_not_a_roster_link(self, monkeypatch):
+        legacy = Mock()
+        legacy.live_writes_allowed.return_value = True
+        monkeypatch.setattr(signups_module, "get_legacy_signup_service", Mock(return_value=legacy))
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+            id=987656,
+            name="Patrick Cook",
+            legacy_name="patrick@example.com",
+            email="patrick@example.com",
+        )
+        signup_date = _unique_signup_date()
+        resp = client.post("/signups", json={"date": signup_date})
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["player_name"] == "Patrick Cook"
+        assert resp.json()["legacy_sync"] == "skipped"
+        legacy.sync_signup_created.assert_not_called()
+
+    def test_linked_player_still_signs_up_under_roster_name(self, monkeypatch):
+        legacy = Mock()
+        legacy.live_writes_allowed.return_value = True
+        legacy.sync_signup_created.return_value = True
+        monkeypatch.setattr(signups_module, "get_legacy_signup_service", Mock(return_value=legacy))
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+            id=987657,
+            name="Auth0 Display",
+            legacy_name="Stuart Gano",
+            email="stuart@example.com",
+        )
+        signup_date = _unique_signup_date()
+        resp = client.post("/signups", json={"date": signup_date, "player_name": "Spoofed Player"})
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["player_name"] == "Stuart Gano"
+        assert resp.json()["legacy_sync"] == "mirrored"
+        legacy.sync_signup_created.assert_called_once()
+
+    def test_signup_without_any_name_is_rejected(self):
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+            id=987658,
+            name="   ",
             legacy_name=None,
         )
-        resp = client.post("/signups", json={"date": "2099-01-01"})
-        assert resp.status_code == 409
-        assert "Link your club player name" in resp.json()["detail"]
+        resp = client.post("/signups", json={"date": _unique_signup_date()})
+        assert resp.status_code == 400
+        assert "name" in resp.json()["detail"].lower()
 
 
 # ── PUT /signups/{signup_id} ─────────────────────────────────────────────────

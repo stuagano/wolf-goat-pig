@@ -5,9 +5,9 @@ import { errorDetail } from '../../api/http';
 import { acquireAccessToken, apiTokenOptions } from '../../services/authToken';
 
 /**
- * Admin-only: put a linked player on this day's sign-up sheet
+ * Admin-only: put a player on this day's sign-up sheet
  * (e.g. someone who asked an organizer by text).
- *   GET  /signups/admin/players — active profiles with a roster name
+ *   GET  /signups/admin/players — active profiles, roster name or profile name
  *   POST /signups/admin {date, player_profile_id}
  */
 const authHeaders = async getAccessTokenSilently => ({
@@ -51,7 +51,7 @@ export default function AdminAddSignup({ date, signedUpProfileIds = [], onAdded 
       });
       if (error) throw new Error(errorDetail(error) || 'Could not add that player');
       setChoice('');
-      setMessage({ error: false, text: `Added ${player.legacy_name}.` });
+      setMessage({ error: false, text: `Added ${player.name || player.legacy_name}.` });
       onAdded?.();
     } catch (err) {
       setMessage({ error: true, text: err.message });
@@ -72,7 +72,7 @@ export default function AdminAddSignup({ date, signedUpProfileIds = [], onAdded 
           style={{ flex: 1, minWidth: '180px', padding: '6px', border: '1px solid #d1d5db', borderRadius: '6px' }}
         >
           <option value="">Choose a player…</option>
-          {available.map(p => <option key={p.id} value={p.id}>{p.legacy_name}</option>)}
+          {available.map(p => <option key={p.id} value={p.id}>{p.name || p.legacy_name}</option>)}
         </select>
         <button
           type="button"

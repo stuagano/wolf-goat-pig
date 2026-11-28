@@ -1,27 +1,29 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { apiConfig } from '../../config/api.config';
+import { useAuthenticatedFetch } from '../../hooks/useAuthenticatedFetch';
 import { settleUp, venmoPayUrl } from '../../utils/settleUp';
 
 const money = dollars => `$${dollars.toFixed(2)}`;
 
 /** Who pays whom for one finished round, with one-tap Venmo links. */
 export default function SettleUp({ players, note }) {
+  const authFetch = useAuthenticatedFetch();
   const [handles, setHandles] = useState({});
   const { balanced, payments } = useMemo(() => settleUp(players), [players]);
 
   useEffect(() => {
     if (!balanced || !payments.length) return undefined;
     let cancelled = false;
-    // Public list already carries venmo_handle; cached 60s server-side.
-    fetch(`${apiConfig.baseUrl}/players`)
+    // Venmo handles are signed-in only. A failed fetch still shows who owes whom.
+    authFetch(`${apiConfig.baseUrl}/players/member-contacts`)
       .then(res => (res.ok ? res.json() : []))
       .then(list => {
-        if (!cancelled) setHandles(Object.fromEntries(list.filter(p => p.venmo_handle).map(p => [p.id, p.venmo_handle])));
+        if (!cancelled) setHandles(Object.fromEntries((Array.isArray(list) ? list : []).filter(p => p.venmo_handle).map(p => [p.id, p.venmo_handle])));
       })
-      .catch(() => {}); // Without handles the list still shows who owes whom.
+      .catch(() => {});
     return () => { cancelled = true; };
-  }, [balanced, payments.length]);
+  }, [authFetch, balanced, payments.length]);
 
   if (!balanced) {
     return (

@@ -265,17 +265,17 @@ class LegacySignupSyncService:
     ) -> dict[str, Any]:
         """Translate our signup model into the legacy CGI payload schema.
 
-        Uses the player's legacy_name from their PlayerProfile if available,
-        falling back to player_name if no legacy mapping exists.
+        Uses the player's roster link when they have one. An email placeholder
+        in legacy_name is ignored. Otherwise the signup's own player_name is used,
+        which is the profile name for members who are not on the old roster.
         """
 
         base_payload: dict[str, Any] = {}
 
-        # Resolve the player name for the legacy system
-        # Priority: PlayerProfile.legacy_name > DailySignup.player_name
+        from .signup_identity import roster_link
+
         player_name_for_legacy = getattr(signup, "player_name", None)
 
-        # Try to get legacy_name from PlayerProfile if we have a profile ID
         player_profile_id = getattr(signup, "player_profile_id", None)
         if player_profile_id:
             try:
@@ -285,8 +285,9 @@ class LegacySignupSyncService:
                 db = SessionLocal()
                 try:
                     profile = db.query(PlayerProfile).filter(PlayerProfile.id == player_profile_id).first()
-                    if profile and profile.legacy_name:
-                        player_name_for_legacy = profile.legacy_name
+                    linked = roster_link(profile.legacy_name) if profile else None
+                    if linked:
+                        player_name_for_legacy = linked
                         logger.debug(
                             "Using legacy_name '%s' for player_profile_id=%s",
                             player_name_for_legacy,

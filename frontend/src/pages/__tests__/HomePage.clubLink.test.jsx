@@ -47,8 +47,9 @@ describe('HomePage club-player reminder', () => {
 
     expect(screen.queryByRole('button', { name: 'LivSow' })).not.toBeInTheDocument();
 
-    expect(screen.getByText(/Finish linking your club player/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Choose my player/i }));
+    expect(screen.getByText(/Club history is optional/i)).toBeInTheDocument();
+    expect(screen.getByText(/Sign up with your profile name/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Link club history/i }));
     expect(navigate).toHaveBeenCalledWith('/account#club-player');
   });
 
@@ -60,7 +61,7 @@ describe('HomePage club-player reminder', () => {
 
     render(<HomePage />);
 
-    expect(screen.queryByText(/Finish linking your club player/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Club history is optional/i)).not.toBeInTheDocument();
   });
 
   test('greets the linked roster player instead of the Auth0 email', () => {

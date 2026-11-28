@@ -29,9 +29,9 @@ const theme = {
 };
 
 describe('ClubPlayerSection', () => {
-  test('gives an unlinked player a non-skippable account recovery path', () => {
+  test('lets an unlinked player skip the roster and sign up by profile name', () => {
     usePlayerProfile.mockReturnValue({
-      profile: { id: 7, legacy_name: null },
+      profile: { id: 7, name: 'Patrick Cook', legacy_name: null },
       loading: false,
       legacyNameSuggestion: 'Jane Smith',
       updateLegacyName: vi.fn(),
@@ -39,8 +39,23 @@ describe('ClubPlayerSection', () => {
 
     render(<ClubPlayerSection cardStyle={{}} sectionTitle={{}} theme={theme} />);
 
-    expect(screen.getByText('selector skip: false')).toBeInTheDocument();
-    expect(screen.getByText(/sign up and post rounds/i)).toBeInTheDocument();
+    expect(screen.getByText('selector skip: true')).toBeInTheDocument();
+    expect(screen.getByText(/Sign up with your profile name/i)).toBeInTheDocument();
+    expect(screen.queryByText(/sign up and post rounds/i)).not.toBeInTheDocument();
+  });
+
+  test('treats an email stored as legacy_name as unlinked', () => {
+    usePlayerProfile.mockReturnValue({
+      profile: { id: 7, name: 'Patrick Cook', legacy_name: 'patrick@example.com' },
+      loading: false,
+      legacyNameSuggestion: null,
+      updateLegacyName: vi.fn(),
+    });
+
+    render(<ClubPlayerSection cardStyle={{}} sectionTitle={{}} theme={theme} />);
+
+    expect(screen.getByText('selector skip: true')).toBeInTheDocument();
+    expect(screen.queryByText(/Linked as/i)).not.toBeInTheDocument();
   });
 
   test('allows a linked player to change the roster link', async () => {
