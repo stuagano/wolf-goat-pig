@@ -26,6 +26,7 @@ function HomePage() {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth0();
   const { profile, legacyNameSkipped } = usePlayerProfile();
+  const rosterLinked = Boolean(profile?.legacy_name && !profile.legacy_name.includes('@'));
   const [activeGameSession, setActiveGameSession] = useState(null);
 
   useEffect(() => {
@@ -85,14 +86,14 @@ function HomePage() {
           )}
         </header>
 
-        {isAuthenticated && legacyNameSkipped && !profile?.legacy_name && (
+        {isAuthenticated && legacyNameSkipped && !rosterLinked && (
           <section className="wgp-home__club-link" aria-label="Club player setup">
             <div>
-              <strong>Finish linking your club player</strong>
-              <span>Choose your Wing Point tee-sheet name to sign up and post rounds.</span>
+              <strong>Club history is optional</strong>
+              <span>Sign up with your profile name. Link a tee-sheet name only if you want older rounds attached.</span>
             </div>
             <button type="button" onClick={() => navigate('/account#club-player')}>
-              Choose my player
+              Link club history
             </button>
           </section>
         )}

@@ -399,14 +399,14 @@ class EmailService:
         the tee sheet or squinting at a spreadsheet to see where you stand.</p>
         <p>Here's the short version of how it works:</p>
         <ul>
-            <li><strong>Link your club player</strong> &mdash; choose your Wing Point tee-sheet name so signups and rounds count as you.</li>
+            <li><strong>Link your club player</strong> &mdash; optional. It attaches older tee-sheet rounds. You can sign up with your profile name either way.</li>
             <li><strong>Sign up for a play date</strong> &mdash; you'll land right on the tee sheet, same as always.</li>
             <li><strong>We'll match &amp; pair you</strong>, and email you the moment your group comes together.</li>
             <li><strong>Scores, standings, and your running tally</strong> all live in the app.</li>
         </ul>
-        <p>Start by <a href="{account_url}">linking your club player in Account</a>.
-        If you're new and not on the list yet, you can still explore the app while
-        the club roster is updated.</p>
+        <p>You can <a href="{account_url}">link your club player in Account</a> whenever
+        you want older rounds attached. New players can sign up immediately with
+        the name on their profile.</p>
         <p>Welcome aboard &mdash; see you on the first tee. &#9971;</p>
         """
         template = Template(self._get_base_template())
@@ -419,12 +419,12 @@ class EmailService:
             "here, and your spot at the table is now official - no more chasing the "
             "tee sheet or squinting at a spreadsheet to see where you stand.\n\n"
             "Here's the short version of how it works:\n"
-            "- Link your club player - choose your Wing Point tee-sheet name so signups and rounds count as you.\n"
+            "- Link your club player - optional. It attaches older tee-sheet rounds. You can sign up with your profile name either way.\n"
             "- Sign up for a play date - you'll land right on the tee sheet, same as always.\n"
             "- We'll match & pair you, and email you the moment your group comes together.\n"
             "- Scores, standings, and your running tally all live in the app.\n\n"
-            f"Start by linking your club player in Account: {account_url}\n"
-            "If you're new and not on the list yet, you can still explore the app while the club roster is updated.\n\n"
+            f"Link your club player in Account whenever you want older rounds attached: {account_url}\n"
+            "New players can sign up immediately with the name on their profile.\n\n"
             "Welcome aboard - see you on the first tee!"
         )
 

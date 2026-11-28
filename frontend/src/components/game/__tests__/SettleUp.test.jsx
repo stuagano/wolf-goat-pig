@@ -4,6 +4,9 @@ import { cleanup, render, screen } from '@testing-library/react';
 import SettleUp from '../SettleUp';
 
 vi.mock('../../../config/api.config', () => ({ apiConfig: { baseUrl: 'http://test-api' } }));
+vi.mock('../../../hooks/useAuthenticatedFetch', () => ({
+  useAuthenticatedFetch: () => global.fetch,
+}));
 
 const roster = [
   { id: 3, venmo_handle: '@ann-golf' },
@@ -35,7 +38,7 @@ describe('SettleUp', () => {
     expect(url.searchParams.get('recipients')).toBe('ann-golf');
     expect(url.searchParams.get('amount')).toBe('3.00');
     expect(screen.getByText('(Bob has no Venmo yet)')).toBeInTheDocument();
-    expect(global.fetch).toHaveBeenCalledWith('http://test-api/players');
+    expect(global.fetch).toHaveBeenCalledWith('http://test-api/players/member-contacts');
   });
 
   test('refuses to settle an unbalanced card and fetches nothing', () => {

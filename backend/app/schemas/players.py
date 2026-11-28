@@ -105,9 +105,26 @@ class PlayerProfileResponse(PlayerProfileBase):
 
 
 class PublicPlayerProfileResponse(PlayerProfileResponse):
-    """Profile for unauthenticated reads (lists, name lookup): never exposes email."""
+    """Unauthenticated roster reads.
+
+    Visitors can see a name, handicap, and avatar. Email, Venmo, GHIN number,
+    and login metadata (including Auth0 ids stored in preferences) stay off
+    this response. Signed-in members read payment and GHIN data from
+    ``GET /players/member-contacts``.
+    """
 
     email: str | None = Field(default=None, exclude=True)
+    venmo_handle: str | None = Field(default=None, exclude=True)
+    ghin_id: str | None = Field(default=None, exclude=True)
+    preferences: dict[str, Any] | None = Field(default=None, exclude=True)
+
+    @field_validator("legacy_name", mode="before")
+    @classmethod
+    def hide_email_placeholder(cls, value: object) -> object:
+        """An email stored in legacy_name is a signup placeholder, not a public roster name."""
+        if isinstance(value, str) and "@" in value:
+            return None
+        return value
 
 
 # Player Statistics Schemas
@@ -204,8 +221,17 @@ class PlayerAchievementResponse(BaseModel):
 
 
 # Composite Schemas
+class MemberContactResponse(BaseModel):
+    """Venmo and GHIN for a signed-in member. Never served anonymously."""
+
+    id: int
+    name: str
+    venmo_handle: str | None = None
+    ghin_id: str | None = None
+
+
 class PlayerProfileWithStats(BaseModel):
-    profile: PlayerProfileResponse
+    profile: PublicPlayerProfileResponse
     statistics: PlayerStatisticsResponse
     recent_achievements: list[PlayerAchievementResponse] = []
 

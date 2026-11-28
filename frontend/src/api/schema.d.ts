@@ -3397,11 +3397,7 @@ export interface paths {
         };
         /**
          * Get Match Suggestions
-         * @description Get matchmaking suggestions based on player availability.
-         *
-         *     Args:
-         *         min_overlap_hours: Minimum hours of overlap required (default 2)
-         *         preferred_days: Comma-separated list of preferred days (0=Monday, 6=Sunday)
+         * @description Match suggestions for the signup screen. Player emails stay on the server.
          */
         get: operations["get_match_suggestions_matchmaking_suggestions_get"];
         put?: never;
@@ -4192,6 +4188,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/players/member-contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Member Contacts
+         * @description Venmo handles and GHIN numbers for signed-in members.
+         *
+         *     Settle-up and GHIN posting need these. Anonymous roster reads do not.
+         */
+        get: operations["list_member_contacts_players_member_contacts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/players/name/{player_name}": {
         parameters: {
             query?: never;
@@ -4437,9 +4455,10 @@ export interface paths {
         };
         /**
          * Get Public Player Profile
-         * @description Public profile — no auth required. Returns only non-sensitive fields
-         *     (no email or GHIN id). Venmo is included: it's how players settle up,
-         *     and GET /players already lists it publicly.
+         * @description Public profile — no auth required.
+         *
+         *     Name, handicap, avatar, and game history only. Venmo and GHIN stay on
+         *     the authenticated member-contacts list.
          */
         get: operations["get_public_player_profile_players__player_id__public_profile_get"];
         put?: never;
@@ -5021,7 +5040,7 @@ export interface paths {
         };
         /**
          * List Signup Players
-         * @description Active profiles linked to a club roster name — the only players an admin can add.
+         * @description Active profiles an admin can add. ``name`` is what the sheet will show.
          */
         get: operations["list_signup_players_signups_admin_players_get"];
         put?: never;
@@ -6362,6 +6381,20 @@ export interface components {
             /** Suggested Tee Time */
             suggested_tee_time: string;
         };
+        /**
+         * MemberContactResponse
+         * @description Venmo and GHIN for a signed-in member. Never served anonymously.
+         */
+        MemberContactResponse: {
+            /** Ghin Id */
+            ghin_id?: string | null;
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Venmo Handle */
+            venmo_handle?: string | null;
+        };
         /** MyNameUpdate */
         MyNameUpdate: {
             /** First Name */
@@ -6688,7 +6721,7 @@ export interface components {
         };
         /** PlayerProfileWithStats */
         PlayerProfileWithStats: {
-            profile: components["schemas"]["PlayerProfileResponse"];
+            profile: components["schemas"]["PublicPlayerProfileResponse"];
             /**
              * Recent Achievements
              * @default []
@@ -6884,7 +6917,12 @@ export interface components {
         };
         /**
          * PublicPlayerProfileResponse
-         * @description Profile for unauthenticated reads (lists, name lookup): never exposes email.
+         * @description Unauthenticated roster reads.
+         *
+         *     Visitors can see a name, handicap, and avatar. Email, Venmo, GHIN number,
+         *     and login metadata (including Auth0 ids stored in preferences) stay off
+         *     this response. Signed-in members read payment and GHIN data from
+         *     ``GET /players/member-contacts``.
          */
         PublicPlayerProfileResponse: {
             /** Avatar Url */
@@ -6893,8 +6931,6 @@ export interface components {
             created_at: string;
             /** Description */
             description?: string | null;
-            /** Ghin Id */
-            ghin_id?: string | null;
             /** Ghin Last Updated */
             ghin_last_updated?: string | null;
             /**
@@ -6942,10 +6978,6 @@ export interface components {
             pending_claim?: components["schemas"]["PendingClaimInfo"] | null;
             /** Playing Style */
             playing_style?: string | null;
-            /** Preferences */
-            preferences?: {
-                [key: string]: unknown;
-            } | null;
             /**
              * Role
              * @default normal
@@ -6954,8 +6986,6 @@ export interface components {
             role: "normal" | "admin" | "super_admin";
             /** Updated At */
             updated_at?: string | null;
-            /** Venmo Handle */
-            venmo_handle?: string | null;
         };
         /** RecipientAttestation */
         RecipientAttestation: {
@@ -14191,6 +14221,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_member_contacts_players_member_contacts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberContactResponse"][];
                 };
             };
         };

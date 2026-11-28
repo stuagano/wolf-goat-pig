@@ -2435,6 +2435,47 @@
         "title": "MatchSuggestionResponse",
         "type": "object"
       },
+      "MemberContactResponse": {
+        "description": "Venmo and GHIN for a signed-in member. Never served anonymously.",
+        "properties": {
+          "ghin_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ghin Id"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "venmo_handle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Venmo Handle"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "MemberContactResponse",
+        "type": "object"
+      },
       "MyNameUpdate": {
         "properties": {
           "first_name": {
@@ -3305,7 +3346,7 @@
       "PlayerProfileWithStats": {
         "properties": {
           "profile": {
-            "$ref": "#/components/schemas/PlayerProfileResponse"
+            "$ref": "#/components/schemas/PublicPlayerProfileResponse"
           },
           "recent_achievements": {
             "default": [],
@@ -3908,7 +3949,7 @@
         "type": "object"
       },
       "PublicPlayerProfileResponse": {
-        "description": "Profile for unauthenticated reads (lists, name lookup): never exposes email.",
+        "description": "Unauthenticated roster reads.\n\nVisitors can see a name, handicap, and avatar. Email, Venmo, GHIN number,\nand login metadata (including Auth0 ids stored in preferences) stay off\nthis response. Signed-in members read payment and GHIN data from\n``GET /players/member-contacts``.",
         "properties": {
           "avatar_url": {
             "anyOf": [
@@ -3935,17 +3976,6 @@
               }
             ],
             "title": "Description"
-          },
-          "ghin_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ghin Id"
           },
           "ghin_last_updated": {
             "anyOf": [
@@ -4061,18 +4091,6 @@
             ],
             "title": "Playing Style"
           },
-          "preferences": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Preferences"
-          },
           "role": {
             "default": "normal",
             "enum": [
@@ -4093,17 +4111,6 @@
               }
             ],
             "title": "Updated At"
-          },
-          "venmo_handle": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Venmo Handle"
           }
         },
         "required": [
@@ -13994,7 +14001,7 @@
     },
     "/matchmaking/suggestions": {
       "get": {
-        "description": "Get matchmaking suggestions based on player availability.\n\nArgs:\n    min_overlap_hours: Minimum hours of overlap required (default 2)\n    preferred_days: Comma-separated list of preferred days (0=Monday, 6=Sunday)",
+        "description": "Match suggestions for the signup screen. Player emails stay on the server.",
         "operationId": "get_match_suggestions_matchmaking_suggestions_get",
         "parameters": [
           {
@@ -16025,6 +16032,37 @@
         ]
       }
     },
+    "/players/member-contacts": {
+      "get": {
+        "description": "Venmo handles and GHIN numbers for signed-in members.\n\nSettle-up and GHIN posting need these. Anonymous roster reads do not.",
+        "operationId": "list_member_contacts_players_member_contacts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MemberContactResponse"
+                  },
+                  "title": "Response List Member Contacts Players Member Contacts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Member Contacts",
+        "tags": [
+          "players"
+        ]
+      }
+    },
     "/players/name/{player_name}": {
       "get": {
         "description": "Get a player profile by name.",
@@ -16747,7 +16785,7 @@
     },
     "/players/{player_id}/public-profile": {
       "get": {
-        "description": "Public profile — no auth required. Returns only non-sensitive fields\n(no email or GHIN id). Venmo is included: it's how players settle up,\nand GET /players already lists it publicly.",
+        "description": "Public profile — no auth required.\n\nName, handicap, avatar, and game history only. Venmo and GHIN stay on\nthe authenticated member-contacts list.",
         "operationId": "get_public_player_profile_players__player_id__public_profile_get",
         "parameters": [
           {
@@ -18192,7 +18230,7 @@
     },
     "/signups/admin/players": {
       "get": {
-        "description": "Active profiles linked to a club roster name — the only players an admin can add.",
+        "description": "Active profiles an admin can add. ``name`` is what the sheet will show.",
         "operationId": "list_signup_players_signups_admin_players_get",
         "responses": {
           "200": {

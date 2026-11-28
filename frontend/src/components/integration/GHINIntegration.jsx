@@ -27,7 +27,7 @@ const GHINIntegration = () => {
 
   const loadPlayers = async () => {
     try {
-      const response = await fetch(`${API_URL}/players`);
+      const response = await authFetch(`${API_URL}/players/member-contacts`);
       if (response.ok) {
         const data = await response.json();
         setPlayers(data.filter(p => !p.is_ai)); // Filter out AI players

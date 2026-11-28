@@ -36,7 +36,7 @@ const GHINPostModal = ({ players, playedAt, onPosted, onSkip }) => {
   useEffect(() => {
     const load = async () => {
       try {
-        const resp = await fetch(`${API_URL}/players`);
+        const resp = await authFetch(`${API_URL}/players/member-contacts`);
         if (!resp.ok) return;
         const all = await resp.json();
         const map = {};
@@ -57,7 +57,7 @@ const GHINPostModal = ({ players, playedAt, onPosted, onSkip }) => {
       }
     };
     load();
-  }, [players]);
+  }, [players, authFetch]);
 
   const handlePlayerSelect = (name) => {
     setSelectedPlayer(name);

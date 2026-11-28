@@ -137,9 +137,7 @@ class TestParseSheetDate:
         self.svc = make_service()
 
     def test_parses_valid_dd_mon_format(self):
-        with patch("app.services.unified_data_service.datetime") as mock_dt:
-            mock_dt.now.return_value = datetime(2026, 4, 7)
-            mock_dt.strptime.side_effect = datetime.strptime
+        with patch("app.services.unified_data_service.utc_now", return_value=datetime(2026, 4, 7)):
             result = self.svc._parse_sheet_date("06-Apr")
         assert result == "2026-04-06"
 
@@ -153,17 +151,13 @@ class TestParseSheetDate:
 
     def test_future_date_shifts_to_last_year(self):
         """Dates >30 days in the future are assumed to be last year."""
-        with patch("app.services.unified_data_service.datetime") as mock_dt:
+        with patch("app.services.unified_data_service.utc_now", return_value=datetime(2026, 1, 5)):
             # "current date" is Jan 5 — so Dec 25 would be ~340 days in the future
-            mock_dt.now.return_value = datetime(2026, 1, 5)
-            mock_dt.strptime.side_effect = datetime.strptime
             result = self.svc._parse_sheet_date("25-Dec")
         assert result == "2025-12-25"
 
     def test_recent_past_date_stays_current_year(self):
-        with patch("app.services.unified_data_service.datetime") as mock_dt:
-            mock_dt.now.return_value = datetime(2026, 4, 15)
-            mock_dt.strptime.side_effect = datetime.strptime
+        with patch("app.services.unified_data_service.utc_now", return_value=datetime(2026, 4, 15)):
             result = self.svc._parse_sheet_date("10-Apr")
         assert result == "2026-04-10"
 

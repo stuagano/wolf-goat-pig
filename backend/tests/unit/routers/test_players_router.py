@@ -1,5 +1,6 @@
 """Unit tests for players router — CRUD, validation, error handling."""
 
+import json
 import uuid
 
 import pytest
@@ -256,6 +257,102 @@ class TestGetPlayers:
         for player in [by_name, *(p for players in lists for p in players)]:
             assert "email" not in player
 
+    def test_public_reads_hide_payment_auth_and_ghin(self):
+        """Anonymous visitors can see a roster card, not Venmo, GHIN, or Auth0."""
+        from app import database
+
+        name = unique_name("Leak")
+        email = unique_email("leak")
+        ghin_id = f"9{uuid.uuid4().int % 10**7:07d}"
+        created = post_player_as_admin({"name": name, "email": email, "handicap": 8.0})
+        assert created.status_code in (200, 201)
+        player_id = created.json()["id"]
+        db = database.SessionLocal()
+        try:
+            db.query(PlayerProfile).filter(PlayerProfile.id == player_id).update(
+                {
+                    "venmo_handle": "@secret-venmo",
+                    "ghin_id": ghin_id,
+                    "legacy_name": email,
+                    "preferences": {"auth0_id": "auth0|secret-subject", "display_hints": True},
+                }
+            )
+            db.commit()
+        finally:
+            db.close()
+
+        secret_keys = ("email", "venmo_handle", "ghin_id", "preferences")
+        for path in ("/players", "/players/all", f"/players/name/{name}"):
+            resp = client.get(path)
+            assert resp.status_code == 200, resp.text
+            payload = resp.json()
+            player = payload if isinstance(payload, dict) else next(p for p in payload if p["id"] == player_id)
+            assert player["name"] == name
+            assert player["id"] == player_id
+            assert player["legacy_name"] is None
+            for key in secret_keys:
+                assert key not in player
+            dumped = json.dumps(player)
+            assert "auth0|secret-subject" not in dumped
+            assert "@secret-venmo" not in dumped
+            assert email not in dumped
+            assert ghin_id not in dumped
+
+        public = client.get(f"/players/{player_id}/public-profile")
+        assert public.status_code == 200
+        assert "venmo_handle" not in public.json()
+        assert "@secret-venmo" not in public.text
+        assert "auth0|secret-subject" not in public.text
+
+        with_stats = client.get(f"/players/{player_id}/profile-with-stats")
+        assert with_stats.status_code == 200, with_stats.text
+        for key in secret_keys:
+            assert key not in with_stats.json()["profile"]
+        assert "auth0|secret-subject" not in with_stats.text
+        assert "@secret-venmo" not in with_stats.text
+
+        availability = client.get("/players/availability/all")
+        assert availability.status_code == 200
+        row = next(p for p in availability.json() if p["player_id"] == player_id)
+        assert row["player_name"] == name
+        assert "email" not in row
+        assert email not in json.dumps(row)
+
+        app.dependency_overrides[require_admin] = lambda: {"sub": "auth0|admin"}
+        try:
+            private = client.get(f"/players/{player_id}")
+            assert private.status_code == 200, private.text
+            assert private.json()["legacy_name"] == email
+        finally:
+            app.dependency_overrides.pop(require_admin, None)
+
+        db = database.SessionLocal()
+        try:
+            db.query(PlayerProfile).filter(PlayerProfile.id == player_id).update({"legacy_name": "Pat Cook"})
+            db.commit()
+        finally:
+            db.close()
+        rostered = client.get(f"/players/name/{name}")
+        assert rostered.status_code == 200, rostered.text
+        assert rostered.json()["legacy_name"] == "Pat Cook"
+
+        anonymous = client.get("/players/member-contacts")
+        assert anonymous.status_code in (401, 403)
+
+        app.dependency_overrides[get_current_user] = lambda: _make_user(id=player_id, name=name)
+        try:
+            authed = client.get("/players/member-contacts")
+            assert authed.status_code == 200, authed.text
+            contact = next(p for p in authed.json() if p["id"] == player_id)
+            assert contact["name"] == name
+            assert contact["venmo_handle"] == "@secret-venmo"
+            assert contact["ghin_id"] == ghin_id
+            assert "preferences" not in contact
+            assert "auth0|secret-subject" not in authed.text
+            assert email not in authed.text
+        finally:
+            app.dependency_overrides.pop(get_current_user, None)
+
 
 # ── POST /players ─────────────────────────────────────────────────────────────
 
@@ -332,7 +429,7 @@ class TestPublicProfile:
         assert body["id"] == player_id
         assert "game_history" in body
 
-    def test_public_profile_shows_venmo_handle(self):
+    def test_public_profile_hides_venmo_handle(self):
         from app import database
 
         player_id = post_player_as_admin({"name": unique_name("VenmoProfile"), "handicap": 10.0}).json()["id"]
@@ -344,7 +441,8 @@ class TestPublicProfile:
             db.close()
 
         body = client.get(f"/players/{player_id}/public-profile").json()
-        assert body["venmo_handle"] == "@sg-golf"
+        assert "venmo_handle" not in body
+        assert "@sg-golf" not in json.dumps(body)
         assert "email" not in body
 
     def test_public_profile_nonexistent_player_returns_404(self):

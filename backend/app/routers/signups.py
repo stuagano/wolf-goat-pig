@@ -24,6 +24,7 @@ from ..services.legacy_player_service import (
 )
 from ..services.legacy_signup_service import get_legacy_signup_service
 from ..services.same_day_signup_service import send_same_day_signup_notifications
+from ..services.signup_identity import roster_link, signup_display_name
 from ..utils.admin_auth import is_admin_profile, require_admin
 from ..utils.time import utc_now
 
@@ -312,11 +313,13 @@ def create_signup(
     """Create a daily sign-up for the authenticated player."""
     try:
         db = database.SessionLocal()
-        player_name = current_user.legacy_name
+        # Roster link when the player has one (history and the old sheet).
+        # Otherwise the profile name — new members are not on the old roster.
+        player_name = signup_display_name(current_user)
         if not player_name:
             raise HTTPException(
-                status_code=409,
-                detail="Link your club player name in Account before signing up",
+                status_code=400,
+                detail="Add your name in Account before signing up",
             )
 
         # Check if player already signed up for this date
@@ -376,7 +379,10 @@ def create_signup(
         # saying so without saying the live sheet did not is how testers got
         # surprised (issue #323).
         legacy_sync = "skipped"
-        if legacy_service.live_writes_allowed():
+        # The old CGI sheet only accepts names from its roster. Skip the mirror
+        # for players who have no link so a new member is not shown a failed
+        # live-sheet write after a successful app signup.
+        if roster_link(getattr(current_user, "legacy_name", None)) and legacy_service.live_writes_allowed():
             try:
                 mirrored = legacy_service.sync_signup_created(db_signup)
             except Exception:
@@ -391,6 +397,9 @@ def create_signup(
                     signup.date,
                     db_signup.id,
                 )
+            elif mirrored:
+                db_signup.legacy_mirrored = 1
+                db.commit()
         else:
             logger.info(
                 "Live tee-sheet mirror skipped for %s on %s (signup id=%s): writes disabled",
@@ -455,14 +464,15 @@ def update_signup(
 
         logger.info(f"Updated signup {signup_id}")
 
-        try:
-            legacy_service = get_legacy_signup_service()
-            legacy_service.sync_signup_updated(db_signup)
-        except Exception:
-            logger.exception("Legacy signup sync failed for update id=%s", db_signup.id)
+        owner = db.get(models.PlayerProfile, db_signup.player_profile_id) if db_signup.player_profile_id else None
+        if db_signup.legacy_mirrored or (owner and roster_link(owner.legacy_name)):
+            try:
+                legacy_service = get_legacy_signup_service()
+                legacy_service.sync_signup_updated(db_signup)
+            except Exception:
+                logger.exception("Legacy signup sync failed for update id=%s", db_signup.id)
 
         if joined_day:
-            owner = db.get(models.PlayerProfile, db_signup.player_profile_id) if db_signup.player_profile_id else None
             notify_signup_joined(db_signup.id, owner.email if owner else None, db_signup.player_name, db_signup.date)
 
         return schemas.DailySignupResponse.from_orm(db_signup)
@@ -500,7 +510,9 @@ def cancel_signup(
 
         legacy_service = get_legacy_signup_service()
         legacy_sync = "skipped"
-        if legacy_service.live_writes_allowed():
+        # Follow the signup's own mirror flag. The owner may have cleared
+        # legacy_name after the old sheet already had this row.
+        if db_signup.legacy_mirrored and legacy_service.live_writes_allowed():
             try:
                 mirrored = legacy_service.sync_signup_cancelled(db_signup)
             except Exception:
@@ -537,6 +549,13 @@ def replicate_signup_to_legacy(signup_id: int):  # type: ignore
         db_signup = db.query(models.DailySignup).filter(models.DailySignup.id == signup_id).first()
         if not db_signup:
             raise HTTPException(status_code=404, detail="Sign-up not found")
+
+        owner = db.get(models.PlayerProfile, db_signup.player_profile_id) if db_signup.player_profile_id else None
+        if not owner or not roster_link(owner.legacy_name):
+            return {
+                "message": "No club roster name is linked, so the old tee sheet was left unchanged.",
+                "success": False,
+            }
 
         legacy_service = get_legacy_signup_service()
         success = legacy_service.sync_signup_created(db_signup)

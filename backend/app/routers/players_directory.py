@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..database import get_db
+from ..services.auth_service import get_current_user
 from ..services.player_service import PlayerService
 from ..utils.admin_auth import require_admin
 from ..utils.api_helpers import handle_api_errors, require_not_none
@@ -70,6 +71,33 @@ def get_all_players(
     return player_service.get_all_player_profiles(active_only=active_only)
 
 
+@router.get("/member-contacts", response_model=list[schemas.MemberContactResponse])
+@handle_api_errors(operation_name="list member contacts")
+def list_member_contacts(
+    _current_user: models.PlayerProfile = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[schemas.MemberContactResponse]:
+    """Venmo handles and GHIN numbers for signed-in members.
+
+    Settle-up and GHIN posting need these. Anonymous roster reads do not.
+    """
+    players = (
+        db.query(models.PlayerProfile)
+        .filter(models.PlayerProfile.is_active == 1, models.PlayerProfile.is_ai == 0)
+        .order_by(models.PlayerProfile.id)
+        .all()
+    )
+    return [
+        schemas.MemberContactResponse(
+            id=player.id,
+            name=player.name,
+            venmo_handle=player.venmo_handle,
+            ghin_id=player.ghin_id,
+        )
+        for player in players
+    ]
+
+
 @router.get("/name/{player_name}", response_model=schemas.PublicPlayerProfileResponse)
 @handle_api_errors(operation_name="get player by name")
 def get_player_profile_by_name(player_name: str, db: Session = Depends(get_db)) -> schemas.PlayerProfileResponse:
@@ -101,7 +129,6 @@ def get_all_players_availability(db: Session = Depends(get_db)) -> list[dict[str
         player_data: dict[str, Any] = {
             "player_id": player.id,
             "player_name": player.name,
-            "email": player.email,
             "availability": [
                 {
                     "day_of_week": avail.day_of_week,

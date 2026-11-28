@@ -90,8 +90,9 @@ const LegacyNameSelector = ({
       <div className="selector-header">
         <h3>Link Your Account</h3>
         <p>
-          Select your club name to connect your history and signups. If that player
-          already has a profile, ask a club admin to connect your login in Account links.
+          Optional. Pick your old tee-sheet name to attach earlier rounds. New
+          players are not on that list — skip this and sign up with your profile name.
+          If that player already has a profile, ask a club admin to connect your login.
         </p>
         {currentName && (
           <p className="current-name">
@@ -170,7 +171,7 @@ const LegacyNameSelector = ({
             className="skip-button"
             onClick={onSkip}
           >
-            I'm not in the list (new player)
+            I'm not in the list — sign up with my name
           </button>
         )}
       </div>

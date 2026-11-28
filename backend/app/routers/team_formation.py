@@ -293,7 +293,6 @@ def get_players_for_date(date: str = Path(description="Date in YYYY-MM-DD format
                 "notes": signup.notes,
                 "signup_time": signup.signup_time,
                 "handicap": player_profile.handicap if player_profile else None,
-                "email": player_profile.email if player_profile else None,
             }
             players.append(player_data)
 

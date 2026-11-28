@@ -61,10 +61,14 @@ def upcoming(days=3):
     return (club_today() + timedelta(days=days)).isoformat()
 
 
-def test_players_list_has_only_active_linked_profiles_sorted(env):
+def test_players_list_includes_unlinked_profiles_by_display_name(env):
     client, _, _ = env
     body = client.get("/signups/admin/players").json()
-    assert body["players"] == [{"id": 4, "legacy_name": "Chip Halbert"}, {"id": 1, "legacy_name": "Gregg Colburn"}]
+    assert body["players"] == [
+        {"id": 4, "name": "Chip Halbert", "legacy_name": "Chip Halbert"},
+        {"id": 1, "name": "Gregg Colburn", "legacy_name": "Gregg Colburn"},
+        {"id": 2, "name": "Unlinked Person", "legacy_name": None},
+    ]
 
 
 def test_admin_adds_a_player_as_if_they_signed_up(env):
@@ -106,8 +110,19 @@ def test_past_date_is_400(env):
     assert "today or a future date" in resp.json()["detail"]
 
 
-@pytest.mark.parametrize("pid", [2, 3, 999])
-def test_unlinked_inactive_or_missing_profile_is_400(env, pid):
+def test_admin_adds_unlinked_player_under_profile_name(env):
+    client, sessions, sent = env
+    day = upcoming()
+    resp = client.post("/signups/admin", json={"date": day, "player_profile_id": 2})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["player_name"] == "Unlinked Person"
+    assert sent == [(resp.json()["id"], "u@example.com", "Unlinked Person", day)]
+    with sessions() as db:
+        assert db.query(DailySignup).filter_by(date=day, player_profile_id=2).count() == 1
+
+
+@pytest.mark.parametrize("pid", [3, 999])
+def test_inactive_or_missing_profile_is_400(env, pid):
     client, sessions, _ = env
     resp = client.post("/signups/admin", json={"date": upcoming(), "player_profile_id": pid})
     assert resp.status_code == 400

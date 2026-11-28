@@ -10,10 +10,14 @@ const ClubPlayerSection = ({ cardStyle, sectionTitle, theme }) => {
     updateLegacyName,
   } = usePlayerProfile();
   const [editing, setEditing] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const [message, setMessage] = useState(null);
 
-  const isLinked = Boolean(profile?.legacy_name);
-  const showSelector = !loading && (!isLinked || editing);
+  const rosterName = profile?.legacy_name && !profile.legacy_name.includes('@')
+    ? profile.legacy_name
+    : null;
+  const isLinked = Boolean(rosterName);
+  const showSelector = !loading && (editing || (!isLinked && !dismissed));
   const showLinkedSummary = isLinked && !editing;
 
   useEffect(() => {
@@ -46,7 +50,7 @@ const ClubPlayerSection = ({ cardStyle, sectionTitle, theme }) => {
         <div>
           <h3 style={{ ...sectionTitle, marginBottom: 4 }}>Club Player</h3>
           <p style={{ margin: 0, color: theme.colors.textSecondary, fontSize: 14 }}>
-            Link your Wing Point tee-sheet name to sign up and post rounds.
+            Optional. Sign up with your profile name. Link a tee-sheet name only to attach older rounds.
           </p>
         </div>
         {showLinkedSummary && (
@@ -85,7 +89,7 @@ const ClubPlayerSection = ({ cardStyle, sectionTitle, theme }) => {
           color: theme.colors.success,
           fontWeight: 600,
         }}>
-          Linked as {profile.legacy_name}
+          Linked as {rosterName}
         </div>
       )}
 
@@ -101,12 +105,26 @@ const ClubPlayerSection = ({ cardStyle, sectionTitle, theme }) => {
         </div>
       )}
 
+      {!loading && !isLinked && dismissed && (
+        <p style={{ margin: '16px 0 0', color: theme.colors.textSecondary, fontSize: 14 }}>
+          You can sign up as {profile?.name || 'yourself'}. Linking is optional.
+          <button
+            type="button"
+            onClick={() => setDismissed(false)}
+            style={{ marginLeft: 8, background: 'none', border: 'none', color: theme.colors.primary, cursor: 'pointer', padding: 0, fontWeight: 600 }}
+          >
+            Link club history
+          </button>
+        </p>
+      )}
+
       {showSelector && (
         <LegacyNameSelector
-          currentName={profile?.legacy_name}
+          currentName={profile?.name || profile?.legacy_name}
           onSelect={handleSelect}
+          onSkip={isLinked ? null : () => { setDismissed(true); setMessage(null); }}
           suggestedName={!isLinked ? legacyNameSuggestion : null}
-          allowSkip={false}
+          allowSkip={!isLinked}
         />
       )}
 

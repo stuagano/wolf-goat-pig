@@ -609,8 +609,18 @@ async def get_match_details(
 # ============================================================================
 
 
-@router.get("/suggestions")
-def get_match_suggestions(
+def _without_player_emails(matches: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Drop addresses before a suggestion list leaves the server."""
+    visible: list[dict[str, Any]] = []
+    for match in matches:
+        players = [
+            {key: value for key, value in player.items() if key != "email"} for player in match.get("players", [])
+        ]
+        visible.append({**match, "players": players})
+    return visible
+
+
+def _find_match_suggestions(
     min_overlap_hours: float = 2.0,
     preferred_days: str | None = None,
     db: Session = Depends(get_db),
@@ -703,6 +713,17 @@ def get_match_suggestions(
         raise HTTPException(status_code=500, detail=f"Failed to find matches: {e!s}")
 
 
+@router.get("/suggestions")
+def get_match_suggestions(
+    min_overlap_hours: float = 2.0,
+    preferred_days: str | None = None,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Match suggestions for the signup screen. Player emails stay on the server."""
+    found = _find_match_suggestions(min_overlap_hours, preferred_days, db)
+    return {**found, "matches": _without_player_emails(found["matches"])}
+
+
 # ============================================================================
 # POST /matchmaking/create-and-notify - Create matches and send notifications
 # ============================================================================
@@ -716,7 +737,7 @@ async def create_and_notify_matches(db: Session = Depends(get_db)) -> dict[str, 
     """
     try:
         # First, find matches
-        matches_response = get_match_suggestions(min_overlap_hours=2.0, db=db)
+        matches_response = _find_match_suggestions(min_overlap_hours=2.0, preferred_days=None, db=db)
 
         if not matches_response["matches"]:
             return {

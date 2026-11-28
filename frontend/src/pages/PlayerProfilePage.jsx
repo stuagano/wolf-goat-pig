@@ -60,6 +60,7 @@ const PlayerProfilePage = () => {
   const [togglingBadgeId, setTogglingBadgeId] = useState(null);
   const [showcaseError, setShowcaseError] = useState(null);
   const [expandedRound, setExpandedRound] = useState(null);
+  const [venmoHandle, setVenmoHandle] = useState(null);
 
   const load = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -91,6 +92,28 @@ const PlayerProfilePage = () => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerId, features.livsow]);
+
+  // Venmo is not on the public profile. Signed-in members can still pay each other.
+  useEffect(() => {
+    let cancelled = false;
+    setVenmoHandle(null);
+    (async () => {
+      try {
+        const token = await getToken();
+        if (!token) return;
+        const res = await fetch(`${API_URL}/players/member-contacts`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const list = await res.json();
+        const row = Array.isArray(list) ? list.find(p => String(p.id) === String(playerId)) : null;
+        if (!cancelled) setVenmoHandle(row?.venmo_handle || null);
+      } catch {
+        if (!cancelled) setVenmoHandle(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [playerId, getToken]);
 
   const isOwnProfile = myProfile && String(myProfile.id) === String(playerId);
 
@@ -168,7 +191,8 @@ const PlayerProfilePage = () => {
     );
   }
 
-  const { name, handicap, handicap_source, ghin_last_updated, description, venmo_handle, avatar_url, has_avatar_image, last_played, created_at, available_days, game_history, badges, total_badges } = profile;
+  const { name, handicap, handicap_source, ghin_last_updated, description, avatar_url, has_avatar_image, last_played, created_at, available_days, game_history, badges, total_badges } = profile;
+  const venmo_handle = venmoHandle;
   const handicapPending = isPendingHandicap(handicap_source) || handicap == null;
   const ghinFreshness = handicap_source === 'ghin' ? formatGhinFreshness(ghin_last_updated) : null;
   const avatarSrc = has_avatar_image

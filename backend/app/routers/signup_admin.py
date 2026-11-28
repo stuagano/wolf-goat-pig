@@ -1,9 +1,10 @@
-"""Admin: put a linked player on an upcoming day's sign-up sheet.
+"""Admin: put a player on an upcoming day's sign-up sheet.
 
 For players who ask an organizer to sign them up (e.g. by text). The sign-up is
-created exactly as the player's own would be — same roster name, duplicate
-check, confirmation email and legacy-sync hook — and the adding admin is logged.
-Removing uses the existing cancel endpoint, which admins may call on any sign-up.
+created exactly as the player's own would be — roster name when linked, otherwise
+the profile name — with the same duplicate check, confirmation email and
+legacy-sync hook. The adding admin is logged. Removing uses the existing cancel
+endpoint, which admins may call on any sign-up.
 """
 
 import logging
@@ -12,12 +13,12 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..database import get_db
 from ..services.legacy_signup_service import get_legacy_signup_service
+from ..services.signup_identity import roster_link, signup_display_name
 from ..utils.admin_auth import require_admin
 from ..utils.time import club_today, utc_now
 from .signups import notify_signup_joined
@@ -34,14 +35,16 @@ class AdminSignupCreate(BaseModel):
 
 @router.get("/players", dependencies=[Depends(require_admin)])
 def list_signup_players(db: Session = Depends(get_db)) -> dict[str, Any]:
-    """Active profiles linked to a club roster name — the only players an admin can add."""
-    players = (
-        db.query(models.PlayerProfile)
-        .filter(models.PlayerProfile.is_active == 1, models.PlayerProfile.legacy_name.isnot(None))
-        .order_by(func.lower(models.PlayerProfile.legacy_name))
-        .all()
-    )
-    return {"players": [{"id": p.id, "legacy_name": p.legacy_name} for p in players if (p.legacy_name or "").strip()]}
+    """Active profiles an admin can add. ``name`` is what the sheet will show."""
+    players = db.query(models.PlayerProfile).filter(models.PlayerProfile.is_active == 1).all()
+    choices = []
+    for player in players:
+        display = signup_display_name(player)
+        if not display:
+            continue
+        choices.append({"id": player.id, "name": display, "legacy_name": roster_link(player.legacy_name)})
+    choices.sort(key=lambda row: row["name"].casefold())
+    return {"players": choices}
 
 
 @router.post("", response_model=schemas.DailySignupResponse)
@@ -53,8 +56,9 @@ def admin_add_signup(
     if body.date < club_today():
         raise HTTPException(status_code=400, detail="Pick today or a future date.")
     player = db.get(models.PlayerProfile, body.player_profile_id)
-    if player is None or not player.is_active or not (player.legacy_name or "").strip():
-        raise HTTPException(status_code=400, detail="That player isn't linked to a club roster name yet.")
+    display_name = signup_display_name(player) if player is not None and player.is_active else None
+    if not display_name:
+        raise HTTPException(status_code=400, detail="That player needs a name before they can be signed up.")
 
     signup_date = body.date.isoformat()
     existing = (
@@ -73,7 +77,7 @@ def admin_add_signup(
     signup = models.DailySignup(
         date=signup_date,
         player_profile_id=player.id,
-        player_name=player.legacy_name,
+        player_name=display_name,
         signup_time=now,
         notes=body.notes,
         status="signed_up",
@@ -83,13 +87,14 @@ def admin_add_signup(
     db.add(signup)
     db.commit()
     db.refresh(signup)
-    logger.info(
-        "Admin %s signed up %s (profile %s) for %s", admin.get("email"), player.legacy_name, player.id, signup_date
-    )
+    logger.info("Admin %s signed up %s (profile %s) for %s", admin.get("email"), display_name, player.id, signup_date)
 
-    try:
-        get_legacy_signup_service().sync_signup_created(signup)
-    except Exception:
-        logger.exception("Legacy signup sync failed for admin create id=%s", signup.id)
-    notify_signup_joined(signup.id, player.email, player.legacy_name, signup_date)
+    if roster_link(player.legacy_name):
+        try:
+            if get_legacy_signup_service().sync_signup_created(signup):
+                signup.legacy_mirrored = 1
+                db.commit()
+        except Exception:
+            logger.exception("Legacy signup sync failed for admin create id=%s", signup.id)
+    notify_signup_joined(signup.id, player.email, display_name, signup_date)
     return schemas.DailySignupResponse.from_orm(signup)
